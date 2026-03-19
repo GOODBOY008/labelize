@@ -1,107 +1,20 @@
-//! E2E golden-file tests: parse → render → encode to PNG, then compare against
-//! the reference PNGs produced by the original Go implementation.
-
-use std::io::Cursor;
+use crate::common::image_compare;
+use crate::common::render_helpers;
 use std::path::Path;
 
-use labelize::{DrawerOptions, EplParser, Renderer, ZplParser};
-
-/// Maximum allowed pixel-difference percentage before a test is considered failed.
-/// Set high initially since Rust uses different rendering libraries (imageproc/ab_glyph)
-/// vs Go (gg/freetype). Tighten as rendering fidelity improves.
-const TOLERANCE_PERCENT: f64 = 50.0;
-
-fn default_options() -> DrawerOptions {
-    DrawerOptions {
-        label_width_mm: 102.0,
-        label_height_mm: 152.0,
-        dpmm: 8,
-        ..Default::default()
-    }
-}
+/// Maximum allowed pixel-difference percentage for migrated tests.
+const MIGRATED_TOLERANCE: f64 = 50.0;
 
 fn testdata_dir() -> std::path::PathBuf {
-    // Support both symlinked testdata/ and parent ../testdata/
-    let local = Path::new("testdata");
-    if local.exists() {
-        return local.to_path_buf();
-    }
-    let parent = Path::new("../testdata");
-    if parent.exists() {
-        return parent.to_path_buf();
-    }
-    panic!("testdata directory not found (tried ./testdata and ../testdata)");
-}
-
-/// Render a ZPL file and return PNG bytes for the first label.
-fn render_zpl(path: &Path) -> Vec<u8> {
-    let content = std::fs::read(path).expect("read input");
-    let mut parser = ZplParser::new();
-    let labels = parser.parse(&content).expect("parse");
-    assert!(!labels.is_empty(), "no labels in {}", path.display());
-    let renderer = Renderer::new();
-    let mut buf = Cursor::new(Vec::new());
-    renderer
-        .draw_label_as_png(&labels[0], &mut buf, default_options())
-        .expect("render");
-    buf.into_inner()
-}
-
-/// Render an EPL file and return PNG bytes for the first label.
-fn render_epl(path: &Path) -> Vec<u8> {
-    let content = std::fs::read(path).expect("read input");
-    let parser = EplParser::new();
-    let labels = parser.parse(&content).expect("parse");
-    assert!(!labels.is_empty(), "no labels in {}", path.display());
-    let renderer = Renderer::new();
-    let mut buf = Cursor::new(Vec::new());
-    renderer
-        .draw_label_as_png(&labels[0], &mut buf, default_options())
-        .expect("render");
-    buf.into_inner()
-}
-
-/// Compare two PNG images and return the percentage of differing pixels.
-fn pixel_diff_percent(actual_png: &[u8], expected_png: &[u8]) -> f64 {
-    let actual = image::load_from_memory(actual_png)
-        .expect("decode actual PNG")
-        .to_rgba8();
-    let expected = image::load_from_memory(expected_png)
-        .expect("decode expected PNG")
-        .to_rgba8();
-
-    // Use the intersection of dimensions
-    let w = actual.width().min(expected.width());
-    let h = actual.height().min(expected.height());
-    let total = (w as u64) * (h as u64);
-    if total == 0 {
-        return 100.0;
-    }
-
-    let mut diff_count: u64 = 0;
-    for y in 0..h {
-        for x in 0..w {
-            let a = actual.get_pixel(x, y);
-            let e = expected.get_pixel(x, y);
-            // Consider pixels different if any channel differs by >32
-            let differs = (0..4).any(|i| (a[i] as i16 - e[i] as i16).unsigned_abs() > 32);
-            if differs {
-                diff_count += 1;
-            }
-        }
-    }
-
-    // Also count extra pixels from size mismatch as differences
-    let max_w = actual.width().max(expected.width());
-    let max_h = actual.height().max(expected.height());
-    let max_total = (max_w as u64) * (max_h as u64);
-    let size_diff = max_total - total;
-
-    (diff_count + size_diff) as f64 / max_total as f64 * 100.0
+    render_helpers::testdata_dir()
 }
 
 /// Run a golden-file comparison for a ZPL test case.
 fn golden_zpl(name: &str) {
+    golden_zpl_with_tolerance(name, MIGRATED_TOLERANCE);
+}
+
+fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
     let input = dir.join(format!("{}.zpl", name));
     let expected = dir.join(format!("{}.png", name));
@@ -111,21 +24,40 @@ fn golden_zpl(name: &str) {
         return;
     }
 
-    let actual_png = render_zpl(&input);
+    let content = std::fs::read_to_string(&input).expect("read input");
+    let actual_png = render_helpers::render_zpl_to_png(&content, render_helpers::default_options());
     let expected_png = std::fs::read(&expected).expect("read golden");
-    let diff = pixel_diff_percent(&actual_png, &expected_png);
+    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+
+    if result.diff_percent > tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    // Optionally update golden file
+    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
+        std::fs::write(&expected, &actual_png).expect("update golden file");
+        return;
+    }
 
     assert!(
-        diff <= TOLERANCE_PERCENT,
-        "ZPL golden test '{}' FAILED: {:.2}% pixel difference (tolerance: {:.2}%)",
+        result.diff_percent <= tolerance,
+        "ZPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
         name,
-        diff,
-        TOLERANCE_PERCENT,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
     );
 }
 
 /// Run a golden-file comparison for an EPL test case.
 fn golden_epl(name: &str) {
+    golden_epl_with_tolerance(name, MIGRATED_TOLERANCE);
+}
+
+fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
     let input = dir.join(format!("{}.epl", name));
     let expected = dir.join(format!("{}.png", name));
@@ -135,16 +67,30 @@ fn golden_epl(name: &str) {
         return;
     }
 
-    let actual_png = render_epl(&input);
+    let content = std::fs::read_to_string(&input).expect("read input");
+    let actual_png = render_helpers::render_epl_to_png(&content, render_helpers::default_options());
     let expected_png = std::fs::read(&expected).expect("read golden");
-    let diff = pixel_diff_percent(&actual_png, &expected_png);
+    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+
+    if result.diff_percent > tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
+        std::fs::write(&expected, &actual_png).expect("update golden file");
+        return;
+    }
 
     assert!(
-        diff <= TOLERANCE_PERCENT,
-        "EPL golden test '{}' FAILED: {:.2}% pixel difference (tolerance: {:.2}%)",
+        result.diff_percent <= tolerance,
+        "EPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
         name,
-        diff,
-        TOLERANCE_PERCENT,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
     );
 }
 

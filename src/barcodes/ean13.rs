@@ -66,11 +66,10 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<RgbaImage, S
 
     // Total width: 3 (start) + 6*7 (left) + 5 (center) + 6*7 (right) + 3 (end) = 95 modules
     let module_count = 95;
-    let quiet = 10;
-    let total_width = module_count + quiet * 2;
+    let total_width = module_count;
 
     let mut bm = BitMatrix::new(total_width, 1);
-    let mut pos = quiet;
+    let mut pos = 0;
 
     // Start guard: 101
     bm.set(pos, 0, true); pos += 1;

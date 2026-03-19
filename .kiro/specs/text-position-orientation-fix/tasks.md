@@ -1,0 +1,113 @@
+# Implementation Plan
+
+- [ ] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Text Position & Orientation Mismatch Across All Orientations
+  - **CRITICAL**: This test MUST FAIL on unfixed code — failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior — it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate text rendering diverges from Labelary reference
+  - **Scoped PBT Approach**: Scope the property to the concrete failing golden test cases for text rendering
+  - Create ZPL test files if they don't already exist in `testdata/`:
+    - `text_fo_n.zpl`, `text_fo_r.zpl`, `text_fo_i.zpl`, `text_fo_b.zpl` (^FO with Normal, Rotated90, Rotated180, Rotated270)
+    - `text_ft_n.zpl`, `text_ft_r.zpl`, `text_ft_i.zpl`, `text_ft_b.zpl` (^FT with all orientations)
+    - `text_ft_auto_pos.zpl` (automatic position advancement with ^FT)
+  - Generate Labelary reference PNGs for each test file if not present
+  - Write a property-based test in `tests/unit/property_tests.rs` (or a new test file) that:
+    - For each text orientation test case (N, R, I, B) × (^FO, ^FT) + auto-pos:
+      - Renders the ZPL using `render_helpers::render_zpl_to_png()`
+      - Compares against the Labelary reference PNG using `image_compare::compare_images()`
+      - Asserts pixel diff ≤ 5.0% (tight tolerance to catch position/rotation bugs)
+    - Bug condition from design: `isBugCondition(input)` where `hasPositionOffsetBug OR hasMissingRotationBug OR hasAutoPositionBug`
+    - Expected behavior: `pixelDiff(result, labelaryReference) <= 5.0%` for all text orientation test cases
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (pixel diff will be >> 5% due to spurious offsets and missing rotation)
+  - Document counterexamples found:
+    - Normal ^FO: text shifted ~21px downward due to `y + 3h/4` offset
+    - Rotated90/180/270 ^FO: text unrotated and offset due to missing render-then-rotate
+    - ^FT: baseline-to-top-left conversion incorrect
+    - Auto-pos: cursor drift across sequential ^FT fields
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
+
+- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Non-Text Element Rendering Unchanged
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-text elements:
+    - Observe: Render barcode golden tests (barcode128_rotated, barcode128_default_width, ean13, etc.) — record pixel output
+    - Observe: Render graphic element golden tests (gb_normal, gb_rounded, gb_0_height, gb_0_width) — record pixel output
+    - Observe: Render mixed labels (amazon, fedex, ups, usps) — record pixel output for non-text regions
+  - Write property-based tests in `tests/unit/property_tests.rs`:
+    - **Barcode preservation**: For a set of barcode-only ZPL inputs with various orientations, render on unfixed code and snapshot the output. Assert that after fix, output is byte-identical.
+    - **Graphic element preservation**: For graphic boxes, circles, diagonal lines, render on unfixed code and snapshot. Assert identical after fix.
+    - **Golden test preservation**: Run existing non-text golden tests (barcode128_*, gb_*, ean13, qr_code_*, reverse_qr, etc.) and assert they still pass within `MIGRATED_TOLERANCE` (50.0%)
+    - **Field block preservation**: Render Normal-orientation text with `^FB` word wrapping on unfixed code, observe output. Assert wrapping/alignment behavior is preserved after fix.
+  - Verify tests pass on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [ ] 3. Fix text position and orientation rendering
+
+  - [ ] 3.1 Fix `get_text_top_left_pos()` position calculations in `src/drawers/renderer.rs`
+    - Remove spurious fractional offsets for `^FO` (`calculate_from_bottom=false`):
+      - Normal: return `(x, y)` directly — remove `y + 3h/4` offset
+      - Rotated90: compute top-left of rotated bounding box — remove `x + h/4` offset
+      - Rotated180: compute top-left of rotated bounding box — remove `x + w` and `y + h/4` offsets
+      - Rotated270: compute top-left of rotated bounding box — remove `x + 3h/4` and `y + w` offsets
+    - Fix `^FT` baseline-to-top-left conversion (`calculate_from_bottom=true`):
+      - Normal: `y_top = y_baseline - h`, accounting for multiline offset
+      - Rotated90: adjust x/y for rotated baseline reference point
+      - Rotated180: `x_top = x_baseline - w`, adjust y for rotated baseline
+      - Rotated270: adjust x/y for rotated baseline reference point with multiline offset
+    - _Bug_Condition: isBugCondition(input) where hasPositionOffsetBug — spurious fractional offsets in ^FO branch and incorrect ^FT baseline conversion_
+    - _Expected_Behavior: get_text_top_left_pos() returns coordinates that, combined with rotated text buffer, match Labelary reference within tolerance_
+    - _Preservation: Normal-orientation ^FO text should render at (x, y) directly; non-text elements unaffected_
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5_
+
+  - [ ] 3.2 Implement render-then-rotate pattern for text in `src/drawers/renderer.rs`
+    - Modify `draw_text()` to handle non-Normal orientations:
+      - For Rotated90/180/270: render text to a temporary transparent `RgbaImage` buffer
+      - Apply existing `rotate_90()`/`rotate_180()`/`rotate_270()` to the buffer
+      - Overlay rotated buffer onto canvas using `overlay_at()`
+    - Handle `^FB` field block text with rotation:
+      - Render entire block (word wrapping + alignment) to temporary buffer before rotating
+    - Mirror the existing barcode rotation pattern used in `overlay_with_rotation()`
+    - _Bug_Condition: isBugCondition(input) where hasMissingRotationBug — glyphs not rotated for non-Normal orientations_
+    - _Expected_Behavior: text glyphs are rotated by the corresponding angle, matching Labelary reference_
+    - _Preservation: Normal-orientation text rendering path unchanged; barcode rotation unaffected_
+    - _Requirements: 1.6, 2.6_
+
+  - [ ] 3.3 Fix `update_automatic_text_position()` in `src/drawers/drawer_state.rs`
+    - Fix cursor advancement direction and magnitude for each orientation:
+      - Normal: advance x by text width (current behavior, verify correctness)
+      - Rotated90: advance y by text width (rotated buffer height = original width)
+      - Rotated180: advance x by negative text width (text extends leftward)
+      - Rotated270: advance y by negative text width
+    - Verify advancement directions match Labelary behavior for sequential ^FT fields
+    - _Bug_Condition: isBugCondition(input) where hasAutoPositionBug — cursor advancement incorrect for rotated text_
+    - _Expected_Behavior: subsequent ^FT fields placed at positions matching Labelary reference_
+    - _Preservation: Normal-orientation auto-position advancement unchanged_
+    - _Requirements: 1.7, 2.7_
+
+  - [ ] 3.4 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Text Position & Orientation Matches Reference
+    - **IMPORTANT**: Re-run the SAME test from task 1 — do NOT write a new test
+    - The test from task 1 encodes the expected behavior (pixel diff ≤ 5.0% against Labelary reference)
+    - When this test passes, it confirms the expected behavior is satisfied for all orientations
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms text position and rotation bugs are fixed)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+
+  - [ ] 3.5 Verify preservation tests still pass
+    - **Property 2: Preservation** - Non-Text Element Rendering Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 — do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions in barcode, graphic, and field block rendering)
+    - Confirm all non-text golden tests still pass after fix (no regressions)
+
+- [ ] 4. Checkpoint — Ensure all tests pass
+  - Run the full test suite: `cargo test`
+  - Verify all text orientation golden tests pass with tight tolerance (≤ 5%)
+  - Verify all non-text golden tests pass within existing tolerance (≤ 50%)
+  - Verify all unit tests and property-based tests pass
+  - Ask the user if questions arise

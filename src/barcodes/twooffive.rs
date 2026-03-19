@@ -54,10 +54,10 @@ pub fn encode(content: &str, height: i32, wide_bar_ratio: i32, narrow_bar: i32, 
     let pair_count = digits.len() / 2;
     let pair_width = 2 * wide + 3 * narrow; // per digit, interleaved bars and spaces
     let total_module_width = 4 * narrow + pair_count * (pair_width * 2) + wide + 2 * narrow;
-    let total_width = total_module_width + 20 * narrow;
+    let total_width = total_module_width;
 
     let mut bm = BitMatrix::new(total_width, 1);
-    let mut pos = 10 * narrow;
+    let mut pos = 0;
 
     // Start pattern: narrow bar, narrow space, narrow bar, narrow space
     bm.set_range(pos, narrow, true); pos += narrow;

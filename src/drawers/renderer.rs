@@ -171,39 +171,63 @@ impl Renderer {
         // Measure text width approximately
         let text_width = measure_text_width(&text.text, &font, scale) as f64 * scale_x as f64;
 
-        let (x, y) = get_text_top_left_pos(text, text_width, font_size as f64, state);
-        state.update_automatic_text_position(text, text_width);
+        // For field blocks, use block width for positioning instead of measured text width
+        let pos_width = if let Some(ref block) = text.block {
+            block.max_width as f64
+        } else {
+            text_width
+        };
+
+        let (x, y) = get_text_top_left_pos(text, pos_width, font_size as f64, state);
+        state.update_automatic_text_position(text, pos_width);
 
         let color = Rgba([0, 0, 0, 255]);
 
-        // Handle text with block (word wrapping)
-        if let Some(ref block) = text.block {
-            let max_width = block.max_width as f32 / scale_x;
-            let lines = word_wrap(&text.text, &font, scale, max_width);
-            let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+        // Render text to a buffer, then rotate if needed
+        let orientation = text.font.orientation;
 
-            let mut cy = y as f32;
-            let max_lines = block.max_lines.max(1) as usize;
-            for (i, line) in lines.iter().enumerate() {
-                if i >= max_lines {
-                    break;
-                }
-                let lx = match block.alignment {
-                    crate::elements::text_alignment::TextAlignment::Center => {
-                        let lw = measure_text_width(line, &font, scale) * scale_x;
-                        x as f32 + (block.max_width as f32 - lw) / 2.0
-                    }
-                    crate::elements::text_alignment::TextAlignment::Right => {
-                        let lw = measure_text_width(line, &font, scale) * scale_x;
-                        x as f32 + block.max_width as f32 - lw
-                    }
-                    _ => x as f32,
-                };
-                drawing::draw_text_mut(canvas, color, lx as i32, cy as i32, scale, &font, line);
-                cy += line_height;
+        if orientation == FieldOrientation::Normal {
+            // Normal: draw directly onto canvas (no rotation needed)
+            if let Some(ref block) = text.block {
+                draw_text_block(canvas, &font, scale, scale_x, color, x as f32, y as f32, block, &text.text);
+            } else {
+                drawing::draw_text_mut(canvas, color, x as i32, y as i32, scale, &font, &text.text);
             }
         } else {
-            drawing::draw_text_mut(canvas, color, x as i32, y as i32, scale, &font, &text.text);
+            // Non-normal: render to transparent buffer, rotate, then overlay
+            let (buf_w, buf_h) = if let Some(ref block) = text.block {
+                let lines = word_wrap(&text.text, &font, scale, block.max_width as f32 / scale_x);
+                let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+                let max_lines = block.max_lines.max(1) as usize;
+                let num_lines = lines.len().min(max_lines);
+                let h = (num_lines as f32 * line_height).ceil() as u32 + 2;
+                (block.max_width as u32 + 2, h)
+            } else {
+                let w = (text_width as f32).ceil() as u32 + 2;
+                let h = font_size.ceil() as u32 + 2;
+                (w, h)
+            };
+
+            if buf_w == 0 || buf_h == 0 {
+                return Ok(());
+            }
+
+            let mut buf = RgbaImage::from_pixel(buf_w, buf_h, Rgba([0, 0, 0, 0]));
+
+            if let Some(ref block) = text.block {
+                draw_text_block(&mut buf, &font, scale, scale_x, color, 0.0, 0.0, block, &text.text);
+            } else {
+                drawing::draw_text_mut(&mut buf, color, 0, 0, scale, &font, &text.text);
+            }
+
+            let rotated = match orientation {
+                FieldOrientation::Rotated90 => rotate_90(&buf),
+                FieldOrientation::Rotated180 => rotate_180(&buf),
+                FieldOrientation::Rotated270 => rotate_270(&buf),
+                _ => buf,
+            };
+
+            overlay_at(canvas, &rotated, x as i32, y as i32);
         }
 
         Ok(())
@@ -222,12 +246,10 @@ impl Renderer {
         let border = gb.border_thickness;
 
         if gb.corner_rounding > 0 {
-            // Draw filled rounded rectangle by drawing outer then clipping inner
-            draw_filled_rect(canvas, x, y, w, h, color);
-            if border < w.min(h) / 2 {
-                let inner_color = Rgba([255, 255, 255, 255]);
-                draw_filled_rect(canvas, x + border, y + border, w - 2 * border, h - 2 * border, inner_color);
-            }
+            // ZPL corner_rounding 1-8: radius = (shorter_side / 2) * (rounding / 8)
+            let shorter = w.min(h);
+            let radius = ((shorter as f64 / 2.0) * (gb.corner_rounding as f64 / 8.0)).round() as i32;
+            draw_rounded_rect(canvas, x, y, w, h, border, radius, color);
         } else {
             // Draw box with border
             if border >= w || border >= h {
@@ -274,21 +296,36 @@ impl Renderer {
         let y = dl.position.y as f32;
         let w = dl.width as f32;
         let h = dl.height as f32;
+        let thickness = dl.border_thickness.max(1);
 
-        if dl.top_to_bottom {
-            drawing::draw_line_segment_mut(
-                canvas,
-                (x, y),
-                (x + w, y + h),
-                color,
-            );
+        if thickness <= 1 {
+            if dl.top_to_bottom {
+                drawing::draw_line_segment_mut(canvas, (x, y), (x + w, y + h), color);
+            } else {
+                drawing::draw_line_segment_mut(canvas, (x, y + h), (x + w, y), color);
+            }
         } else {
-            drawing::draw_line_segment_mut(
-                canvas,
-                (x, y + h),
-                (x + w, y),
-                color,
-            );
+            // Draw thick diagonal line as a filled polygon
+            let (x0, y0, x1, y1) = if dl.top_to_bottom {
+                (x, y, x + w, y + h)
+            } else {
+                (x, y + h, x + w, y)
+            };
+            let dx = x1 - x0;
+            let dy = y1 - y0;
+            let len = (dx * dx + dy * dy).sqrt();
+            if len < 0.001 { return; }
+            let half_t = thickness as f32 / 2.0;
+            // Normal perpendicular to the line
+            let nx = -dy / len * half_t;
+            let ny = dx / len * half_t;
+            let poly = [
+                imageproc::point::Point::new((x0 + nx) as i32, (y0 + ny) as i32),
+                imageproc::point::Point::new((x0 - nx) as i32, (y0 - ny) as i32),
+                imageproc::point::Point::new((x1 - nx) as i32, (y1 - ny) as i32),
+                imageproc::point::Point::new((x1 + nx) as i32, (y1 + ny) as i32),
+            ];
+            drawing::draw_polygon_mut(canvas, &poly, color);
         }
     }
 
@@ -339,18 +376,25 @@ impl Renderer {
         bc: &crate::elements::barcode_128::Barcode128WithData,
     ) -> Result<(), String> {
         let content = &bc.data;
-        let img = match bc.barcode.mode {
+        let (img, display_text) = match bc.barcode.mode {
             BarcodeMode::No => {
-                let (img, _text) = barcodes::code128::encode_no_mode(content, bc.barcode.height, bc.width)?;
-                img
+                barcodes::code128::encode_no_mode(content, bc.barcode.height, bc.width)?
             }
             _ => {
-                barcodes::code128::encode_auto(content, bc.barcode.height, bc.width)?
+                let img = barcodes::code128::encode_auto(content, bc.barcode.height, bc.width)?;
+                (img, content.clone())
             }
         };
 
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            draw_barcode_interpretation_line(
+                canvas, &display_text, &pos, &img,
+                bc.barcode.orientation, bc.barcode.line_above,
+            );
+        }
         Ok(())
     }
 
@@ -362,6 +406,13 @@ impl Renderer {
         let img = barcodes::ean13::encode(&bc.data, bc.barcode.height, bc.width)?;
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            draw_barcode_interpretation_line(
+                canvas, &bc.data, &pos, &img,
+                bc.barcode.orientation, bc.barcode.line_above,
+            );
+        }
         Ok(())
     }
 
@@ -380,6 +431,13 @@ impl Renderer {
         )?;
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            draw_barcode_interpretation_line(
+                canvas, &content, &pos, &img,
+                bc.barcode.orientation, bc.barcode.line_above,
+            );
+        }
         Ok(())
     }
 
@@ -396,6 +454,13 @@ impl Renderer {
         )?;
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            draw_barcode_interpretation_line(
+                canvas, &bc.data, &pos, &img,
+                bc.barcode.orientation, bc.barcode.line_above,
+            );
+        }
         Ok(())
     }
 
@@ -523,27 +588,65 @@ fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32) -> Vec<
     lines
 }
 
+fn draw_text_block(
+    canvas: &mut RgbaImage,
+    font: &FontRef,
+    scale: PxScale,
+    scale_x: f32,
+    color: Rgba<u8>,
+    x: f32,
+    y: f32,
+    block: &crate::elements::field_block::FieldBlock,
+    text: &str,
+) {
+    let max_width = block.max_width as f32 / scale_x;
+    let lines = word_wrap(text, font, scale, max_width);
+    let font_size = scale.y;
+    let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+
+    let mut cy = y;
+    let max_lines = block.max_lines.max(1) as usize;
+    for (i, line) in lines.iter().enumerate() {
+        if i >= max_lines {
+            break;
+        }
+        let lx = match block.alignment {
+            crate::elements::text_alignment::TextAlignment::Center => {
+                let lw = measure_text_width(line, font, scale) * scale_x;
+                x + (block.max_width as f32 - lw) / 2.0
+            }
+            crate::elements::text_alignment::TextAlignment::Right => {
+                let lw = measure_text_width(line, font, scale) * scale_x;
+                x + block.max_width as f32 - lw
+            }
+            _ => x,
+        };
+        drawing::draw_text_mut(canvas, color, lx as i32, cy as i32, scale, font, line);
+        cy += line_height;
+    }
+}
+
 fn get_text_top_left_pos(text: &TextField, w: f64, h: f64, state: &DrawerState) -> (f64, f64) {
     let (x, y) = state.get_text_position(text);
 
     if !text.position.calculate_from_bottom {
-        return match text.font.orientation {
-            FieldOrientation::Rotated90 => (x + h / 4.0, y),
-            FieldOrientation::Rotated180 => (x + w, y + h / 4.0),
-            FieldOrientation::Rotated270 => (x + 3.0 * h / 4.0, y + w),
-            _ => (x, y + 3.0 * h / 4.0),
-        };
+        // ^FO: position is top-left of the field area. No fractional offsets needed.
+        // For non-Normal orientations, text is rendered to a buffer then rotated,
+        // so (x, y) is the top-left of the rotated bounding box.
+        return (x, y);
     }
 
+    // ^FT: position is baseline (bottom-left for Normal).
+    // Convert to top-left of the rendering area.
     let lines = if let Some(ref block) = text.block { block.max_lines.max(1) as f64 } else { 1.0 };
     let spacing = if let Some(ref block) = text.block { block.line_spacing as f64 } else { 0.0 };
-    let offset = (lines - 1.0) * (h + spacing);
+    let total_h = h + (lines - 1.0) * (h + spacing);
 
     match text.font.orientation {
-        FieldOrientation::Rotated90 => (x + offset, y),
-        FieldOrientation::Rotated180 => (x, y + offset),
-        FieldOrientation::Rotated270 => (x - offset, y),
-        _ => (x, y - offset),
+        FieldOrientation::Rotated90 => (x, y),
+        FieldOrientation::Rotated180 => (x - w, y),
+        FieldOrientation::Rotated270 => (x - total_h, y - w),
+        _ => (x, y - total_h),
     }
 }
 
@@ -665,4 +768,140 @@ fn rotate_270(img: &RgbaImage) -> RgbaImage {
         }
     }
     out
+}
+
+/// Draw a rounded rectangle with border. ZPL corner rounding uses radius
+/// computed as (shorter_side/2) * (rounding/8).
+fn draw_rounded_rect(
+    canvas: &mut RgbaImage,
+    x: i32, y: i32,
+    w: i32, h: i32,
+    border: i32,
+    radius: i32,
+    color: Rgba<u8>,
+) {
+    let r = radius.min(w / 2).min(h / 2).max(0);
+
+    if border >= w || border >= h {
+        // Filled rounded rect
+        draw_filled_rounded_rect_region(canvas, x, y, w, h, r, color);
+    } else {
+        // Draw outer rounded rect, then carve out inner
+        draw_filled_rounded_rect_region(canvas, x, y, w, h, r, color);
+        let inner_r = (r - border).max(0);
+        let bg = Rgba([255, 255, 255, 255]);
+        draw_filled_rounded_rect_region(
+            canvas,
+            x + border, y + border,
+            w - 2 * border, h - 2 * border,
+            inner_r, bg,
+        );
+    }
+}
+
+/// Fill a rounded rectangle region pixel-by-pixel.
+fn draw_filled_rounded_rect_region(
+    canvas: &mut RgbaImage,
+    x: i32, y: i32,
+    w: i32, h: i32,
+    r: i32,
+    color: Rgba<u8>,
+) {
+    let r_sq = (r as i64) * (r as i64);
+    for py in y.max(0)..(y + h).min(canvas.height() as i32) {
+        for px in x.max(0)..(x + w).min(canvas.width() as i32) {
+            let lx = px - x;
+            let ly = py - y;
+            // Check if pixel is in a corner region that should be rounded
+            let in_corner = if lx < r && ly < r {
+                // Top-left corner
+                let dx = (r - 1 - lx) as i64;
+                let dy = (r - 1 - ly) as i64;
+                dx * dx + dy * dy > r_sq
+            } else if lx >= w - r && ly < r {
+                // Top-right corner
+                let dx = (lx - (w - r)) as i64;
+                let dy = (r - 1 - ly) as i64;
+                dx * dx + dy * dy > r_sq
+            } else if lx < r && ly >= h - r {
+                // Bottom-left corner
+                let dx = (r - 1 - lx) as i64;
+                let dy = (ly - (h - r)) as i64;
+                dx * dx + dy * dy > r_sq
+            } else if lx >= w - r && ly >= h - r {
+                // Bottom-right corner
+                let dx = (lx - (w - r)) as i64;
+                let dy = (ly - (h - r)) as i64;
+                dx * dx + dy * dy > r_sq
+            } else {
+                false
+            };
+            if !in_corner {
+                canvas.put_pixel(px as u32, py as u32, color);
+            }
+        }
+    }
+}
+
+/// Draw the human-readable interpretation line below (or above) a barcode.
+fn draw_barcode_interpretation_line(
+    canvas: &mut RgbaImage,
+    text: &str,
+    pos: &LabelPosition,
+    barcode_img: &RgbaImage,
+    orientation: FieldOrientation,
+    line_above: bool,
+) {
+    let font_data = FONT_DEJAVU_MONO;
+    let font = match ab_glyph::FontRef::try_from_slice(font_data) {
+        Ok(f) => f,
+        Err(_) => return,
+    };
+    let font_size = 18.0f32;
+    let scale = PxScale { x: font_size, y: font_size };
+
+    // Strip control characters (like FNC1 escape) from display text
+    let display: String = text.chars().filter(|c| !c.is_control() && *c != '\u{00F1}').collect();
+
+    let text_width = measure_text_width(&display, &font, scale);
+    let bw = barcode_img.width() as i32;
+    let bh = barcode_img.height() as i32;
+
+    let (tx, ty) = match orientation {
+        FieldOrientation::Normal => {
+            let cx = pos.x + (bw - text_width as i32) / 2;
+            if line_above {
+                (cx, pos.y - font_size as i32 - 2)
+            } else {
+                (cx, pos.y + bh + 2)
+            }
+        }
+        FieldOrientation::Rotated90 => {
+            let cx = pos.x + (bh - text_width as i32) / 2;
+            if line_above {
+                (cx, pos.y - font_size as i32 - 2)
+            } else {
+                (cx, pos.y + bw + 2)
+            }
+        }
+        FieldOrientation::Rotated180 => {
+            let cx = pos.x + (bw - text_width as i32) / 2;
+            if line_above {
+                (cx, pos.y + bh + 2)
+            } else {
+                (cx, pos.y - font_size as i32 - 2)
+            }
+        }
+        FieldOrientation::Rotated270 => {
+            let cx = pos.x + (bh - text_width as i32) / 2;
+            if line_above {
+                (cx, pos.y + bw + 2)
+            } else {
+                (cx, pos.y - font_size as i32 - 2)
+            }
+        }
+    };
+
+    let color = Rgba([0, 0, 0, 255]);
+    drawing::draw_text_mut(canvas, color, tx, ty, scale, &font, &display);
 }

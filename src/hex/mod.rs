@@ -10,17 +10,36 @@ pub fn decode_escaped_string(value: &str, escape_char: u8) -> Result<String, Str
     let mut i = 0;
     while i < chars.len() {
         if chars[i] == esc && i + 2 < chars.len() {
-            let hex_str: String = chars[i + 1..i + 3].iter().collect();
-            if let Ok(bytes) = hex::decode(&hex_str) {
-                if let Some(&b) = bytes.first() {
-                    result.push(b as char);
-                    i += 3;
-                    continue;
+            // Collect consecutive hex-escaped bytes for proper multi-byte UTF-8 decoding
+            let mut bytes = Vec::new();
+            while i < chars.len() && chars[i] == esc && i + 2 < chars.len() {
+                let hex_str: String = chars[i + 1..i + 3].iter().collect();
+                if let Ok(decoded) = hex::decode(&hex_str) {
+                    if let Some(&b) = decoded.first() {
+                        bytes.push(b);
+                        i += 3;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
                 }
             }
+            if !bytes.is_empty() {
+                match String::from_utf8(bytes.clone()) {
+                    Ok(s) => result.push_str(&s),
+                    Err(_) => {
+                        // Fallback: push bytes as Latin-1 characters
+                        for b in bytes {
+                            result.push(b as char);
+                        }
+                    }
+                }
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
         }
-        result.push(chars[i]);
-        i += 1;
     }
     Ok(result)
 }
