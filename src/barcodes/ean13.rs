@@ -114,8 +114,9 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<RgbaImage, S
 
     let bw = bar_width.max(1) as usize;
     let h = height.max(1) as usize;
-    // Guard bars extend further down than data bars
-    let guard_extension = (5 * bw).max((h as f32 * 0.10).ceil() as usize).max(5);
+    // Guard bars extend further down than data bars.
+    // Use 5 × module_width or at least 12% of bar height for visibility.
+    let guard_extension = (5 * bw).max((h as f32 * 0.12).ceil() as usize).max(6);
     let total_height = h + guard_extension;
 
     // Guard bar positions in the 95-module pattern:

@@ -12,7 +12,7 @@ impl Default for DrawerOptions {
             label_width_mm: 101.6,
             label_height_mm: 203.2,
             dpmm: 8,
-            enable_inverted_labels: true,
+            enable_inverted_labels: false,
         }
     }
 }
