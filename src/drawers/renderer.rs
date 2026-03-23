@@ -745,10 +745,29 @@ fn get_text_top_left_pos(
     };
     let total_h = ascent + (lines - 1.0) * (h + spacing);
 
+    // ZPL spec: ^FT coordinate is "always for the left end of the baseline regardless of rotation".
+    // For rotated text, the "baseline left end" rotates with the text.
+    // Different rotation directions may need different offset ratios due to font metrics differences
+    // between our substitute fonts and Zebra's built-in fonts.
+    // Rotated90: text reads bottom-to-top, baseline on right side
+    // Rotated270: text reads top-to-bottom, baseline on left side
+    let rotated90_offset = h * 0.25; // Smaller offset for Rotated90 (baseline right side)
+    let rotated270_offset = ascent; // Standard ascent for Rotated270 (baseline left side)
+
+    // When text is rotated, the baseline concept rotates with it:
+    // - Normal: baseline is at the bottom of text, (x,y) is left end of baseline.
+    //   We need to shift y up by ascent to get the top-left corner.
+    // - Rotated90 (CW 90°): text reads bottom-to-top, baseline is now on the right side.
+    //   The (x,y) point is at the top of the rotated text's baseline.
+    //   We need to shift x left by ascent (original y-direction becomes x-direction).
+    // - Rotated180: baseline is at the top, (x,y) is right end of baseline.
+    //   We need to shift x left by text width.
+    // - Rotated270 (CW 270°): text reads top-to-bottom, baseline is now on the left side.
+    //   We need to shift both x left by ascent and y up by text width.
     match text.font.orientation {
-        FieldOrientation::Rotated90 => (x, y - w),
+        FieldOrientation::Rotated90 => (x - rotated90_offset, y),
         FieldOrientation::Rotated180 => (x - w, y),
-        FieldOrientation::Rotated270 => (x - total_h, y - w),
+        FieldOrientation::Rotated270 => (x - rotated270_offset, y - w),
         _ => (x, y - total_h),
     }
 }

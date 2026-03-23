@@ -94,22 +94,22 @@ pub fn save_comparison_image(name: &str, expected: &RgbaImage, actual: &RgbaImag
     let h1 = expected.height();
     let w2 = actual.width();
     let h2 = actual.height();
-    
+
     // Add a separator line width
     let separator_width = 4u32;
-    
+
     // Create combined image with separator
     let combined_width = w1 + separator_width + w2;
     let combined_height = h1.max(h2);
     let mut combined = RgbaImage::new(combined_width, combined_height);
-    
+
     // Fill with white background
     for y in 0..combined_height {
         for x in 0..combined_width {
             combined.put_pixel(x, y, image::Rgba([255, 255, 255, 255]));
         }
     }
-    
+
     // Copy expected (Labelary) image to left side
     for y in 0..h1 {
         for x in 0..w1 {
@@ -117,14 +117,14 @@ pub fn save_comparison_image(name: &str, expected: &RgbaImage, actual: &RgbaImag
             combined.put_pixel(x, y, *pixel);
         }
     }
-    
+
     // Draw separator line (blue)
     for y in 0..combined_height {
         for x in w1..(w1 + separator_width) {
             combined.put_pixel(x, y, image::Rgba([0, 100, 200, 255]));
         }
     }
-    
+
     // Copy actual (Labelize) image to right side
     for y in 0..h2 {
         for x in 0..w2 {
@@ -132,8 +132,7 @@ pub fn save_comparison_image(name: &str, expected: &RgbaImage, actual: &RgbaImag
             combined.put_pixel(w1 + separator_width + x, y, *pixel);
         }
     }
-    
+
     let path = dir.join(format!("{}.png", name));
     combined.save(&path).ok();
 }
-

@@ -94,7 +94,9 @@ fn generate_diff_report() -> Vec<ReportEntry> {
         }
 
         // Save side-by-side comparison image (left=Labelary, right=Labelize)
-        if let (Some(ref expected_img), Some(ref actual_img)) = (&result.expected_image, &result.actual_image) {
+        if let (Some(ref expected_img), Some(ref actual_img)) =
+            (&result.expected_image, &result.actual_image)
+        {
             image_compare::save_comparison_image(&name, expected_img, actual_img);
         }
 
