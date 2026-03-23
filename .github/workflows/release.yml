@@ -24,11 +24,11 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact: labelize-aarch64-apple-darwin.tar.gz
-          - os: macos-13
+          - os: macos-latest
             target: x86_64-apple-darwin
             artifact: labelize-x86_64-apple-darwin.tar.gz
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -38,7 +38,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           tar czf ../../../${{ matrix.artifact }} labelize
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
@@ -48,8 +48,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
       - name: Create GitHub Release
@@ -63,7 +63,7 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
       - name: Compute SHA256 sums
