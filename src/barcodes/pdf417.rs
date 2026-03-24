@@ -1,36 +1,18 @@
 use image::{Rgba, RgbaImage};
-use pdf417::{PDF417Encoder, PDF417};
+use rxing::pdf417::encoder::Dimensions;
+use rxing::{BarcodeFormat, EncodeHintValue, EncodeHints, MultiFormatWriter, Writer};
 
-/// Calculate the number of codewords needed for byte encoding.
-fn byte_encoding_codewords(data_len: usize) -> usize {
-    let packed_groups = data_len / 6;
-    let remaining = data_len % 6;
-    1 + 1 + packed_groups * 5 + remaining
-}
-
-/// Compute default (cols, rows) enforcing ~1:2 aspect ratio when both are unspecified.
-fn compute_default_dimensions(total_cws_needed: usize) -> (u8, u8) {
-    for cols in 1u8..=30 {
-        let min_rows = total_cws_needed.div_ceil(cols as usize).max(3);
-        let target_rows = (cols as usize) * 2;
-        let rows = min_rows.max(target_rows).min(90);
-        if (cols as usize) * rows <= 928 && rows >= min_rows {
-            return (cols, rows as u8);
-        }
-    }
-    (30, (total_cws_needed.div_ceil(30).max(3).min(90)) as u8)
-}
-
-/// Resolve row height: ^B7 h overrides, otherwise ^BY height / num_rows.
-fn resolve_row_height(b7_row_height: i32, by_height: i32, num_rows: u8) -> u32 {
+/// Resolve the effective row height for PDF417 rendering.
+fn resolve_row_height(b7_row_height: i32, by_height: i32, num_rows: u32) -> u32 {
     if b7_row_height > 0 {
         b7_row_height as u32
     } else {
-        (by_height as u32 / num_rows as u32).max(1)
+        (by_height as u32 / num_rows.max(1)).max(1)
     }
 }
 
-/// Generate a PDF417 barcode image at 1-pixel module width.
+/// Generate a PDF417 barcode image using rxing's MultiFormatWriter.
+/// Returns an image at 1-pixel module width; the renderer scales by module_width.
 pub fn encode(
     content: &str,
     row_height: i32,
@@ -44,101 +26,83 @@ pub fn encode(
         return Err("PDF417: empty content".to_string());
     }
 
-    let data_bytes = content.as_bytes();
-    let data_cws = byte_encoding_codewords(data_bytes.len());
+    let mut hints = EncodeHints::default();
+    hints = hints.with(EncodeHintValue::Margin("0".to_string()));
 
-    // Estimate security level for dimension calculation
-    let sec_level_estimate = if security_level > 0 && security_level <= 8 {
-        security_level as u8
+    // Security level (0 = auto, 1-8 = explicit)
+    if security_level > 0 && security_level <= 8 {
+        hints = hints.with(EncodeHintValue::ErrorCorrection(security_level.to_string()));
+    }
+
+    // Truncated PDF417
+    if truncated {
+        hints = hints.with(EncodeHintValue::Pdf417Compact("true".to_string()));
+    }
+
+    // Column/row constraints via Pdf417Dimensions
+    let min_cols = if column_count > 0 {
+        column_count.clamp(1, 30) as usize
     } else {
-        2
+        1
     };
-    let ecc_cws = pdf417::ecc::ecc_count(sec_level_estimate);
-    let total_cws_needed = data_cws + ecc_cws;
-
-    // Determine columns and rows
-    let (cols, rows) = if column_count <= 0 && row_count <= 0 {
-        // Both unspecified: use 1:2 aspect ratio
-        compute_default_dimensions(total_cws_needed)
+    let max_cols = if column_count > 0 {
+        column_count.clamp(1, 30) as usize
     } else {
-        let cols = if column_count > 0 {
-            column_count.clamp(1, 30) as u8
-        } else {
-            // Auto columns from rows
-            let r = row_count.clamp(3, 90) as usize;
-            total_cws_needed.div_ceil(r).clamp(1, 30) as u8
-        };
-        let min_rows = total_cws_needed.div_ceil(cols as usize).max(3) as u8;
-        let rows = if row_count > 0 {
-            (row_count as u8).max(min_rows).min(90)
-        } else {
-            min_rows.min(90)
-        };
-        (cols, rows)
+        30
+    };
+    let min_rows = if row_count > 0 {
+        row_count.clamp(3, 90) as usize
+    } else {
+        3
+    };
+    let max_rows = if row_count > 0 {
+        row_count.clamp(3, 90) as usize
+    } else {
+        90
     };
 
-    // Validate 928-codeword cap
-    let capacity = (cols as usize) * (rows as usize);
-    if capacity > 928 {
+    // Validate 928-codeword cap before calling rxing (it panics on overflow)
+    if min_cols * min_rows > 928 {
         return Err(format!(
             "PDF417: cols({}) × rows({}) = {} exceeds 928 codeword limit",
-            cols, rows, capacity
+            min_cols,
+            min_rows,
+            min_cols * min_rows
         ));
     }
 
-    let mut codewords = vec![0u16; capacity];
-    let encoder = PDF417Encoder::new(&mut codewords, false).append_bytes(data_bytes);
+    hints = hints.with(EncodeHintValue::Pdf417Dimensions(Dimensions::new(
+        min_cols, max_cols, min_rows, max_rows,
+    )));
 
-    let (level, sealed) = if security_level > 0 && security_level <= 8 {
-        let level = security_level as u8;
-        let s = encoder.seal(level);
-        (level, s)
-    } else {
-        encoder
-            .fit_seal()
-            .ok_or_else(|| "PDF417: data too large for configuration".to_string())?
-    };
+    // Encode via rxing
+    let writer = MultiFormatWriter::default();
+    let bit_matrix = writer
+        .encode_with_hints(content, &BarcodeFormat::PDF_417, 0, 0, &hints)
+        .map_err(|e| format!("PDF417 encoding failed: {}", e))?;
 
-    let scale_y = resolve_row_height(row_height, by_height, rows);
+    let bm_width = bit_matrix.getWidth();
+    let bm_height = bit_matrix.getHeight();
 
-    encode_to_image(sealed, rows, cols, level, truncated, scale_y)
-}
+    // rxing applies aspectRatio=4 internally, so bm_height = num_symbol_rows * 4
+    let num_symbol_rows = (bm_height / 4).max(1);
+    let scale_y = resolve_row_height(row_height, by_height, num_symbol_rows);
 
-fn encode_to_image(
-    codewords: &[u16],
-    rows: u8,
-    cols: u8,
-    level: u8,
-    truncated: bool,
-    scale_y: u32,
-) -> Result<RgbaImage, String> {
-    let img_width = if truncated {
-        (pdf417::START_PATTERN_LEN as usize + 17 + cols as usize * 17 + 1) as u32
-    } else {
-        (pdf417::START_PATTERN_LEN as usize
-            + 17
-            + cols as usize * 17
-            + 17
-            + pdf417::END_PATTERN_LEN as usize) as u32
-    };
-    let img_height = rows as u32 * scale_y;
-
-    let buf_size = img_width as usize * img_height as usize;
-    let mut storage = vec![false; buf_size];
-    let pdf = PDF417::new(codewords, rows, cols, level)
-        .truncated(truncated)
-        .scaled((1, scale_y));
-    pdf.render(&mut storage[..]);
+    let img_width = bm_width;
+    let img_height = num_symbol_rows * scale_y;
 
     let mut img = RgbaImage::from_pixel(img_width, img_height, Rgba([0, 0, 0, 0]));
     let black = Rgba([0, 0, 0, 255]);
 
-    for (idx, &is_dark) in storage.iter().enumerate() {
-        if is_dark {
-            let x = (idx as u32) % img_width;
-            let y = (idx as u32) / img_width;
-            if x < img_width && y < img_height {
-                img.put_pixel(x, y, black);
+    // Sample the first pixel of each 4-pixel row group from the BitMatrix
+    for row in 0..num_symbol_rows {
+        let src_y = row * 4; // first pixel of this symbol row in the BitMatrix
+        let dst_y = row * scale_y;
+        for x in 0..bm_width {
+            if bit_matrix.get(x, src_y) {
+                for dy in 0..scale_y {
+                    img.put_pixel(x, dst_y + dy, black);
+                }
             }
         }
     }

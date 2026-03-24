@@ -673,6 +673,8 @@ impl ZplParser {
             columns: 0,
             rows: 0,
             truncate: false,
+            module_width: self.printer.default_barcode_dimensions.module_width,
+            by_height: self.printer.default_barcode_dimensions.height,
         };
         if let Some(s) = parts.first() {
             if !s.is_empty() {

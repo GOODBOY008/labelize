@@ -565,11 +565,11 @@ impl Renderer {
             bc.barcode.columns,
             bc.barcode.rows,
             bc.barcode.truncate,
-            bc.by_height,
+            bc.barcode.by_height,
         )?;
 
         // Scale horizontally by module_width (^BY w parameter)
-        let mw = bc.module_width.max(1) as u32;
+        let mw = bc.barcode.module_width.max(1) as u32;
         let scaled = if mw > 1 {
             image::imageops::resize(
                 &img,

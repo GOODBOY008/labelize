@@ -22,7 +22,6 @@ lopdf = "0.40"
 flate2 = "1"
 base64 = "0.22"
 datamatrix = "0.3"
-pdf417 = "0.2.1"
 qrcode = "0.14"
 rxing = { version = "0.8", default-features = false, features = ["encoding_rs"] }
 regex = "1"

@@ -184,8 +184,19 @@ fn pdf417_default_aspect_ratio() {
 
 #[test]
 fn pdf417_validation_rejects_over_928() {
+    // rxing handles capacity validation internally; 30×90=2700 should fail
     let result = pdf417::encode("x", 0, 0, 30, 90, false, 10);
     assert!(result.is_err(), "30×90=2700 should exceed 928 limit");
+}
+
+#[test]
+fn pdf417_truncated_mode() {
+    let full = pdf417::encode("Truncated test", 0, 0, 0, 0, false, 10).expect("full");
+    let trunc = pdf417::encode("Truncated test", 0, 0, 0, 0, true, 10).expect("truncated");
+    assert!(
+        trunc.width() <= full.width(),
+        "truncated PDF417 should not be wider than full"
+    );
 }
 
 #[test]

@@ -153,8 +153,6 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 barcode: bc.clone(),
                 position: field.position.clone(),
                 data: text.clone(),
-                module_width: field.width,
-                by_height: field.height,
             })))
         }
         Some(LabelElement::Barcode128Config(bc)) => {
