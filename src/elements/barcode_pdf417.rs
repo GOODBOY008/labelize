@@ -18,4 +18,6 @@ pub struct BarcodePdf417WithData {
     pub barcode: BarcodePdf417,
     pub position: LabelPosition,
     pub data: String,
+    pub module_width: i32,
+    pub by_height: i32,
 }

@@ -565,9 +565,24 @@ impl Renderer {
             bc.barcode.columns,
             bc.barcode.rows,
             bc.barcode.truncate,
+            bc.by_height,
         )?;
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
-        overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
+
+        // Scale horizontally by module_width (^BY w parameter)
+        let mw = bc.module_width.max(1) as u32;
+        let scaled = if mw > 1 {
+            image::imageops::resize(
+                &img,
+                img.width() * mw,
+                img.height(),
+                image::imageops::FilterType::Nearest,
+            )
+        } else {
+            img
+        };
+
+        let pos = adjust_image_typeset_position(&scaled, &bc.position, bc.barcode.orientation);
+        overlay_with_rotation(canvas, &scaled, &pos, bc.barcode.orientation);
         Ok(())
     }
 

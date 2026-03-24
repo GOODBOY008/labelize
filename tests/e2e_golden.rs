@@ -406,6 +406,10 @@ fn golden_inpost() {
 fn golden_yodel() {
     golden_zpl_with_tolerance("yodel", 5.5);
 }
+#[test]
+fn golden_pdf417_basic() {
+    golden_zpl_with_tolerance("pdf417_basic", 1.0);
+}
 
 // ── EPL golden tests ──────────────────────────────────────────────
 
