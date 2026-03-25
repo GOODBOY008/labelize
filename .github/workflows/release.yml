@@ -10,7 +10,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -39,7 +38,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           tar czf ../../../${{ matrix.artifact }} labelize
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
@@ -50,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           path: artifacts
       - name: Create GitHub Release
@@ -75,7 +74,7 @@ jobs:
     needs: crates-io
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           path: artifacts
       - name: Compute SHA256 sums

@@ -9,6 +9,17 @@ repository = "https://github.com/GOODBOY008/labelize"
 homepage = "https://github.com/GOODBOY008/labelize"
 license = "MIT"
 readme = "README.md"
+exclude = [
+    "testdata/",
+    "docs/",
+    "examples/",
+    "analyze_gd.py",
+    ".github/",
+    ".qoder/",
+    ".kiro/",
+    ".idea/",
+    "AGENTS.md",
+]
 
 [dependencies]
 image = "0.25"
