@@ -157,6 +157,25 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 - **Renderer** — Creates canvas, iterates elements, dispatches drawing (text, graphics, barcodes), handles reverse print and label inversion
 - **Encoder** — Converts RGBA image to monochrome PNG or embeds into single-page PDF
 
+## Render Comparison
+
+Side-by-side comparison against [Labelary](http://labelary.com/) reference renderer. Left = Labelary, Right = Labelize.
+
+All diff images are in [`testdata/diffs/`](testdata/diffs/) — browse them to review any label.
+
+| Label | Diff | Preview |
+|-------|------|---------|
+| amazon | 2.26% | ![amazon](testdata/diffs/amazon_diff.png) |
+| fedex | 5.92% | ![fedex](testdata/diffs/fedex_diff.png) |
+| ups | 6.91% | ![ups](testdata/diffs/ups_diff.png) |
+| dhlpaket | 2.18% | ![dhlpaket](testdata/diffs/dhlpaket_diff.png) |
+| usps | 4.80% | ![usps](testdata/diffs/usps_diff.png) |
+| swisspost | 1.49% | ![swisspost](testdata/diffs/swisspost_diff.png) |
+
+**79 labels tested** — 4 perfect · 24 good (<1%) · 40 minor (<5%) · 11 moderate (<15%) · 0 high
+
+> Full report: [`testdata/diffs/diff_report.txt`](testdata/diffs/diff_report.txt)
+
 ## Testing
 
 ```bash
