@@ -165,12 +165,12 @@ All diff images are in [`testdata/diffs/`](testdata/diffs/) — browse them to r
 
 | Label | Diff | Preview |
 |-------|------|---------|
-| amazon | 2.26% | ![amazon](testdata/diffs/amazon_diff.png) |
-| fedex | 5.92% | ![fedex](testdata/diffs/fedex_diff.png) |
-| ups | 6.91% | ![ups](testdata/diffs/ups_diff.png) |
-| dhlpaket | 2.18% | ![dhlpaket](testdata/diffs/dhlpaket_diff.png) |
-| usps | 4.80% | ![usps](testdata/diffs/usps_diff.png) |
-| swisspost | 1.49% | ![swisspost](testdata/diffs/swisspost_diff.png) |
+| amazon | 2.26% | <img src="testdata/diffs/amazon.png" height="150"> |
+| fedex | 5.92% | <img src="testdata/diffs/fedex.png" height="150"> |
+| ups | 6.91% | <img src="testdata/diffs/ups.png" height="150"> |
+| dhlpaket | 2.18% | <img src="testdata/diffs/dhlpaket.png" height="150"> |
+| usps | 4.80% | <img src="testdata/diffs/usps.png" height="150"> |
+| swisspost | 1.49% | <img src="testdata/diffs/swisspost.png" height="150"> |
 
 **79 labels tested** — 4 perfect · 24 good (<1%) · 40 minor (<5%) · 11 moderate (<15%) · 0 high
 
