@@ -1094,9 +1094,9 @@ fn draw_barcode_interpretation_line(
                 FieldOrientation::Rotated90 => {
                     let cy = pos.y + (bw - text_width as i32) / 2;
                     if line_above {
-                        (pos.x - rotated.width() as i32 - 2, cy)
-                    } else {
                         (pos.x + bh + 2, cy)
+                    } else {
+                        (pos.x - rotated.width() as i32 - 2, cy)
                     }
                 }
                 FieldOrientation::Rotated180 => {
@@ -1110,9 +1110,9 @@ fn draw_barcode_interpretation_line(
                 FieldOrientation::Rotated270 => {
                     let cy = pos.y + (bw - text_width as i32) / 2;
                     if line_above {
-                        (pos.x + bh + 2, cy)
-                    } else {
                         (pos.x - rotated.width() as i32 - 2, cy)
+                    } else {
+                        (pos.x + bh + 2, cy)
                     }
                 }
                 _ => (0, 0),
