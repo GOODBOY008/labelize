@@ -641,7 +641,7 @@ impl Renderer {
 fn get_ttf_font_data(name: &str) -> &'static [u8] {
     match name {
         "0" => FONT_HELVETICA,
-        "B" => FONT_DEJAVU_BOLD,
+        "B" | "D" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
         _ => FONT_DEJAVU_MONO,
     }
