@@ -20,16 +20,16 @@
 ║ canadapost                     │ zpl  │    4.52% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ colissimo                      │ zpl  │    3.24% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ correos                        │ zpl  │    4.25% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dbs                            │ zpl  │    4.31% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dbs                            │ zpl  │    4.39% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dbschenker                     │ zpl  │    4.36% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dhlecommercetr                 │ zpl  │    3.78% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dhlpaket                       │ zpl  │    2.18% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dhlparceluk                    │ zpl  │    4.87% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dpdde                          │ zpl  │    3.50% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dhlecommercetr                 │ zpl  │    3.76% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dhlpaket                       │ zpl  │    2.32% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dhlparceluk                    │ zpl  │    4.71% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dpdde                          │ zpl  │    3.59% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    6.65% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ dpduk                          │ epl  │    5.42% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
-║ ean13                          │ zpl  │    2.84% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ edi_triangle                   │ zpl  │    0.59% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ ean13                          │ zpl  │    2.77% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ edi_triangle                   │ zpl  │    0.67% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ encodings_013                  │ zpl  │    1.51% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ evri                           │ zpl  │    3.75% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fedex                          │ zpl  │    5.92% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
@@ -42,13 +42,13 @@
 ║ gd_thin_l                      │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gd_thin_r                      │ zpl  │    0.08% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ glscz                          │ zpl  │    2.33% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ glsdk_return                   │ zpl  │    4.11% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ glsdk_return                   │ zpl  │   14.18% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ gs                             │ zpl  │    1.01% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ icapaket                       │ zpl  │    4.66% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ icapaket                       │ zpl  │    5.22% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ inpost                         │ zpl  │    5.33% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ jcpenney                       │ zpl  │    4.64% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ kmart                          │ zpl  │    7.10% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
-║ labelary                       │ zpl  │    3.35% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ labelary                       │ zpl  │    3.99% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ontrac                         │ zpl  │    4.16% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ pdf417_basic                   │ zpl  │    0.29% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ pnldpd                         │ zpl  │   10.15% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
@@ -60,22 +60,22 @@
 ║ qr_code_ft_manual              │ zpl  │    2.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ qr_code_offset                 │ zpl  │    1.67% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ return_qrcode                  │ zpl  │    5.67% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
-║ reverse                        │ zpl  │    0.41% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ reverse_qr                     │ zpl  │    3.38% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ reverse                        │ zpl  │    1.16% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ reverse_qr                     │ zpl  │    3.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ royalmail                      │ zpl  │    3.96% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ seur                           │ zpl  │    3.44% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ swisspost                      │ zpl  │    1.49% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ templating                     │ zpl  │    1.33% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ text_fallback_default          │ zpl  │    4.10% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ text_fo_b                      │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_fo_i                      │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_fo_n                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_fo_r                      │ zpl  │    0.04% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_fo_b                      │ zpl  │    0.14% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_fo_i                      │ zpl  │    0.13% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_fo_n                      │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_fo_r                      │ zpl  │    0.15% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_auto_pos               │ zpl  │    1.20% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ text_ft_b                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_ft_i                      │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_ft_n                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_ft_r                      │ zpl  │    0.04% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_ft_i                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_ft_n                      │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_ft_r                      │ zpl  │    0.15% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.57% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ tnt_express                    │ zpl  │    3.88% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups                            │ zpl  │    6.91% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
@@ -83,5 +83,5 @@
 ║ usps                           │ zpl  │    4.80% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    4.15% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 79 total │ 4 perfect │ 24 good │ 40 minor │ 11 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 79 total │ 4 perfect │ 23 good │ 39 minor │ 13 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

@@ -76,7 +76,9 @@ impl Renderer {
                         Rgba([0, 0, 0, 0]),
                     )
                 });
-                // Clear buffer
+                // Clear to transparent so only the rendered element pixels
+                // are non-transparent; reverse_print uses them to compute the
+                // field bounding box and apply the ^FR inversion correctly.
                 for pixel in buf.pixels_mut() {
                     *pixel = Rgba([0, 0, 0, 0]);
                 }
