@@ -226,14 +226,14 @@ fn aztec_empty_input_returns_error() {
 
 #[test]
 fn datamatrix_encodes_text() {
-    let img = datamatrix::encode("Hello", 4).expect("datamatrix failed");
+    let img = datamatrix::encode("Hello", 4, 0, 0).expect("datamatrix failed");
     assert!(img.width() > 0);
     assert!(img.height() > 0);
 }
 
 #[test]
 fn datamatrix_empty_input_returns_error() {
-    let result = datamatrix::encode("", 4);
+    let result = datamatrix::encode("", 4, 0, 0);
     assert!(result.is_err(), "expected error for empty input");
 }
 
