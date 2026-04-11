@@ -4,6 +4,7 @@
 ║ Name                           │ Ext  │    Diff% │   Actual(WxH) │ Expected(WxH) │ Status       ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ amazon                         │ zpl  │    2.26% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ amazonshipping                 │ zpl  │    3.11% │      813x1626 │      812x1624 │ MINOR(<5%)   ║
 ║ auspost                        │ zpl  │    4.64% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ aztec_ec                       │ zpl  │    8.07% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ barcode128_default_width       │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -16,6 +17,7 @@
 ║ barcode128_mode_u              │ zpl  │    2.19% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ barcode128_rotated             │ zpl  │    0.27% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ bpost                          │ zpl  │    4.23% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ brtit                          │ zpl  │    4.02% │      813x1626 │      812x1624 │ MINOR(<5%)   ║
 ║ bstc                           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ canadapost                     │ zpl  │    4.52% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ colissimo                      │ zpl  │    3.24% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -24,6 +26,7 @@
 ║ dbschenker                     │ zpl  │    4.36% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlecommercetr                 │ zpl  │    3.48% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlpaket                       │ zpl  │    2.18% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dhlparcelit                    │ zpl  │   11.54% │      813x1626 │      812x1624 │ MODERATE(<15%) ║
 ║ dhlparceluk                    │ zpl  │    4.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdde                          │ zpl  │    3.50% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    6.72% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
@@ -54,6 +57,7 @@
 ║ pnldpd                         │ zpl  │   10.15% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ pocztex                        │ zpl  │    3.37% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ porterbuddy                    │ zpl  │    7.98% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ posteit                        │ zpl  │    6.54% │      813x1626 │      812x1624 │ MODERATE(<15%) ║
 ║ posten                         │ zpl  │    1.96% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ postnl                         │ zpl  │    4.29% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ purolator                      │ zpl  │    2.97% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -83,5 +87,5 @@
 ║ usps                           │ zpl  │    4.80% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    4.15% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 79 total │ 4 perfect │ 24 good │ 40 minor │ 11 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 83 total │ 4 perfect │ 24 good │ 42 minor │ 13 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
