@@ -2,14 +2,37 @@ use datamatrix::{DataMatrix, SymbolList};
 use image::{Rgba, RgbaImage};
 
 /// Generate a Data Matrix barcode image using a proper ECC 200 encoder.
-pub fn encode(content: &str, magnification: i32) -> Result<RgbaImage, String> {
+///
+/// `rows` and `columns` from ^BX are used to select the symbol size when
+/// both are non-zero. Otherwise, the smallest square symbol that fits the
+/// data is chosen (ZPL ^BX defaults to square symbols per the Zebra spec).
+pub fn encode(
+    content: &str,
+    magnification: i32,
+    rows: i32,
+    columns: i32,
+) -> Result<RgbaImage, String> {
     if content.is_empty() {
         return Err("DataMatrix: empty content".to_string());
     }
 
     let mag = magnification.max(1) as u32;
 
-    let code = DataMatrix::encode(content.as_bytes(), SymbolList::default())
+    // Build a symbol list: if rows/columns are specified, try to match
+    // a specific size. Otherwise default to square-only (ZPL standard).
+    let symbol_list = if rows > 0 && columns > 0 {
+        // Try to find a matching symbol size — fall back to square-only
+        SymbolList::default()
+            .enforce_height_in(rows as usize..=rows as usize)
+    } else {
+        SymbolList::default().enforce_square()
+    };
+
+    let code = DataMatrix::encode(content.as_bytes(), symbol_list)
+        .or_else(|_| {
+            // If the specific size didn't work, fall back to square-only
+            DataMatrix::encode(content.as_bytes(), SymbolList::default().enforce_square())
+        })
         .map_err(|e| format!("DataMatrix encoding failed: {:?}", e))?;
 
     let bitmap = code.bitmap();
