@@ -436,6 +436,13 @@ fn golden_posteit() {
     golden_zpl_with_tolerance("posteit", 8.0);
 }
 
+#[test]
+fn golden_amazonshipping() {
+    // Amazon Shipping (MXP5): ^BXN/B/I/R DataMatrix in all 4 orientations,
+    // ^FR field reverse, ^GFA inline graphics, ^FH hex in all fields
+    golden_zpl_with_tolerance("amazonshipping", 10.0);
+}
+
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]
