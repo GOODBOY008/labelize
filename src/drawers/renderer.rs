@@ -81,7 +81,23 @@ impl Renderer {
                     *pixel = Rgba([0, 0, 0, 0]);
                 }
                 self.draw_element(buf, element, &options, &mut state)?;
-                images::reverse_print::reverse_print(buf, &mut canvas);
+                // Text and barcode ^FR: invert the entire field area (bounding box)
+                // to produce white content on black background.
+                // Graphic boxes ^FR: invert only where drawn (pixel-level XOR).
+                let use_bounding_box = matches!(
+                    element,
+                    LabelElement::Text(_)
+                        | LabelElement::Barcode128(_)
+                        | LabelElement::BarcodeEan13(_)
+                        | LabelElement::Barcode2of5(_)
+                        | LabelElement::Barcode39(_)
+                        | LabelElement::BarcodePdf417(_)
+                        | LabelElement::BarcodeAztec(_)
+                        | LabelElement::BarcodeDatamatrix(_)
+                        | LabelElement::BarcodeQr(_)
+                        | LabelElement::Maxicode(_)
+                );
+                images::reverse_print::reverse_print(buf, &mut canvas, use_bounding_box);
             } else {
                 self.draw_element(&mut canvas, element, &options, &mut state)?;
             }
