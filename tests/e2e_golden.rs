@@ -411,6 +411,31 @@ fn golden_pdf417_basic() {
     golden_zpl_with_tolerance("pdf417_basic", 1.0);
 }
 
+// ── Italian carrier golden tests ─────────────────────────────────
+// Anonymized real-world labels from Italian e-commerce shipping.
+// Labelary API used as reference renderer for expected PNGs.
+
+#[test]
+fn golden_dhlparcelit() {
+    // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
+    // Code128 barcodes, ^FH hex encoding
+    golden_zpl_with_tolerance("dhlparcelit", 12.0);
+}
+
+#[test]
+fn golden_brtit() {
+    // BRT (Bartolini) Italy: ^POI orientation, ~DG000.GRF logo,
+    // ^A0B rotated text, ^FR reverse video, Code128
+    golden_zpl_with_tolerance("brtit", 8.0);
+}
+
+#[test]
+fn golden_posteit() {
+    // Poste Italiane: DataMatrix ^BX, ^GFA Z64 compressed logo,
+    // ^BCB bottom-up barcode, ^FH hex in all fields
+    golden_zpl_with_tolerance("posteit", 8.0);
+}
+
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]
