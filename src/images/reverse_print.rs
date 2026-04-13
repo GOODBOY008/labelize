@@ -56,12 +56,13 @@ pub fn reverse_print(mask: &RgbaImage, background: &mut RgbaImage, use_bounding_
         }
         for y in min_y..=max_y {
             for x in min_x..=max_x {
-                if x < background.width() && y < background.height() {
-                    if mask.get_pixel(x, y)[3] >= alpha_threshold {
-                        let bg = background.get_pixel(x, y);
-                        let restored = image::Rgba([255 - bg[0], 255 - bg[1], 255 - bg[2], bg[3]]);
-                        background.put_pixel(x, y, restored);
-                    }
+                if x < background.width()
+                    && y < background.height()
+                    && mask.get_pixel(x, y)[3] >= alpha_threshold
+                {
+                    let bg = background.get_pixel(x, y);
+                    let restored = image::Rgba([255 - bg[0], 255 - bg[1], 255 - bg[2], bg[3]]);
+                    background.put_pixel(x, y, restored);
                 }
             }
         }
