@@ -2,19 +2,26 @@ use image::RgbaImage;
 
 /// Apply ZPL ^FR (Field Reverse Print) semantics.
 ///
-/// `use_bounding_box`: when true (text/barcode), inverts the entire field
-/// bounding box to produce white content on a black background. When false
-/// (graphic boxes/lines), inverts only the drawn pixels (standard XOR).
+/// `use_bounding_box`: when true (text/barcodes), inverts the bounding box of
+/// rendered mask pixels whose alpha meets the internal threshold, then
+/// re-inverts the opaque mask pixels inside that box. This produces white
+/// content on a black background within the drawn-pixel bounds.
+/// When false (graphic boxes/lines), inverts only the drawn pixels (standard XOR).
 ///
 /// The distinction matters because ^GB fills its entire bounding box, so
 /// bounding-box inversion would cancel out (double invert → no change).
-/// Text/barcodes have transparent areas that need to become black background.
+///
+/// Note: this function operates on the drawn-pixel bounding box, not the
+/// full element layout rectangle. Transparent padding outside the rendered
+/// mask bounds (e.g. ^FB width, barcode quiet zones) is not inverted.
 pub fn reverse_print(mask: &RgbaImage, background: &mut RgbaImage, use_bounding_box: bool) {
     let alpha_threshold = 30u8;
     let (width, height) = mask.dimensions();
 
     if use_bounding_box {
         // Find bounding box of opaque pixels in mask.
+        // Note: this scans the full label dimensions (O(W*H) per ^FR field).
+        // Future optimization: pass element bounds from the caller to avoid the scan.
         let mut min_x = width;
         let mut max_x = 0u32;
         let mut min_y = height;

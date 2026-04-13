@@ -81,9 +81,10 @@ impl Renderer {
                     *pixel = Rgba([0, 0, 0, 0]);
                 }
                 self.draw_element(buf, element, &options, &mut state)?;
-                // Text and barcode ^FR: invert the entire field area (bounding box)
+                // Text and barcode ^FR: invert the drawn-pixel bounding box
                 // to produce white content on black background.
-                // Graphic boxes ^FR: invert only where drawn (pixel-level XOR).
+                // Other elements (^GB, ^GC, diagonal lines, graphic fields):
+                // invert only where drawn (pixel-level XOR).
                 let use_bounding_box = matches!(
                     element,
                     LabelElement::Text(_)
