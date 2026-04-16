@@ -22,7 +22,9 @@ pub fn encode(
     // a specific size. Otherwise default to square-only (ZPL standard).
     let symbol_list = if rows > 0 && columns > 0 {
         // Try to find a matching symbol size — fall back to square-only
-        SymbolList::default().enforce_height_in(rows as usize..=rows as usize)
+        SymbolList::default()
+            .enforce_height_in(rows as usize..=rows as usize)
+            .enforce_width_in(columns as usize..=columns as usize)
     } else {
         SymbolList::default().enforce_square()
     };
