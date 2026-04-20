@@ -407,6 +407,14 @@ impl Renderer {
         let mag_x = gf.magnification_x.max(1);
         let mag_y = gf.magnification_y.max(1);
 
+        // When positioned by ^FT, y is the bottom edge of the field; adjust to top-left.
+        let base_x = gf.position.x;
+        let base_y = if gf.position.calculate_from_bottom {
+            gf.position.y - height * mag_y
+        } else {
+            gf.position.y
+        };
+
         let black = Rgba([0, 0, 0, 255]);
 
         for y in 0..height {
@@ -419,10 +427,14 @@ impl Renderer {
                 if val != 0 {
                     for my in 0..mag_y {
                         for mx in 0..mag_x {
-                            let px = (gf.position.x + x * mag_x + mx) as u32;
-                            let py = (gf.position.y + y * mag_y + my) as u32;
-                            if px < canvas.width() && py < canvas.height() {
-                                canvas.put_pixel(px, py, black);
+                            let px = base_x + x * mag_x + mx;
+                            let py = base_y + y * mag_y + my;
+                            if px >= 0
+                                && py >= 0
+                                && (px as u32) < canvas.width()
+                                && (py as u32) < canvas.height()
+                            {
+                                canvas.put_pixel(px as u32, py as u32, black);
                             }
                         }
                     }

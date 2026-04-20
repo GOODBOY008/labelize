@@ -419,7 +419,7 @@ fn golden_pdf417_basic() {
 fn golden_dhlparcelit() {
     // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
     // Code128 barcodes, ^FH hex encoding
-    golden_zpl_with_tolerance("dhlparcelit", 12.0);
+    golden_zpl_with_tolerance("dhlparcelit", 11.0);
 }
 
 #[test]

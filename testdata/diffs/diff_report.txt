@@ -17,7 +17,7 @@
 ║ barcode128_mode_u              │ zpl  │    2.19% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ barcode128_rotated             │ zpl  │    0.27% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ bpost                          │ zpl  │    3.59% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ brtit                          │ zpl  │    4.02% │      813x1626 │      812x1624 │ MINOR(<5%)   ║
+║ brtit                          │ zpl  │    3.82% │      813x1626 │      812x1624 │ MINOR(<5%)   ║
 ║ bstc                           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ canadapost                     │ zpl  │    4.04% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ colissimo                      │ zpl  │    3.24% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -26,7 +26,7 @@
 ║ dbschenker                     │ zpl  │    4.36% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlecommercetr                 │ zpl  │    3.48% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlpaket                       │ zpl  │    2.18% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dhlparcelit                    │ zpl  │   11.54% │      813x1626 │      812x1624 │ MODERATE(<15%) ║
+║ dhlparcelit                    │ zpl  │   10.43% │      813x1626 │      812x1624 │ MODERATE(<15%) ║
 ║ dhlparceluk                    │ zpl  │    4.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdde                          │ zpl  │    3.50% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    6.72% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
