@@ -5,9 +5,9 @@ edition = "2021"
 publish = false
 
 [dependencies]
-labelize = "0.2"
+labelize = "0.3"
 image = "0.25"
 
 [dev-dependencies]
-labelize = "0.2"
+labelize = "0.3"
 image = "0.25"

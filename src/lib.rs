@@ -7,6 +7,7 @@ pub mod error;
 pub mod hex;
 pub mod images;
 pub mod parsers;
+pub mod skill;
 
 pub use drawers::renderer::Renderer;
 pub use elements::drawer_options::DrawerOptions;
