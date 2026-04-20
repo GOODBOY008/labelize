@@ -84,7 +84,7 @@
 ║ tnt_express                    │ zpl  │    3.88% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups                            │ zpl  │    6.91% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ ups_surepost                   │ zpl  │   10.66% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
-║ usps                           │ zpl  │    4.80% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ usps                           │ zpl  │    4.09% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    3.54% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Summary: 83 total │ 4 perfect │ 26 good │ 42 minor │ 11 moderate │ 0 high │ 0 skip │ 0 err

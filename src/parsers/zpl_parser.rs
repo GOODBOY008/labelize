@@ -322,10 +322,18 @@ impl ZplParser {
                 self.printer.default_font.name = s.to_uppercase();
             }
         }
+        let has_height = parts.get(1).and_then(|s| parse_int(s)).is_some();
+        let has_width = parts.get(2).and_then(|s| parse_int(s)).is_some();
         if let Some(s) = parts.get(1) {
             if let Some(v) = parse_int(s) {
                 self.printer.default_font.height = v as f64;
             }
+        }
+        // Per ZPL spec: "Defining only the height or width forces the magnification to be
+        // proportional to the parameter defined." When only height is given (no explicit width),
+        // reset width to 0 so with_adjusted_sizes() derives it proportionally from height.
+        if has_height && !has_width {
+            self.printer.default_font.width = 0.0;
         }
         if let Some(s) = parts.get(2) {
             if let Some(v) = parse_int(s) {
