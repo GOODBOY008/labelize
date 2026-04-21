@@ -790,11 +790,10 @@ fn get_text_top_left_pos(
     // Rotated90: text reads bottom-to-top, baseline on right side
     // Rotated270: text reads top-to-bottom, baseline on left side
     let rotated90_offset = h * 0.25; // Smaller offset for Rotated90 (baseline right side)
-    let rotated270_offset = ascent; // Standard ascent for Rotated270 (baseline left side)
 
     // When text is rotated, the baseline concept rotates with it:
     // - Normal: baseline is at the bottom of text, (x,y) is left end of baseline.
-    //   We need to shift y up by ascent to get the top-left corner.
+    //   We need to shift y up by total_h to get the top-left corner.
     // - Rotated90 (CW 90°): text reads bottom-to-top, baseline is now on the right side.
     //   The (x,y) point is at the top of the rotated text's baseline.
     //   We need to shift x left by ascent (original y-direction becomes x-direction).
@@ -805,11 +804,13 @@ fn get_text_top_left_pos(
     //   buf_h = h.ceil() + 2, so correction = h.ceil() + 1 - ascent.
     //   Subtracting this from y aligns the baseline with the ^FT y coordinate.
     // - Rotated270 (CW 270°): text reads top-to-bottom, baseline is now on the left side.
-    //   We need to shift both x left by ascent and y up by text width.
+    //   The (x,y) x-coordinate is the baseline of the LAST line (symmetric with Normal's y).
+    //   For multi-line blocks: offset = ascent + (lines-1)*(h+spacing) = total_h.
+    //   This mirrors the Normal case where y is shifted by total_h for baseline-to-top distance.
     match text.font.orientation {
         FieldOrientation::Rotated90 => (x - rotated90_offset, y),
         FieldOrientation::Rotated180 => (x - w, y - (h.ceil() + 1.0 - ascent)),
-        FieldOrientation::Rotated270 => (x - rotated270_offset, y - w),
+        FieldOrientation::Rotated270 => (x - total_h, y - w),
         _ => (x, y - total_h),
     }
 }

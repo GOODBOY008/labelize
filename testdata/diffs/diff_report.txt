@@ -27,7 +27,7 @@
 ║ dhlecommercetr                 │ zpl  │    3.48% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlpaket                       │ zpl  │    2.17% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparcelit                    │ zpl  │    9.46% │      813x1626 │      812x1624 │ MODERATE(<15%) ║
-║ dhlparceluk                    │ zpl  │    4.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dhlparceluk                    │ zpl  │    4.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdde                          │ zpl  │    3.50% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    6.72% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ dpduk                          │ epl  │    5.42% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
