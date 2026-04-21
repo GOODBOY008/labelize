@@ -12,12 +12,20 @@ fn debug_usps_text_elements() {
             if let LabelElement::Text(t) = elem {
                 let scale_x = t.font.get_scale_x();
                 let font_size = t.font.get_size();
-                println!("  text={:?} h={:.0} w={:.0} pos=({},{}) scale_x={:.4} px_x={:.2}", 
-                    t.text, t.font.height, t.font.width, t.position.x, t.position.y, scale_x, font_size*scale_x);
+                println!(
+                    "  text={:?} h={:.0} w={:.0} pos=({},{}) scale_x={:.4} px_x={:.2}",
+                    t.text,
+                    t.font.height,
+                    t.font.width,
+                    t.position.x,
+                    t.position.y,
+                    scale_x,
+                    font_size * scale_x
+                );
             }
         }
     }
-    
+
     let zpl2 = std::fs::read_to_string("testdata/snippets/usps_test_merchant.zpl").unwrap();
     let mut parser2 = labelize::ZplParser::new();
     let labels2 = parser2.parse(zpl2.as_bytes()).unwrap();
@@ -27,8 +35,16 @@ fn debug_usps_text_elements() {
             if let LabelElement::Text(t) = elem {
                 let scale_x = t.font.get_scale_x();
                 let font_size = t.font.get_size();
-                println!("  text={:?} h={:.0} w={:.0} pos=({},{}) scale_x={:.4} px_x={:.2}", 
-                    t.text, t.font.height, t.font.width, t.position.x, t.position.y, scale_x, font_size*scale_x);
+                println!(
+                    "  text={:?} h={:.0} w={:.0} pos=({},{}) scale_x={:.4} px_x={:.2}",
+                    t.text,
+                    t.font.height,
+                    t.font.width,
+                    t.position.x,
+                    t.position.y,
+                    scale_x,
+                    font_size * scale_x
+                );
             }
         }
     }

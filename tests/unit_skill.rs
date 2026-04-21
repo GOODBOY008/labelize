@@ -39,10 +39,7 @@ fn test_load_and_parse_real_diff_report() {
             // Check that scan_label works for a known moderate label
             let ups = diff_scanner::scan_label(&report, "ups");
             assert!(ups.is_ok(), "ups label should exist");
-            assert!(
-                ups.unwrap().diff_percent > 1.0,
-                "ups should have diff > 1%"
-            );
+            assert!(ups.unwrap().diff_percent > 1.0, "ups should have diff > 1%");
 
             println!("Parsed {} labels from diff report", report.entries.len());
             println!(
@@ -127,7 +124,10 @@ fn test_analyze_bstc_label() {
                     "bstc is perfect — no diff pixels expected"
                 );
             }
-            println!("bstc analysis: {} elements, all with 0 diff pixels", contributions.len());
+            println!(
+                "bstc analysis: {} elements, all with 0 diff pixels",
+                contributions.len()
+            );
         }
         Err(e) => {
             // If the diff image doesn't exist (because bstc is perfect, no diff saved), that's ok
@@ -155,7 +155,10 @@ fn test_analyze_label_with_diff() {
     let result = element_analyzer::analyze_label(&labels[0], &diff_path);
     match result {
         Ok(contributions) => {
-            assert!(!contributions.is_empty(), "should have element contributions");
+            assert!(
+                !contributions.is_empty(),
+                "should have element contributions"
+            );
 
             // Print the analysis
             let report = element_analyzer::format_analysis_report(&contributions);
@@ -202,8 +205,12 @@ fn test_extract_snippets_from_real_label() {
     let spans = snippet_extractor::group_commands_into_spans(&commands);
     let globals = snippet_extractor::extract_global_state_commands(&commands);
 
-    println!("amazon.zpl: {} commands, {} element spans, {} global state commands",
-        commands.len(), spans.len(), globals.len());
+    println!(
+        "amazon.zpl: {} commands, {} element spans, {} global state commands",
+        commands.len(),
+        spans.len(),
+        globals.len()
+    );
 
     // Extract first element as snippet
     if !spans.is_empty() {
@@ -217,7 +224,10 @@ fn test_extract_snippets_from_real_label() {
         let result = std::panic::catch_unwind(|| {
             render_helpers::render_zpl_to_png(&snippet.zpl_content, opts)
         });
-        assert!(result.is_ok(), "extracted snippet should render successfully");
+        assert!(
+            result.is_ok(),
+            "extracted snippet should render successfully"
+        );
     }
 }
 
@@ -242,10 +252,15 @@ fn test_full_analysis_pipeline() {
     // Step 3: For the first one, run analysis and extraction
     if let Some(entry) = above_1pct.first() {
         let zpl_path = testdata.join(format!("{}.{}", entry.label_name, entry.extension));
-        let diff_path = testdata.join("diffs").join(format!("{}_diff.png", entry.label_name));
+        let diff_path = testdata
+            .join("diffs")
+            .join(format!("{}_diff.png", entry.label_name));
 
         if !zpl_path.exists() || !diff_path.exists() {
-            eprintln!("Skipping full pipeline: files not found for {}", entry.label_name);
+            eprintln!(
+                "Skipping full pipeline: files not found for {}",
+                entry.label_name
+            );
             return;
         }
 
@@ -259,8 +274,14 @@ fn test_full_analysis_pipeline() {
 
         // Analyze
         let contributions = element_analyzer::analyze_label(&labels[0], &diff_path).unwrap();
-        println!("\nAnalysis for {} (diff: {:.2}%):", entry.label_name, entry.diff_percent);
-        println!("{}", element_analyzer::format_analysis_report(&contributions));
+        println!(
+            "\nAnalysis for {} (diff: {:.2}%):",
+            entry.label_name, entry.diff_percent
+        );
+        println!(
+            "{}",
+            element_analyzer::format_analysis_report(&contributions)
+        );
 
         // Extract top contributor as snippet
         if let Some(top) = contributions.first() {
@@ -273,8 +294,10 @@ fn test_full_analysis_pipeline() {
                 );
                 match snippet {
                     Ok(s) => {
-                        println!("Extracted snippet for element {} ({:?}):\n{}",
-                            top.bbox.element_index, top.bbox.element_type, s.zpl_content);
+                        println!(
+                            "Extracted snippet for element {} ({:?}):\n{}",
+                            top.bbox.element_index, top.bbox.element_type, s.zpl_content
+                        );
                     }
                     Err(e) => {
                         eprintln!("Extract error: {}", e);
@@ -290,11 +313,16 @@ fn test_full_analysis_pipeline() {
 #[test]
 fn test_classify_no_diff_element() {
     // An element with zero diff pixels should get classification = None
-    use labelize::skill::models::{DiffClassification, ElementBBox, ElementDiffContribution, ElementType};
+    use labelize::skill::models::{
+        DiffClassification, ElementBBox, ElementDiffContribution, ElementType,
+    };
 
     let contrib = ElementDiffContribution {
         bbox: ElementBBox {
-            x: 0, y: 0, width: 100, height: 50,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 50,
             element_index: 0,
             element_type: ElementType::Text,
             zpl_command: "^FD".to_string(),
@@ -322,11 +350,17 @@ fn test_fix_category_from_classification_content() {
         FixCategory::FontMetrics
     );
     assert_eq!(
-        FixCategory::from_classification(&ElementType::Barcode128, &DiffClassification::ContentDiff),
+        FixCategory::from_classification(
+            &ElementType::Barcode128,
+            &DiffClassification::ContentDiff
+        ),
         FixCategory::BarcodeEncoding
     );
     assert_eq!(
-        FixCategory::from_classification(&ElementType::GraphicBox, &DiffClassification::ContentDiff),
+        FixCategory::from_classification(
+            &ElementType::GraphicBox,
+            &DiffClassification::ContentDiff
+        ),
         FixCategory::GraphicRendering
     );
 }
@@ -341,7 +375,10 @@ fn test_fix_category_from_classification_position() {
         FixCategory::PositionOffset
     );
     assert_eq!(
-        FixCategory::from_classification(&ElementType::Barcode128, &DiffClassification::PositionDiff),
+        FixCategory::from_classification(
+            &ElementType::Barcode128,
+            &DiffClassification::PositionDiff
+        ),
         FixCategory::PositionOffset
     );
 
@@ -368,17 +405,27 @@ fn test_centroid_shift_detection_synthetic() {
     }
 
     let bbox = ElementBBox {
-        x: 0, y: 0, width: 400, height: 400,
+        x: 0,
+        y: 0,
+        width: 400,
+        height: 400,
         element_index: 0,
         element_type: ElementType::Text,
         zpl_command: "^FD".to_string(),
     };
 
     let centroid = compute_diff_centroid(&img, &bbox);
-    assert!(centroid.is_some(), "centroid should be computed for non-empty diff");
+    assert!(
+        centroid.is_some(),
+        "centroid should be computed for non-empty diff"
+    );
     let (cx, cy) = centroid.unwrap();
     // Centroid should be near (309.5, 59.5) — center of the red cluster
-    assert!((cx - 309.5).abs() < 2.0, "centroid x={} expected ~309.5", cx);
+    assert!(
+        (cx - 309.5).abs() < 2.0,
+        "centroid x={} expected ~309.5",
+        cx
+    );
     assert!((cy - 59.5).abs() < 2.0, "centroid y={} expected ~59.5", cy);
 }
 
@@ -391,7 +438,10 @@ fn test_centroid_shift_no_pixels() {
     // All white — no diff pixels → centroid should be None
     let img = RgbaImage::from_pixel(200, 200, Rgba([255u8, 255, 255, 255]));
     let bbox = ElementBBox {
-        x: 0, y: 0, width: 200, height: 200,
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 200,
         element_index: 0,
         element_type: ElementType::GraphicBox,
         zpl_command: "^GB".to_string(),
@@ -416,7 +466,11 @@ fn test_compute_image_diff_percent_completely_different() {
     let black = RgbaImage::from_pixel(100, 100, Rgba([0u8, 0, 0, 255]));
     let white = RgbaImage::from_pixel(100, 100, Rgba([255u8, 255, 255, 255]));
     let diff = compute_image_diff_percent(&black, &white);
-    assert!(diff > 90.0, "completely different images should have high diff, got {}", diff);
+    assert!(
+        diff > 90.0,
+        "completely different images should have high diff, got {}",
+        diff
+    );
 }
 
 #[test]
@@ -426,7 +480,11 @@ fn test_compute_image_diff_percent_size_mismatch() {
 
     let a = RgbaImage::from_pixel(100, 100, Rgba([0u8, 0, 0, 255]));
     let b = RgbaImage::from_pixel(200, 200, Rgba([0u8, 0, 0, 255]));
-    assert_eq!(compute_image_diff_percent(&a, &b), 100.0, "size mismatch should be 100%");
+    assert_eq!(
+        compute_image_diff_percent(&a, &b),
+        100.0,
+        "size mismatch should be 100%"
+    );
 }
 
 #[test]
@@ -435,7 +493,11 @@ fn test_render_snippet_isolated() {
 
     let zpl = "^XA^FO50,50^ADN,36,20^FDHello^FS^XZ";
     let result = render_snippet_isolated(zpl);
-    assert!(result.is_ok(), "simple snippet should render without error: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "simple snippet should render without error: {:?}",
+        result.err()
+    );
     let img = result.unwrap();
     assert_eq!(img.width(), 813, "expected 813px width");
     assert_eq!(img.height(), 1626, "expected 1626px height");
@@ -476,19 +538,36 @@ fn test_classify_real_label_diffs_offline() {
     };
 
     let result = classify_element_diffs(&mut contributions, &zpl, &diff_img, &opts);
-    assert!(result.is_ok(), "classification should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "classification should succeed: {:?}",
+        result.err()
+    );
 
     // Elements with diff pixels should have classification (offline → ContentDiff or PositionDiff via heuristic)
-    let with_diff: Vec<_> = contributions.iter().filter(|c| c.diff_pixels_in_bbox > 0).collect();
-    let with_class: Vec<_> = with_diff.iter().filter(|c| c.classification.is_some()).collect();
+    let with_diff: Vec<_> = contributions
+        .iter()
+        .filter(|c| c.diff_pixels_in_bbox > 0)
+        .collect();
+    let with_class: Vec<_> = with_diff
+        .iter()
+        .filter(|c| c.classification.is_some())
+        .collect();
 
-    println!("amazon: {} elements with diff, {} classified", with_diff.len(), with_class.len());
+    println!(
+        "amazon: {} elements with diff, {} classified",
+        with_diff.len(),
+        with_class.len()
+    );
     for c in &contributions {
         if c.diff_pixels_in_bbox > 0 {
             println!(
                 "  elem {} ({:?}): diff={} pixels, classification={:?}, offset={:?}",
-                c.bbox.element_index, c.bbox.element_type,
-                c.diff_pixels_in_bbox, c.classification, c.position_offset
+                c.bbox.element_index,
+                c.bbox.element_type,
+                c.diff_pixels_in_bbox,
+                c.classification,
+                c.position_offset
             );
         }
     }

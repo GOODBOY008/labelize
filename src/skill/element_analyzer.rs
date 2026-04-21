@@ -226,13 +226,7 @@ pub fn count_red_pixels(img: &RgbaImage) -> u64 {
 }
 
 /// Count red diff pixels within a rectangular region.
-pub fn count_red_pixels_in_rect(
-    img: &RgbaImage,
-    x1: i32,
-    y1: i32,
-    x2: i32,
-    y2: i32,
-) -> u64 {
+pub fn count_red_pixels_in_rect(img: &RgbaImage, x1: i32, y1: i32, x2: i32, y2: i32) -> u64 {
     let mut count = 0u64;
     let img_w = img.width() as i32;
     let img_h = img.height() as i32;
@@ -392,7 +386,9 @@ pub fn format_analysis_report(contributions: &[ElementDiffContribution]) -> Stri
         };
         let offset_str = match &c.position_offset {
             None => String::new(),
-            Some(PositionOffsetInfo { dx, dy, confidence, .. }) => {
+            Some(PositionOffsetInfo {
+                dx, dy, confidence, ..
+            }) => {
                 format!("dx={:+} dy={:+} ({:.0}%)", dx, dy, confidence * 100.0)
             }
         };

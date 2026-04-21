@@ -5,7 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-04-16
+## [0.4.0] - 2026-04-21
+
+### Added
+
+- **ZPL Diff Auto-Fix Skill** — New `src/skill/` module with data models, diff classification, diff scanning, and element-level contribution analysis for automated ZPL rendering improvement
+- **UCC/GS1 Mode for `^BC`** — Code 128 barcode mode `D` now correctly prepends FNC1, strips parentheses and spaces, and converts `>8` escape sequences to embedded FNC1 separators per ZPL spec
+- **QR Code UCC Mode** — Implemented UCC mode data preparation and improved error correction level handling for `^BQ`
+- **USPS Priority Mail ZPL labels** — Added USPS test labels (Priority Mail and Test Merchant) to the golden test suite
+
+### Fixed
+
+- **Rotated Text Positioning** — Corrected `get_text_top_left_pos` for 90° and 270° rotations in the renderer
+- **`^BC` GS1 Barcode Encoding** — Fixed GS1-128 (mode `D`) to handle embedded AI separators (`>8`) and strip grouping characters from the encoding string
+- **QR Code Quiet Zone** — Fixed quiet zone handling for QR codes to match Labelary reference output
+- **CI: Clippy warnings** — Resolved `empty-line-after-doc-comments`, `dead-code`, `ptr-arg`, and `needless-range-loop` warnings in `src/skill/`
+
+### Changed
+
+- **Code Refactor** — Improved readability and maintainability across renderer and parser modules
+- **Diff Thresholds** — Updated per-label tolerance thresholds for DHL Parcel IT, BRT IT, and USPS labels
+
+
 
 ### Added
 
