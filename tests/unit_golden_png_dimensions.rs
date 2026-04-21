@@ -35,8 +35,7 @@ fn all_golden_pngs_have_standard_dimensions() {
             .unwrap_or("<unknown>")
             .to_string();
 
-        let bytes = std::fs::read(&path)
-            .unwrap_or_else(|e| panic!("cannot read {}: {}", name, e));
+        let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {}: {}", name, e));
         let img = image::load_from_memory(&bytes)
             .unwrap_or_else(|e| panic!("cannot decode {}: {}", name, e));
 
