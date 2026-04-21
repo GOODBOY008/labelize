@@ -25,11 +25,7 @@ pub fn split_zpl_commands(zpl: &str) -> Vec<ZplCommand> {
             while i < bytes.len() && bytes[i].is_ascii_alphabetic() && (i - prefix_start) < 2 {
                 i += 1;
             }
-            let prefix = format!(
-                "{}{}",
-                delim,
-                &zpl[prefix_start..i]
-            );
+            let prefix = format!("{}{}", delim, &zpl[prefix_start..i]);
 
             // Read parameters until next ^ or ~ or end
             let params_start = i;
@@ -199,13 +195,12 @@ pub fn extract_element_group(
 
     // Add each requested element's commands
     for &idx in element_indices {
-        let span = spans
-            .iter()
-            .find(|s| s.element_index == idx)
-            .ok_or(ExtractError::ElementOutOfRange {
+        let span = spans.iter().find(|s| s.element_index == idx).ok_or(
+            ExtractError::ElementOutOfRange {
                 index: idx,
                 total: spans.len(),
-            })?;
+            },
+        )?;
 
         for cmd in &span.commands {
             snippet.push_str(&format!("{}{}\n", cmd.prefix, cmd.params));

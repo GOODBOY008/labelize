@@ -60,10 +60,7 @@ pub fn render_snippet_isolated(zpl: &str) -> Result<RgbaImage, AnalyzeError> {
 ///
 /// Returns `None` when the Labelary API is unreachable; callers should fall
 /// back to skipping snippet comparison in that case.
-pub fn fetch_labelary_snippet_render(
-    zpl: &str,
-    cache_dir: &Path,
-) -> Option<RgbaImage> {
+pub fn fetch_labelary_snippet_render(zpl: &str, cache_dir: &Path) -> Option<RgbaImage> {
     // Compute cache key from content
     let hash = simple_hash(zpl);
     let cache_path = cache_dir.join(format!("{:016x}.png", hash));
@@ -173,14 +170,13 @@ fn luma(p: &image::Rgba<u8>) -> u8 {
 
 /// Compute the centroid (cx, cy) of diff pixels within a bounding box region.
 /// Returns `None` if no diff pixels exist in the region.
-pub fn compute_diff_centroid(
-    diff_image: &RgbaImage,
-    bbox: &ElementBBox,
-) -> Option<(f64, f64)> {
+pub fn compute_diff_centroid(diff_image: &RgbaImage, bbox: &ElementBBox) -> Option<(f64, f64)> {
     let x1 = bbox.x.max(0) as u32;
     let y1 = bbox.y.max(0) as u32;
     let x2 = (bbox.x + bbox.width).min(diff_image.width() as i32).max(0) as u32;
-    let y2 = (bbox.y + bbox.height).min(diff_image.height() as i32).max(0) as u32;
+    let y2 = (bbox.y + bbox.height)
+        .min(diff_image.height() as i32)
+        .max(0) as u32;
 
     let mut sum_x = 0u64;
     let mut sum_y = 0u64;
@@ -208,10 +204,7 @@ pub fn compute_diff_centroid(
 /// two distinct clusters of red pixels inside or near the bbox.
 ///
 /// Returns an estimated (dx, dy) offset if the pattern is found.
-pub fn detect_shadow_pattern(
-    diff_image: &RgbaImage,
-    bbox: &ElementBBox,
-) -> Option<(i32, i32)> {
+pub fn detect_shadow_pattern(diff_image: &RgbaImage, bbox: &ElementBBox) -> Option<(i32, i32)> {
     // Expand search window by 50% around the element
     let margin_x = bbox.width / 2;
     let margin_y = bbox.height / 2;
@@ -248,8 +241,14 @@ pub fn detect_shadow_pattern(
     let med_x = xs[xs.len() / 2];
     let med_y = ys[ys.len() / 2];
 
-    let cluster_a: Vec<_> = points.iter().filter(|(x, y)| *x < med_x || *y < med_y).collect();
-    let cluster_b: Vec<_> = points.iter().filter(|(x, y)| *x >= med_x && *y >= med_y).collect();
+    let cluster_a: Vec<_> = points
+        .iter()
+        .filter(|(x, y)| *x < med_x || *y < med_y)
+        .collect();
+    let cluster_b: Vec<_> = points
+        .iter()
+        .filter(|(x, y)| *x >= med_x && *y >= med_y)
+        .collect();
 
     if cluster_a.is_empty() || cluster_b.is_empty() {
         return None;
@@ -341,7 +340,7 @@ impl Default for ClassifyOptions {
 ///
 /// Elements with zero diff pixels are left with `classification = None`.
 pub fn classify_element_diffs(
-    contributions: &mut Vec<ElementDiffContribution>,
+    contributions: &mut [ElementDiffContribution],
     label_zpl: &str,
     diff_image: &RgbaImage,
     opts: &ClassifyOptions,

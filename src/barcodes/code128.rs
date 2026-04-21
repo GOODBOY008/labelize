@@ -10,7 +10,11 @@ pub const ESCAPE_FNC_1: char = '\u{00F1}';
 /// and FNC1 is prepended. The resulting string is ready for encode_auto().
 pub fn prepare_ucc_mode_data(content: &str) -> String {
     // Filter to digits only, take first 19, pad with zeros on the right to 19
-    let digits: String = content.chars().filter(|c| c.is_ascii_digit()).take(19).collect();
+    let digits: String = content
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .take(19)
+        .collect();
     let padded = format!("{:0<19}", digits);
     let check = gs1_mod10_check(&padded);
     format!("{}{}{}", ESCAPE_FNC_1, padded, check)
@@ -25,7 +29,11 @@ fn gs1_mod10_check(digits: &str) -> char {
         .enumerate()
         .map(|(i, c)| {
             let d = (c as u32) - ('0' as u32);
-            if i % 2 == 0 { d * 3 } else { d }
+            if i % 2 == 0 {
+                d * 3
+            } else {
+                d
+            }
         })
         .sum();
     let check = (10 - (sum % 10)) % 10;

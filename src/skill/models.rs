@@ -1,4 +1,4 @@
-/// Data models for the ZPL diff auto-fix skill.
+//! Data models for the ZPL diff auto-fix skill.
 
 /// Status category for a diff report entry.
 #[derive(Debug, Clone, PartialEq, Eq)]

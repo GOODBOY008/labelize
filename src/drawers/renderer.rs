@@ -361,7 +361,7 @@ impl Renderer {
             // The fill parallelogram for L (\): diagonal goes from (x,y) to (x+w,y+h).
             //   At each row, fill starts at diag_x and extends t pixels right.
             //   Parallelogram: (x, y), (x+t, y), (x+w+t, y+h), (x+w, y+h)
-            let t = (thickness - 1) as f32;  // inclusive fill: t pixels wide
+            let t = (thickness - 1) as f32; // inclusive fill: t pixels wide
             let para = if dl.top_to_bottom {
                 // L (\)
                 [(x, y), (x + t, y), (x + w + t, y + h), (x + w, y + h)]
@@ -832,6 +832,7 @@ fn line_color_to_rgba(color: LineColor) -> Rgba<u8> {
 }
 
 /// Sutherland-Hodgman polygon clipping against an axis-aligned rectangle.
+#[allow(dead_code)]
 fn clip_polygon_to_rect(
     polygon: &[(f32, f32)],
     min_x: f32,

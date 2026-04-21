@@ -174,13 +174,20 @@ pub fn find_labels_above_threshold(report: &DiffReport, threshold: f64) -> Vec<&
 }
 
 /// Look up a single label by name.
-pub fn scan_label<'a>(report: &'a DiffReport, name: &str) -> Result<&'a DiffReportEntry, ScanError> {
+pub fn scan_label<'a>(
+    report: &'a DiffReport,
+    name: &str,
+) -> Result<&'a DiffReportEntry, ScanError> {
     report
         .entries
         .iter()
         .find(|e| e.label_name == name)
         .ok_or_else(|| {
-            let available: Vec<String> = report.entries.iter().map(|e| e.label_name.clone()).collect();
+            let available: Vec<String> = report
+                .entries
+                .iter()
+                .map(|e| e.label_name.clone())
+                .collect();
             let suggestion = suggest_closest_label(name, &available);
             ScanError::LabelNotFound {
                 name: name.to_string(),
@@ -205,11 +212,11 @@ fn edit_distance(a: &str, b: &str) -> usize {
     let b = b.as_bytes();
     let mut dp = vec![vec![0usize; b.len() + 1]; a.len() + 1];
 
-    for i in 0..=a.len() {
-        dp[i][0] = i;
+    for (i, row) in dp.iter_mut().enumerate() {
+        row[0] = i;
     }
-    for j in 0..=b.len() {
-        dp[0][j] = j;
+    for (j, cell) in dp[0].iter_mut().enumerate() {
+        *cell = j;
     }
     for i in 1..=a.len() {
         for j in 1..=b.len() {
@@ -255,11 +262,7 @@ mod tests {
 
     #[test]
     fn test_suggest_closest() {
-        let available = vec![
-            "amazon".to_string(),
-            "fedex".to_string(),
-            "ups".to_string(),
-        ];
+        let available = vec!["amazon".to_string(), "fedex".to_string(), "ups".to_string()];
         assert_eq!(suggest_closest_label("amazn", &available), "amazon");
         assert_eq!(suggest_closest_label("fedx", &available), "fedex");
     }

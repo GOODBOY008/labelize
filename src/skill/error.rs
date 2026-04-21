@@ -9,7 +9,9 @@ pub enum ScanError {
     #[error("failed to parse diff report: {reason}")]
     ParseError { reason: String },
 
-    #[error("label '{name}' not found. Available labels: {available:?}. Did you mean '{suggestion}'?")]
+    #[error(
+        "label '{name}' not found. Available labels: {available:?}. Did you mean '{suggestion}'?"
+    )]
     LabelNotFound {
         name: String,
         available: Vec<String>,

@@ -117,7 +117,10 @@ impl VirtualPrinter {
         self.next_element_field_number = -1;
         self.next_element_alignment = None;
         // Save font used by the last field so ^GS can inherit it when no size specified
-        self.last_field_font = self.next_font.clone().unwrap_or_else(|| self.default_font.clone());
+        self.last_field_font = self
+            .next_font
+            .clone()
+            .unwrap_or_else(|| self.default_font.clone());
         self.next_font = None;
         self.next_element_field_reverse = false;
         self.next_hex_escape_char = 0;
