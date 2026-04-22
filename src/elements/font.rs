@@ -25,7 +25,9 @@ fn bitmap_font_sizes() -> &'static HashMap<&'static str, [f64; 2]> {
     static SIZES: OnceLock<HashMap<&str, [f64; 2]>> = OnceLock::new();
     SIZES.get_or_init(|| {
         let mut m = HashMap::new();
-        m.insert("A", [9.0, 5.0]);
+        // Font A: 9 high × 5 body dots + 1 spacing dot = 6 dots advance per character.
+        // Verified from Labelary renders: advance = 6×mag px/char at each magnification.
+        m.insert("A", [9.0, 6.0]);
         m.insert("B", [11.0, 7.0]);
         m.insert("C", [18.0, 10.0]);
         m.insert("D", [18.0, 10.0]);
@@ -53,6 +55,11 @@ impl FontInfo {
 
     pub fn is_standard_font(&self) -> bool {
         self.name == "0" || bitmap_font_sizes().contains_key(self.name.as_str())
+    }
+
+    /// Returns true for Zebra bitmap fonts (A-H, GS), false for the scalable font "0".
+    pub fn is_bitmap_font(&self) -> bool {
+        bitmap_font_sizes().contains_key(self.name.as_str())
     }
 
     pub fn with_adjusted_sizes(&self) -> FontInfo {
@@ -102,10 +109,20 @@ impl FontInfo {
             // Per ZPL docs: "setting height and width equally produces characters that appear most balanced"
             // This means when h=w, scale_x should be 1.0 (balanced/square proportions).
             0.9
+        } else if self.name == "D" {
+            // Zebra font D's actual character advance is ~1.2× the nominal 10-dot cell width.
+            // Empirically calibrated against Labelary: at 1x (w=10), Zebra font D renders
+            // ~12px per character advance vs our DejaVu's ~10px.
+            // 1.931 × 1.2 = 2.317
+            2.317
         } else {
-            // Bitmap fonts A-H use DejaVu Mono (advance/em = 0.602051).
-            // Ratio = 1/0.602051 so that advance * ratio * w = w (one char = w dots).
-            1.661
+            // Bitmap fonts A-H use DejaVu Sans Mono (Regular or Bold).
+            // ab_glyph scales advances as:  h_advance = h_advance_unscaled / height_unscaled * scale_x
+            // where height_unscaled = ascender - descender + line_gap (≠ units_per_em).
+            // For DejaVu Sans Mono: height_unscaled = 1901 + 483 = 2384, h_advance_unscaled ≈ 1235.
+            // Ratio = height_unscaled / h_advance_unscaled ≈ 2384/1235 = 1.931, so that
+            //   advance = scale_x * (1235/2384) = ratio * w * (1235/2384) ≈ w.
+            1.931
         }
     }
 }

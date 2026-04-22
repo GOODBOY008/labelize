@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use ab_glyph::{FontRef, PxScale};
+use ab_glyph::{Font as _, FontRef, PxScale, ScaleFont as _};
 use image::{Rgba, RgbaImage};
 use imageproc::drawing;
 
@@ -178,7 +178,7 @@ impl Renderer {
 
         let font_size = text.font.get_size() as f32;
         let scale_x = text.font.get_scale_x() as f32;
-        let scale = PxScale {
+        let mut scale = PxScale {
             x: font_size * scale_x,
             y: font_size,
         };
@@ -187,6 +187,36 @@ impl Renderer {
         // Use a ZPL-proportional ascent (~78% of cell height) to match Zebra font metrics,
         // since our substitute TTF fonts have different ascent ratios.
         let ascent = font_size * 0.78;
+
+        // Bitmap fonts (A–H) correction:
+        // Zebra's built-in bitmap Font A uses 7 of its 9 dot rows for capital letters (cap-height
+        // = 7/9 of cell height).  DejaVu Mono, our TTF substitute, renders cap letters at ~6/9 of
+        // the em-square.  To match Zebra's proportions we:
+        //   1. Scale scale.y by 7/6 so the rendered cap-height becomes 7/9 × cell.
+        //   2. Shift the draw-Y upward so the cap top aligns with the field origin (^FO y-coord)
+        //      instead of being pushed down by the TTF ascender gap.
+        // The shift is computed from the actual 'H' glyph bounds at the ORIGINAL scale so that
+        // it remains correct for any font size or magnification.
+        let is_bitmap = text.font.is_bitmap_font();
+        let bitmap_y_shift: f64 = if is_bitmap {
+            scale.y = font_size * 7.0 / 6.0;
+
+            let orig_scale = PxScale { x: scale.x, y: font_size };
+            let orig_ascent = font.as_scaled(orig_scale).ascent();
+            let orig_gap = font
+                .outline_glyph(
+                    font.glyph_id('H')
+                        .with_scale_and_position(orig_scale, ab_glyph::point(0.0, orig_ascent)),
+                )
+                .map(|g| g.px_bounds().min.y as f64)
+                .unwrap_or(font_size as f64 * 0.148);
+
+            // With the 7/6-scaled em, the ascender gap also scales by 7/6.
+            // Shift the draw origin UP by that new gap so cap_top = field y.
+            -(orig_gap * 7.0 / 6.0)
+        } else {
+            0.0
+        };
 
         // Measure text width approximately (scale already includes scale_x)
         let text_width = measure_text_width(&text.text, &font, scale) as f64;
@@ -199,6 +229,8 @@ impl Renderer {
         };
 
         let (x, y) = get_text_top_left_pos(text, pos_width, font_size as f64, ascent as f64, state);
+        // Apply bitmap y-correction (zero for non-bitmap fonts).
+        let y = y + bitmap_y_shift;
         state.update_automatic_text_position(text, pos_width);
 
         let color = Rgba([0, 0, 0, 255]);
@@ -226,7 +258,8 @@ impl Renderer {
                 (block.max_width as u32 + 2, h)
             } else {
                 let w = (text_width as f32).ceil() as u32 + 2;
-                let h = font_size.ceil() as u32 + 2;
+                // Use scale.y (may be larger than font_size for bitmap fonts) for buffer height.
+                let h = scale.y.ceil() as u32 + 2;
                 (w, h)
             };
 
@@ -1084,8 +1117,8 @@ fn draw_barcode_interpretation_line(
         Err(_) => return,
     };
     // Zebra's interpretation line font scales with the barcode module width.
-    // At module_width=2 (default), the standard font is ~18px.
-    let font_size = (module_width.max(1) as f32 * 9.0).clamp(12.0, 72.0);
+    // At module_width=2 (default), the standard font is ~23px to match reference width.
+    let font_size = (module_width.max(1) as f32 * 11.0).clamp(12.0, 72.0);
     let scale = PxScale {
         x: font_size,
         y: font_size,
@@ -1101,6 +1134,39 @@ fn draw_barcode_interpretation_line(
     let bw = barcode_img.width() as i32;
     let bh = barcode_img.height() as i32;
 
+    // Supersampled crisp text: render at 3× then box-filter downsample and threshold.
+    // This gives sub-pixel shape accuracy before the binary threshold, producing
+    // crisper strokes than direct thresholding of a single-resolution render.
+    let render_text_crisp = |w: u32, h: u32| -> RgbaImage {
+        const SS: u32 = 3;
+        let ss_scale = PxScale { x: scale.x * SS as f32, y: scale.y * SS as f32 };
+        let ss_w = (w * SS).max(1);
+        let ss_h = (h * SS).max(1);
+        let mut big = RgbaImage::from_pixel(ss_w, ss_h, Rgba([0, 0, 0, 0]));
+        drawing::draw_text_mut(&mut big, Rgba([0, 0, 0, 255]), 0, 0, ss_scale, &font, &display);
+        // Box-filter downsample: average the SS×SS block's alpha, then threshold at 50%
+        let mut out = RgbaImage::from_pixel(w, h, Rgba([0, 0, 0, 0]));
+        for y in 0..h {
+            for x in 0..w {
+                let mut sum = 0u32;
+                for dy in 0..SS {
+                    for dx in 0..SS {
+                        let sx = x * SS + dx;
+                        let sy = y * SS + dy;
+                        if sx < ss_w && sy < ss_h {
+                            sum += big.get_pixel(sx, sy)[3] as u32;
+                        }
+                    }
+                }
+                let avg = sum / (SS * SS);
+                if avg > 127 {
+                    out.put_pixel(x, y, Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+        out
+    };
+
     match orientation {
         FieldOrientation::Normal => {
             let cx = pos.x + (bw - text_width as i32) / 2;
@@ -1109,16 +1175,16 @@ fn draw_barcode_interpretation_line(
             } else {
                 pos.y + bh + 2
             };
-            let color = Rgba([0, 0, 0, 255]);
-            drawing::draw_text_mut(canvas, color, cx, ty, scale, &font, &display);
+            let buf_w = (text_width.ceil() as u32).max(1) + 2;
+            let buf_h = font_size.ceil() as u32 + 2;
+            let buf = render_text_crisp(buf_w, buf_h);
+            overlay_at(canvas, &buf, cx, ty);
         }
         _ => {
             // Render text to buffer, rotate to match barcode orientation, then overlay
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
             let buf_h = font_size.ceil() as u32 + 2;
-            let mut buf = RgbaImage::from_pixel(buf_w, buf_h, Rgba([0, 0, 0, 0]));
-            let color = Rgba([0, 0, 0, 255]);
-            drawing::draw_text_mut(&mut buf, color, 0, 0, scale, &font, &display);
+            let buf = render_text_crisp(buf_w, buf_h);
 
             let rotated = match orientation {
                 FieldOrientation::Rotated90 => rotate_90(&buf),

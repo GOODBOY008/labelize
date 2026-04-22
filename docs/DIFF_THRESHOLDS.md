@@ -48,8 +48,8 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | dbs | zpl | 5.27 | 6.0 | Font metrics |
 | dhlecommercetr | zpl | 5.00 | 6.0 | Font metrics |
 | dhlpaket | zpl | 2.68 | 4.0 | Font metrics |
-| dhlparceluk | zpl | 4.94 | 5.5 | Font metrics (^FT Rotated270 multi-line x fixed) |
-| dpdpl | zpl | 7.12 | 8.0 | Font metrics |
+| dhlparceluk | zpl | 5.14 | 5.7 | Font metrics (^FT Rotated270 multi-line x fixed) |
+| dpdpl | zpl | 6.38 | 7.0 | Font metrics |
 | dpduk | epl | 5.79 | 6.5 | EPL reference from Go renderer |
 | ean13 | zpl | 2.84 | 3.0 | Sub-pixel barcode bars |
 | edi_triangle | zpl | 0.63 | 2.0 | Sub-pixel |
@@ -68,7 +68,7 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | gs | zpl | 1.01 | 2.0 | Graphic symbol font |
 | icapaket | zpl | 5.39 | 6.0 | Font metrics |
 | jcpenney | zpl | 6.88 | 8.0 | Font metrics |
-| kmart | zpl | 8.39 | 9.0 | Font metrics |
+| kmart | zpl | 7.03 | 7.5 | Font metrics |
 | labelary | zpl | 4.48 | 5.5 | Font metrics + Code128 |
 | pnldpd | zpl | 13.78 | 14.5 | Aztec + font metrics |
 | pocztex | zpl | 4.56 | 5.5 | Font metrics |
@@ -80,7 +80,7 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | reverse | zpl | 0.80 | 2.0 | Sub-pixel |
 | reverse_qr | zpl | 0.33 | 1.5 | QR barcode |
 | swisspost | zpl | 1.81 | 3.0 | Font metrics |
-| templating | zpl | 1.34 | 3.0 | Font metrics |
+| templating | zpl | 1.17 | 2.0 | Font metrics |
 | text_fallback_default | zpl | 4.25 | 5.0 | Font metrics |
 | text_fo_b | zpl | 0.10 | 1.0 | Sub-pixel |
 | text_fo_i | zpl | 0.10 | 1.0 | Sub-pixel |

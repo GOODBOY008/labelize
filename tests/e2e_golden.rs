@@ -101,7 +101,7 @@ fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
 
 #[test]
 fn golden_amazon() {
-    golden_zpl_with_tolerance("amazon", 4.0);
+    golden_zpl_with_tolerance("amazon", 3.5);
 }
 #[test]
 fn golden_aztec_ec() {
@@ -137,7 +137,7 @@ fn golden_barcode128_mode_n_cba_sets() {
 }
 #[test]
 fn golden_barcode128_mode_u() {
-    golden_zpl_with_tolerance("barcode128_mode_u", 3.0);
+    golden_zpl_with_tolerance("barcode128_mode_u", 2.0);
 }
 #[test]
 fn golden_barcode128_rotated() {
@@ -149,15 +149,15 @@ fn golden_bstc() {
 }
 #[test]
 fn golden_dbs() {
-    golden_zpl_with_tolerance("dbs", 6.0);
+    golden_zpl_with_tolerance("dbs", 5.0);
 }
 #[test]
 fn golden_dhlecommercetr() {
-    golden_zpl_with_tolerance("dhlecommercetr", 6.0);
+    golden_zpl_with_tolerance("dhlecommercetr", 4.5);
 }
 #[test]
 fn golden_dhlpaket() {
-    golden_zpl_with_tolerance("dhlpaket", 4.0);
+    golden_zpl_with_tolerance("dhlpaket", 3.5);
 }
 #[test]
 fn golden_dhlparceluk() {
@@ -165,7 +165,7 @@ fn golden_dhlparceluk() {
 }
 #[test]
 fn golden_dpdpl() {
-    golden_zpl_with_tolerance("dpdpl", 8.0);
+    golden_zpl_with_tolerance("dpdpl", 7.5);
 }
 #[test]
 fn golden_ean13() {
@@ -173,23 +173,23 @@ fn golden_ean13() {
 }
 #[test]
 fn golden_encodings_013() {
-    golden_zpl_with_tolerance("encodings_013", 3.0);
+    golden_zpl_with_tolerance("encodings_013", 2.5);
 }
 #[test]
 fn golden_fedex() {
-    golden_zpl_with_tolerance("fedex", 9.0);
+    golden_zpl_with_tolerance("fedex", 7.0);
 }
 #[test]
 fn golden_gd_thin_r() {
-    golden_zpl_with_tolerance("gd_thin_r", 2.0);
+    golden_zpl_with_tolerance("gd_thin_r", 1.0);
 }
 #[test]
 fn golden_gd_thin_l() {
-    golden_zpl_with_tolerance("gd_thin_l", 2.0);
+    golden_zpl_with_tolerance("gd_thin_l", 1.0);
 }
 #[test]
 fn golden_gd_thick() {
-    golden_zpl_with_tolerance("gd_thick", 4.5);
+    golden_zpl_with_tolerance("gd_thick", 1.0);
 }
 #[test]
 fn golden_gd_default_params() {
@@ -213,11 +213,11 @@ fn golden_gb_rounded() {
 }
 #[test]
 fn golden_glscz() {
-    golden_zpl_with_tolerance("glscz", 5.0);
+    golden_zpl_with_tolerance("glscz", 3.5);
 }
 #[test]
 fn golden_glsdk_return() {
-    golden_zpl_with_tolerance("glsdk_return", 7.0);
+    golden_zpl_with_tolerance("glsdk_return", 5.5);
 }
 #[test]
 fn golden_gs() {
@@ -225,63 +225,63 @@ fn golden_gs() {
 }
 #[test]
 fn golden_icapaket() {
-    golden_zpl_with_tolerance("icapaket", 6.0);
+    golden_zpl_with_tolerance("icapaket", 5.5);
 }
 #[test]
 fn golden_jcpenney() {
-    golden_zpl_with_tolerance("jcpenney", 8.0);
+    golden_zpl_with_tolerance("jcpenney", 6.0);
 }
 #[test]
 fn golden_kmart() {
-    golden_zpl_with_tolerance("kmart", 9.0);
+    golden_zpl_with_tolerance("kmart", 8.0);
 }
 #[test]
 fn golden_labelary() {
-    golden_zpl_with_tolerance("labelary", 5.5);
+    golden_zpl_with_tolerance("labelary", 4.5);
 }
 #[test]
 fn golden_pnldpd() {
-    golden_zpl_with_tolerance("pnldpd", 14.5);
+    golden_zpl_with_tolerance("pnldpd", 11.5);
 }
 #[test]
 fn golden_pocztex() {
-    golden_zpl_with_tolerance("pocztex", 5.5);
+    golden_zpl_with_tolerance("pocztex", 4.5);
 }
 #[test]
 fn golden_porterbuddy() {
-    golden_zpl_with_tolerance("porterbuddy", 10.0);
+    golden_zpl_with_tolerance("porterbuddy", 7.0);
 }
 #[test]
 fn golden_posten() {
-    golden_zpl_with_tolerance("posten", 5.0);
+    golden_zpl_with_tolerance("posten", 3.0);
 }
 #[test]
 fn golden_qr_code_ft_manual() {
-    golden_zpl_with_tolerance("qr_code_ft_manual", 4.0);
+    golden_zpl_with_tolerance("qr_code_ft_manual", 1.0);
 }
 #[test]
 fn golden_qr_code_offset() {
-    golden_zpl_with_tolerance("qr_code_offset", 3.0);
+    golden_zpl_with_tolerance("qr_code_offset", 1.0);
 }
 #[test]
 fn golden_return_qrcode() {
-    golden_zpl_with_tolerance("return_qrcode", 7.0);
+    golden_zpl_with_tolerance("return_qrcode", 4.0);
 }
 #[test]
 fn golden_reverse_qr() {
-    golden_zpl_with_tolerance("reverse_qr", 5.0);
+    golden_zpl_with_tolerance("reverse_qr", 1.5);
 }
 #[test]
 fn golden_reverse() {
-    golden_zpl_with_tolerance("reverse", 2.0);
+    golden_zpl_with_tolerance("reverse", 1.5);
 }
 #[test]
 fn golden_swisspost() {
-    golden_zpl_with_tolerance("swisspost", 3.0);
+    golden_zpl_with_tolerance("swisspost", 2.5);
 }
 #[test]
 fn golden_templating() {
-    golden_zpl_with_tolerance("templating", 3.0);
+    golden_zpl_with_tolerance("templating", 2.5);
 }
 #[test]
 fn golden_text_fallback_default() {
@@ -305,7 +305,7 @@ fn golden_text_fo_r() {
 }
 #[test]
 fn golden_text_ft_auto_pos() {
-    golden_zpl_with_tolerance("text_ft_auto_pos", 3.0);
+    golden_zpl_with_tolerance("text_ft_auto_pos", 2.5);
 }
 #[test]
 fn golden_text_ft_b() {
@@ -325,86 +325,86 @@ fn golden_text_ft_r() {
 }
 #[test]
 fn golden_text_multiline() {
-    golden_zpl_with_tolerance("text_multiline", 2.0);
+    golden_zpl_with_tolerance("text_multiline", 1.5);
 }
 #[test]
 fn golden_ups_surepost() {
-    golden_zpl_with_tolerance("ups_surepost", 12.0);
+    golden_zpl_with_tolerance("ups_surepost", 10.0);
 }
 #[test]
 fn golden_ups() {
-    golden_zpl_with_tolerance("ups", 9.0);
+    golden_zpl_with_tolerance("ups", 8.0);
 }
 #[test]
 fn golden_usps() {
-    golden_zpl_with_tolerance("usps", 6.0);
+    golden_zpl_with_tolerance("usps", 5.0);
 }
 
 // ── New Carrier Labels (March 2026) ────────────────────────────────
 
 #[test]
 fn golden_tnt_express() {
-    golden_zpl_with_tolerance("tnt_express", 6.0);
+    golden_zpl_with_tolerance("tnt_express", 5.0);
 }
 #[test]
 fn golden_royalmail() {
-    golden_zpl_with_tolerance("royalmail", 5.5);
+    golden_zpl_with_tolerance("royalmail", 4.5);
 }
 #[test]
 fn golden_canadapost() {
-    golden_zpl_with_tolerance("canadapost", 6.5);
+    golden_zpl_with_tolerance("canadapost", 5.0);
 }
 #[test]
 fn golden_auspost() {
-    golden_zpl_with_tolerance("auspost", 6.0);
+    golden_zpl_with_tolerance("auspost", 5.0);
 }
 #[test]
 fn golden_colissimo() {
-    golden_zpl_with_tolerance("colissimo", 5.0);
+    golden_zpl_with_tolerance("colissimo", 4.5);
 }
 #[test]
 fn golden_postnl() {
-    golden_zpl_with_tolerance("postnl", 5.5);
+    golden_zpl_with_tolerance("postnl", 5.0);
 }
 #[test]
 fn golden_bpost() {
-    golden_zpl_with_tolerance("bpost", 5.5);
+    golden_zpl_with_tolerance("bpost", 4.5);
 }
 #[test]
 fn golden_correos() {
-    golden_zpl_with_tolerance("correos", 5.5);
+    golden_zpl_with_tolerance("correos", 5.0);
 }
 #[test]
 fn golden_dbschenker() {
-    golden_zpl_with_tolerance("dbschenker", 6.0);
+    golden_zpl_with_tolerance("dbschenker", 5.5);
 }
 #[test]
 fn golden_evri() {
-    golden_zpl_with_tolerance("evri", 5.0);
+    golden_zpl_with_tolerance("evri", 4.5);
 }
 #[test]
 fn golden_dpdde() {
-    golden_zpl_with_tolerance("dpdde", 5.5);
+    golden_zpl_with_tolerance("dpdde", 4.5);
 }
 #[test]
 fn golden_ontrac() {
-    golden_zpl_with_tolerance("ontrac", 6.0);
+    golden_zpl_with_tolerance("ontrac", 4.5);
 }
 #[test]
 fn golden_seur() {
-    golden_zpl_with_tolerance("seur", 5.5);
+    golden_zpl_with_tolerance("seur", 4.5);
 }
 #[test]
 fn golden_purolator() {
-    golden_zpl_with_tolerance("purolator", 4.5);
+    golden_zpl_with_tolerance("purolator", 4.0);
 }
 #[test]
 fn golden_inpost() {
-    golden_zpl_with_tolerance("inpost", 7.0);
+    golden_zpl_with_tolerance("inpost", 5.5);
 }
 #[test]
 fn golden_yodel() {
-    golden_zpl_with_tolerance("yodel", 5.5);
+    golden_zpl_with_tolerance("yodel", 4.5);
 }
 #[test]
 fn golden_pdf417_basic() {
@@ -419,28 +419,28 @@ fn golden_pdf417_basic() {
 fn golden_dhlparcelit() {
     // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
     // Code128 barcodes, ^FH hex encoding
-    golden_zpl_with_tolerance("dhlparcelit", 10.0);
+    golden_zpl_with_tolerance("dhlparcelit", 7.0);
 }
 
 #[test]
 fn golden_brtit() {
     // BRT (Bartolini) Italy: ^POI orientation, ~DG000.GRF logo,
     // ^A0B rotated text, ^FR reverse video, Code128
-    golden_zpl_with_tolerance("brtit", 8.0);
+    golden_zpl_with_tolerance("brtit", 3.0);
 }
 
 #[test]
 fn golden_posteit() {
     // Poste Italiane: DataMatrix ^BX, ^GFA Z64 compressed logo,
     // ^BCB bottom-up barcode, ^FH hex in all fields
-    golden_zpl_with_tolerance("posteit", 8.0);
+    golden_zpl_with_tolerance("posteit", 7.5);
 }
 
 #[test]
 fn golden_amazonshipping() {
     // Amazon Shipping (MXP5): ^BXN/B/I/R DataMatrix in all 4 orientations,
     // ^FR field reverse, ^GFA inline graphics, ^FH hex in all fields
-    golden_zpl_with_tolerance("amazonshipping", 10.0);
+    golden_zpl_with_tolerance("amazonshipping", 4.0);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────
