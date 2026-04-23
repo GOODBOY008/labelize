@@ -201,7 +201,10 @@ impl Renderer {
         let bitmap_y_shift: f64 = if is_bitmap {
             scale.y = font_size * 7.0 / 6.0;
 
-            let orig_scale = PxScale { x: scale.x, y: font_size };
+            let orig_scale = PxScale {
+                x: scale.x,
+                y: font_size,
+            };
             let orig_ascent = font.as_scaled(orig_scale).ascent();
             let orig_gap = font
                 .outline_glyph(
@@ -1139,11 +1142,22 @@ fn draw_barcode_interpretation_line(
     // crisper strokes than direct thresholding of a single-resolution render.
     let render_text_crisp = |w: u32, h: u32| -> RgbaImage {
         const SS: u32 = 3;
-        let ss_scale = PxScale { x: scale.x * SS as f32, y: scale.y * SS as f32 };
+        let ss_scale = PxScale {
+            x: scale.x * SS as f32,
+            y: scale.y * SS as f32,
+        };
         let ss_w = (w * SS).max(1);
         let ss_h = (h * SS).max(1);
         let mut big = RgbaImage::from_pixel(ss_w, ss_h, Rgba([0, 0, 0, 0]));
-        drawing::draw_text_mut(&mut big, Rgba([0, 0, 0, 255]), 0, 0, ss_scale, &font, &display);
+        drawing::draw_text_mut(
+            &mut big,
+            Rgba([0, 0, 0, 255]),
+            0,
+            0,
+            ss_scale,
+            &font,
+            &display,
+        );
         // Box-filter downsample: average the SS×SS block's alpha, then threshold at 50%
         let mut out = RgbaImage::from_pixel(w, h, Rgba([0, 0, 0, 0]));
         for y in 0..h {
