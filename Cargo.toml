@@ -1,6 +1,6 @@
 [package]
 name = "labelize"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Fast Rust engine to parse ZPL & EPL label data and render to PNG/PDF. CLI, HTTP microservice, or library. Open-source Labelary alternative."
 keywords = ["zpl", "epl", "label", "barcode", "thermal-printer"]
