@@ -221,8 +221,9 @@ impl Renderer {
             0.0
         };
 
-        // Measure text width approximately (scale already includes scale_x)
-        let text_width = measure_text_width(&text.text, &font, scale) as f64;
+        // Measure text width approximately (scale already includes scale_x).
+        // Use superscript-aware measurement so that ® is counted at its rendered size.
+        let text_width = measure_text_width_with_superscript(&text.text, &font, scale) as f64;
 
         // For field blocks, use block width for positioning instead of measured text width
         let pos_width = if let Some(ref block) = text.block {
@@ -248,7 +249,9 @@ impl Renderer {
                     canvas, &font, scale, scale_x, color, x as f32, y as f32, block, &text.text,
                 );
             } else {
-                drawing::draw_text_mut(canvas, color, x as i32, y as i32, scale, &font, &text.text);
+                draw_text_with_superscript(
+                    canvas, &font, scale, color, x as f32, y as f32, &text.text,
+                );
             }
         } else {
             // Non-normal: render to transparent buffer, rotate, then overlay
@@ -277,7 +280,7 @@ impl Renderer {
                     &mut buf, &font, scale, scale_x, color, 0.0, 0.0, block, &text.text,
                 );
             } else {
-                drawing::draw_text_mut(&mut buf, color, 0, 0, scale, &font, &text.text);
+                draw_text_with_superscript(&mut buf, &font, scale, color, 0.0, 0.0, &text.text);
             }
 
             let rotated = match orientation {
@@ -730,6 +733,74 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale) -> f32 {
     width
 }
 
+/// The registered trademark symbol ® (U+00AE) is rendered as a superscript in Zebra's
+/// built-in fonts: it appears smaller and top-aligned relative to surrounding text.
+/// This scale factor approximates Zebra's built-in glyph size (≈55% of the em height).
+const REGISTERED_MARK: char = '\u{00AE}';
+const REGISTERED_MARK_SCALE: f32 = 0.55;
+
+/// Measure text width treating ® as a superscript (at REGISTERED_MARK_SCALE of main scale).
+fn measure_text_width_with_superscript(text: &str, font: &FontRef, scale: PxScale) -> f32 {
+    if !text.contains(REGISTERED_MARK) {
+        return measure_text_width(text, font, scale);
+    }
+    let super_scale = PxScale {
+        x: scale.x * REGISTERED_MARK_SCALE,
+        y: scale.y * REGISTERED_MARK_SCALE,
+    };
+    let reg_str = REGISTERED_MARK.to_string();
+    let mut width = 0.0f32;
+    for (i, part) in text.split(REGISTERED_MARK).enumerate() {
+        if i > 0 {
+            width += measure_text_width(&reg_str, font, super_scale);
+        }
+        if !part.is_empty() {
+            width += measure_text_width(part, font, scale);
+        }
+    }
+    width
+}
+
+/// Draw text onto `canvas`, rendering ® as a top-aligned superscript at REGISTERED_MARK_SCALE.
+fn draw_text_with_superscript(
+    canvas: &mut RgbaImage,
+    font: &FontRef,
+    scale: PxScale,
+    color: Rgba<u8>,
+    x: f32,
+    y: f32,
+    text: &str,
+) {
+    if !text.contains(REGISTERED_MARK) {
+        drawing::draw_text_mut(canvas, color, x as i32, y as i32, scale, font, text);
+        return;
+    }
+    let super_scale = PxScale {
+        x: scale.x * REGISTERED_MARK_SCALE,
+        y: scale.y * REGISTERED_MARK_SCALE,
+    };
+    let reg_str = REGISTERED_MARK.to_string();
+    let mut cx = x;
+    for (i, part) in text.split(REGISTERED_MARK).enumerate() {
+        if i > 0 {
+            drawing::draw_text_mut(
+                canvas,
+                color,
+                cx as i32,
+                y as i32,
+                super_scale,
+                font,
+                &reg_str,
+            );
+            cx += measure_text_width(&reg_str, font, super_scale);
+        }
+        if !part.is_empty() {
+            drawing::draw_text_mut(canvas, color, cx as i32, y as i32, scale, font, part);
+            cx += measure_text_width(part, font, scale);
+        }
+    }
+}
+
 fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32) -> Vec<String> {
     let mut lines = Vec::new();
     for line in text.split('\n') {
@@ -788,7 +859,7 @@ fn draw_text_block(
             }
             _ => x,
         };
-        drawing::draw_text_mut(canvas, color, lx as i32, cy as i32, scale, font, line);
+        draw_text_with_superscript(canvas, font, scale, color, lx, cy, line);
         cy += line_height;
     }
 }
