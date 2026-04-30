@@ -74,9 +74,9 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | pocztex | zpl | 4.56 | 5.5 | Font metrics |
 | porterbuddy | zpl | 6.36 | 7.5 | QR code + font metrics |
 | posten | zpl | 3.61 | 5.0 | Font metrics |
-| qr_code_ft_manual | zpl | 2.30 | 3.0 | QR barcode + position |
-| qr_code_offset | zpl | 0.41 | 1.5 | QR position offset |
-| return_qrcode | zpl | 3.10 | 4.0 | QR + font |
+| qr_code_ft_manual | zpl | 0.00 | 1.0 | Perfect |
+| qr_code_offset | zpl | 0.00 | 1.0 | Perfect |
+| return_qrcode | zpl | 2.86 | 3.5 | QR + font |
 | reverse | zpl | 0.80 | 2.0 | Sub-pixel |
 | reverse_qr | zpl | 0.33 | 1.5 | QR barcode |
 | swisspost | zpl | 1.81 | 3.0 | Font metrics |
@@ -96,21 +96,21 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | ups_surepost | zpl | 7.61 | 8.5 | MaxiCode + font metrics |
 | usps | zpl | 4.05 | 5.0 | Font metrics + ® superscript glyph |
 | tnt_express | zpl | 5.25 | 6.0 | Font metrics + PDF417 |
-| royalmail | zpl | 3.33 | 4.0 | QR code + font metrics |
-| canadapost | zpl | 4.04 | 5.0 | QR code + PDF417 + font |
-| auspost | zpl | 3.93 | 4.5 | QR code + font metrics |
+| royalmail | zpl | 2.68 | 3.5 | QR code + font metrics |
+| canadapost | zpl | 3.64 | 4.5 | QR code + PDF417 + font |
+| auspost | zpl | 3.36 | 4.0 | QR code + font metrics |
 | colissimo | zpl | 3.88 | 5.0 | DataMatrix + font metrics |
-| postnl | zpl | 3.67 | 4.5 | QR code + font metrics |
-| bpost | zpl | 3.59 | 4.5 | QR code + font metrics |
-| correos | zpl | 3.73 | 4.5 | QR code + font metrics |
+| postnl | zpl | 3.03 | 3.5 | QR code + font metrics |
+| bpost | zpl | 2.94 | 3.5 | QR code + font metrics |
+| correos | zpl | 3.05 | 3.5 | QR code + font metrics |
 | dbschenker | zpl | 5.28 | 6.0 | PDF417 + font metrics |
-| evri | zpl | 3.06 | 4.0 | QR code + font metrics |
+| evri | zpl | 2.39 | 3.0 | QR code + font metrics |
 | dpdde | zpl | 5.00 | 5.5 | PDF417 + font metrics |
-| ontrac | zpl | 3.53 | 4.5 | QR code + font metrics |
+| ontrac | zpl | 2.94 | 3.5 | QR code + font metrics |
 | seur | zpl | 4.70 | 5.5 | PDF417 + font metrics |
 | purolator | zpl | 3.78 | 4.5 | DataMatrix + font metrics |
-| inpost | zpl | 4.18 | 5.0 | QR code + font metrics |
-| yodel | zpl | 3.54 | 4.5 | QR code + font metrics |
+| inpost | zpl | 4.28 | 5.0 | QR code + font metrics |
+| yodel | zpl | 2.94 | 3.5 | QR code + font metrics |
 
 ## Known Limitations
 

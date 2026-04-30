@@ -64,7 +64,10 @@ impl BarcodeQrWithData {
         }
 
         if mode != QrCharacterMode::Binary {
-            return Ok((data.to_string(), level, mode));
+            // Zebra printers treat `|` as a field separator in QR data; it is stripped
+            // from the encoded content (not included in the QR symbol), matching Labelary behavior.
+            let content = data.replace('|', "");
+            return Ok((content, level, mode));
         }
 
         if data.len() < 5 {
