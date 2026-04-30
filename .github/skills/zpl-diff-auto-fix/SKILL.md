@@ -259,6 +259,28 @@ The skill uses Rust utilities in `src/skill/`:
 - **`models.rs`** — Data structures: `DiffReport`, `ElementBBox`, `ZplSnippet`, etc.
 - **`error.rs`** — Error types: `ScanError`, `AnalyzeError`, `ExtractError`
 
+### Phase 6: Commit — Generate Summary
+
+27. **Generate a commit message** summarizing the changes:
+    - List labels improved with before/after diff percentages
+    - Summarize which rendering modules were modified
+    - Note any threshold updates
+    - Format: `fix(render): reduce diff for <labels> — <brief description>`
+
+    Example:
+    ```
+    fix(render): reduce diff for amazon, dhl — fix ^FO baseline offset and Code128 quiet zone
+
+    Labels improved:
+    - amazon: 4.2% → 0.8%
+    - dhl: 3.1% → 0.6%
+
+    Changes:
+    - src/parsers/zpl_parser.rs: correct ^FO y-offset calculation for rotated fields
+    - src/barcodes/code128.rs: remove extra quiet zone module on right side
+    - docs/DIFF_THRESHOLDS.md: update tolerances for amazon (1.0%), dhl (0.8%)
+    ```
+
 ## References
 
 - [Fix ZPL Render Skill](../fix-zpl-render/SKILL.md) — Detailed diagnostic procedures
