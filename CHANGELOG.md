@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-01
+
+### Added
+
+- **Commit Message Guidance** — Added commit message guidelines for the ZPL diff auto-fix workflow
+
+### Fixed
+
+- **MaxiCode ECC Pipeline** — Rewrote MaxiCode encoding with proper GF(64) Reed-Solomon ECC handling
+- **MaxiCode Encode Call Site** — Updated encoder call signatures to pass the required mode parameter
+- **QR Payload Parsing (`^BQ`)** — Strips `|` separators in QR payloads to match Zebra and Labelary behavior
+- **Code 128 Mode N (`^BC`)** — Corrected mode-N data handling and display text behavior to better align with ZPL expectations
+- **Text Glyph Rendering** — Render `®` (U+00AE) as superscript in text fields for closer visual parity
+
+### Changed
+
+- **Renderer Cleanup** — Improved readability in renderer formatting paths
+- **Golden Calibration** — Tuned bitmap font sizes and golden-test tolerance values to improve comparison accuracy
+
 ## [0.4.0] - 2026-04-21
 
 ### Added
