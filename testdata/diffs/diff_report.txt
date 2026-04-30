@@ -82,8 +82,8 @@
 ║ text_ft_r                      │ zpl  │    0.04% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.57% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ tnt_express                    │ zpl  │    3.90% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ ups                            │ zpl  │    6.91% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
-║ ups_surepost                   │ zpl  │    8.80% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ ups                            │ zpl  │    5.74% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ ups_surepost                   │ zpl  │    7.61% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ usps                           │ zpl  │    4.09% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    3.56% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣

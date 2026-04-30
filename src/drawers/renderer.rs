@@ -698,8 +698,7 @@ impl Renderer {
         canvas: &mut RgbaImage,
         mc: &crate::elements::maxicode::MaxicodeWithData,
     ) -> Result<(), String> {
-        let _input_data = mc.get_input_data()?;
-        let img = barcodes::maxicode::encode(&mc.data)?;
+        let img = barcodes::maxicode::encode(&mc.data, mc.code.mode)?;
         let pos = adjust_image_typeset_position(&img, &mc.position, FieldOrientation::Normal);
         overlay_at(canvas, &img, pos.x, pos.y);
         Ok(())

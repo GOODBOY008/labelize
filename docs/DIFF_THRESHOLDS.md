@@ -92,8 +92,8 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | text_ft_n | zpl | 0.10 | 1.0 | Sub-pixel |
 | text_ft_r | zpl | 0.16 | 1.0 | Sub-pixel |
 | text_multiline | zpl | 0.68 | 2.0 | Word-wrap boundaries |
-| ups | zpl | 7.65 | 9.0 | MaxiCode + font metrics |
-| ups_surepost | zpl | 8.80 | 10.0 | MaxiCode + font metrics |
+| ups | zpl | 5.74 | 7.0 | MaxiCode + font metrics |
+| ups_surepost | zpl | 7.61 | 8.5 | MaxiCode + font metrics |
 | usps | zpl | 4.09 | 5.0 | Font metrics |
 | tnt_express | zpl | 5.25 | 6.0 | Font metrics + PDF417 |
 | royalmail | zpl | 3.33 | 4.0 | QR code + font metrics |
@@ -115,10 +115,10 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 ## Known Limitations
 
 ### MaxiCode (ups, ups_surepost)
-MaxiCode is a proprietary 2D symbology used by UPS. The current encoder
-draws the correct bullseye and hexagonal grid structure but the data encoding
-differs from Labelary's. These labels remain MODERATE due to combined MaxiCode
-and font metric differences.
+MaxiCode is a proprietary 2D symbology used by UPS. The encoder implements
+proper GF(64) Reed-Solomon ECC (primary 10+10, secondary 42+20 even/odd tracks)
+and greedy Set-A character encoding. Remaining diff (~5-7%) is due to minor
+hex module placement differences vs Labelary and font metric differences.
 
 ### PDF417 (fedex)
 The `pdf417` crate produces **valid, scannable** barcodes, but the specific
