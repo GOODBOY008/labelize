@@ -126,17 +126,15 @@ static BITNR: [[i16; 30]; 33] = [
 fn rs_build_generator(nsym: usize) -> Vec<u8> {
     let mut poly = vec![0u8; nsym + 1];
     poly[0] = 1;
-    let mut index = 1usize;
     for i in 1..=nsym {
         poly[i] = 1;
         for k in (1..i).rev() {
             if poly[k] != 0 {
-                poly[k] = ALOG[LOGT[poly[k] as usize] as usize + index];
+                poly[k] = ALOG[LOGT[poly[k] as usize] as usize + i];
             }
             poly[k] ^= poly[k - 1];
         }
-        poly[0] = ALOG[LOGT[poly[0] as usize] as usize + index];
-        index += 1;
+        poly[0] = ALOG[LOGT[poly[0] as usize] as usize + i];
     }
     poly
 }
