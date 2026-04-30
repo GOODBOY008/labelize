@@ -203,12 +203,12 @@ fn encode_primary_mode3(
         let ch_up = if ch.is_ascii_lowercase() { ch - 32 } else { ch };
         pc[i] = MAXI_SYMBOL_CHAR[ch_up as usize];
     }
-    codewords[0] = (((pc[5] & 0x03) << 4) | 3) as u8;
-    codewords[1] = (((pc[4] & 0x03) << 4) | ((pc[5] & 0x3C) >> 2)) as u8;
-    codewords[2] = (((pc[3] & 0x03) << 4) | ((pc[4] & 0x3C) >> 2)) as u8;
-    codewords[3] = (((pc[2] & 0x03) << 4) | ((pc[3] & 0x3C) >> 2)) as u8;
-    codewords[4] = (((pc[1] & 0x03) << 4) | ((pc[2] & 0x3C) >> 2)) as u8;
-    codewords[5] = (((pc[0] & 0x03) << 4) | ((pc[1] & 0x3C) >> 2)) as u8;
+    codewords[0] = ((pc[5] & 0x03) << 4) | 3;
+    codewords[1] = ((pc[4] & 0x03) << 4) | ((pc[5] & 0x3C) >> 2);
+    codewords[2] = ((pc[3] & 0x03) << 4) | ((pc[4] & 0x3C) >> 2);
+    codewords[3] = ((pc[2] & 0x03) << 4) | ((pc[3] & 0x3C) >> 2);
+    codewords[4] = ((pc[1] & 0x03) << 4) | ((pc[2] & 0x3C) >> 2);
+    codewords[5] = ((pc[0] & 0x03) << 4) | ((pc[1] & 0x3C) >> 2);
     codewords[6] = (((pc[0] as u32 & 0x3C) >> 2) | ((country & 0x03) << 4)) as u8;
     codewords[7] = ((country & 0xFC) >> 2) as u8;
     codewords[8] = (((country & 0x300) >> 8) | ((service & 0x0F) << 2)) as u8;
@@ -420,7 +420,7 @@ pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
             // ZPL primary format: service(3) + country(3) + postal
             let service: u32 = primary_str[..3].parse().unwrap_or(0);
             let country: u32 = primary_str[3..6].parse().unwrap_or(0);
-            let postal_bytes = primary_str[6..].as_bytes();
+            let postal_bytes = &primary_str.as_bytes()[6..];
 
             if mode == 2 {
                 encode_primary_mode2(&mut codewords, postal_bytes, country, service);
@@ -435,7 +435,17 @@ pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
 
             encode_secondary(&mut codewords, secondary_str.as_bytes());
         }
-        4 | _ => {
+        4 => {
+            codewords[0] = 4;
+            // For mode 4, the secondary area holds the full message.
+            // First encode into the secondary slots (indices 20..104),
+            // then copy the first 9 codewords of secondary back to primary
+            // positions 1..10 (as libzint does for mode 4).
+            encode_secondary(&mut codewords, data.as_bytes());
+            let tmp: [u8; 9] = codewords[20..29].try_into().unwrap();
+            codewords[1..10].copy_from_slice(&tmp);
+        }
+        _ => {
             codewords[0] = 4;
             // For mode 4, the secondary area holds the full message.
             // First encode into the secondary slots (indices 20..104),

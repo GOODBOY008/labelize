@@ -264,14 +264,14 @@ fn qrcode_empty_input_returns_error() {
 
 #[test]
 fn maxicode_encodes_text() {
-    let img = maxicode::encode("Hello World").expect("maxicode failed");
+    let img = maxicode::encode("Hello World", 4).expect("maxicode failed");
     assert!(img.width() > 0);
     assert!(img.height() > 0);
 }
 
 #[test]
 fn maxicode_empty_input_returns_error() {
-    let result = maxicode::encode("");
+    let result = maxicode::encode("", 4);
     assert!(result.is_err(), "expected error for empty input");
 }
 
