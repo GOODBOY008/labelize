@@ -179,13 +179,13 @@ All diff images are in [`testdata/diffs/`](testdata/diffs/) — browse them to r
 | Label | Diff | Preview |
 |-------|------|---------|
 | amazon | 2.26% | <img src="testdata/diffs/amazon.png" height="150"> |
-| fedex | 5.92% | <img src="testdata/diffs/fedex.png" height="150"> |
-| ups | 6.91% | <img src="testdata/diffs/ups.png" height="150"> |
-| dhlpaket | 2.18% | <img src="testdata/diffs/dhlpaket.png" height="150"> |
-| usps | 4.80% | <img src="testdata/diffs/usps.png" height="150"> |
+| fedex | 5.77% | <img src="testdata/diffs/fedex.png" height="150"> |
+| ups | 5.74% | <img src="testdata/diffs/ups.png" height="150"> |
+| dhlpaket | 2.17% | <img src="testdata/diffs/dhlpaket.png" height="150"> |
+| usps | 4.05% | <img src="testdata/diffs/usps.png" height="150"> |
 | swisspost | 1.49% | <img src="testdata/diffs/swisspost.png" height="150"> |
 
-**79 labels tested** — 4 perfect · 24 good (<1%) · 40 minor (<5%) · 11 moderate (<15%) · 0 high
+**83 labels tested** — 6 perfect · 27 good (<1%) · 39 minor (<5%) · 11 moderate (<15%) · 0 high
 
 > Full report: [`testdata/diffs/diff_report.txt`](testdata/diffs/diff_report.txt)
 
@@ -197,7 +197,7 @@ cargo test --test e2e              # golden-file E2E tests
 cargo test --test unit             # unit tests
 ```
 
-57 golden-file E2E tests compare rendered output pixel-by-pixel against reference PNGs from the Labelary reference renderer.
+82 golden-file E2E tests compare rendered output pixel-by-pixel against reference PNGs from the Labelary reference renderer.
 
 ## Building from Source
 
