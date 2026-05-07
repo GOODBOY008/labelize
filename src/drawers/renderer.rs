@@ -22,6 +22,7 @@ static FONT_HELVETICA: &[u8] = crate::assets::FONT_HELVETICA_BOLD;
 static FONT_DEJAVU_MONO: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO;
 static FONT_DEJAVU_BOLD: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO_BOLD;
 static FONT_GS: &[u8] = crate::assets::FONT_ZPL_GS;
+static FONT_ZEBRA_D: &[u8] = crate::assets::FONT_ZEBRA_D;
 
 pub struct Renderer;
 
@@ -711,7 +712,8 @@ impl Renderer {
 fn get_ttf_font_data(name: &str) -> &'static [u8] {
     match name {
         "0" => FONT_HELVETICA,
-        "B" | "D" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
+        "D" => FONT_ZEBRA_D,
+        "B" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
         _ => FONT_DEJAVU_MONO,
     }
