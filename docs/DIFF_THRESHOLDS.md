@@ -156,10 +156,11 @@ To regenerate all Labelary reference images:
 
 ```sh
 # ZPL labels (Labelary API)
-for f in testdata/*.zpl; do
+for f in testdata/labels/*.zpl testdata/unit/*.zpl; do
   name=$(basename "$f" .zpl)
+  dir=$(dirname "$f")
   curl -s -X POST http://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/ \
-    -F "file=@$f" -o "testdata/${name}.png"
+    -F "file=@$f" -o "${dir}/${name}.png"
 done
 
 # EPL labels — Labelary does not support EPL.
