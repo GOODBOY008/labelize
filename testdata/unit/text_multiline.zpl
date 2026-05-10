@@ -1,6 +1,6 @@
 ^XA
-^FB800,2,,C
-^FO0,360,
+^FB380,2,,C
+^FO10,200,
 ^A0,40
 ^FD
 First line of text\&

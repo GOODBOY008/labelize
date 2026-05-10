@@ -6,12 +6,24 @@ reference images from the [Labelary ZPL viewer](https://labelary.com/viewer.html
 
 ## Reference Setup
 
+### Carrier Labels (`testdata/labels/`)
+
 | Parameter | Value |
 |-----------|-------|
 | DPI | 8 dpmm (≈ 203 dpi) |
 | Label size | 4.005 × 8.01 inches (101.625 × 203.25 mm) |
 | Pixel dims | 813 × 1626 |
 | Source | Labelary API `http://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/` |
+
+### Unit Tests (`testdata/unit/`)
+
+| Parameter | Value |
+|-----------|-------|
+| DPI | 8 dpmm (≈ 203 dpi) |
+| Label size | 50 × 80 mm |
+| Pixel dims | 400 × 640 |
+
+Unit tests use a smaller canvas for easier visual comparison and faster rendering.
 
 The EPL label `dpduk.epl` uses a reference rendered by the Go-based labelize
 predecessor because Labelary does not support EPL.

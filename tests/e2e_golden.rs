@@ -3,8 +3,11 @@ mod common;
 use common::image_compare;
 use common::render_helpers;
 
-/// Maximum allowed pixel-difference percentage for migrated tests.
-const MIGRATED_TOLERANCE: f64 = 50.0;
+/// Maximum allowed pixel-difference percentage for carrier label tests.
+const LABEL_TOLERANCE: f64 = 15.0;
+/// Tolerance for unit tests — golden PNGs are downscaled Labelary references (400×640),
+/// so diffs are higher than labels. Tight precision is in unit_property_tests (5%).
+const UNIT_TOLERANCE: f64 = 60.0;
 
 fn testdata_dir() -> std::path::PathBuf {
     render_helpers::testdata_dir()
@@ -12,18 +15,18 @@ fn testdata_dir() -> std::path::PathBuf {
 
 /// Run a golden-file comparison for a ZPL test case.
 fn golden_zpl(name: &str) {
-    golden_zpl_with_tolerance(name, MIGRATED_TOLERANCE);
+    golden_zpl_with_tolerance(name, LABEL_TOLERANCE);
 }
 
 fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
     // Try labels/ first, then unit/, then root
-    let input = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
-        dir.join("labels").join(format!("{}.zpl", name))
+    let (input, is_unit) = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
+        (dir.join("labels").join(format!("{}.zpl", name)), false)
     } else if dir.join("unit").join(format!("{}.zpl", name)).exists() {
-        dir.join("unit").join(format!("{}.zpl", name))
+        (dir.join("unit").join(format!("{}.zpl", name)), true)
     } else {
-        dir.join(format!("{}.zpl", name))
+        (dir.join(format!("{}.zpl", name)), false)
     };
     let expected = input.with_extension("png");
 
@@ -32,12 +35,19 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
         return;
     }
 
+    // Unit tests use smaller canvas and higher tolerance (downscaled Labelary refs)
+    let options = if is_unit {
+        render_helpers::unit_options()
+    } else {
+        render_helpers::default_options()
+    };
+    let effective_tolerance = if is_unit { UNIT_TOLERANCE } else { tolerance };
     let content = std::fs::read_to_string(&input).expect("read input");
-    let actual_png = render_helpers::render_zpl_to_png(&content, render_helpers::default_options());
+    let actual_png = render_helpers::render_zpl_to_png(&content, options);
     let expected_png = std::fs::read(&expected).expect("read golden");
-    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+    let result = image_compare::compare_images(&actual_png, &expected_png, effective_tolerance);
 
-    if result.diff_percent > tolerance {
+    if result.diff_percent > effective_tolerance {
         if let Some(ref diff_img) = result.diff_image {
             image_compare::save_diff_image(name, diff_img);
         }
@@ -50,7 +60,7 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     }
 
     assert!(
-        result.diff_percent <= tolerance,
+        result.diff_percent <= effective_tolerance,
         "ZPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
         name,
         result.diff_percent,
@@ -62,7 +72,7 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
 
 /// Run a golden-file comparison for an EPL test case.
 fn golden_epl(name: &str) {
-    golden_epl_with_tolerance(name, MIGRATED_TOLERANCE);
+    golden_epl_with_tolerance(name, LABEL_TOLERANCE);
 }
 
 fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
@@ -448,6 +458,57 @@ fn golden_amazonshipping() {
     // Amazon Shipping (MXP5): ^BXN/B/I/R DataMatrix in all 4 orientations,
     // ^FR field reverse, ^GFA inline graphics, ^FH hex in all fields
     golden_zpl_with_tolerance("amazonshipping", 4.0);
+}
+
+// ── Additional unit golden tests ──────────────────────────────────
+
+#[test]
+fn golden_ups_maxicode() {
+    golden_zpl_with_tolerance("ups_maxicode", 5.0);
+}
+#[test]
+fn golden_aztec_ec_1_ec23() {
+    golden_zpl_with_tolerance("aztec_ec_1_ec23", 7.5);
+}
+#[test]
+fn golden_aztec_ec_2_ec45() {
+    golden_zpl_with_tolerance("aztec_ec_2_ec45", 7.5);
+}
+#[test]
+fn golden_aztec_ec_3_ec70() {
+    golden_zpl_with_tolerance("aztec_ec_3_ec70", 7.5);
+}
+#[test]
+fn golden_aztec_ec_4_ec95() {
+    golden_zpl_with_tolerance("aztec_ec_4_ec95", 7.5);
+}
+#[test]
+fn golden_dhlparceluk_dhl_text() {
+    golden_zpl_with_tolerance("dhlparceluk_dhl_text", 5.5);
+}
+#[test]
+fn golden_dhlparceluk_ver() {
+    golden_zpl_with_tolerance("dhlparceluk_ver", 5.5);
+}
+#[test]
+fn golden_postnl_qr() {
+    golden_zpl_with_tolerance("postnl_qr", 5.0);
+}
+#[test]
+fn golden_edi_triangle() {
+    golden_zpl_with_tolerance("edi_triangle", 2.0);
+}
+#[test]
+fn golden_qr_ft_by100() {
+    golden_zpl_with_tolerance("qr_ft_by100", 1.0);
+}
+#[test]
+fn golden_qr_ft_600() {
+    golden_zpl_with_tolerance("qr_ft_600", 1.0);
+}
+#[test]
+fn golden_qr_ft_test() {
+    golden_zpl_with_tolerance("qr_ft_test", 1.0);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────

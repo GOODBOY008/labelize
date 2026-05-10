@@ -1,0 +1,61 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          Unit Diff Report (400×640)                          ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Name                           │ Ext  │    Diff% │   Actual(WxH) │ Expected(WxH) │ Status       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ aztec_ec                       │ zpl  │   21.60% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ aztec_ec_1_ec23                │ zpl  │    2.99% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ aztec_ec_2_ec45                │ zpl  │    4.40% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ aztec_ec_3_ec70                │ zpl  │    8.56% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ aztec_ec_4_ec95                │ zpl  │    8.20% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_default_width       │ zpl  │    7.64% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_line                │ zpl  │    5.61% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_line_above          │ zpl  │    5.63% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_mode_a              │ zpl  │    6.80% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_mode_d              │ zpl  │    6.34% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_mode_n              │ zpl  │    6.06% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_mode_n_cba_sets     │ zpl  │   10.10% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ barcode128_mode_u              │ zpl  │    4.40% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ barcode128_rotated             │ zpl  │    5.58% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ dhlparceluk_dhl_text           │ zpl  │    0.51% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ dhlparceluk_ver                │ zpl  │    0.07% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ ean13                          │ zpl  │   35.60% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ edi_triangle                   │ zpl  │    0.51% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ encodings_013                  │ zpl  │    9.59% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ gb_0_height                    │ zpl  │    1.94% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ gb_0_width                     │ zpl  │    1.93% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ gb_normal                      │ zpl  │    4.59% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ gb_rounded                     │ zpl  │    4.14% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ gd_default_params              │ zpl  │    2.31% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ gd_thick                       │ zpl  │   26.55% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ gd_thin_l                      │ zpl  │    0.52% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ gd_thin_r                      │ zpl  │    0.52% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ gs                             │ zpl  │    4.62% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ pdf417_basic                   │ zpl  │    3.59% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ postnl_qr                      │ zpl  │    3.94% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ qr_code_ft_manual              │ zpl  │   18.11% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ qr_code_offset                 │ zpl  │    6.79% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ qr_ft_600                      │ zpl  │    2.77% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ qr_ft_by100                    │ zpl  │    2.75% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ qr_ft_test                     │ zpl  │    2.75% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ return_qrcode                  │ zpl  │   18.83% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ reverse                        │ zpl  │    5.85% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ reverse_qr                     │ zpl  │   54.25% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ templating                     │ zpl  │   27.78% │       400x640 │       400x640 │ HIGH(>=15%)  ║
+║ text_fallback_default          │ zpl  │   12.75% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ text_fo_b                      │ zpl  │    0.77% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_fo_i                      │ zpl  │    0.76% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_fo_n                      │ zpl  │    0.78% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_fo_r                      │ zpl  │    0.77% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_ft_auto_pos               │ zpl  │    4.14% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ text_ft_b                      │ zpl  │    0.20% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_ft_i                      │ zpl  │    0.22% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_ft_n                      │ zpl  │    0.72% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_ft_r                      │ zpl  │    0.77% │       400x640 │       400x640 │ GOOD(<1%)    ║
+║ text_multiline                 │ zpl  │    3.41% │       400x640 │       400x640 │ MINOR(<5%)   ║
+║ ups_maxicode                   │ zpl  │    6.80% │       400x640 │       400x640 │ MODERATE(<15%) ║
+║ usps_priority_mail             │ zpl  │      N/A │           N/A │           N/A │ SKIP(no ref) ║
+║ usps_test_merchant             │ zpl  │      N/A │           N/A │           N/A │ SKIP(no ref) ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Summary: 53 total │ 0 perfect │ 13 good │ 16 minor │ 15 moderate │ 7 high │ 2 skip │ 0 err
+╚══════════════════════════════════════════════════════════════════════════════╝

@@ -1,10 +1,10 @@
 /// Auto-discovers all ZPL/EPL test files under testdata/, renders them, compares
-/// against reference PNGs, and produces a detailed diff-percentage report.
+/// against reference PNGs, and produces two detailed diff-percentage reports:
+/// - `testdata/diffs/diff_report_labels.txt` — carrier/real-world labels (813×1626)
+/// - `testdata/diffs/diff_report_unit.txt` — unit/synthetic tests (400×640)
 ///
 /// Run with:
 ///   cargo test --test e2e_diff_report diff_report -- --nocapture
-///
-/// The report is also written to `testdata/diffs/diff_report.txt`.
 mod common;
 
 use common::image_compare;
@@ -22,13 +22,11 @@ struct ReportEntry {
     status: &'static str,
 }
 
-/// Discover and render all testdata label files, compare against reference PNGs.
-fn generate_diff_report() -> Vec<ReportEntry> {
-    let dir = render_helpers::testdata_dir();
+/// Scan a set of directories for ZPL/EPL files, render, and compare against reference PNGs.
+fn scan_dirs(dirs: &[std::path::PathBuf], use_unit_opts: bool) -> Vec<ReportEntry> {
     let mut entries: Vec<ReportEntry> = Vec::new();
 
-    let scan_dirs = [dir.clone(), dir.join("labels"), dir.join("unit")];
-    let mut label_files: Vec<_> = scan_dirs
+    let mut label_files: Vec<_> = dirs
         .iter()
         .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
         .filter(|e| {
@@ -60,7 +58,11 @@ fn generate_diff_report() -> Vec<ReportEntry> {
         }
 
         let content = std::fs::read_to_string(path).unwrap_or_default();
-        let opts = render_helpers::default_options();
+        let opts = if use_unit_opts {
+            render_helpers::unit_options()
+        } else {
+            render_helpers::default_options()
+        };
 
         let actual_png = match ext.as_str() {
             "epl" => std::panic::catch_unwind(|| {
@@ -89,12 +91,10 @@ fn generate_diff_report() -> Vec<ReportEntry> {
         let expected_png = std::fs::read(&ref_png).expect("read reference");
         let result = image_compare::compare_images(&actual_png, &expected_png, 0.0);
 
-        // Save diff image when there are differences
         if let Some(ref diff_img) = result.diff_image {
             image_compare::save_diff_image(&name, diff_img);
         }
 
-        // Save side-by-side comparison image (left=Labelary, right=Labelize)
         if let (Some(ref expected_img), Some(ref actual_img)) =
             (&result.expected_image, &result.actual_image)
         {
@@ -126,18 +126,14 @@ fn generate_diff_report() -> Vec<ReportEntry> {
     entries
 }
 
-fn format_report(entries: &[ReportEntry]) -> String {
+fn format_report(title: &str, entries: &[ReportEntry]) -> String {
     let mut report = String::new();
     writeln!(
         report,
         "╔══════════════════════════════════════════════════════════════════════════════╗"
     )
     .unwrap();
-    writeln!(
-        report,
-        "║                    ZPL/EPL Rendering Diff Report                            ║"
-    )
-    .unwrap();
+    writeln!(report, "║ {:^76} ║", title).unwrap();
     writeln!(
         report,
         "╠══════════════════════════════════════════════════════════════════════════════╣"
@@ -215,35 +211,48 @@ fn format_report(entries: &[ReportEntry]) -> String {
     report
 }
 
-#[test]
-fn diff_report_all() {
-    let entries = generate_diff_report();
-    let report = format_report(&entries);
-
-    // Print to stdout
-    println!("\n{}", report);
-
-    // Save to file
-    let report_path = render_helpers::testdata_dir()
-        .join("diffs")
-        .join("diff_report.txt");
+fn save_report(filename: &str, report: &str) {
+    let report_path = render_helpers::testdata_dir().join("diffs").join(filename);
     std::fs::create_dir_all(report_path.parent().unwrap()).ok();
     let mut f = std::fs::File::create(&report_path).expect("create report file");
     f.write_all(report.as_bytes()).expect("write report");
-
     println!("Report saved to: {}", report_path.display());
+}
 
-    // Collect entries with HIGH diff for assertion message
+fn check_high_diffs(entries: &[ReportEntry]) {
     let high_diffs: Vec<&ReportEntry> = entries
         .iter()
         .filter(|e| e.status == "HIGH(>=15%)")
         .collect();
     if !high_diffs.is_empty() {
-        let mut msg = String::from("The following test cases have HIGH diff (>=15%):\n");
+        let mut msg = String::from("HIGH diff entries (>=15%):\n");
         for e in &high_diffs {
             writeln!(msg, "  - {}.{}: {:.2}%", e.name, e.ext, e.diff_percent).unwrap();
         }
         eprintln!("{}", msg);
-        // Don't fail the test - this is a report. Individual golden tests enforce tolerance.
     }
+}
+
+#[test]
+fn diff_report_labels() {
+    let dir = render_helpers::testdata_dir();
+    let dirs = vec![dir.clone(), dir.join("labels")];
+    let entries = scan_dirs(&dirs, false);
+    let report = format_report("Labels Diff Report (813×1626)", &entries);
+
+    println!("\n{}", report);
+    save_report("diff_report_labels.txt", &report);
+    check_high_diffs(&entries);
+}
+
+#[test]
+fn diff_report_unit() {
+    let dir = render_helpers::testdata_dir();
+    let dirs = vec![dir.join("unit")];
+    let entries = scan_dirs(&dirs, true);
+    let report = format_report("Unit Diff Report (400×640)", &entries);
+
+    println!("\n{}", report);
+    save_report("diff_report_unit.txt", &report);
+    check_high_diffs(&entries);
 }

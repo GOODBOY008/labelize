@@ -129,16 +129,6 @@ mod text_orientation_tests {
 
     const TEXT_TOLERANCE: f64 = 5.0;
 
-    /// Options matching Labelary reference dimensions (813×1626 at 8dpmm)
-    fn labelary_options() -> labelize::DrawerOptions {
-        labelize::DrawerOptions {
-            label_width_mm: 101.625,
-            label_height_mm: 203.25,
-            dpmm: 8,
-            ..Default::default()
-        }
-    }
-
     fn run_text_golden(name: &str, tolerance: f64) {
         let dir = render_helpers::unit_dir();
         let input = dir.join(format!("{}.zpl", name));
@@ -149,7 +139,8 @@ mod text_orientation_tests {
         }
 
         let content = std::fs::read_to_string(&input).expect("read input");
-        let actual_png = render_helpers::render_zpl_to_png(&content, labelary_options());
+        let actual_png =
+            render_helpers::render_zpl_to_png(&content, render_helpers::unit_options());
         let expected_png = std::fs::read(&expected).expect("read golden");
         let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
 
@@ -218,27 +209,17 @@ mod preservation_tests {
     use crate::common::image_compare;
     use crate::common::render_helpers;
 
-    const PRESERVATION_TOLERANCE: f64 = 50.0;
-
-    /// Options matching Labelary reference dimensions (813×1626 at 8dpmm)
-    fn labelary_options() -> labelize::DrawerOptions {
-        labelize::DrawerOptions {
-            label_width_mm: 101.625,
-            label_height_mm: 203.25,
-            dpmm: 8,
-            ..Default::default()
-        }
-    }
+    const PRESERVATION_TOLERANCE: f64 = 60.0;
 
     fn run_preservation_golden(name: &str) {
         let dir = render_helpers::testdata_dir();
         // Try labels/ first, then unit/, then root
-        let input = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
-            dir.join("labels").join(format!("{}.zpl", name))
+        let (input, is_unit) = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
+            (dir.join("labels").join(format!("{}.zpl", name)), false)
         } else if dir.join("unit").join(format!("{}.zpl", name)).exists() {
-            dir.join("unit").join(format!("{}.zpl", name))
+            (dir.join("unit").join(format!("{}.zpl", name)), true)
         } else {
-            dir.join(format!("{}.zpl", name))
+            (dir.join(format!("{}.zpl", name)), false)
         };
         let expected = input.with_extension("png");
 
@@ -247,8 +228,14 @@ mod preservation_tests {
             return;
         }
 
+        // Unit tests use smaller canvas; labels use Labelary reference size
+        let options = if is_unit {
+            render_helpers::unit_options()
+        } else {
+            render_helpers::default_options()
+        };
         let content = std::fs::read_to_string(&input).expect("read input");
-        let actual_png = render_helpers::render_zpl_to_png(&content, labelary_options());
+        let actual_png = render_helpers::render_zpl_to_png(&content, options);
         let expected_png = std::fs::read(&expected).expect("read golden");
         let result =
             image_compare::compare_images(&actual_png, &expected_png, PRESERVATION_TOLERANCE);

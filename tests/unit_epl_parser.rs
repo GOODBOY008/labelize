@@ -199,7 +199,7 @@ fn parse_mixed_elements() {
 
 #[test]
 fn parse_dpd_uk() {
-    let file = std::fs::read("testdata/dpduk.epl").expect("failed to read dpduk.epl");
+    let file = std::fs::read("testdata/labels/dpduk.epl").expect("failed to read dpduk.epl");
     let parser = EplParser::new();
     let labels = parser.parse(&file).expect("EPL parse failed");
 
@@ -232,7 +232,7 @@ fn draw_dpd_uk() {
     use labelize::{DrawerOptions, Renderer};
     use std::io::Cursor;
 
-    let file = std::fs::read("testdata/dpduk.epl").expect("failed to read dpduk.epl");
+    let file = std::fs::read("testdata/labels/dpduk.epl").expect("failed to read dpduk.epl");
     let parser = EplParser::new();
     let labels = parser.parse(&file).expect("EPL parse failed");
     assert!(!labels.is_empty(), "no labels parsed");

@@ -50,6 +50,17 @@ pub fn render_label_to_png(label: &LabelInfo, options: DrawerOptions) -> Vec<u8>
     buf.into_inner()
 }
 
+/// Smaller DrawerOptions for unit golden tests (50mm × 80mm, 8 dpmm → 400×640 px).
+/// Produces images ~5× smaller than default, making visual diffs easier to inspect.
+pub fn unit_options() -> DrawerOptions {
+    DrawerOptions {
+        label_width_mm: 50.0,
+        label_height_mm: 80.0,
+        dpmm: 8,
+        ..Default::default()
+    }
+}
+
 /// Path to the testdata directory.
 pub fn testdata_dir() -> std::path::PathBuf {
     let local = std::path::Path::new("testdata");
