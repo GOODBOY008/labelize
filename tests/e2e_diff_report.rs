@@ -27,16 +27,10 @@ fn generate_diff_report() -> Vec<ReportEntry> {
     let dir = render_helpers::testdata_dir();
     let mut entries: Vec<ReportEntry> = Vec::new();
 
-    let scan_dirs = [
-        dir.clone(),
-        dir.join("labels"),
-        dir.join("unit"),
-    ];
+    let scan_dirs = [dir.clone(), dir.join("labels"), dir.join("unit")];
     let mut label_files: Vec<_> = scan_dirs
         .iter()
-        .flat_map(|d| {
-            std::fs::read_dir(d).into_iter().flatten().flatten()
-        })
+        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
         .filter(|e| {
             let ext = e
                 .path()

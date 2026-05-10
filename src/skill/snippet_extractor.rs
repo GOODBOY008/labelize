@@ -163,7 +163,10 @@ pub fn extract_element(
 
     snippet.push_str("^XZ\n");
 
-    let file_path = format!("testdata/snippets/{}_{}.zpl", label_name, element_index);
+    let file_path = format!(
+        "testdata/unit/snippets/{}_{}.zpl",
+        label_name, element_index
+    );
 
     Ok(ZplSnippet {
         label_name: label_name.to_string(),
@@ -215,7 +218,7 @@ pub fn extract_element_group(
         .map(|i| i.to_string())
         .collect::<Vec<_>>()
         .join("_");
-    let file_path = format!("testdata/snippets/{}_{}.zpl", label_name, indices_str);
+    let file_path = format!("testdata/unit/snippets/{}_{}.zpl", label_name, indices_str);
 
     Ok(ZplSnippet {
         label_name: label_name.to_string(),

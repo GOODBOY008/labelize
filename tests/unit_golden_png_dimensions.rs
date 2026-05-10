@@ -14,11 +14,7 @@ const EXPECTED_HEIGHT: u32 = 1626;
 fn all_golden_pngs_have_standard_dimensions() {
     let dir = render_helpers::testdata_dir();
 
-    let scan_dirs = [
-        dir.clone(),
-        dir.join("labels"),
-        dir.join("unit"),
-    ];
+    let scan_dirs = [dir.clone(), dir.join("labels"), dir.join("unit")];
 
     let mut checked = 0u32;
     let mut failures: Vec<String> = Vec::new();

@@ -43,7 +43,7 @@ diff, never raise it to paper over a regression.
 
 ### Phase 1: Identify the Problem
 
-1. **Get the label source** — Read the ZPL file from `testdata/<name>.zpl`
+1. **Get the label source** — Read the ZPL file from `testdata/labels/<name>.zpl` or `testdata/unit/<name>.zpl`
 2. **Check current diff** — Look up the label in [docs/DIFF_THRESHOLDS.md](../../docs/DIFF_THRESHOLDS.md) for the current diff percentage and known cause
 3. **Run the golden test** for the specific label:
    ```bash
