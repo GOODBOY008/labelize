@@ -17,8 +17,15 @@ fn golden_zpl(name: &str) {
 
 fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
-    let input = dir.join(format!("{}.zpl", name));
-    let expected = dir.join(format!("{}.png", name));
+    // Try labels/ first, then unit/, then root
+    let input = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
+        dir.join("labels").join(format!("{}.zpl", name))
+    } else if dir.join("unit").join(format!("{}.zpl", name)).exists() {
+        dir.join("unit").join(format!("{}.zpl", name))
+    } else {
+        dir.join(format!("{}.zpl", name))
+    };
+    let expected = input.with_extension("png");
 
     if !input.exists() || !expected.exists() {
         eprintln!("SKIP {}: missing input or golden file", name);
