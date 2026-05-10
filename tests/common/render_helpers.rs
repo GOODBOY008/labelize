@@ -62,3 +62,13 @@ pub fn testdata_dir() -> std::path::PathBuf {
     }
     panic!("testdata directory not found (tried ./testdata and ../testdata)");
 }
+
+/// Returns the path to the `testdata/labels/` directory (real carrier labels).
+pub fn labels_dir() -> std::path::PathBuf {
+    testdata_dir().join("labels")
+}
+
+/// Returns the path to the `testdata/unit/` directory (synthetic test fixtures).
+pub fn unit_dir() -> std::path::PathBuf {
+    testdata_dir().join("unit")
+}
