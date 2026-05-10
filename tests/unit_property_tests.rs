@@ -140,7 +140,7 @@ mod text_orientation_tests {
     }
 
     fn run_text_golden(name: &str, tolerance: f64) {
-        let dir = render_helpers::testdata_dir();
+        let dir = render_helpers::unit_dir();
         let input = dir.join(format!("{}.zpl", name));
         let expected = dir.join(format!("{}.png", name));
 
@@ -232,8 +232,15 @@ mod preservation_tests {
 
     fn run_preservation_golden(name: &str) {
         let dir = render_helpers::testdata_dir();
-        let input = dir.join(format!("{}.zpl", name));
-        let expected = dir.join(format!("{}.png", name));
+        // Try labels/ first, then unit/, then root
+        let input = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
+            dir.join("labels").join(format!("{}.zpl", name))
+        } else if dir.join("unit").join(format!("{}.zpl", name)).exists() {
+            dir.join("unit").join(format!("{}.zpl", name))
+        } else {
+            dir.join(format!("{}.zpl", name))
+        };
+        let expected = input.with_extension("png");
 
         if !input.exists() || !expected.exists() {
             eprintln!("SKIP preservation {}: missing files", name);
