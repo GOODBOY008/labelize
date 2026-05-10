@@ -3,7 +3,7 @@ use labelize::elements::LabelElement;
 
 #[test]
 fn debug_usps_text_elements() {
-    let zpl = std::fs::read_to_string("testdata/usps.zpl").unwrap();
+    let zpl = std::fs::read_to_string("testdata/labels/usps.zpl").unwrap();
     let mut parser = labelize::ZplParser::new();
     let labels = parser.parse(zpl.as_bytes()).unwrap();
     println!("\n=== USPS FULL LABEL TEXT ELEMENTS ===");
