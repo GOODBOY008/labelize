@@ -329,7 +329,7 @@ impl Default for ClassifyOptions {
     fn default() -> Self {
         Self {
             snippet_threshold: 2.0,
-            cache_dir: PathBuf::from("testdata/unit/snippets/labelary_cache"),
+            cache_dir: PathBuf::from("testdata/unit/labelary_cache"),
             use_labelary: true,
         }
     }

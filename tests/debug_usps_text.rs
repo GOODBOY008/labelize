@@ -26,7 +26,7 @@ fn debug_usps_text_elements() {
         }
     }
 
-    let zpl2 = std::fs::read_to_string("testdata/unit/snippets/usps_test_merchant.zpl").unwrap();
+    let zpl2 = std::fs::read_to_string("testdata/unit/usps_test_merchant.zpl").unwrap();
     let mut parser2 = labelize::ZplParser::new();
     let labels2 = parser2.parse(zpl2.as_bytes()).unwrap();
     println!("\n=== SNIPPET TEXT ELEMENTS ===");

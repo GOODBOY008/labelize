@@ -3,7 +3,6 @@
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Name                           │ Ext  │    Diff% │   Actual(WxH) │ Expected(WxH) │ Status       ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ dpduk                          │ epl  │    5.42% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ amazon                         │ zpl  │    2.26% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ amazonshipping                 │ zpl  │    2.87% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ auspost                        │ zpl  │    3.36% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -21,6 +20,7 @@
 ║ dhlparceluk                    │ zpl  │    5.14% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ dpdde                          │ zpl  │    3.53% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    6.38% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ dpduk                          │ epl  │    5.42% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ evri                           │ zpl  │    2.39% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fedex                          │ zpl  │    5.77% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ glscz                          │ zpl  │    2.33% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -47,6 +47,10 @@
 ║ usps                           │ zpl  │    4.05% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    2.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ aztec_ec                       │ zpl  │    6.82% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ aztec_ec_1_ec23                │ zpl  │    0.36% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ aztec_ec_2_ec45                │ zpl  │    0.53% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ aztec_ec_3_ec70                │ zpl  │    0.87% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ aztec_ec_4_ec95                │ zpl  │    5.06% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ barcode128_default_width       │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ barcode128_line                │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ barcode128_line_above          │ zpl  │    0.27% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -56,6 +60,8 @@
 ║ barcode128_mode_n_cba_sets     │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ barcode128_mode_u              │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ barcode128_rotated             │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ dhlparceluk_dhl_text           │ zpl  │    0.45% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ dhlparceluk_ver                │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ ean13                          │ zpl  │    2.76% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ edi_triangle                   │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ encodings_013                  │ zpl  │    1.51% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -69,8 +75,12 @@
 ║ gd_thin_r                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gs                             │ zpl  │    1.14% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ pdf417_basic                   │ zpl  │    0.29% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ postnl_qr                      │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ qr_code_ft_manual              │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ qr_code_offset                 │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ qr_ft_600                      │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_ft_by100                    │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_ft_test                     │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ return_qrcode                  │ zpl  │    2.86% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ reverse                        │ zpl  │    0.41% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ reverse_qr                     │ zpl  │    0.33% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -86,6 +96,9 @@
 ║ text_ft_n                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_r                      │ zpl  │    0.04% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.57% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ ups_maxicode                   │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ usps_priority_mail             │ zpl  │      N/A │           N/A │           N/A │ SKIP(no ref) ║
+║ usps_test_merchant             │ zpl  │      N/A │           N/A │           N/A │ SKIP(no ref) ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 83 total │ 6 perfect │ 27 good │ 39 minor │ 11 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 96 total │ 7 perfect │ 36 good │ 39 minor │ 12 moderate │ 0 high │ 2 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

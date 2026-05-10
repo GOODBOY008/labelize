@@ -104,14 +104,14 @@ Before starting, ensure:
     ```
     Use src/skill/snippet_extractor.rs → extract_element()
     ```
-    This creates `testdata/unit/snippets/<label>_<index>.zpl` with:
+    This creates `testdata/unit/<label>_<index>.zpl` with:
     - `^XA` / `^XZ` wrapper
     - Global state commands (`^PW`, `^CF`, `^BY`, `^CI`, `^FW`, `^PO`, `^LR`) preserved
     - The specific element's command span (`^FO`/`^FT` through `^FS`)
 
 11. **Render each snippet** to verify it renders correctly in isolation:
     ```bash
-    cargo run -- convert --width 101.625 --height 203.25 --dpmm 8 testdata/unit/snippets/<label>_<index>.zpl
+    cargo run -- convert --width 101.625 --height 203.25 --dpmm 8 testdata/unit/<label>_<index>.zpl
     ```
     The `--width`, `--height`, and `--dpmm` flags must match the Labelary label size
     (`4.005×8.01 inches` = `101.625×203.25 mm` at 8 dpmm → 813×1626 px) so that the
@@ -121,7 +121,7 @@ Before starting, ensure:
     ```
     POST http://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/
     ```
-    Save the reference as `testdata/unit/snippets/<label>_<index>_ref.png`.
+    Save the reference as `testdata/unit/<label>_<index>_ref.png`.
     Both PNGs (local render and Labelary reference) must be 813×1626 px; if sizes
     differ, `compute_image_diff_percent` reports 100% diff.
 
@@ -169,7 +169,7 @@ For each high-diff element, starting with the highest contributor:
     cargo build
 
     # Render the snippet
-    cargo run -- convert testdata/unit/snippets/<label>_<index>.zpl
+    cargo run -- convert testdata/unit/<label>_<index>.zpl
 
     # Run the specific golden test
     cargo test --test e2e_golden -- <label_name> --nocapture
@@ -210,7 +210,7 @@ For each high-diff element, starting with the highest contributor:
     - Source code fixes
     - Updated `docs/DIFF_THRESHOLDS.md`
     - Updated diff images in `testdata/diffs/`
-    - New snippet files in `testdata/unit/snippets/` (if useful for ongoing debugging)
+    - New snippet files in `testdata/unit/` (if useful for ongoing debugging)
 
 ## Auto-Fix Loop Strategy
 
