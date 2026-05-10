@@ -27,9 +27,16 @@ fn generate_diff_report() -> Vec<ReportEntry> {
     let dir = render_helpers::testdata_dir();
     let mut entries: Vec<ReportEntry> = Vec::new();
 
-    let mut label_files: Vec<_> = std::fs::read_dir(&dir)
-        .expect("read testdata dir")
-        .flatten()
+    let scan_dirs = [
+        dir.clone(),
+        dir.join("labels"),
+        dir.join("unit"),
+    ];
+    let mut label_files: Vec<_> = scan_dirs
+        .iter()
+        .flat_map(|d| {
+            std::fs::read_dir(d).into_iter().flatten().flatten()
+        })
         .filter(|e| {
             let ext = e
                 .path()
@@ -44,7 +51,7 @@ fn generate_diff_report() -> Vec<ReportEntry> {
     for path in &label_files {
         let name = path.file_stem().unwrap().to_string_lossy().to_string();
         let ext = path.extension().unwrap().to_string_lossy().to_string();
-        let ref_png = dir.join(format!("{}.png", name));
+        let ref_png = path.parent().unwrap().join(format!("{}.png", name));
 
         if !ref_png.exists() {
             entries.push(ReportEntry {
