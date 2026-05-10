@@ -251,7 +251,7 @@ fn test_full_analysis_pipeline() {
 
     // Step 3: For the first one, run analysis and extraction
     if let Some(entry) = above_1pct.first() {
-        let zpl_path = testdata.join(format!("{}.{}", entry.label_name, entry.extension));
+        let zpl_path = render_helpers::labels_dir().join(format!("{}.{}", entry.label_name, entry.extension));
         let diff_path = testdata
             .join("diffs")
             .join(format!("{}_diff.png", entry.label_name));
