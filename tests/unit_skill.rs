@@ -102,7 +102,7 @@ fn test_load_report_with_tolerances() {
 fn test_analyze_bstc_label() {
     // bstc is PERFECT — should have zero diff contributions
     let testdata = render_helpers::testdata_dir();
-    let zpl_path = testdata.join("bstc.zpl");
+    let zpl_path = render_helpers::labels_dir().join("bstc.zpl");
     let diff_path = testdata.join("diffs").join("bstc_diff.png");
 
     if !zpl_path.exists() || !diff_path.exists() {
@@ -140,7 +140,7 @@ fn test_analyze_bstc_label() {
 fn test_analyze_label_with_diff() {
     // Pick a label with known moderate diff for analysis
     let testdata = render_helpers::testdata_dir();
-    let zpl_path = testdata.join("amazon.zpl");
+    let zpl_path = render_helpers::labels_dir().join("amazon.zpl");
     let diff_path = testdata.join("diffs").join("amazon_diff.png");
 
     if !zpl_path.exists() || !diff_path.exists() {
@@ -191,7 +191,7 @@ fn test_analyze_label_with_diff() {
 #[test]
 fn test_extract_snippets_from_real_label() {
     let testdata = render_helpers::testdata_dir();
-    let zpl_path = testdata.join("amazon.zpl");
+    let zpl_path = render_helpers::labels_dir().join("amazon.zpl");
 
     if !zpl_path.exists() {
         eprintln!("Skipping: amazon.zpl not found");
@@ -509,7 +509,7 @@ fn test_classify_real_label_diffs_offline() {
     use labelize::skill::diff_classifier::{classify_element_diffs, ClassifyOptions};
 
     let testdata = render_helpers::testdata_dir();
-    let zpl_path = testdata.join("amazon.zpl");
+    let zpl_path = render_helpers::labels_dir().join("amazon.zpl");
     let diff_path = testdata.join("diffs").join("amazon_diff.png");
 
     if !zpl_path.exists() || !diff_path.exists() {
