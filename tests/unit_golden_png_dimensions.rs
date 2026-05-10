@@ -6,22 +6,28 @@ use common::render_helpers;
 const EXPECTED_WIDTH: u32 = 813;
 const EXPECTED_HEIGHT: u32 = 1626;
 
-/// Verify that every golden PNG in the testdata root directory has the standard
+/// Verify that every golden PNG in the testdata directories has the standard
 /// Labelary reference dimensions (813 × 1626 px).  Non-standard dimensions would
 /// cause the diff comparisons in e2e_golden to count size-mismatch pixels as
 /// differences, making the reported diff percentages unreliable.
 #[test]
 fn all_golden_pngs_have_standard_dimensions() {
     let dir = render_helpers::testdata_dir();
-    let entries = std::fs::read_dir(&dir)
-        .unwrap_or_else(|e| panic!("cannot read testdata dir {:?}: {}", dir, e));
+
+    let scan_dirs = [
+        dir.clone(),
+        dir.join("labels"),
+        dir.join("unit"),
+    ];
 
     let mut checked = 0u32;
     let mut failures: Vec<String> = Vec::new();
 
-    for entry in entries.flatten() {
+    for entry in scan_dirs
+        .iter()
+        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
+    {
         let path = entry.path();
-        // Only plain files directly inside testdata/ with a .png extension.
         if !path.is_file() {
             continue;
         }
