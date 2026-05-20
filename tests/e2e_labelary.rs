@@ -153,5 +153,9 @@ fn update_unit_golden_pngs() {
     }
 
     eprintln!("\nDone — updated: {}, failed: {}", updated, failed);
-    assert_eq!(failed, 0, "{} unit golden PNGs could not be fetched from Labelary", failed);
+    assert_eq!(
+        failed, 0,
+        "{} unit golden PNGs could not be fetched from Labelary",
+        failed
+    );
 }

@@ -13,7 +13,7 @@ const UNIT_HEIGHT: u32 = 1624;
 
 /// Verify that every golden PNG has the expected dimensions for its directory.
 /// - `testdata/` and `testdata/labels/` → 813 × 1626 px (Labelary reference)
-    /// - `testdata/unit/` → 812 × 1624 px (Labelary reference; Labelary rounds to 812×1624)
+/// - `testdata/unit/` → 812 × 1624 px (Labelary reference; Labelary rounds to 812×1624)
 #[test]
 fn all_golden_pngs_have_standard_dimensions() {
     let dir = render_helpers::testdata_dir();
