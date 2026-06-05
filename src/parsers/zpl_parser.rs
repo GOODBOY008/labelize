@@ -10,7 +10,7 @@ use crate::elements::field_block::FieldBlock;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
-use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
+use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
 use crate::elements::graphic_symbol::GraphicSymbol;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
@@ -784,7 +784,15 @@ impl ZplParser {
 
     fn parse_barcode_qr(&mut self, command: &str) {
         let parts = split_command(command, "^BQ");
-        let mut bc = BarcodeQr { magnification: 1 };
+        let mut bc = BarcodeQr {
+            magnification: 1,
+            orientation: self.printer.default_orientation,
+        };
+        if let Some(s) = parts.first() {
+            if !s.is_empty() {
+                bc.orientation = to_field_orientation(s.as_bytes()[0]);
+            }
+        }
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
             bc.magnification = v.clamp(1, 100);
         }
@@ -915,6 +923,7 @@ impl ZplParser {
             magnification_y: 1,
             reverse_print: self.printer.get_reverse_print(),
             format: GraphicFieldFormat::Hex,
+            mode: GraphicFieldMode::Or,
             data_bytes: 0,
             total_bytes: 0,
             row_bytes: 0,
@@ -1025,6 +1034,7 @@ impl ZplParser {
             magnification_y: 1,
             reverse_print: ReversePrint::default(),
             format: GraphicFieldFormat::Hex,
+            mode: GraphicFieldMode::Or,
             data_bytes: 0,
             total_bytes: 0,
             row_bytes: 0,
@@ -1057,6 +1067,7 @@ impl ZplParser {
             magnification_y: 1,
             reverse_print: self.printer.get_reverse_print(),
             format: GraphicFieldFormat::Hex,
+            mode: GraphicFieldMode::Or,
             data_bytes: 0,
             total_bytes: 0,
             row_bytes: 0,
