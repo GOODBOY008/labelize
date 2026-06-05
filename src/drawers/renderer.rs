@@ -317,11 +317,8 @@ impl Renderer {
         let h = gb.height.max(gb.border_thickness);
         let border = gb.border_thickness;
 
-        if gb.corner_rounding > 0 {
-            // ZPL corner_rounding 1-8: radius = (shorter_side / 2) * (rounding / 8)
-            let shorter = w.min(h);
-            let radius =
-                ((shorter as f64 / 2.0) * (gb.corner_rounding as f64 / 8.0)).round() as i32;
+        let radius = graphic_box_corner_radius(gb, w, h);
+        if radius > 0 {
             draw_rounded_rect(canvas, x, y, w, h, border, radius, color);
         } else {
             // Draw box with border
@@ -801,6 +798,20 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
         "TSS24.BF2" | "TTT24.BF2" | "TST24.BF2" => WENQUANYI_BITMAP_SONG_16PX,
         _ => FONT_DEJAVU_MONO,
     }
+}
+
+fn graphic_box_corner_radius(gb: &crate::elements::graphic_box::GraphicBox, w: i32, h: i32) -> i32 {
+    if let Some(radius) = gb.corner_radius_dots {
+        return radius.max(0);
+    }
+
+    if gb.corner_rounding > 0 {
+        // ZPL corner_rounding 1-8: radius = (shorter_side / 2) * (rounding / 8).
+        let shorter = w.min(h);
+        return ((shorter as f64 / 2.0) * (gb.corner_rounding as f64 / 8.0)).round() as i32;
+    }
+
+    0
 }
 
 fn measure_text_width(text: &str, font: &FontRef, scale: PxScale) -> f32 {

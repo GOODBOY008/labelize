@@ -343,6 +343,7 @@ fn parse_epl_line(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
         height,
         border_thickness: width.min(height),
         corner_rounding: 0,
+        corner_radius_dots: None,
         line_color: LineColor::Black,
         reverse_print: ReversePrint::default(),
     })))

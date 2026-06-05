@@ -16,6 +16,7 @@ use labelize::elements::label_position::LabelPosition;
 use labelize::elements::line_color::LineColor;
 use labelize::elements::reverse_print::ReversePrint;
 use labelize::elements::text_field::TextField;
+use labelize::TsplParser;
 
 fn default_options() -> DrawerOptions {
     render_helpers::default_options()
@@ -88,6 +89,7 @@ fn graphic_box_renders_black_pixels_in_box_region() {
             height: 50,
             border_thickness: 3,
             corner_rounding: 0,
+            corner_radius_dots: None,
             line_color: LineColor::Black,
         })],
     };
@@ -108,6 +110,36 @@ fn graphic_box_renders_black_pixels_in_box_region() {
         outside[0] > 128,
         "expected white pixel outside box, got {:?}",
         outside
+    );
+}
+
+#[test]
+fn tspl_box_radius_uses_dot_units() {
+    let parser = TsplParser::new();
+    let parsed = parser
+        .parse_with_options(
+            br#"SIZE 20 mm,20 mm
+CLS
+BOX 10,10,110,90,4,12
+PRINT 1
+"#,
+            DrawerOptions {
+                label_width_mm: 20.0,
+                label_height_mm: 20.0,
+                dpmm: 8,
+                enable_inverted_labels: false,
+            },
+        )
+        .expect("TSPL parse failed");
+
+    let png = render_label(&parsed[0].label, parsed[0].drawer_options.clone());
+    let img = decode_png(&png);
+
+    let pixel = img.get_pixel(14, 14);
+    assert!(
+        pixel[0] < 128,
+        "TSPL BOX radius should be 12 dots, got {:?} at rounded corner",
+        pixel
     );
 }
 

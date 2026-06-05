@@ -835,6 +835,7 @@ impl ZplParser {
             height: 1,
             border_thickness: 1,
             corner_rounding: 0,
+            corner_radius_dots: None,
             line_color: LineColor::Black,
             reverse_print: self.printer.get_reverse_print(),
         };

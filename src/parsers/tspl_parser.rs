@@ -542,14 +542,19 @@ fn parse_box(line: &str, state: &mut TsplState) -> Result<(), String> {
     let x_end = parse_i32_arg(&args[2]).unwrap_or(x);
     let y_end = parse_i32_arg(&args[3]).unwrap_or(y);
     let thickness = parse_i32_arg(&args[4]).unwrap_or(1).max(1);
-    let radius = args.get(5).and_then(|arg| parse_i32_arg(arg)).unwrap_or(0);
+    let radius = args
+        .get(5)
+        .and_then(|arg| parse_i32_arg(arg))
+        .unwrap_or(0)
+        .max(0);
     state.elements.push(LabelElement::GraphicBox(GraphicBox {
         reverse_print: ReversePrint::default(),
         position: state.position(x, y),
         width: (x_end - x).abs().max(thickness),
         height: (y_end - y).abs().max(thickness),
         border_thickness: thickness,
-        corner_rounding: radius.clamp(0, 8),
+        corner_rounding: 0,
+        corner_radius_dots: (radius > 0).then_some(radius),
         line_color: LineColor::Black,
     }));
     Ok(())
@@ -646,6 +651,7 @@ fn filled_box(
         height,
         border_thickness: width.min(height).max(1),
         corner_rounding: 0,
+        corner_radius_dots: None,
         line_color: color,
     }
 }

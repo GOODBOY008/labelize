@@ -209,7 +209,8 @@ PRINT 1
             assert_eq!(b.width, 100);
             assert_eq!(b.height, 50);
             assert_eq!(b.border_thickness, 5);
-            assert_eq!(b.corner_rounding, 4);
+            assert_eq!(b.corner_rounding, 0);
+            assert_eq!(b.corner_radius_dots, Some(4));
         }
         other => panic!("expected BOX GraphicBox, got {:?}", other),
     }
