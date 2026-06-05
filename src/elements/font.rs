@@ -36,6 +36,16 @@ fn bitmap_font_sizes() -> &'static HashMap<&'static str, [f64; 2]> {
         m.insert("G", [60.0, 40.0]);
         m.insert("H", [21.0, 13.0]);
         m.insert("GS", [24.0, 24.0]);
+        // TSPL resident bitmap fonts. The manual lists width × height; this map stores
+        // [height, width] to match the existing ZPL bitmap font table shape.
+        m.insert("TSPL1", [12.0, 8.0]);
+        m.insert("TSPL2", [20.0, 12.0]);
+        m.insert("TSPL3", [24.0, 16.0]);
+        m.insert("TSPL4", [32.0, 24.0]);
+        m.insert("TSPL5", [48.0, 32.0]);
+        m.insert("TSPL6", [19.0, 14.0]);
+        m.insert("TSPL7", [27.0, 21.0]);
+        m.insert("TSPL8", [25.0, 14.0]);
         m
     })
 }

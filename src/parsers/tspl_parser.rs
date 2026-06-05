@@ -450,7 +450,7 @@ fn parse_text(line: &str, state: &mut TsplState) -> Result<(), String> {
 
     let x = parse_i32_arg(&args[0]).unwrap_or(0);
     let y = parse_i32_arg(&args[1]).unwrap_or(0);
-    let (base_w, base_h) = tspl_font_size(&args[2]);
+    let (font_name, base_w, base_h) = tspl_font_info(&args[2]);
     let orientation = tspl_rotation(&args[3]);
     let x_mult = parse_i32_arg(&args[4]).unwrap_or(1).clamp(1, 10);
     let y_mult = parse_i32_arg(&args[5]).unwrap_or(1).clamp(1, 10);
@@ -467,11 +467,12 @@ fn parse_text(line: &str, state: &mut TsplState) -> Result<(), String> {
     state.elements.push(LabelElement::Text(TextField {
         reverse_print: ReversePrint::default(),
         font: FontInfo {
-            name: "0".to_string(),
+            name: font_name,
             width: (base_w * x_mult) as f64,
             height: (base_h * y_mult) as f64,
             orientation,
-        },
+        }
+        .with_adjusted_sizes(),
         position: state.position(x, y),
         alignment,
         text,
@@ -480,16 +481,16 @@ fn parse_text(line: &str, state: &mut TsplState) -> Result<(), String> {
     Ok(())
 }
 
-fn tspl_font_size(font: &str) -> (i32, i32) {
+fn tspl_font_info(font: &str) -> (String, i32, i32) {
     match font.trim_matches('"') {
-        "2" => (12, 20),
-        "3" => (16, 24),
-        "4" => (24, 32),
-        "5" => (32, 48),
-        "6" => (14, 19),
-        "7" => (21, 27),
-        "8" => (14, 25),
-        _ => (8, 12),
+        "2" => ("TSPL2".to_string(), 12, 20),
+        "3" => ("TSPL3".to_string(), 16, 24),
+        "4" => ("TSPL4".to_string(), 24, 32),
+        "5" => ("TSPL5".to_string(), 32, 48),
+        "6" => ("TSPL6".to_string(), 14, 19),
+        "7" => ("TSPL7".to_string(), 21, 27),
+        "8" => ("TSPL8".to_string(), 14, 25),
+        _ => ("TSPL1".to_string(), 8, 12),
     }
 }
 
