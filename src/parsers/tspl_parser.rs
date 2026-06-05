@@ -482,15 +482,18 @@ fn parse_text(line: &str, state: &mut TsplState) -> Result<(), String> {
 }
 
 fn tspl_font_info(font: &str) -> (String, i32, i32) {
-    match font.trim_matches('"') {
-        "2" => ("TSPL2".to_string(), 12, 20),
-        "3" => ("TSPL3".to_string(), 16, 24),
-        "4" => ("TSPL4".to_string(), 24, 32),
-        "5" => ("TSPL5".to_string(), 32, 48),
-        "6" => ("TSPL6".to_string(), 14, 19),
-        "7" => ("TSPL7".to_string(), 21, 27),
-        "8" => ("TSPL8".to_string(), 14, 25),
-        _ => ("TSPL1".to_string(), 8, 12),
+    let font = font.trim_matches('"').to_ascii_uppercase();
+    match font.as_str() {
+        "2" => ("TSPL_2".to_string(), 12, 20),
+        "3" => ("TSPL_3".to_string(), 16, 24),
+        "4" => ("TSPL_4".to_string(), 24, 32),
+        "5" => ("TSPL_5".to_string(), 32, 48),
+        "6" => ("TSPL_6".to_string(), 14, 19),
+        "7" => ("TSPL_7".to_string(), 21, 27),
+        "8" => ("TSPL_8".to_string(), 14, 25),
+        "TST16.BF2" | "TTT16.BF2" | "TSS16.BF2" => (font, 16, 16),
+        "TST24.BF2" | "TTT24.BF2" | "TSS24.BF2" => (font, 24, 24),
+        _ => ("TSPL_1".to_string(), 8, 12),
     }
 }
 

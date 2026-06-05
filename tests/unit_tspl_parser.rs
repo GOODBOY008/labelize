@@ -98,20 +98,66 @@ PRINT 1
         other => panic!("expected Text, got {:?}", other),
     };
 
-    assert_eq!(text(0).font.name, "TSPL1");
+    assert_eq!(text(0).font.name, "TSPL_1");
     assert_eq!(text(0).font.width, 8.0);
     assert_eq!(text(0).font.height, 12.0);
     assert!(text(0).font.is_bitmap_font());
 
-    assert_eq!(text(1).font.name, "TSPL5");
+    assert_eq!(text(1).font.name, "TSPL_5");
     assert_eq!(text(1).font.width, 64.0);
     assert_eq!(text(1).font.height, 144.0);
     assert!(text(1).font.is_bitmap_font());
 
-    assert_eq!(text(2).font.name, "TSPL8");
+    assert_eq!(text(2).font.name, "TSPL_8");
     assert_eq!(text(2).font.width, 14.0);
     assert_eq!(text(2).font.height, 50.0);
     assert!(text(2).font.is_bitmap_font());
+}
+
+#[test]
+fn text_supports_tspl_chinese_bitmap_fonts() {
+    let labels = parse_with_options(
+        r#"SIZE 4,2
+CLS
+TEXT 71,360,"TSS24.BF2",0,1,1,"张三 13888885555"
+TEXT 71,390,"TST16.BF2",0,2,3,"李四"
+TEXT 71,430,"TTT24.BF2",90,1,1,"王五"
+TEXT 71,470,"TST24.BF2",0,1,1,"赵六"
+TEXT 71,500,"TTT16.BF2",0,1,1,"钱七"
+TEXT 71,530,"TSS16.BF2",0,1,1,"孙八"
+PRINT 1
+"#
+        .as_bytes(),
+    );
+
+    let text = |idx| match &labels[0].label.elements[idx] {
+        LabelElement::Text(text) => text,
+        other => panic!("expected Text, got {:?}", other),
+    };
+
+    assert_eq!(text(0).font.name, "TSS24.BF2");
+    assert_eq!(text(0).font.width, 24.0);
+    assert_eq!(text(0).font.height, 24.0);
+    assert_eq!(text(0).text, "张三 13888885555");
+
+    assert_eq!(text(1).font.name, "TST16.BF2");
+    assert_eq!(text(1).font.width, 32.0);
+    assert_eq!(text(1).font.height, 48.0);
+
+    assert_eq!(text(2).font.name, "TTT24.BF2");
+    assert_eq!(text(2).font.orientation, FieldOrientation::Rotated90);
+
+    assert_eq!(text(3).font.name, "TST24.BF2");
+    assert_eq!(text(3).font.width, 24.0);
+    assert_eq!(text(3).font.height, 24.0);
+
+    assert_eq!(text(4).font.name, "TTT16.BF2");
+    assert_eq!(text(4).font.width, 16.0);
+    assert_eq!(text(4).font.height, 16.0);
+
+    assert_eq!(text(5).font.name, "TSS16.BF2");
+    assert_eq!(text(5).font.width, 16.0);
+    assert_eq!(text(5).font.height, 16.0);
 }
 
 #[test]

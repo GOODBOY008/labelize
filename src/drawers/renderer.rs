@@ -23,6 +23,11 @@ static FONT_DEJAVU_MONO: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO;
 static FONT_DEJAVU_BOLD: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO_BOLD;
 static FONT_GS: &[u8] = crate::assets::FONT_ZPL_GS;
 
+// Chinese font use for TSPL
+// Original SIMSUN is strict prohibited for commercial use, so we use open-source substitute from WenQuanYi project
+static WENQUANYI_BITMAP_SONG_12PX: &[u8] = crate::assets::WENQUANYI_BITMAP_SONG_12PX;
+static WENQUANYI_BITMAP_SONG_16PX: &[u8] = crate::assets::WENQUANYI_BITMAP_SONG_16PX;
+
 pub struct Renderer;
 
 impl Default for Renderer {
@@ -792,6 +797,8 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
         "0" => FONT_HELVETICA,
         "B" | "D" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
+        "TST16.BF2" | "TTT16.BF2" | "TSS16.BF2" => WENQUANYI_BITMAP_SONG_12PX,
+        "TSS24.BF2" | "TTT24.BF2" | "TST24.BF2" => WENQUANYI_BITMAP_SONG_16PX,
         _ => FONT_DEJAVU_MONO,
     }
 }

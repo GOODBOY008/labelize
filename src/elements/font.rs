@@ -131,6 +131,8 @@ impl FontInfo {
             // ~12px per character advance vs our DejaVu's ~10px.
             // 1.931 × 1.2 = 2.317
             2.317
+        } else if self.name.ends_with(".BF2") {
+            1.0
         } else {
             // Bitmap fonts A-H use DejaVu Sans Mono (Regular or Bold).
             // ab_glyph scales advances as:  h_advance = h_advance_unscaled / height_unscaled * scale_x
