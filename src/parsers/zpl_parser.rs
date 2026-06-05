@@ -6,6 +6,7 @@ use crate::elements::barcode_datamatrix::{BarcodeDatamatrix, DatamatrixRatio};
 use crate::elements::barcode_ean13::BarcodeEan13;
 use crate::elements::barcode_pdf417::BarcodePdf417;
 use crate::elements::barcode_qr::BarcodeQr;
+use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_block::FieldBlock;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
@@ -536,6 +537,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
             check_digit: false,
             mode: BarcodeMode::No,
         };
@@ -578,6 +580,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
         };
         if let Some(s) = parts.first() {
             if !s.is_empty() {
@@ -608,6 +611,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
             check_digit: false,
         };
         if let Some(s) = parts.first() {
@@ -644,6 +648,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
             check_digit: false,
         };
         if let Some(s) = parts.first() {

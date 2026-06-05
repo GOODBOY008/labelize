@@ -590,6 +590,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -613,6 +614,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -643,6 +645,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -668,6 +671,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -1258,6 +1262,7 @@ fn draw_barcode_interpretation_line(
     barcode_img: &RgbaImage,
     orientation: FieldOrientation,
     line_above: bool,
+    alignment: crate::elements::field_alignment::FieldAlignment,
     module_width: i32,
 ) {
     let font_data = FONT_DEJAVU_MONO;
@@ -1329,7 +1334,7 @@ fn draw_barcode_interpretation_line(
 
     match orientation {
         FieldOrientation::Normal => {
-            let cx = pos.x + (bw - text_width as i32) / 2;
+            let cx = aligned_interpretation_line_pos(pos.x, bw, text_width as i32, alignment);
             let ty = if line_above {
                 pos.y - font_size as i32 - 2
             } else {
@@ -1353,10 +1358,10 @@ fn draw_barcode_interpretation_line(
                 _ => buf,
             };
 
-            // Position: center text along the barcode edge
             let (tx, ty) = match orientation {
                 FieldOrientation::Rotated90 => {
-                    let cy = pos.y + (bw - text_width as i32) / 2;
+                    let cy =
+                        aligned_interpretation_line_pos(pos.y, bw, text_width as i32, alignment);
                     if line_above {
                         (pos.x + bh + 2, cy)
                     } else {
@@ -1364,7 +1369,8 @@ fn draw_barcode_interpretation_line(
                     }
                 }
                 FieldOrientation::Rotated180 => {
-                    let cx = pos.x + (bw - text_width as i32) / 2;
+                    let cx =
+                        aligned_interpretation_line_pos(pos.x, bw, text_width as i32, alignment);
                     if line_above {
                         (cx, pos.y + bh + 2)
                     } else {
@@ -1372,7 +1378,8 @@ fn draw_barcode_interpretation_line(
                     }
                 }
                 FieldOrientation::Rotated270 => {
-                    let cy = pos.y + (bw - text_width as i32) / 2;
+                    let cy =
+                        aligned_interpretation_line_pos(pos.y, bw, text_width as i32, alignment);
                     if line_above {
                         (pos.x - rotated.width() as i32 - 2, cy)
                     } else {
@@ -1383,5 +1390,21 @@ fn draw_barcode_interpretation_line(
             };
             overlay_at(canvas, &rotated, tx, ty);
         }
+    }
+}
+
+fn aligned_interpretation_line_pos(
+    origin: i32,
+    span: i32,
+    text_width: i32,
+    alignment: crate::elements::field_alignment::FieldAlignment,
+) -> i32 {
+    match alignment {
+        crate::elements::field_alignment::FieldAlignment::Right => origin + span - text_width,
+        crate::elements::field_alignment::FieldAlignment::Center
+        | crate::elements::field_alignment::FieldAlignment::Auto => {
+            origin + (span - text_width) / 2
+        }
+        crate::elements::field_alignment::FieldAlignment::Left => origin,
     }
 }

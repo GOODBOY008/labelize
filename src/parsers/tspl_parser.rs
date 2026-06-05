@@ -658,7 +658,9 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
     let y = parse_i32_arg(&args[1]).unwrap_or(0);
     let code_type = args[2].trim().to_ascii_uppercase();
     let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
-    let line = parse_i32_arg(&args[4]).unwrap_or(0) > 0;
+    let human_readable = parse_i32_arg(&args[4]).unwrap_or(0);
+    let line = human_readable > 0;
+    let line_alignment = tspl_alignment(&args[4]);
     let orientation = tspl_rotation(&args[5]);
     let narrow = parse_i32_arg(&args[6]).unwrap_or(1).max(1);
     let wide = parse_i32_arg(&args[7]).unwrap_or(narrow).max(narrow);
@@ -675,6 +677,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
                 height,
                 line,
                 line_above: false,
+                line_alignment,
                 check_digit: false,
                 mode: BarcodeMode::Automatic,
             },
@@ -689,6 +692,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
                 height,
                 line,
                 line_above: false,
+                line_alignment,
                 check_digit: false,
                 mode: BarcodeMode::Ucc,
             },
@@ -703,6 +707,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
                 height,
                 line,
                 line_above: false,
+                line_alignment,
                 check_digit: code_type == "39C",
             },
             width: narrow,
@@ -717,6 +722,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
                 height,
                 line,
                 line_above: false,
+                line_alignment,
             },
             width: narrow,
             position,

@@ -82,6 +82,39 @@ PRINT 1
 }
 
 #[test]
+fn text_uses_tspl_resident_bitmap_font_sizes() {
+    let labels = parse_with_options(
+        br#"SIZE 4,2
+CLS
+TEXT 0,0,"1",0,1,1,"F1"
+TEXT 0,20,"5",0,2,3,"F5"
+TEXT 0,80,"8",0,1,2,"F8"
+PRINT 1
+"#,
+    );
+
+    let text = |idx| match &labels[0].label.elements[idx] {
+        LabelElement::Text(text) => text,
+        other => panic!("expected Text, got {:?}", other),
+    };
+
+    assert_eq!(text(0).font.name, "TSPL1");
+    assert_eq!(text(0).font.width, 8.0);
+    assert_eq!(text(0).font.height, 12.0);
+    assert!(text(0).font.is_bitmap_font());
+
+    assert_eq!(text(1).font.name, "TSPL5");
+    assert_eq!(text(1).font.width, 64.0);
+    assert_eq!(text(1).font.height, 144.0);
+    assert!(text(1).font.is_bitmap_font());
+
+    assert_eq!(text(2).font.name, "TSPL8");
+    assert_eq!(text(2).font.width, 14.0);
+    assert_eq!(text(2).font.height, 50.0);
+    assert!(text(2).font.is_bitmap_font());
+}
+
+#[test]
 fn quoted_text_can_span_lines() {
     let labels = parse_with_options(
         br#"SIZE 4,2
@@ -195,6 +228,7 @@ PRINT 1
             assert_eq!(bc.barcode.height, 60);
             assert_eq!(bc.barcode.orientation, FieldOrientation::Rotated90);
             assert!(bc.barcode.line);
+            assert_eq!(bc.barcode.line_alignment, FieldAlignment::Left);
         }
         other => panic!("expected Barcode128, got {:?}", other),
     }
@@ -205,6 +239,7 @@ PRINT 1
             assert!(bc.barcode.check_digit);
             assert!(!bc.barcode.line);
             assert_eq!(bc.width_ratio, 3.0);
+            assert_eq!(bc.barcode.line_alignment, FieldAlignment::Left);
         }
         other => panic!("expected Barcode39, got {:?}", other),
     }
@@ -230,6 +265,31 @@ PRINT 1
         }
         other => panic!("expected BarcodePdf417, got {:?}", other),
     }
+}
+
+#[test]
+fn barcode_human_readable_value_controls_line_alignment() {
+    let labels = parse_with_options(
+        br#"SIZE 4,2
+CLS
+BARCODE 10,20,"128",60,1,0,2,2,"LEFT"
+BARCODE 10,100,"128",60,2,0,2,2,"CENTER"
+BARCODE 10,180,"128",60,3,0,2,2,"RIGHT"
+PRINT 1
+"#,
+    );
+
+    let alignment = |idx| match &labels[0].label.elements[idx] {
+        LabelElement::Barcode128(bc) => {
+            assert!(bc.barcode.line);
+            bc.barcode.line_alignment
+        }
+        other => panic!("expected Barcode128, got {:?}", other),
+    };
+
+    assert_eq!(alignment(0), FieldAlignment::Left);
+    assert_eq!(alignment(1), FieldAlignment::Center);
+    assert_eq!(alignment(2), FieldAlignment::Right);
 }
 
 #[test]
