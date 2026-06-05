@@ -17,4 +17,5 @@ pub use error::LabelizeError;
 pub use images::monochrome::encode_png;
 pub use images::pdf::encode_pdf;
 pub use parsers::epl_parser::EplParser;
+pub use parsers::tspl_parser::{TsplParsedLabel, TsplParser};
 pub use parsers::zpl_parser::ZplParser;

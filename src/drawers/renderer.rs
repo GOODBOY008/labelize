@@ -145,6 +145,10 @@ impl Renderer {
                 self.draw_graphic_circle(canvas, gc);
                 Ok(())
             }
+            LabelElement::GraphicEllipse(ge) => {
+                self.draw_graphic_ellipse(canvas, ge);
+                Ok(())
+            }
             LabelElement::DiagonalLine(dl) => {
                 self.draw_diagonal_line(canvas, dl);
                 Ok(())
@@ -370,6 +374,47 @@ impl Renderer {
         }
     }
 
+    fn draw_graphic_ellipse(
+        &self,
+        canvas: &mut RgbaImage,
+        ge: &crate::elements::graphic_ellipse::GraphicEllipse,
+    ) {
+        let color = line_color_to_rgba(ge.line_color);
+        let x = ge.position.x;
+        let y = ge.position.y;
+        let width = ge.width.max(1);
+        let height = ge.height.max(1);
+        let thickness = ge.border_thickness.max(1) as f32;
+        let rx = width as f32 / 2.0;
+        let ry = height as f32 / 2.0;
+        let cx = x as f32 + rx;
+        let cy = y as f32 + ry;
+        let inner_rx = (rx - thickness).max(0.0);
+        let inner_ry = (ry - thickness).max(0.0);
+
+        for py in y.max(0)..(y + height).min(canvas.height() as i32) {
+            for px in x.max(0)..(x + width).min(canvas.width() as i32) {
+                let dx = (px as f32 + 0.5 - cx) / rx;
+                let dy = (py as f32 + 0.5 - cy) / ry;
+                if dx * dx + dy * dy > 1.0 {
+                    continue;
+                }
+
+                let inside_inner = if inner_rx > 0.0 && inner_ry > 0.0 {
+                    let ix = (px as f32 + 0.5 - cx) / inner_rx;
+                    let iy = (py as f32 + 0.5 - cy) / inner_ry;
+                    ix * ix + iy * iy <= 1.0
+                } else {
+                    false
+                };
+
+                if !inside_inner {
+                    canvas.put_pixel(px as u32, py as u32, color);
+                }
+            }
+        }
+    }
+
     fn draw_diagonal_line(
         &self,
         canvas: &mut RgbaImage,
@@ -451,17 +496,41 @@ impl Renderer {
                     continue;
                 }
                 let val = (gf.data[idx] >> (7 - x % 8)) & 1;
-                if val != 0 {
-                    for my in 0..mag_y {
-                        for mx in 0..mag_x {
-                            let px = base_x + x * mag_x + mx;
-                            let py = base_y + y * mag_y + my;
-                            if px >= 0
-                                && py >= 0
-                                && (px as u32) < canvas.width()
-                                && (py as u32) < canvas.height()
-                            {
-                                canvas.put_pixel(px as u32, py as u32, black);
+                for my in 0..mag_y {
+                    for mx in 0..mag_x {
+                        let px = base_x + x * mag_x + mx;
+                        let py = base_y + y * mag_y + my;
+                        if px < 0
+                            || py < 0
+                            || (px as u32) >= canvas.width()
+                            || (py as u32) >= canvas.height()
+                        {
+                            continue;
+                        }
+
+                        match gf.mode {
+                            crate::elements::graphic_field::GraphicFieldMode::Or => {
+                                if val != 0 {
+                                    canvas.put_pixel(px as u32, py as u32, black);
+                                }
+                            }
+                            crate::elements::graphic_field::GraphicFieldMode::Overwrite => {
+                                let color = if val != 0 {
+                                    black
+                                } else {
+                                    Rgba([255, 255, 255, 255])
+                                };
+                                canvas.put_pixel(px as u32, py as u32, color);
+                            }
+                            crate::elements::graphic_field::GraphicFieldMode::Xor => {
+                                if val != 0 {
+                                    let bg = *canvas.get_pixel(px as u32, py as u32);
+                                    canvas.put_pixel(
+                                        px as u32,
+                                        py as u32,
+                                        Rgba([255 - bg[0], 255 - bg[1], 255 - bg[2], bg[3]]),
+                                    );
+                                }
                             }
                         }
                     }
@@ -692,7 +761,13 @@ impl Renderer {
             (pos.x - quiet_zone_px, pos.y + bc.height - quiet_zone_px)
         };
 
-        overlay_at(canvas, &img, draw_x, draw_y);
+        let draw_pos = LabelPosition {
+            x: draw_x,
+            y: draw_y,
+            calculate_from_bottom: false,
+            automatic_position: false,
+        };
+        overlay_with_rotation(canvas, &img, &draw_pos, bc.barcode.orientation);
         Ok(())
     }
 
@@ -877,6 +952,7 @@ fn get_text_top_left_pos(
         // ^FO: position is top-left of the field area. Handle justification parameter.
         let x = match text.alignment {
             crate::elements::field_alignment::FieldAlignment::Right => x - w,
+            crate::elements::field_alignment::FieldAlignment::Center => x - w / 2.0,
             _ => x,
         };
         return (x, y);
