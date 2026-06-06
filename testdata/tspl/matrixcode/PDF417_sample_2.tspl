@@ -1,0 +1,9 @@
+SIZE 4,1.5
+GAP 0,0
+DIRECTION 1
+CLS
+PDF417 50,50,400,200,0,E3, "Error correction level:3"
+PRINT 1,1
+CLS
+PDF417 50,50,400,200,0,E4, "Error correction level:4"
+PRINT 1,1
