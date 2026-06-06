@@ -315,6 +315,58 @@ PRINT 1
 }
 
 #[test]
+fn pdf417_supports_length_prefixed_multiline_content() {
+    let labels = parse_with_options(
+        br#"SIZE 4,2.5
+GAP 0,0
+DIRECTION 1
+CLS
+PDF417 50,50,900,600,0,P1,E4,M1,U50,300,50,W4,H4,R60,C4,
+T0,L297,Data compression method: P1
+Error correction level: E4
+Center pattern in barcode area: M1
+Human Readable: Yes: U50,300,50
+Module Width 4 dots: W4
+Bar Height 4 dots: H4
+Maximum Number of Rows: 60 Rows: R60
+Maximum number of columns: 4 Cols: C4
+Truncation:1: T0
+Expression length:297: L297
+PRINT 1,1
+"#,
+    );
+
+    assert_eq!(labels.len(), 1);
+    match &labels[0].label.elements[0] {
+        LabelElement::BarcodePdf417(pdf) => {
+            assert_eq!(pdf.position.x, 50);
+            assert_eq!(pdf.position.y, 50);
+            assert_eq!(pdf.barcode.security, 4);
+            assert_eq!(pdf.barcode.module_width, 4);
+            assert_eq!(pdf.barcode.row_height, 4);
+            assert_eq!(pdf.barcode.by_height, 600);
+            assert_eq!(pdf.barcode.rows, 60);
+            assert_eq!(pdf.barcode.columns, 4);
+            assert!(!pdf.barcode.truncate);
+            assert_eq!(
+                pdf.data,
+                "Data compression method: P1\n\
+Error correction level: E4\n\
+Center pattern in barcode area: M1\n\
+Human Readable: Yes: U50,300,50\n\
+Module Width 4 dots: W4\n\
+Bar Height 4 dots: H4\n\
+Maximum Number of Rows: 60 Rows: R60\n\
+Maximum number of columns: 4 Cols: C4\n\
+Truncation:1: T0\n\
+Expression length:297: L297"
+            );
+        }
+        other => panic!("expected BarcodePdf417, got {:?}", other),
+    }
+}
+
+#[test]
 fn barcode_human_readable_value_controls_line_alignment() {
     let labels = parse_with_options(
         br#"SIZE 4,2
