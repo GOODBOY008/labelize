@@ -1,12 +1,18 @@
+#[cfg(feature = "cli")]
 use std::fs;
+#[cfg(feature = "cli")]
 use std::io::Cursor;
+#[cfg(feature = "cli")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "cli")]
 use clap::{Parser, Subcommand, ValueEnum};
+#[cfg(feature = "cli")]
 use labelize::{
     DrawerOptions, EplParser, LabelInfo, Renderer, TsplParsedLabel, TsplParser, ZplParser,
 };
 
+#[cfg(feature = "cli")]
 #[derive(Parser)]
 #[command(
     name = "labelize",
@@ -18,6 +24,7 @@ struct Cli {
     command: Commands,
 }
 
+#[cfg(feature = "cli")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 enum InputFormat {
     Zpl,
@@ -25,12 +32,14 @@ enum InputFormat {
     Tspl,
 }
 
+#[cfg(feature = "cli")]
 #[derive(Clone, Copy, ValueEnum)]
 enum OutputType {
     Png,
     Pdf,
 }
 
+#[cfg(feature = "cli")]
 #[derive(Subcommand)]
 enum Commands {
     /// Convert a ZPL/EPL/TSPL file to PNG or PDF
@@ -64,6 +73,7 @@ enum Commands {
     },
 
     /// Start HTTP server for label conversion
+    #[cfg(feature = "serve")]
     Serve {
         /// Host to bind to
         #[arg(long, default_value = "0.0.0.0")]
@@ -75,6 +85,7 @@ enum Commands {
     },
 }
 
+#[cfg(feature = "cli")]
 fn main() {
     let cli = Cli::parse();
 
@@ -101,6 +112,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        #[cfg(feature = "serve")]
         Commands::Serve { host, port } => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
             rt.block_on(serve(host, port));
@@ -108,6 +120,13 @@ fn main() {
     }
 }
 
+#[cfg(not(feature = "cli"))]
+fn main() {
+    eprintln!("CLI not available. Rebuild with: cargo build --features cli");
+    std::process::exit(1);
+}
+
+#[cfg(feature = "cli")]
 fn detect_format(path: &Path, override_fmt: Option<InputFormat>) -> InputFormat {
     if let Some(fmt) = override_fmt {
         return fmt;
@@ -120,6 +139,7 @@ fn detect_format(path: &Path, override_fmt: Option<InputFormat>) -> InputFormat 
     }
 }
 
+#[cfg(feature = "cli")]
 fn detect_format_from_content_type(content_type: &str) -> InputFormat {
     let content_type = content_type.to_ascii_lowercase();
     if content_type.contains("tspl") {
@@ -143,6 +163,7 @@ fn default_dpmm() -> i32 {
     8
 }
 
+#[cfg(feature = "cli")]
 fn parse_labels(content: &[u8], format: InputFormat) -> Result<Vec<LabelInfo>, String> {
     match format {
         InputFormat::Epl => EplParser::new().parse(content),
@@ -151,6 +172,7 @@ fn parse_labels(content: &[u8], format: InputFormat) -> Result<Vec<LabelInfo>, S
     }
 }
 
+#[cfg(feature = "cli")]
 fn parse_labels_with_options(
     content: &[u8],
     format: InputFormat,
@@ -185,6 +207,7 @@ fn parse_labels_with_options(
     }
 }
 
+#[cfg(feature = "cli")]
 fn apply_dimension_overrides(
     mut options: DrawerOptions,
     width_override: Option<f64>,
@@ -199,6 +222,7 @@ fn apply_dimension_overrides(
     options
 }
 
+#[cfg(feature = "cli")]
 fn output_extension(output_type: OutputType) -> &'static str {
     match output_type {
         OutputType::Png => "png",
@@ -206,6 +230,7 @@ fn output_extension(output_type: OutputType) -> &'static str {
     }
 }
 
+#[cfg(feature = "cli")]
 fn default_output_path(input: &Path, output_type: OutputType, index: Option<usize>) -> PathBuf {
     let stem = input
         .file_stem()
@@ -219,6 +244,7 @@ fn default_output_path(input: &Path, output_type: OutputType, index: Option<usiz
     }
 }
 
+#[cfg(feature = "cli")]
 fn render_label(
     label: &LabelInfo,
     options: &DrawerOptions,
@@ -242,6 +268,7 @@ fn render_label(
     Ok(buf.into_inner())
 }
 
+#[cfg(feature = "cli")]
 fn convert_file(
     input: &Path,
     output: Option<&Path>,
@@ -290,6 +317,7 @@ fn convert_file(
     Ok(())
 }
 
+#[cfg(feature = "serve")]
 async fn serve(host: String, port: u16) {
     use axum::{
         body::Bytes,

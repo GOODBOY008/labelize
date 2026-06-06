@@ -33,7 +33,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --target ${{ matrix.target }}
+      - run: cargo build --release --features serve --target ${{ matrix.target }}
       - name: Package
         run: |
           cd target/${{ matrix.target }}/release

@@ -7,7 +7,10 @@ pub mod error;
 pub mod hex;
 pub mod images;
 pub mod parsers;
+#[cfg(feature = "serve")]
 pub mod playground;
+
+#[cfg(feature = "skill")]
 pub mod skill;
 
 pub use drawers::renderer::Renderer;

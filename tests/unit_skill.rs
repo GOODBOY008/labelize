@@ -1,3 +1,4 @@
+#![cfg(feature = "skill")]
 /// Integration tests for the skill module: DiffScanner, ElementAnalyzer, SnippetExtractor.
 mod common;
 

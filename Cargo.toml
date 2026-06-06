@@ -1,10 +1,10 @@
 [package]
 name = "labelize"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
-description = "Fast Rust engine to parse ZPL & EPL label data and render to PNG/PDF. CLI, HTTP microservice, or library. Open-source Labelary alternative."
+description = "Fast ZPL & EPL label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
 keywords = ["zpl", "epl", "label", "barcode", "thermal-printer"]
-categories = ["command-line-utilities", "graphics", "parsing", "web-programming"]
+categories = ["graphics", "parsing"]
 repository = "https://github.com/GOODBOY008/labelize"
 homepage = "https://github.com/GOODBOY008/labelize"
 license = "MIT"
@@ -13,20 +13,21 @@ exclude = [
     "testdata/",
     "docs/",
     "examples/",
+    "e2e/",
     ".github/",
     ".qoder/",
     ".kiro/",
     ".idea/",
+    ".claude/",
+    ".remember/",
     "AGENTS.md",
+    "CHANGELOG.md",
 ]
 
 [dependencies]
 image = "0.25"
 imageproc = "0.26"
 ab_glyph = "0.2"
-clap = { version = "4", features = ["derive"] }
-axum = "0.8"
-tokio = { version = "1", features = ["full"] }
 thiserror = "2"
 lopdf = "0.40"
 flate2 = "1"
@@ -34,8 +35,24 @@ base64 = "0.22"
 datamatrix = "0.3"
 qrcode = "0.14"
 rxing = { version = "0.8", default-features = false, features = ["encoding_rs"] }
-regex = "1"
-serde = { version = "1", features = ["derive"] }
+
+# Optional — CLI
+clap = { version = "4", features = ["derive"], optional = true }
+
+# Optional — HTTP server
+axum = { version = "0.8", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = []
+cli = ["dep:clap"]
+serve = ["cli", "dep:axum", "dep:tokio", "dep:serde"]
+skill = []
+
+[[bin]]
+name = "labelize"
+required-features = ["cli"]
 
 [dev-dependencies]
 proptest = "1"

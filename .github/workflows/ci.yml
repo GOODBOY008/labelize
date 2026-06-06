@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check
+      - run: cargo check --all-features
 
   test:
     name: Test
@@ -28,7 +28,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Unit & integration tests
-        run: cargo test --test 'unit_*' -- --test-threads=4
+        run: cargo test --test 'unit_*' --features skill -- --test-threads=4
         timeout-minutes: 8
       - name: Golden diff regression
         run: cargo test --test 'e2e_*' -- --test-threads=4
@@ -53,7 +53,7 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy -- -D warnings
+      - run: cargo clippy --all-features -- -D warnings
 
   build:
     name: Build (${{ matrix.target }})
@@ -73,7 +73,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --target ${{ matrix.target }}
+      - run: cargo build --release --features serve --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v6
         with:
           name: labelize-${{ matrix.target }}

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-05
+
+### Added
+
+- **Optional Features** — CLI (`cli`) and HTTP server (`serve`) are now optional Cargo features, enabling lightweight library builds without clap/axum/tokio/serde dependencies
+- **ZPL Diff Auto-Fix Skill** — New `.claude/skills/zpl-diff-auto-fix/SKILL.md` for automated rendering diff reduction
+- **Font Q and Font S Support** — Added ZPL test fixtures for Font Q and Font S with normal and rotated styles
+
+### Fixed
+
+- **CP850 Encoding** — Corrected byte 0xA9 mapping to ® and added mappings for 0xA6–0xAF range
+
+### Changed
+
+- **Dependency Reduction** — clap, axum, tokio, and serde are now optional, feature-gated behind `cli`/`serve` features
+- **Conditional Compilation** — `src/main.rs` and `src/lib.rs` refactored with `#[cfg(feature = "...")]` attributes
+
 ## [1.0.0] - 2026-05-21
 
 ### Added
