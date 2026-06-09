@@ -331,10 +331,10 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       <div class="sg">
         <label for="dpmm">dpmm</label>
         <select id="dpmm">
-          <option value="6">6</option>
-          <option value="8" selected>8</option>
-          <option value="12">12</option>
-          <option value="24">24</option>
+          <option value="6">6 (152DPI)</option>
+          <option value="8" selected>8 (203DPI)</option>
+          <option value="12">12 (300DPI)</option>
+          <option value="24">24 (600DPI)</option>
         </select>
       </div>
 
