@@ -83,6 +83,11 @@ curl -X POST http://localhost:8080/convert \
   -d '^XA^FO50,50^A0N,40,40^FDHello World^FS^XZ' \
   -o label.png
 ```
+### Run as Docker Webservice
+'''bash
+docker compose up -d --build
+'''
+
 
 ## CLI Reference
 
