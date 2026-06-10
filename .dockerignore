@@ -1,0 +1,9 @@
+target/
+.git/
+.github/
+docs/
+examples/
+testdata/
+*.md
+.idea/
+.kiro/
