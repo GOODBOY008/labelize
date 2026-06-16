@@ -56,7 +56,15 @@ Benchmarked against the Labelary API on the same set of labels:
 brew tap GOODBOY008/homebrew-labelize && brew install labelize
 
 # From source (requires Rust toolchain)
-cargo install --path .
+cargo install --path . --features cli
+
+# Windows — download from GitHub Releases:
+#   1. Go to https://github.com/GOODBOY008/labelize/releases
+#   2. Download labelize-x86_64-pc-windows-msvc.zip
+#   3. Extract the .exe and add it to your PATH
+
+# Windows — via cargo (requires Rust toolchain):
+cargo install labelize --features cli
 ```
 
 ### Convert a ZPL label to PNG

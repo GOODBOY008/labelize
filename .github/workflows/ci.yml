@@ -63,10 +63,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            binary: labelize
           - os: macos-latest
             target: aarch64-apple-darwin
+            binary: labelize
           - os: macos-latest
             target: x86_64-apple-darwin
+            binary: labelize
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: labelize.exe
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -77,4 +83,4 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: labelize-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/labelize
+          path: target/${{ matrix.target }}/release/${{ matrix.binary }}

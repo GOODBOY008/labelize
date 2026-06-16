@@ -20,13 +20,24 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            binary: labelize
             artifact: labelize-x86_64-unknown-linux-gnu.tar.gz
+            package: tar
           - os: macos-latest
             target: aarch64-apple-darwin
+            binary: labelize
             artifact: labelize-aarch64-apple-darwin.tar.gz
+            package: tar
           - os: macos-latest
             target: x86_64-apple-darwin
+            binary: labelize
             artifact: labelize-x86_64-apple-darwin.tar.gz
+            package: tar
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: labelize.exe
+            artifact: labelize-x86_64-pc-windows-msvc.zip
+            package: zip
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -34,10 +45,16 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --features serve --target ${{ matrix.target }}
-      - name: Package
+      - name: Package (tar.gz)
+        if: matrix.package == 'tar'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.artifact }} labelize
+          tar czf ../../../${{ matrix.artifact }} ${{ matrix.binary }}
+      - name: Package (zip)
+        if: matrix.package == 'zip'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../${{ matrix.artifact }} ${{ matrix.binary }}
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
@@ -55,8 +72,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: artifacts/**/*.tar.gz
+           generate_release_notes: true
+           files: |
+             artifacts/**/*.tar.gz
+             artifacts/**/*.zip
 
   crates-io:
     name: Publish to crates.io
