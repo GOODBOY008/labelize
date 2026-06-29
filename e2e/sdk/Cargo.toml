@@ -1,13 +1,13 @@
 [package]
 name = "labelize-sdk-e2e"
-version = "1.0.0"
+version = "1.2.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-labelize = "1.1.0"
+labelize = "1.2.0"
 image = "0.25"
 
 [dev-dependencies]
-labelize = "1.1.0"
+labelize = "1.2.0"
 image = "0.25"
