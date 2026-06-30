@@ -1,14 +1,22 @@
 mod common;
 
 use common::render_helpers;
+use labelize::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
+use labelize::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData};
 use labelize::elements::drawer_options::DrawerOptions;
+use labelize::elements::field_alignment::FieldAlignment;
+use labelize::elements::field_orientation::FieldOrientation;
+use labelize::elements::font::FontInfo;
 use labelize::elements::graphic_box::GraphicBox;
 use labelize::elements::graphic_circle::GraphicCircle;
+use labelize::elements::graphic_ellipse::GraphicEllipse;
 use labelize::elements::label_element::LabelElement;
 use labelize::elements::label_info::LabelInfo;
 use labelize::elements::label_position::LabelPosition;
 use labelize::elements::line_color::LineColor;
 use labelize::elements::reverse_print::ReversePrint;
+use labelize::elements::text_field::TextField;
+use labelize::TsplParser;
 
 fn default_options() -> DrawerOptions {
     render_helpers::default_options()
@@ -81,6 +89,7 @@ fn graphic_box_renders_black_pixels_in_box_region() {
             height: 50,
             border_thickness: 3,
             corner_rounding: 0,
+            corner_radius_dots: None,
             line_color: LineColor::Black,
         })],
     };
@@ -101,6 +110,36 @@ fn graphic_box_renders_black_pixels_in_box_region() {
         outside[0] > 128,
         "expected white pixel outside box, got {:?}",
         outside
+    );
+}
+
+#[test]
+fn tspl_box_radius_uses_dot_units() {
+    let parser = TsplParser::new();
+    let parsed = parser
+        .parse_with_options(
+            br#"SIZE 20 mm,20 mm
+CLS
+BOX 10,10,110,90,4,12
+PRINT 1
+"#,
+            DrawerOptions {
+                label_width_mm: 20.0,
+                label_height_mm: 20.0,
+                dpmm: 8,
+                enable_inverted_labels: false,
+            },
+        )
+        .expect("TSPL parse failed");
+
+    let png = render_label(&parsed[0].label, parsed[0].drawer_options.clone());
+    let img = decode_png(&png);
+
+    let pixel = img.get_pixel(14, 14);
+    assert!(
+        pixel[0] < 128,
+        "TSPL BOX radius should be 12 dots, got {:?} at rounded corner",
+        pixel
     );
 }
 
@@ -132,6 +171,43 @@ fn graphic_circle_renders_non_white_pixels() {
     assert!(has_dark, "expected non-white pixels for circle");
 }
 
+#[test]
+fn graphic_ellipse_renders_non_white_ring_pixels() {
+    let label = LabelInfo {
+        print_width: 0,
+        inverted: false,
+        elements: vec![LabelElement::GraphicEllipse(GraphicEllipse {
+            reverse_print: ReversePrint { value: false },
+            position: LabelPosition {
+                x: 40,
+                y: 50,
+                calculate_from_bottom: false,
+                automatic_position: false,
+            },
+            width: 80,
+            height: 30,
+            border_thickness: 3,
+            line_color: LineColor::Black,
+        })],
+    };
+    let png = render_label(&label, default_options());
+    let img = decode_png(&png);
+
+    let top = img.get_pixel(80, 50);
+    assert!(
+        top[0] < 128,
+        "expected dark top ellipse pixel, got {:?}",
+        top
+    );
+
+    let center = img.get_pixel(80, 65);
+    assert!(
+        center[0] > 128,
+        "expected white center for ellipse ring, got {:?}",
+        center
+    );
+}
+
 // --- Text rendering ---
 
 #[test]
@@ -142,6 +218,45 @@ fn text_renders_non_white_pixels() {
 
     let has_dark = img.pixels().any(|p| p[0] < 128);
     assert!(has_dark, "expected non-white pixels for text");
+}
+
+#[test]
+fn field_alignment_center_positions_text_around_anchor() {
+    let label = LabelInfo {
+        print_width: 0,
+        inverted: false,
+        elements: vec![LabelElement::Text(TextField {
+            reverse_print: ReversePrint { value: false },
+            font: FontInfo {
+                name: "0".to_string(),
+                width: 30.0,
+                height: 30.0,
+                orientation: FieldOrientation::Normal,
+            },
+            position: LabelPosition {
+                x: 100,
+                y: 50,
+                calculate_from_bottom: false,
+                automatic_position: false,
+            },
+            alignment: FieldAlignment::Center,
+            text: "HI".to_string(),
+            block: None,
+        })],
+    };
+    let png = render_label(&label, default_options());
+    let img = decode_png(&png);
+
+    let min_dark_x = img
+        .enumerate_pixels()
+        .filter_map(|(x, _, p)| if p[0] < 128 { Some(x) } else { None })
+        .min()
+        .expect("expected text pixels");
+    assert!(
+        min_dark_x < 100,
+        "center-aligned text should start left of anchor x=100, got {}",
+        min_dark_x
+    );
 }
 
 // --- Barcode rendering ---
@@ -396,6 +511,37 @@ fn qr_code_has_quiet_zone() {
     );
 }
 
+#[test]
+fn qr_code_rotation_changes_rendered_output() {
+    let label = |orientation| LabelInfo {
+        print_width: 0,
+        inverted: false,
+        elements: vec![LabelElement::BarcodeQr(BarcodeQrWithData {
+            reverse_print: ReversePrint { value: false },
+            barcode: BarcodeQr {
+                magnification: 4,
+                orientation,
+            },
+            height: 0,
+            position: LabelPosition {
+                x: 80,
+                y: 80,
+                calculate_from_bottom: false,
+                automatic_position: false,
+            },
+            data: "HA,QR DATA".to_string(),
+        })],
+    };
+
+    let normal_png = render_label(&label(FieldOrientation::Normal), default_options());
+    let rotated_png = render_label(&label(FieldOrientation::Rotated90), default_options());
+
+    assert_ne!(
+        normal_png, rotated_png,
+        "rotated QR render should differ from normal orientation"
+    );
+}
+
 // --- Issue #8: Barcode interpretation line rotates with barcode ---
 
 #[test]
@@ -421,6 +567,60 @@ fn barcode_interpretation_line_rotates_with_barcode() {
         png, png_normal,
         "rotated barcode should differ from normal orientation"
     );
+}
+
+#[test]
+fn barcode_interpretation_line_alignment_changes_text_position() {
+    fn render_with_alignment(alignment: FieldAlignment) -> image::RgbaImage {
+        let label = LabelInfo {
+            print_width: 0,
+            inverted: false,
+            elements: vec![LabelElement::Barcode128(Barcode128WithData {
+                reverse_print: ReversePrint { value: false },
+                barcode: Barcode128 {
+                    orientation: FieldOrientation::Normal,
+                    height: 80,
+                    line: true,
+                    line_above: false,
+                    check_digit: false,
+                    mode: BarcodeMode::Automatic,
+                    line_alignment: alignment,
+                },
+                width: 2,
+                position: LabelPosition {
+                    x: 120,
+                    y: 100,
+                    calculate_from_bottom: false,
+                    automatic_position: false,
+                },
+                data: "123456".to_string(),
+            })],
+        };
+        decode_png(&render_label(&label, default_options()))
+    }
+
+    fn text_bounds(img: &image::RgbaImage) -> (u32, u32) {
+        let mut min_x = img.width();
+        let mut max_x = 0;
+        for y in 182..210 {
+            for x in 0..img.width() {
+                if img.get_pixel(x, y)[0] < 128 {
+                    min_x = min_x.min(x);
+                    max_x = max_x.max(x);
+                }
+            }
+        }
+        assert!(min_x < img.width(), "expected interpretation text pixels");
+        (min_x, max_x)
+    }
+
+    let left = text_bounds(&render_with_alignment(FieldAlignment::Left));
+    let center = text_bounds(&render_with_alignment(FieldAlignment::Center));
+    let right = text_bounds(&render_with_alignment(FieldAlignment::Right));
+
+    assert!(left.0 < center.0, "left text should start before center");
+    assert!(center.0 < right.0, "center text should start before right");
+    assert!(right.1 > center.1, "right text should end after center");
 }
 
 // --- Issue #9: EAN-13 guard bars should be taller than data bars ---

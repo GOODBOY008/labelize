@@ -10,6 +10,7 @@ use super::field_block::FieldBlock;
 use super::graphic_box::GraphicBox;
 use super::graphic_circle::GraphicCircle;
 use super::graphic_diagonal_line::GraphicDiagonalLine;
+use super::graphic_ellipse::GraphicEllipse;
 use super::graphic_field::GraphicField;
 use super::graphic_symbol::GraphicSymbol;
 use super::maxicode::{Maxicode, MaxicodeWithData};
@@ -23,6 +24,7 @@ pub enum LabelElement {
     Text(TextField),
     GraphicBox(GraphicBox),
     GraphicCircle(GraphicCircle),
+    GraphicEllipse(GraphicEllipse),
     DiagonalLine(GraphicDiagonalLine),
     GraphicField(GraphicField),
     Barcode128(Barcode128WithData),
@@ -61,6 +63,7 @@ impl LabelElement {
             LabelElement::Text(t) => t.reverse_print.value,
             LabelElement::GraphicBox(g) => g.reverse_print.value,
             LabelElement::GraphicCircle(g) => g.reverse_print.value,
+            LabelElement::GraphicEllipse(g) => g.reverse_print.value,
             LabelElement::DiagonalLine(g) => g.reverse_print.value,
             LabelElement::GraphicField(g) => g.reverse_print.value,
             LabelElement::Barcode128(b) => b.reverse_print.value,

@@ -8,11 +8,19 @@ pub enum GraphicFieldFormat {
     AR = 3,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GraphicFieldMode {
+    Overwrite,
+    Or,
+    Xor,
+}
+
 #[derive(Clone, Debug)]
 pub struct GraphicField {
     pub reverse_print: ReversePrint,
     pub position: LabelPosition,
     pub format: GraphicFieldFormat,
+    pub mode: GraphicFieldMode,
     pub data_bytes: i32,
     pub total_bytes: i32,
     pub row_bytes: i32,

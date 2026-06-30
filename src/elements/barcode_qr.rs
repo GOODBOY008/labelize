@@ -1,3 +1,4 @@
+use super::field_orientation::FieldOrientation;
 use super::label_position::LabelPosition;
 use super::reverse_print::ReversePrint;
 
@@ -21,6 +22,7 @@ pub enum QrCharacterMode {
 #[derive(Clone, Debug)]
 pub struct BarcodeQr {
     pub magnification: i32,
+    pub orientation: FieldOrientation,
 }
 
 #[derive(Clone, Debug)]

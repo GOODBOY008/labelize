@@ -1,12 +1,12 @@
-# Labelize — ZPL / EPL Label Renderer
+# Labelize — ZPL / EPL / TSPL Label Renderer
 
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/ci.yml?branch=main)](https://github.com/GOODBOY008/labelize/actions)
 
-> **Turn ZPL/EPL into pixels — label rendering, simplified.**
+> **Turn ZPL/EPL/TSPL into pixels — label rendering, simplified.**
 
-Labelize is a fast, open-source Rust engine that parses **ZPL** (Zebra Programming Language) and **EPL** (Eltron Programming Language) label data and renders it to **PNG** or **PDF**. Use it as a **CLI tool**, an **HTTP microservice**, or embed it as a **Rust library** — no printer hardware required.
+Labelize is a fast, open-source Rust engine that parses **ZPL** (Zebra Programming Language), **EPL** (Eltron Programming Language), and **TSPL** label data and renders it to **PNG** or **PDF**. Use it as a **CLI tool**, an **HTTP microservice**, or embed it as a **Rust library** — no printer hardware required.
 
 If you need a self-hosted, offline alternative to [Labelary](http://labelary.com/) for previewing and converting thermal label formats, Labelize has you covered.
 
@@ -39,11 +39,12 @@ Benchmarked against the Labelary API on the same set of labels:
 
 - **ZPL Parser** — 30+ ZPL commands: text, barcodes, graphics, stored formats, graphic fields, field blocks, and more
 - **EPL Parser** — EPL command support for text, barcodes, line draw, and reference points
+- **TSPL Parser** — render-focused support for `SIZE`, text, graphics, bitmaps, QR/PDF417, and common 1D barcodes
 - **10 Barcode Symbologies** — Code 128, Code 39, EAN-13, Interleaved 2-of-5, PDF417, Aztec, DataMatrix, QR Code, MaxiCode
 - **PNG & PDF Output** — Monochrome 1-bit PNG or single-page embedded PDF output
-- **CLI Tool** — Convert ZPL/EPL files from the command line with format auto-detection, multi-label support, and customizable label dimensions
+- **CLI Tool** — Convert ZPL/EPL/TSPL files from the command line with format auto-detection, multi-label support, and customizable label dimensions
 - **HTTP Microservice** — RESTful API for label conversion with format detection via `Content-Type` header; deploy anywhere with Docker or bare metal
-- **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, and download PNG or PDF with one click
+- **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl`/`.tspl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, and download PNG or PDF with one click
 - **Embedded Fonts** — Zero runtime font dependencies; bundles Helvetica Bold Condensed, DejaVu Sans Mono, and ZPL GS fonts
 - **Rust Library** — Integrate label rendering directly into your Rust application via the public API
 
@@ -72,6 +73,7 @@ cargo install labelize --features cli
 ```bash
 labelize convert label.zpl          # → label.png  (format auto-detected)
 labelize convert label.epl          # EPL works too
+labelize convert label.tspl         # TSPL SIZE controls dimensions unless overridden
 labelize convert label.zpl -t pdf   # output as PDF
 labelize convert label.zpl --width 100 --height 62 --dpmm 12  # custom dimensions
 ```
@@ -82,7 +84,7 @@ labelize convert label.zpl --width 100 --height 62 --dpmm 12  # custom dimension
 labelize serve --port 8080
 ```
 
-Open **http://localhost:8080/** in your browser to use the built-in **interactive playground** — paste ZPL/EPL, pick a label size, and render PNG instantly. Download PNG or PDF directly from the page.
+Open **http://localhost:8080/** in your browser to use the built-in **interactive playground** — paste ZPL/EPL/TSPL, pick a label size, and render PNG instantly. Download PNG or PDF directly from the page.
 
 ```bash
 # Convert via REST API
@@ -98,16 +100,16 @@ curl -X POST http://localhost:8080/convert \
 Usage: labelize <COMMAND>
 
 Commands:
-  convert  Convert a ZPL/EPL file to PNG or PDF
+  convert  Convert a ZPL/EPL/TSPL file to PNG or PDF
   serve    Start HTTP server for label conversion
 
 Convert Options:
-  <INPUT>               Input file path (.zpl or .epl)
+  <INPUT>               Input file path (.zpl, .epl, or .tspl)
   -o, --output <PATH>   Output file path (default: input stem + .png/.pdf)
-  -f, --format <FMT>    Input format override: zpl | epl
+  -f, --format <FMT>    Input format override: zpl | epl | tspl
   -t, --type <TYPE>     Output type: png | pdf [default: png]
-  --width <MM>          Label width in mm [default: 102]
-  --height <MM>         Label height in mm [default: 152]
+  --width <MM>          Label width override in mm
+  --height <MM>         Label height override in mm
   --dpmm <N>            Dots per mm [default: 8]
 
 Serve Options:
@@ -132,7 +134,7 @@ Serve Options:
 | `dpmm`    | 8       | Dots per mm            |
 | `output`  | png     | Output format: png/pdf |
 
-Set `Content-Type: application/zpl` or `Content-Type: application/epl` to select the parser.
+Set `Content-Type: application/zpl`, `application/epl`, or `application/tspl` to select the parser. For TSPL, `SIZE` supplies render dimensions unless `width` or `height` is provided explicitly.
 
 ## Library Usage
 
@@ -151,7 +153,7 @@ renderer.draw_label_as_png(&labels[0], &mut buf, DrawerOptions::default()).unwra
 std::fs::write("output.png", buf.into_inner()).unwrap();
 ```
 
-## Supported ZPL & EPL Commands
+## Supported ZPL, EPL & TSPL Commands
 
 ### ZPL Commands
 
@@ -167,10 +169,14 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 
 `N` (new label) · `A` (text) · `B` (barcode) · `LO` (line draw) · `R` (reference point) · `P` (print)
 
+### TSPL Commands
+
+`SIZE` · `DIRECTION` · `REFERENCE` · `SHIFT` · `CLS` · `PRINT` · `TEXT` · `BAR` · `BOX` · `CIRCLE` · `ELLIPSE` · `ERASE` · `REVERSE` · `BITMAP` · `BARCODE` · `QRCODE` · `PDF417`
+
 ## Architecture
 
 ```
-  ZPL/EPL input
+  ZPL/EPL/TSPL input
        │
        ▼
   ┌─────────┐     ┌──────────┐     ┌─────────┐
@@ -234,7 +240,7 @@ cargo build --release
 
 ## Related Projects & Keywords
 
-Looking for a **ZPL renderer**, **ZPL to PNG converter**, **ZPL to PDF**, **EPL parser**, **Zebra label preview**, **thermal label rendering**, or **Labelary alternative**? Labelize covers all of these.
+Looking for a **ZPL renderer**, **ZPL to PNG converter**, **ZPL to PDF**, **EPL parser**, **TSPL parser**, **Zebra label preview**, **thermal label rendering**, or **Labelary alternative**? Labelize covers all of these.
 
 ## Contributing
 

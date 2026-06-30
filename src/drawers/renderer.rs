@@ -23,6 +23,11 @@ static FONT_DEJAVU_MONO: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO;
 static FONT_DEJAVU_BOLD: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO_BOLD;
 static FONT_GS: &[u8] = crate::assets::FONT_ZPL_GS;
 
+// Chinese font use for TSPL
+// Original SIMSUN is strict prohibited for commercial use, so we use open-source substitute from WenQuanYi project
+static WENQUANYI_BITMAP_SONG_12PX: &[u8] = crate::assets::WENQUANYI_BITMAP_SONG_12PX;
+static WENQUANYI_BITMAP_SONG_16PX: &[u8] = crate::assets::WENQUANYI_BITMAP_SONG_16PX;
+
 pub struct Renderer;
 
 impl Default for Renderer {
@@ -143,6 +148,10 @@ impl Renderer {
             }
             LabelElement::GraphicCircle(gc) => {
                 self.draw_graphic_circle(canvas, gc);
+                Ok(())
+            }
+            LabelElement::GraphicEllipse(ge) => {
+                self.draw_graphic_ellipse(canvas, ge);
                 Ok(())
             }
             LabelElement::DiagonalLine(dl) => {
@@ -308,11 +317,8 @@ impl Renderer {
         let h = gb.height.max(gb.border_thickness);
         let border = gb.border_thickness;
 
-        if gb.corner_rounding > 0 {
-            // ZPL corner_rounding 1-8: radius = (shorter_side / 2) * (rounding / 8)
-            let shorter = w.min(h);
-            let radius =
-                ((shorter as f64 / 2.0) * (gb.corner_rounding as f64 / 8.0)).round() as i32;
+        let radius = graphic_box_corner_radius(gb, w, h);
+        if radius > 0 {
             draw_rounded_rect(canvas, x, y, w, h, border, radius, color);
         } else {
             // Draw box with border
@@ -365,6 +371,47 @@ impl Renderer {
                     if dist_sq <= outer_r_sq && dist_sq >= inner_r_sq {
                         canvas.put_pixel(px, py, color);
                     }
+                }
+            }
+        }
+    }
+
+    fn draw_graphic_ellipse(
+        &self,
+        canvas: &mut RgbaImage,
+        ge: &crate::elements::graphic_ellipse::GraphicEllipse,
+    ) {
+        let color = line_color_to_rgba(ge.line_color);
+        let x = ge.position.x;
+        let y = ge.position.y;
+        let width = ge.width.max(1);
+        let height = ge.height.max(1);
+        let thickness = ge.border_thickness.max(1) as f32;
+        let rx = width as f32 / 2.0;
+        let ry = height as f32 / 2.0;
+        let cx = x as f32 + rx;
+        let cy = y as f32 + ry;
+        let inner_rx = (rx - thickness).max(0.0);
+        let inner_ry = (ry - thickness).max(0.0);
+
+        for py in y.max(0)..(y + height).min(canvas.height() as i32) {
+            for px in x.max(0)..(x + width).min(canvas.width() as i32) {
+                let dx = (px as f32 + 0.5 - cx) / rx;
+                let dy = (py as f32 + 0.5 - cy) / ry;
+                if dx * dx + dy * dy > 1.0 {
+                    continue;
+                }
+
+                let inside_inner = if inner_rx > 0.0 && inner_ry > 0.0 {
+                    let ix = (px as f32 + 0.5 - cx) / inner_rx;
+                    let iy = (py as f32 + 0.5 - cy) / inner_ry;
+                    ix * ix + iy * iy <= 1.0
+                } else {
+                    false
+                };
+
+                if !inside_inner {
+                    canvas.put_pixel(px as u32, py as u32, color);
                 }
             }
         }
@@ -451,17 +498,41 @@ impl Renderer {
                     continue;
                 }
                 let val = (gf.data[idx] >> (7 - x % 8)) & 1;
-                if val != 0 {
-                    for my in 0..mag_y {
-                        for mx in 0..mag_x {
-                            let px = base_x + x * mag_x + mx;
-                            let py = base_y + y * mag_y + my;
-                            if px >= 0
-                                && py >= 0
-                                && (px as u32) < canvas.width()
-                                && (py as u32) < canvas.height()
-                            {
-                                canvas.put_pixel(px as u32, py as u32, black);
+                for my in 0..mag_y {
+                    for mx in 0..mag_x {
+                        let px = base_x + x * mag_x + mx;
+                        let py = base_y + y * mag_y + my;
+                        if px < 0
+                            || py < 0
+                            || (px as u32) >= canvas.width()
+                            || (py as u32) >= canvas.height()
+                        {
+                            continue;
+                        }
+
+                        match gf.mode {
+                            crate::elements::graphic_field::GraphicFieldMode::Or => {
+                                if val != 0 {
+                                    canvas.put_pixel(px as u32, py as u32, black);
+                                }
+                            }
+                            crate::elements::graphic_field::GraphicFieldMode::Overwrite => {
+                                let color = if val != 0 {
+                                    black
+                                } else {
+                                    Rgba([255, 255, 255, 255])
+                                };
+                                canvas.put_pixel(px as u32, py as u32, color);
+                            }
+                            crate::elements::graphic_field::GraphicFieldMode::Xor => {
+                                if val != 0 {
+                                    let bg = *canvas.get_pixel(px as u32, py as u32);
+                                    canvas.put_pixel(
+                                        px as u32,
+                                        py as u32,
+                                        Rgba([255 - bg[0], 255 - bg[1], 255 - bg[2], bg[3]]),
+                                    );
+                                }
                             }
                         }
                     }
@@ -521,6 +592,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -544,6 +616,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -574,6 +647,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -599,6 +673,7 @@ impl Renderer {
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
+                bc.barcode.line_alignment,
                 bc.width,
             );
         }
@@ -692,7 +767,13 @@ impl Renderer {
             (pos.x - quiet_zone_px, pos.y + bc.height - quiet_zone_px)
         };
 
-        overlay_at(canvas, &img, draw_x, draw_y);
+        let draw_pos = LabelPosition {
+            x: draw_x,
+            y: draw_y,
+            calculate_from_bottom: false,
+            automatic_position: false,
+        };
+        overlay_with_rotation(canvas, &img, &draw_pos, bc.barcode.orientation);
         Ok(())
     }
 
@@ -713,8 +794,24 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
         "0" => FONT_HELVETICA,
         "B" | "D" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
+        "TST16.BF2" | "TTT16.BF2" | "TSS16.BF2" => WENQUANYI_BITMAP_SONG_12PX,
+        "TSS24.BF2" | "TTT24.BF2" | "TST24.BF2" => WENQUANYI_BITMAP_SONG_16PX,
         _ => FONT_DEJAVU_MONO,
     }
+}
+
+fn graphic_box_corner_radius(gb: &crate::elements::graphic_box::GraphicBox, w: i32, h: i32) -> i32 {
+    if let Some(radius) = gb.corner_radius_dots {
+        return radius.max(0);
+    }
+
+    if gb.corner_rounding > 0 {
+        // ZPL corner_rounding 1-8: radius = (shorter_side / 2) * (rounding / 8).
+        let shorter = w.min(h);
+        return ((shorter as f64 / 2.0) * (gb.corner_rounding as f64 / 8.0)).round() as i32;
+    }
+
+    0
 }
 
 fn measure_text_width(text: &str, font: &FontRef, scale: PxScale) -> f32 {
@@ -877,6 +974,7 @@ fn get_text_top_left_pos(
         // ^FO: position is top-left of the field area. Handle justification parameter.
         let x = match text.alignment {
             crate::elements::field_alignment::FieldAlignment::Right => x - w,
+            crate::elements::field_alignment::FieldAlignment::Center => x - w / 2.0,
             _ => x,
         };
         return (x, y);
@@ -1182,6 +1280,7 @@ fn draw_barcode_interpretation_line(
     barcode_img: &RgbaImage,
     orientation: FieldOrientation,
     line_above: bool,
+    alignment: crate::elements::field_alignment::FieldAlignment,
     module_width: i32,
 ) {
     let font_data = FONT_DEJAVU_MONO;
@@ -1253,7 +1352,7 @@ fn draw_barcode_interpretation_line(
 
     match orientation {
         FieldOrientation::Normal => {
-            let cx = pos.x + (bw - text_width as i32) / 2;
+            let cx = aligned_interpretation_line_pos(pos.x, bw, text_width as i32, alignment);
             let ty = if line_above {
                 pos.y - font_size as i32 - 2
             } else {
@@ -1277,10 +1376,10 @@ fn draw_barcode_interpretation_line(
                 _ => buf,
             };
 
-            // Position: center text along the barcode edge
             let (tx, ty) = match orientation {
                 FieldOrientation::Rotated90 => {
-                    let cy = pos.y + (bw - text_width as i32) / 2;
+                    let cy =
+                        aligned_interpretation_line_pos(pos.y, bw, text_width as i32, alignment);
                     if line_above {
                         (pos.x + bh + 2, cy)
                     } else {
@@ -1288,7 +1387,8 @@ fn draw_barcode_interpretation_line(
                     }
                 }
                 FieldOrientation::Rotated180 => {
-                    let cx = pos.x + (bw - text_width as i32) / 2;
+                    let cx =
+                        aligned_interpretation_line_pos(pos.x, bw, text_width as i32, alignment);
                     if line_above {
                         (cx, pos.y + bh + 2)
                     } else {
@@ -1296,7 +1396,8 @@ fn draw_barcode_interpretation_line(
                     }
                 }
                 FieldOrientation::Rotated270 => {
-                    let cy = pos.y + (bw - text_width as i32) / 2;
+                    let cy =
+                        aligned_interpretation_line_pos(pos.y, bw, text_width as i32, alignment);
                     if line_above {
                         (pos.x - rotated.width() as i32 - 2, cy)
                     } else {
@@ -1307,5 +1408,21 @@ fn draw_barcode_interpretation_line(
             };
             overlay_at(canvas, &rotated, tx, ty);
         }
+    }
+}
+
+fn aligned_interpretation_line_pos(
+    origin: i32,
+    span: i32,
+    text_width: i32,
+    alignment: crate::elements::field_alignment::FieldAlignment,
+) -> i32 {
+    match alignment {
+        crate::elements::field_alignment::FieldAlignment::Right => origin + span - text_width,
+        crate::elements::field_alignment::FieldAlignment::Center
+        | crate::elements::field_alignment::FieldAlignment::Auto => {
+            origin + (span - text_width) / 2
+        }
+        crate::elements::field_alignment::FieldAlignment::Left => origin,
     }
 }

@@ -4,4 +4,5 @@ pub enum FieldAlignment {
     Left = 0,
     Right = 1,
     Auto = 2,
+    Center = 3,
 }

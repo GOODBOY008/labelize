@@ -36,6 +36,16 @@ fn bitmap_font_sizes() -> &'static HashMap<&'static str, [f64; 2]> {
         m.insert("G", [60.0, 40.0]);
         m.insert("H", [21.0, 13.0]);
         m.insert("GS", [24.0, 24.0]);
+        // TSPL resident bitmap fonts. The manual lists width × height; this map stores
+        // [height, width] to match the existing ZPL bitmap font table shape.
+        m.insert("TSPL_1", [12.0, 8.0]);
+        m.insert("TSPL_2", [20.0, 12.0]);
+        m.insert("TSPL_3", [24.0, 16.0]);
+        m.insert("TSPL_4", [32.0, 24.0]);
+        m.insert("TSPL_5", [48.0, 32.0]);
+        m.insert("TSPL_6", [19.0, 14.0]);
+        m.insert("TSPL_7", [27.0, 21.0]);
+        m.insert("TSPL_8", [25.0, 14.0]);
         m
     })
 }
@@ -121,6 +131,8 @@ impl FontInfo {
             // ~12px per character advance vs our DejaVu's ~10px.
             // 1.931 × 1.2 = 2.317
             2.317
+        } else if self.name.ends_with(".BF2") {
+            1.0
         } else {
             // Bitmap fonts A-H use DejaVu Sans Mono (Regular or Bold).
             // ab_glyph scales advances as:  h_advance = h_advance_unscaled / height_unscaled * scale_x
