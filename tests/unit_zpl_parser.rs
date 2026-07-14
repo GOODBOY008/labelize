@@ -341,6 +341,47 @@ fn fo_right_justification() {
     );
 }
 
+// --- font B Zebra metrics (measured against Labelary at magnifications 1-9) ---
+
+fn text_font(labels: &[labelize::LabelInfo]) -> labelize::elements::font::FontInfo {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t.font.clone()),
+            _ => None,
+        })
+        .expect("no text element")
+}
+
+#[test]
+fn font_b_height_driven_uses_nine_dot_advance() {
+    // ^CFB,80: magnification round(80/11)=7 -> cell 77, advance 9*7=63
+    // (7-dot glyph + 2-dot intercharacter gap; the gap was previously dropped).
+    let font = text_font(&parse("^XA^CFB,80^FO50,50^FDCJ^FS^XZ"));
+    assert_eq!(font.name, "B");
+    assert_eq!(font.height, 77.0);
+    assert_eq!(font.width, 63.0);
+}
+
+#[test]
+fn font_b_width_parameter_selects_magnification_on_the_cell_height() {
+    // ^CFB,0,30 (width only): Labelary selects magnification round(30/11)=3, not round(30/7)=4.
+    let font = text_font(&parse("^XA^CFB,0,30^FO50,50^FDCJ^FS^XZ"));
+    assert_eq!(font.name, "B");
+    assert_eq!(font.height, 33.0);
+    assert_eq!(font.width, 27.0);
+}
+
+#[test]
+fn other_bitmap_fonts_keep_their_existing_metrics() {
+    // Font A advance was verified against Labelary previously (6 dots/mag) -- unchanged.
+    let font = text_font(&parse("^XA^CFA,18^FO50,50^FDHello^FS^XZ"));
+    assert_eq!(font.name, "A");
+    assert_eq!(font.height, 18.0);
+    assert_eq!(font.width, 12.0);
+}
+
 // --- ^CF single-character font designator (glued height digits) ---
 
 fn first_text(labels: &[labelize::LabelInfo]) -> &labelize::elements::text_field::TextField {

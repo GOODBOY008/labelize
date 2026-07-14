@@ -172,6 +172,14 @@ impl Renderer {
         text: &TextField,
         state: &mut DrawerState,
     ) -> Result<(), String> {
+        // Zebra's built-in bitmap Font B has no lowercase glyphs; the printer (and
+        // Labelary) render lowercase field data as uppercase. Match that here so the TTF
+        // substitute doesn't silently produce mixed-case output real hardware can't.
+        let drawn_text: String = if text.font.name == "B" {
+            text.text.to_uppercase()
+        } else {
+            text.text.clone()
+        };
         let font_data = get_ttf_font_data(&text.font.name);
         let font = FontRef::try_from_slice(font_data)
             .map_err(|e| format!("failed to load font: {}", e))?;
@@ -198,8 +206,12 @@ impl Renderer {
         // The shift is computed from the actual 'H' glyph bounds at the ORIGINAL scale so that
         // it remains correct for any font size or magnification.
         let is_bitmap = text.font.is_bitmap_font();
+        // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
+        // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
+        // the ab_glyph scale -- hence 11.5/11/0.657 = 1.59 vs the generic 7/6 font-A correction.
+        let cap_scale: f32 = if text.font.name == "B" { 1.59 } else { 7.0 / 6.0 };
         let bitmap_y_shift: f64 = if is_bitmap {
-            scale.y = font_size * 7.0 / 6.0;
+            scale.y = font_size * cap_scale;
 
             let orig_scale = PxScale {
                 x: scale.x,
@@ -214,16 +226,16 @@ impl Renderer {
                 .map(|g| g.px_bounds().min.y as f64)
                 .unwrap_or(font_size as f64 * 0.148);
 
-            // With the 7/6-scaled em, the ascender gap also scales by 7/6.
+            // With the cap-scaled em, the ascender gap also scales by the same factor.
             // Shift the draw origin UP by that new gap so cap_top = field y.
-            -(orig_gap * 7.0 / 6.0)
+            -(orig_gap * cap_scale as f64)
         } else {
             0.0
         };
 
         // Measure text width approximately (scale already includes scale_x).
         // Use superscript-aware measurement so that ® is counted at its rendered size.
-        let text_width = measure_text_width_with_superscript(&text.text, &font, scale) as f64;
+        let text_width = measure_text_width_with_superscript(&drawn_text, &font, scale) as f64;
 
         // For field blocks, use block width for positioning instead of measured text width
         let pos_width = if let Some(ref block) = text.block {
@@ -246,17 +258,17 @@ impl Renderer {
             // Normal: draw directly onto canvas (no rotation needed)
             if let Some(ref block) = text.block {
                 draw_text_block(
-                    canvas, &font, scale, scale_x, color, x as f32, y as f32, block, &text.text,
+                    canvas, &font, scale, scale_x, color, x as f32, y as f32, block, &drawn_text,
                 );
             } else {
                 draw_text_with_superscript(
-                    canvas, &font, scale, color, x as f32, y as f32, &text.text,
+                    canvas, &font, scale, color, x as f32, y as f32, &drawn_text,
                 );
             }
         } else {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
-                let lines = word_wrap(&text.text, &font, scale, block.max_width as f32);
+                let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32);
                 let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
@@ -277,10 +289,10 @@ impl Renderer {
 
             if let Some(ref block) = text.block {
                 draw_text_block(
-                    &mut buf, &font, scale, scale_x, color, 0.0, 0.0, block, &text.text,
+                    &mut buf, &font, scale, scale_x, color, 0.0, 0.0, block, &drawn_text,
                 );
             } else {
-                draw_text_with_superscript(&mut buf, &font, scale, color, 0.0, 0.0, &text.text);
+                draw_text_with_superscript(&mut buf, &font, scale, color, 0.0, 0.0, &drawn_text);
             }
 
             let rotated = match orientation {
