@@ -1173,7 +1173,32 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
         "0" => FONT_ZERO,
         "B" | "D" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
-        _ => FONT_DEJAVU_MONO,
+        // Font 1 and the remaining standard fonts (see FontInfo::is_standard_font)
+        // intentionally substitute DejaVu Sans Mono.
+        "1" | "A" | "C" | "E" | "F" | "G" | "H" | "W" | "X" | "Y" | "Z" => FONT_DEJAVU_MONO,
+        _ => {
+            warn_unmapped_font(name);
+            FONT_DEJAVU_MONO
+        }
+    }
+}
+
+/// Font names with no built-in mapping silently fall back to DejaVu Sans Mono.
+/// Surface that once per name -- not once per rendered field -- so rendering
+/// many labels (e.g. through the HTTP service) doesn't flood stderr.
+fn warn_unmapped_font(name: &str) {
+    use std::collections::HashSet;
+    use std::sync::{Mutex, OnceLock};
+    static WARNED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    let first_time = WARNED
+        .get_or_init(|| Mutex::new(HashSet::new()))
+        .lock()
+        .map(|mut seen| seen.insert(name.to_string()))
+        .unwrap_or(false);
+    if first_time {
+        eprintln!(
+            "labelize: no mapping for ZPL font '{name}'; substituting DejaVu Sans Mono (layout may differ)"
+        );
     }
 }
 
@@ -2177,5 +2202,27 @@ fn draw_module_centered_interpretation_line(
             };
             overlay_at(canvas, &rotated, tx, ty);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_font_names_map_to_their_substitutes() {
+        assert_eq!(get_ttf_font_data("0"), FONT_ZERO);
+        assert_eq!(get_ttf_font_data("B"), FONT_DEJAVU_BOLD);
+        assert_eq!(get_ttf_font_data("P"), FONT_DEJAVU_BOLD);
+        assert_eq!(get_ttf_font_data("GS"), FONT_GS);
+        assert_eq!(get_ttf_font_data("1"), FONT_DEJAVU_MONO);
+        assert_eq!(get_ttf_font_data("A"), FONT_DEJAVU_MONO);
+        assert_eq!(get_ttf_font_data("W"), FONT_DEJAVU_MONO);
+    }
+
+    #[test]
+    fn unmapped_font_names_fall_back_to_dejavu_mono() {
+        assert_eq!(get_ttf_font_data("2"), FONT_DEJAVU_MONO);
+        assert_eq!(get_ttf_font_data("E:TT0003M_.FNT"), FONT_DEJAVU_MONO);
     }
 }
