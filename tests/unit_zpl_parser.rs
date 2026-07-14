@@ -340,3 +340,38 @@ fn fo_right_justification() {
         labelize::elements::field_alignment::FieldAlignment::Right
     );
 }
+
+// --- ^CF single-character font designator (glued height digits) ---
+
+fn first_text(labels: &[labelize::LabelInfo]) -> &labelize::elements::text_field::TextField {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("no text element")
+}
+
+#[test]
+fn cf_font_designator_is_a_single_character_with_glued_height_digits() {
+    // Real printers and Labelary parse ^CFB0,30 as font B, height 0, width 30 -- observed
+    // verbatim in courier-generated ZPL. The designator must not swallow the height digits.
+    let labels = parse("^XA^CFB0,30^FO50,50^FDHello^FS^XZ");
+    assert_eq!(first_text(&labels).font.name, "B");
+}
+
+#[test]
+fn cf_plain_single_character_font_still_parses() {
+    let labels = parse("^XA^CF0,30^FO50,50^FDHello^FS^XZ");
+    let font = &first_text(&labels).font;
+    assert_eq!(font.name, "0");
+    assert_eq!(font.height, 30.0);
+}
+
+#[test]
+fn cf_numeric_user_font_falls_back_to_scalable_font_0() {
+    let labels = parse("^XA^CF3,20^FO50,50^FDHello^FS^XZ");
+    assert_eq!(first_text(&labels).font.name, "0");
+}

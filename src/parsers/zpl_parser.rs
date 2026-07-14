@@ -317,28 +317,50 @@ impl ZplParser {
 
     fn parse_change_default_font(&mut self, command: &str) {
         let parts = split_command(command, "^CF");
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                self.printer.default_font.name = s.to_uppercase();
+        // The font designator is a single character; real printers and Labelary tolerate height
+        // digits glued onto it (^CFB0,30 = font B, height 0, width 30) -- the same leniency
+        // parse_change_font() already applies to ^A. Taking the whole first part as the name
+        // ("B0") matches no font and silently falls back to the default TTF, shredding layouts
+        // authored for the intended font (observed on production courier labels).
+        let (extra_height, height_idx, width_idx) = match parts.first() {
+            Some(s) if !s.is_empty() => {
+                let first = s.as_bytes();
+                let name = (first[0] as char).to_uppercase().to_string();
+                let mut probe = self.printer.default_font.clone();
+                probe.name = name.clone();
+                if probe.is_standard_font() {
+                    self.printer.default_font.name = name;
+                } else if (first[0] as char).is_ascii_digit() {
+                    // Numeric font names (1-9) are user-installed fonts on Zebra printers.
+                    // Fall back to font "0" (proportional), as parse_change_font does.
+                    self.printer.default_font.name = "0".to_string();
+                }
+                if first.len() > 1 {
+                    let glued = std::str::from_utf8(&first[1..]).unwrap_or("").to_string();
+                    (Some(glued), usize::MAX, 1usize)
+                } else {
+                    (None, 1, 2)
+                }
             }
-        }
-        let has_height = parts.get(1).and_then(|s| parse_int(s)).is_some();
-        let has_width = parts.get(2).and_then(|s| parse_int(s)).is_some();
-        if let Some(s) = parts.get(1) {
-            if let Some(v) = parse_int(s) {
-                self.printer.default_font.height = v as f64;
-            }
+            _ => (None, 1, 2),
+        };
+
+        let height = match &extra_height {
+            Some(hs) => parse_int(hs),
+            None => parts.get(height_idx).and_then(|s| parse_int(s)),
+        };
+        let width = parts.get(width_idx).and_then(|s| parse_int(s));
+        if let Some(v) = height {
+            self.printer.default_font.height = v as f64;
         }
         // Per ZPL spec: "Defining only the height or width forces the magnification to be
         // proportional to the parameter defined." When only height is given (no explicit width),
         // reset width to 0 so with_adjusted_sizes() derives it proportionally from height.
-        if has_height && !has_width {
+        if height.is_some() && width.is_none() {
             self.printer.default_font.width = 0.0;
         }
-        if let Some(s) = parts.get(2) {
-            if let Some(v) = parse_int(s) {
-                self.printer.default_font.width = v as f64;
-            }
+        if let Some(v) = width {
+            self.printer.default_font.width = v as f64;
         }
     }
 
