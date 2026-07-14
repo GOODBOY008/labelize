@@ -446,10 +446,10 @@ impl ZplParser {
             calculate_from_bottom: false,
             ..Default::default()
         };
-        if let Some(v) = parts.first().and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.first().and_then(|s| to_positive_int_lenient(s)) {
             pos.x = v;
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_lenient(s)) {
             pos.y = v;
         }
         if let Some(s) = parts.get(2) {
@@ -467,11 +467,11 @@ impl ZplParser {
             automatic_position: true,
             ..Default::default()
         };
-        if let Some(v) = parts.first().and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.first().and_then(|s| to_positive_int_lenient(s)) {
             pos.x = v;
             pos.automatic_position = false;
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_lenient(s)) {
             pos.y = v;
             pos.automatic_position = false;
         }

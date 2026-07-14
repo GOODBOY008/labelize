@@ -58,6 +58,22 @@ pub fn to_positive_int(s: &str) -> Option<i32> {
     s.trim().parse::<f64>().ok().map(|v| v.abs().round() as i32)
 }
 
+/// Like [`to_positive_int`] but tolerates leading garbage before the number, matching
+/// printer/Labelary leniency for malformed numeric parameters (e.g. `^FOB50,660` -> x=50,
+/// observed verbatim in courier-generated ZPL). Strict parse is tried first so well-formed
+/// input is unaffected.
+pub fn to_positive_int_lenient(s: &str) -> Option<i32> {
+    let t = s.trim();
+    to_positive_int(t).or_else(|| {
+        let start = t.find(|c: char| c.is_ascii_digit())?;
+        let digits: String = t[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '.')
+            .collect();
+        to_positive_int(&digits)
+    })
+}
+
 pub fn parse_int(s: &str) -> Option<i32> {
     s.trim().parse::<i32>().ok()
 }

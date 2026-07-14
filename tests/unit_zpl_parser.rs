@@ -341,6 +341,40 @@ fn fo_right_justification() {
     );
 }
 
+// --- lenient ^FO/^FT numeric parameters ---
+
+#[test]
+fn field_origin_tolerates_leading_garbage_in_coordinates() {
+    // Real printers and Labelary render ^FOB50,660 at x=50 -- observed verbatim in
+    // courier-generated ZPL. Strict parsing yielded x=0 and overprinted fields.
+    let labels = parse("^XA^FOB50,660^A0N,30,30^FDHello^FS^XZ");
+    let text = labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("no text element");
+    assert_eq!(text.position.x, 50);
+    assert_eq!(text.position.y, 660);
+}
+
+#[test]
+fn field_origin_well_formed_coordinates_are_unchanged() {
+    let labels = parse("^XA^FO40,90^A0N,30,30^FDHello^FS^XZ");
+    let text = labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("no text element");
+    assert_eq!(text.position.x, 40);
+    assert_eq!(text.position.y, 90);
+}
+
 // --- font B Zebra metrics (measured against Labelary at magnifications 1-9) ---
 
 fn text_font(labels: &[labelize::LabelInfo]) -> labelize::elements::font::FontInfo {
