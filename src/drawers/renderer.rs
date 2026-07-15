@@ -209,7 +209,11 @@ impl Renderer {
         // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
         // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
         // the ab_glyph scale -- hence 11.5/11/0.657 = 1.59 vs the generic 7/6 font-A correction.
-        let cap_scale: f32 = if text.font.name == "B" { 1.59 } else { 7.0 / 6.0 };
+        let cap_scale: f32 = if text.font.name == "B" {
+            1.59
+        } else {
+            7.0 / 6.0
+        };
         let bitmap_y_shift: f64 = if is_bitmap {
             scale.y = font_size * cap_scale;
 
@@ -258,11 +262,25 @@ impl Renderer {
             // Normal: draw directly onto canvas (no rotation needed)
             if let Some(ref block) = text.block {
                 draw_text_block(
-                    canvas, &font, scale, scale_x, color, x as f32, y as f32, block, &drawn_text,
+                    canvas,
+                    &font,
+                    scale,
+                    scale_x,
+                    color,
+                    x as f32,
+                    y as f32,
+                    block,
+                    &drawn_text,
                 );
             } else {
                 draw_text_with_superscript(
-                    canvas, &font, scale, color, x as f32, y as f32, &drawn_text,
+                    canvas,
+                    &font,
+                    scale,
+                    color,
+                    x as f32,
+                    y as f32,
+                    &drawn_text,
                 );
             }
         } else {
@@ -289,7 +307,15 @@ impl Renderer {
 
             if let Some(ref block) = text.block {
                 draw_text_block(
-                    &mut buf, &font, scale, scale_x, color, 0.0, 0.0, block, &drawn_text,
+                    &mut buf,
+                    &font,
+                    scale,
+                    scale_x,
+                    color,
+                    0.0,
+                    0.0,
+                    block,
+                    &drawn_text,
                 );
             } else {
                 draw_text_with_superscript(&mut buf, &font, scale, color, 0.0, 0.0, &drawn_text);

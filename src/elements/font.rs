@@ -80,7 +80,11 @@ impl FontInfo {
             // 2-dot intercharacter gap). With the generic rules a ^CFB,80 route code rendered
             // ~26% smaller than Labelary/Zebra output.
             let advance = if font.name == "B" { 9.0 } else { org_size[1] };
-            let width_mag_base = if font.name == "B" { org_size[0] } else { org_size[1] };
+            let width_mag_base = if font.name == "B" {
+                org_size[0]
+            } else {
+                org_size[1]
+            };
             if font.width == 0.0 && font.height == 0.0 {
                 font.width = advance;
                 font.height = org_size[0];
