@@ -64,9 +64,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The `v*` trigger is broader than semver, so validate the tag here.
-          # A scratch tag like `vtest` yields no version tags at all and must
-          # never be allowed to repoint `latest` at an arbitrary commit.
+          # The `v[0-9]*` trigger glob keeps out `vtest`-style tags, but is still
+          # broader than semver, so validate properly here. A tag like `v1abc` or
+          # `v1.3` yields no version tags at all and must never be allowed to
+          # repoint `latest` at an arbitrary commit.
           stable=false
           publishable=true
           if [ "$REF_TYPE" = "tag" ]; then

@@ -44,18 +44,27 @@ visibility* → *Public*.
 | Push to `main` | `main`, `edge`, `sha-<full-commit-sha>` |
 | Push of tag `vX.Y.Z` | `X.Y.Z`, `X.Y`, `X`, `latest` |
 | Push of tag `vX.Y.Z-rc.N` | `X.Y.Z-rc.N` only — prereleases never move `latest` |
-| Push of a non-semver `v*` tag | nothing — publish is skipped with a warning |
+| Push of tag matching `v[0-9]*` but not semver (`v1.3`, `v1abc`) | nothing — the run starts, then skips publishing with a warning |
+| Push of any other tag (`vtest`, `nightly`) | nothing — the workflow does not start at all |
 | Pull request | none — builds and smoke-tests only, no publish |
 
 The `X` major tag is skipped for `v0.*` releases, where a major-only tag would be
 misleading.
 
-`latest` is assigned explicitly rather than via `flavor: latest=auto`, and it is
-gated on the `prepare` job having matched the tag against `^v[0-9]+\.[0-9]+\.[0-9]+$`.
-The workflow triggers on `v*`, which is broader than semver, so a scratch tag such
-as `vtest` would otherwise generate no version tags at all while still satisfying a
-naive "is a tag and has no `-` in it" check — repointing `latest` at an arbitrary
-commit. Such tags are rejected outright instead.
+`latest` is guarded in two layers, because a tag that produces no version tags at
+all must never be able to repoint it at an arbitrary commit:
+
+1. **The trigger glob** is `tags: ['v[0-9]*']`, not `v*`. A tag that does not begin
+   with `v` followed by a digit — `vtest`, `vlatest`, `nightly` — never starts a
+   run, so it costs nothing and can affect nothing.
+2. **The `prepare` job** then matches the tag against `^v[0-9]+\.[0-9]+\.[0-9]+$`
+   for `latest`, and against the same pattern plus an optional
+   prerelease/build suffix to decide whether to publish at all. This catches the
+   shapes the glob still lets through — `v1.3`, `v1.3.0.4`, `v1abc` — which would
+   otherwise satisfy a naive "is a tag and has no `-` in it" check while
+   `metadata-action` emitted no version tags for them.
+
+`latest` is therefore assigned explicitly rather than via `flavor: latest=auto`.
 
 ## How the build is arranged
 
