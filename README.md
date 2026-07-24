@@ -3,6 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/ci.yml?branch=main)](https://github.com/GOODBOY008/labelize/actions)
+[![Docker](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/docker.yml?branch=main&label=docker)](https://github.com/GOODBOY008/labelize/actions/workflows/docker.yml)
 
 > **Turn ZPL/EPL into pixels — label rendering, simplified.**
 
@@ -92,6 +93,23 @@ curl -X POST http://localhost:8080/convert \
   -o label.png
 ```
 ### Run as Docker web service
+
+Pre-built multi-arch images (`linux/amd64` + `linux/arm64`) are published on every
+release:
+
+```bash
+# Docker Hub
+docker run -p 8080:8080 goodboy008/labelize:latest
+
+# GitHub Container Registry
+docker run -p 8080:8080 ghcr.io/goodboy008/labelize:latest
+```
+
+Available tags: `latest` (newest stable release), `1.3.0` / `1.3` / `1` (pinned
+versions), and `edge` (current `main`).
+
+Or build and run it from source with Compose:
+
 ```bash
 docker compose up -d --build
 ```

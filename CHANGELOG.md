@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Docker Publishing CI** — New `Docker` workflow builds `linux/amd64` and `linux/arm64` images on native runners and publishes multi-arch manifests to Docker Hub and GHCR on pushes to `main` and on `v*` tags; pull requests build and smoke-test the image without publishing
+- **Image Build Provenance** — Published GHCR manifests carry a signed build provenance attestation, verifiable with `gh attestation verify`
+
 ### Fixed
 
 - **Docker Build** — Dropped the unsupported `--features` flag from `cargo chef prepare`, which caused `docker build` to fail with `error: unexpected argument '--features' found`

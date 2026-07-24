@@ -1,0 +1,445 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    # Narrower than `v*` so a scratch tag never even starts a publish run.
+    # The `prepare` job still validates full semver — see below.
+    tags: ['v[0-9]*']
+  pull_request:
+    branches: [main]
+    # Only re-validate the image when something that affects it changes.
+    # Plain source changes are already covered by the CI workflow.
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/docker.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  # Supersede stale PR builds, but never abort a publish mid-flight: cancelling
+  # between the digest pushes and the manifest merge would leave dangling
+  # untagged digests and no manifest list.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Least privilege by default; each job opts into exactly what it needs.
+permissions: {}
+
+jobs:
+  # ── Resolve which registries this run can publish to ─────────────────
+  # Secrets cannot be read from a job-level `if:`, so the decision is made
+  # once here and exposed as job outputs.
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      push: ${{ steps.cfg.outputs.push }}
+      stable: ${{ steps.cfg.outputs.stable }}
+      images: ${{ steps.cfg.outputs.images }}
+      image_names: ${{ steps.cfg.outputs.image_names }}
+      ghcr_image: ${{ steps.cfg.outputs.ghcr_image }}
+      dockerhub: ${{ steps.cfg.outputs.dockerhub }}
+    steps:
+      - name: Resolve registry configuration
+        id: cfg
+        env:
+          # The Docker Hub username is a repository VARIABLE, deliberately not a
+          # secret. Job outputs containing a secret value are redacted on the
+          # runner and arrive empty — and the account name is a substring of the
+          # image names below, so storing it as a secret would silently blank out
+          # `images`/`image_names`/`ghcr_image` and break both registries.
+          # Only the token is sensitive.
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          # Optional override when the Docker Hub repo name differs.
+          DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # The `v*` trigger is broader than semver, so validate the tag here.
+          # A scratch tag like `vtest` yields no version tags at all and must
+          # never be allowed to repoint `latest` at an arbitrary commit.
+          stable=false
+          publishable=true
+          if [ "$REF_TYPE" = "tag" ]; then
+            if [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              stable=true
+            elif [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[-+][0-9A-Za-z.+-]+$ ]]; then
+              # Prerelease or build metadata: publish it, but never as `latest`.
+              stable=false
+            else
+              publishable=false
+              echo "::warning::Tag '$REF_NAME' is not a semver version (vX.Y.Z) — skipping publish."
+            fi
+          fi
+
+          # Pull requests (including from forks) build but never publish.
+          if [ "$EVENT_NAME" = "pull_request" ] || [ "$publishable" != "true" ]; then
+            push=false
+          else
+            push=true
+          fi
+
+          # GHCR rejects uppercase characters in image names.
+          ghcr_image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          images="$ghcr_image"
+          image_names="$ghcr_image"
+
+          # Docker Hub only joins in once the username variable and the token
+          # secret both exist, so forks and pre-setup runs stay green.
+          if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
+            dockerhub=true
+            dockerhub_image="${DOCKERHUB_IMAGE:-${DOCKERHUB_USERNAME}/labelize}"
+            images="$images"$'\n'"$dockerhub_image"
+            image_names="$image_names,$dockerhub_image"
+          else
+            dockerhub=false
+            echo "::notice::Docker Hub not configured — set the DOCKERHUB_USERNAME repository *variable* and the DOCKERHUB_TOKEN *secret* to enable it. Publishing to GHCR only."
+          fi
+
+          {
+            echo "push=$push"
+            echo "stable=$stable"
+            echo "dockerhub=$dockerhub"
+            echo "ghcr_image=$ghcr_image"
+            echo "image_names=$image_names"
+            echo "images<<__EOF__"
+            echo "$images"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+  # ── Build one image per architecture on a native runner ──────────────
+  # An arm64 Rust release build under QEMU takes the better part of an hour,
+  # so each platform gets a native runner and the per-platform results are
+  # stitched into a manifest list by the `merge` job.
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Normalise platform name
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v5
+        with:
+          # Keep the job token out of .git/config — nothing here needs it.
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          # BuildKit defaults to 4 parallel build steps, which OOMs the 7 GB
+          # GitHub runner during Rust compiles (moby/buildkit#3969).
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 2
+
+      - name: Log in to GHCR
+        if: needs.prepare.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: needs.prepare.outputs.push == 'true' && needs.prepare.outputs.dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.prepare.outputs.images }}
+          labels: |
+            org.opencontainers.image.title=Labelize
+            org.opencontainers.image.description=Fast ZPL & EPL label parser and renderer — convert label data to PNG/PDF
+            org.opencontainers.image.licenses=MIT
+
+      # Publish runs push a digest-only image per platform. PR runs load the
+      # image into the local daemon instead, so the smoke test can run it.
+      - name: Build and push by digest
+        id: build
+        if: needs.prepare.outputs.push == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # push-by-digest cannot carry attestation manifests.
+          provenance: false
+          cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+          outputs: type=image,"name=${{ needs.prepare.outputs.image_names }}",push-by-digest=true,name-canonical=true,push=true
+
+      - name: Build for validation
+        if: needs.prepare.outputs.push != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          load: true
+          tags: labelize:ci-${{ env.PLATFORM_PAIR }}
+          cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+
+      - name: Smoke test image
+        if: needs.prepare.outputs.push != 'true'
+        run: |
+          set -euo pipefail
+          image="labelize:ci-${PLATFORM_PAIR}"
+
+          # ENTRYPOINT is `labelize`, so arguments replace the default CMD.
+          docker run --rm "$image" --version
+
+          docker run -d --name labelize-smoke -p 8080:8080 "$image"
+          trap 'docker logs labelize-smoke || true; docker rm -f labelize-smoke >/dev/null 2>&1 || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          [ "$ready" = "1" ] || { echo "::error::/health never became ready"; exit 1; }
+
+          curl -fsS -X POST http://localhost:8080/convert \
+            -H 'Content-Type: application/zpl' \
+            -d '^XA^FO50,50^A0N,40,40^FDHello World^FS^XZ' \
+            -o label.png
+          [ -s label.png ] || { echo "::error::/convert returned an empty PNG"; exit 1; }
+          echo "Rendered $(wc -c < label.png) bytes of PNG"
+
+      - name: Export digest
+        if: needs.prepare.outputs.push == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: needs.prepare.outputs.push == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Combine the per-platform digests into one multi-arch manifest ────
+  merge:
+    name: Push manifest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write      # OIDC identity for the provenance attestation
+      attestations: write
+    outputs:
+      ghcr_ref: ${{ steps.manifest.outputs.ghcr_ref }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v6
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: needs.prepare.outputs.dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.prepare.outputs.images }}
+          # `latest` is managed explicitly below so prereleases never claim it.
+          flavor: latest=false
+          tags: |
+            type=ref,event=branch
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=sha,format=long,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.stable == 'true' }}
+
+      - name: Create manifest list and push
+        id: manifest
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGES: ${{ needs.prepare.outputs.images }}
+          GHCR_IMAGE: ${{ needs.prepare.outputs.ghcr_image }}
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          digests=(*)
+          shopt -u nullglob
+          if [ ${#digests[@]} -eq 0 ]; then
+            echo "::error::No per-platform digests were downloaded"
+            exit 1
+          fi
+
+          # Index-level annotations; the per-platform images already carry labels.
+          annotations=()
+          while IFS= read -r ann; do
+            [ -n "$ann" ] || continue
+            annotations+=(--annotation "index:${ann#manifest:}")
+          done <<< "${DOCKER_METADATA_OUTPUT_ANNOTATIONS:-}"
+
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+
+            # Every digest was pushed to every registry, so each manifest is
+            # assembled from that registry's own copies — no cross-registry copy.
+            tags=()
+            while IFS= read -r tag; do
+              [ -n "$tag" ] || continue
+              tags+=(--tag "$tag")
+            done < <(jq -r --arg img "$image" \
+              '.tags[] | select(startswith($img + ":"))' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+
+            if [ ${#tags[@]} -eq 0 ]; then
+              echo "::error::No tags were generated for $image"
+              exit 1
+            fi
+
+            sources=()
+            for digest in "${digests[@]}"; do
+              sources+=("${image}@sha256:${digest}")
+            done
+
+            echo "::group::$image"
+            docker buildx imagetools create ${annotations[@]+"${annotations[@]}"} "${tags[@]}" "${sources[@]}"
+            docker buildx imagetools inspect "${tags[1]}"
+            echo "::endgroup::"
+          done <<< "$IMAGES"
+
+          # Hand a concrete pullable reference to the verify job.
+          ghcr_ref=$(jq -r --arg img "$GHCR_IMAGE" \
+            '[.tags[] | select(startswith($img + ":"))][0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          echo "ghcr_ref=$ghcr_ref" >> "$GITHUB_OUTPUT"
+
+          # Digest of the merged manifest list, for the attestation subject.
+          merged_digest=$(docker buildx imagetools inspect "$ghcr_ref" \
+            --format '{{json .Manifest}}' | jq -r '.digest')
+          echo "digest=$merged_digest" >> "$GITHUB_OUTPUT"
+
+      # Signed, publicly verifiable record of which workflow run and which
+      # commit produced this exact digest. Attached to the GHCR manifest as an
+      # OCI referrer; Docker Hub is left out because its referrers support is
+      # less settled.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ needs.prepare.outputs.ghcr_image }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Publication summary
+        env:
+          META_TAGS: ${{ steps.meta.outputs.tags }}
+          GHCR_IMAGE: ${{ needs.prepare.outputs.ghcr_image }}
+          MERGED_DIGEST: ${{ steps.manifest.outputs.digest }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Published image tags"
+            echo
+            echo '```'
+            printf '%s\n' "$META_TAGS"
+            echo '```'
+            echo
+            printf '**Digest:** `%s`\n' "$MERGED_DIGEST"
+            echo
+            echo 'Verify provenance:'
+            echo '```'
+            printf 'gh attestation verify oci://%s@%s --owner %s\n' \
+              "$GHCR_IMAGE" "$MERGED_DIGEST" "$OWNER"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Pull the published manifest back and prove it runs ───────────────
+  verify:
+    name: Verify published image
+    needs: [prepare, merge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run published image
+        env:
+          IMAGE_REF: ${{ needs.merge.outputs.ghcr_ref }}
+        run: |
+          set -euo pipefail
+          echo "Verifying $IMAGE_REF"
+
+          docker run --rm "$IMAGE_REF" --version
+
+          docker run -d --name labelize-verify -p 8080:8080 "$IMAGE_REF"
+          trap 'docker logs labelize-verify || true; docker rm -f labelize-verify >/dev/null 2>&1 || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          [ "$ready" = "1" ] || { echo "::error::/health never became ready"; exit 1; }
