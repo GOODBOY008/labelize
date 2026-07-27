@@ -8,3 +8,4 @@ e2e/http-output/
 e2e/sdk-output/
 .idea
 testdata/labelary_cache/
+*.env
