@@ -2,6 +2,7 @@ use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
+use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::graphic_box::GraphicBox;
@@ -254,6 +255,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         height,
                         line: show_line,
                         line_above: false,
+                        line_alignment: FieldAlignment::Center,
                         check_digit: false,
                     },
                     width: narrow_bar,
@@ -268,6 +270,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         height,
                         line: show_line,
                         line_above: false,
+                        line_alignment: FieldAlignment::Center,
                     },
                     width: narrow_bar,
                     position: pos,
@@ -280,6 +283,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         height,
                         line: show_line,
                         line_above: false,
+                        line_alignment: FieldAlignment::Center,
                         check_digit: false,
                     },
                     width: narrow_bar,
@@ -296,6 +300,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                             height,
                             line: show_line,
                             line_above: false,
+                            line_alignment: FieldAlignment::Center,
                             check_digit: false,
                             mode: BarcodeMode::Automatic,
                         },
@@ -338,6 +343,7 @@ fn parse_epl_line(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
         height,
         border_thickness: width.min(height),
         corner_rounding: 0,
+        corner_radius_dots: None,
         line_color: LineColor::Black,
         reverse_print: ReversePrint::default(),
     })))

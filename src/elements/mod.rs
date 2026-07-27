@@ -16,6 +16,7 @@ pub mod font;
 pub mod graphic_box;
 pub mod graphic_circle;
 pub mod graphic_diagonal_line;
+pub mod graphic_ellipse;
 pub mod graphic_field;
 pub mod graphic_symbol;
 pub mod label_element;

@@ -1,0 +1,7 @@
+SIZE 4,1.5
+GAP 0,0
+DIRECTION 1
+CLS
+PDF417 50,50,800,800,0,E4,W4,H4,R40,C4,T1, "Error correction level:4 Module Width 4 dots
+Bar Height 4 dots Maximum Number of Rows:5 Rows Maximum number of columns:90 Cols Truncation:1"
+PRINT 1,1

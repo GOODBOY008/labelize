@@ -1,0 +1,17 @@
+SIZE 10,2.5
+GAP 0,0
+DIRECTION 1
+REM *****OPTION:P1 E4 M1 U50,300,50,W4,H4,R60,C4,T0,L297*****
+CLS
+PDF417 50,50,900,600,0,P1,E4,M1,U50,300,50,W4,H4,R60,C4,
+T0,L297,Data compression method: P1
+Error correction level: E4
+Center pattern in barcode area: M1
+Human Readable: Yes: U50,300,50
+Module Width 4 dots: W4
+Bar Height 4 dots: H4
+Maximum Number of Rows: 60 Rows: R60
+Maximum number of columns: 4 Cols: C4
+Truncation:1: T0
+Expression length:297: L297
+PRINT 1,1

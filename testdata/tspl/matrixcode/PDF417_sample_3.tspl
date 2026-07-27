@@ -1,0 +1,9 @@
+SIZE 4,1.5
+GAP 0,0
+DIRECTION 1
+CLS
+PDF417 50,50,600,600,0,E4,W4, "Error correction level:4 module width 4 dots"
+PRINT 1,1
+CLS
+PDF417 50,50,600,600,0,E4,W4,H4, "Error correction level:4 module width 4 dots bar height 4"
+PRINT 1,1

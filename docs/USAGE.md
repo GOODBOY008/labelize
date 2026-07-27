@@ -38,6 +38,13 @@ labelize convert label.epl
 # → label.png (auto-detected from extension)
 ```
 
+### Convert a TSPL file to PNG
+
+```bash
+labelize convert label.tspl
+# → label.png (TSPL SIZE controls dimensions unless overridden)
+```
+
 ### Specify output path
 
 ```bash
@@ -55,6 +62,7 @@ labelize convert label.zpl -t pdf
 
 ```bash
 labelize convert data.txt --format zpl
+labelize convert data.txt --format tspl
 ```
 
 ### Custom label dimensions
@@ -65,10 +73,10 @@ labelize convert label.zpl --width 100 --height 150 --dpmm 12
 
 | Option       | Default | Description                              |
 |-------------|---------|------------------------------------------|
-| `--width`   | 102     | Label width in mm                        |
-| `--height`  | 152     | Label height in mm                       |
+| `--width`   | 102 or TSPL `SIZE` | Label width override in mm       |
+| `--height`  | 152 or TSPL `SIZE` | Label height override in mm      |
 | `--dpmm`    | 8       | Dots per mm (6, 8, 12, or 24)           |
-| `-f, --format`  | auto    | Input format: `zpl` or `epl`         |
+| `-f, --format`  | auto    | Input format: `zpl`, `epl`, or `tspl` |
 | `-t, --type`    | png     | Output type: `png` or `pdf`          |
 | `-o, --output`  | auto    | Output file path                     |
 
@@ -123,6 +131,15 @@ curl -X POST http://localhost:8080/convert \
   -o label.png
 ```
 
+### Convert TSPL to PNG via HTTP
+
+```bash
+curl -X POST http://localhost:8080/convert \
+  -H "Content-Type: application/tspl" \
+  --data-binary @label.tspl \
+  -o label.png
+```
+
 ### Convert to PDF via HTTP
 
 Add `?output=pdf` to the URL:
@@ -145,8 +162,8 @@ curl -X POST "http://localhost:8080/convert?width=100&height=62&dpmm=12" \
 
 | Parameter | Default | Description             |
 |-----------|---------|-------------------------|
-| `width`   | 102     | Label width in mm       |
-| `height`  | 152     | Label height in mm      |
+| `width`   | 102 or TSPL `SIZE` | Label width override in mm |
+| `height`  | 152 or TSPL `SIZE` | Label height override in mm |
 | `dpmm`    | 8       | Dots per mm             |
 | `output`  | png     | Output format: png/pdf  |
 
@@ -262,3 +279,14 @@ fn main() {
 | `LO`    | Line draw (graphic box)        |
 | `R`     | Reference point                |
 | `P`     | Print label                    |
+
+## Supported TSPL Commands
+
+| Category | Commands |
+|----------|----------|
+| **Layout** | `SIZE` `DIRECTION` `REFERENCE` `SHIFT` `CLS` `PRINT` |
+| **Text** | `TEXT` |
+| **Graphics** | `BAR` `BOX` `CIRCLE` `ELLIPSE` `ERASE` `REVERSE` `BITMAP` |
+| **Barcodes** | `BARCODE` (`128`, `EAN128`, `39`, `39C`, `EAN13`) `QRCODE` `PDF417` |
+
+Printer-control commands such as `GAP`, `SPEED`, `DENSITY`, and `SET` are parsed as no-ops because they do not affect rendered output.
