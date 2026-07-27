@@ -124,10 +124,12 @@ impl FontInfo {
         } else if self.name == "0" {
             // Zebra font 0 (smooth scalable) width-to-height ratio. Our Helvetica Bold
             // substitute runs narrower than Zebra's CG Triumvirate, so long strings drift
-            // left of the reference; 0.91 removes most of that drift. The total-diff curve
-            // over the Labelary corpus keeps falling to ~0.925, but at that point "WWWWW"
-            // exceeds the width bound asserted in unit_renderer.
-            0.91
+            // left of the reference. 0.925 is the minimum of the total-diff curve over the
+            // Labelary golden corpus (0.90 -> 267.8, 0.925 -> 226.6).
+            // NOTE: this fails unit_renderer::font_0_width_ratio_produces_narrower_text,
+            // which asserts "WWWWW" at h=40 stays under 160 px. We render 162 -- Labelary
+            // renders 161, so the bound rules out matching the reference. Open question.
+            0.925
         } else if self.name == "D" {
             // Zebra font D's actual character advance is ~1.2× the nominal 10-dot cell width.
             // Empirically calibrated against Labelary: at 1x (w=10), Zebra font D renders
