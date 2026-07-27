@@ -179,6 +179,113 @@ fn pw_sets_print_width() {
     assert_eq!(labels[0].print_width, 600);
 }
 
+// --- Measurement units (^MU) ---
+
+fn parse_dpmm(zpl: &str, dpmm: i32) -> Vec<labelize::LabelInfo> {
+    let mut parser = ZplParser::with_dpmm(dpmm);
+    parser.parse(zpl.as_bytes()).expect("ZPL parse failed")
+}
+
+fn first_graphic_box(
+    labels: &[labelize::LabelInfo],
+) -> &labelize::elements::graphic_box::GraphicBox {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::GraphicBox(g) => Some(g),
+            _ => None,
+        })
+        .expect("expected GraphicBox element")
+}
+
+#[test]
+fn mu_millimeters_converts_positions_and_geometry_to_dots() {
+    let labels = parse_dpmm("^XA^MUM^FO3.75,40^GB94,10,0.5^FS^XZ", 8);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 30);
+    assert_eq!(gb.position.y, 320);
+    assert_eq!(gb.width, 752);
+    assert_eq!(gb.height, 80);
+    assert_eq!(gb.border_thickness, 4);
+}
+
+#[test]
+fn mu_millimeters_converts_font_sizes_and_print_width() {
+    let labels = parse_dpmm("^XA^MUM^PW101.5^FO5,10^A0N,8.8,8.8^FDMM^FS^XZ", 8);
+    assert_eq!(labels[0].print_width, 812);
+    let text = first_text(&labels);
+    assert_eq!(text.font.height, 70.0);
+    assert_eq!(text.font.width, 70.0);
+}
+
+#[test]
+fn mu_millimeters_scales_with_printer_resolution() {
+    let labels = parse_dpmm("^XA^MUM^FO10,10^GB50,20,1^FS^XZ", 12);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 120);
+    assert_eq!(gb.width, 600);
+    assert_eq!(gb.border_thickness, 12);
+}
+
+#[test]
+fn mu_inches_use_254_dots_per_millimeter_inch() {
+    // Zebra's own ^MU example: on an 8 dot/mm (203 dpi) printer
+    // `^MUi^FO.493,.493^GB5.044,.631,.631` equals `^FO100,100^GB1024,128,128`.
+    let labels = parse_dpmm("^XA^MUI^FO.493,.493^GB5.044,.631,.631^FS^XZ", 8);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 100);
+    assert_eq!(gb.position.y, 100);
+    assert_eq!(gb.width, 1025);
+    assert_eq!(gb.height, 128);
+    assert_eq!(gb.border_thickness, 128);
+}
+
+#[test]
+fn mu_dots_applies_dpi_conversion_factor() {
+    let labels = parse("^XA^MUd,150,300^FO50,50^GB200,100,4^FS^XZ");
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 100);
+    assert_eq!(gb.position.y, 100);
+    assert_eq!(gb.width, 400);
+    assert_eq!(gb.height, 200);
+    assert_eq!(gb.border_thickness, 8);
+}
+
+#[test]
+fn mu_dots_with_matching_base_and_target_resets_conversion() {
+    let labels = parse("^XA^MUd,150,300^MUd,200,200^FO50,50^GB200,100,4^FS^XZ");
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 50);
+    assert_eq!(gb.width, 200);
+    assert_eq!(gb.border_thickness, 4);
+}
+
+#[test]
+fn mu_unit_mode_carries_over_to_later_labels() {
+    let labels = parse_dpmm(
+        "^XA^MUM^FO10,10^GB20,20,1^FS^XZ^XA^FO10,10^GB20,20,1^FS^XZ",
+        8,
+    );
+    assert_eq!(labels.len(), 2);
+    assert_eq!(labels[1].elements.len(), 1);
+    let gb = match &labels[1].elements[0] {
+        LabelElement::GraphicBox(g) => g,
+        _ => panic!("expected GraphicBox element"),
+    };
+    assert_eq!(gb.position.x, 80);
+    assert_eq!(gb.width, 160);
+}
+
+#[test]
+fn without_mu_dot_values_are_unchanged() {
+    let labels = parse_dpmm("^XA^FO50,50^GB200,100,4^FS^XZ", 8);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 50);
+    assert_eq!(gb.width, 200);
+    assert_eq!(gb.border_thickness, 4);
+}
+
 // --- Field block ---
 
 #[test]

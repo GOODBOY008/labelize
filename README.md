@@ -183,7 +183,7 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 | **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^CF` `^FB` `^FR` `^FH` `^FN` `^FW` `^FV` |
 | **Barcodes** | `^BC` (Code 128) `^BE` (EAN-13) `^B2` (Interleaved 2-of-5) `^B3` (Code 39) `^B7` (PDF417) `^BO` (Aztec) `^BX` (DataMatrix) `^BQ` (QR Code) `^BD` (MaxiCode) `^BY` (defaults) |
 | **Graphics** | `^GB` (box) `^GC` (circle) `^GD` (diagonal) `^GF` (graphic field) `^GS` (symbol) `~DG` (download graphic) `^IL` `^XG` |
-| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^CI` |
+| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^CI` `^MU` (units of measurement) |
 | **Stored Formats** | `^DF` `^XF` |
 
 ### EPL Commands

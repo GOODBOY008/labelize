@@ -230,10 +230,12 @@ pub fn encode_auto(content: &str, height: i32, bar_width: i32) -> Result<RgbaIma
             continue;
         }
 
-        // Auto-optimize: if in A/B and 4+ digits ahead, switch to C
+        // Auto-optimize: if in A/B and 4+ digits ahead, switch to C. Odd runs defer the
+        // switch by one digit -- C encodes pairs, so an odd boundary strands the last
+        // digit and costs an extra CODE_B switch.
         if current_set != 'C' {
             let digit_run = count_digits(&chars, i);
-            if digit_run >= 4 {
+            if digit_run >= 4 && digit_run.is_multiple_of(2) {
                 codes.push(CODE_C_SWITCH);
                 checksum += CODE_C_SWITCH as u32 * weight;
                 weight += 1;

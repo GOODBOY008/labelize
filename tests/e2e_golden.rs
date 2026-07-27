@@ -331,6 +331,14 @@ fn golden_labelary() {
     golden_zpl_with_tolerance("labelary", 4.5);
 }
 #[test]
+fn golden_mu_millimeters() {
+    golden_zpl_with_tolerance("mu_millimeters", 8.0);
+}
+#[test]
+fn golden_mu_dpi_conversion() {
+    golden_zpl_with_tolerance("mu_dpi_conversion", 2.0);
+}
+#[test]
 fn golden_pnldpd() {
     golden_zpl_with_tolerance("pnldpd", 11.5);
 }
