@@ -192,9 +192,9 @@ impl Renderer {
         };
 
         // Compute font ascent for ^FT baseline positioning.
-        // Use a ZPL-proportional ascent (~78% of cell height) to match Zebra font metrics,
+        // Use a ZPL-proportional ascent (~76% of cell height) to match Zebra font metrics,
         // since our substitute TTF fonts have different ascent ratios.
-        let ascent = font_size * 0.78;
+        let ascent = font_size * 0.76;
 
         // Bitmap fonts (A–H) correction:
         // Zebra's built-in bitmap Font A uses 7 of its 9 dot rows for capital letters (cap-height

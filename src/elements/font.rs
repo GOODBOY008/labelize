@@ -122,10 +122,12 @@ impl FontInfo {
         if self.name == "GS" {
             1.0
         } else if self.name == "0" {
-            // Zebra font 0 (smooth scalable) width-to-height ratio.
-            // Per ZPL docs: "setting height and width equally produces characters that appear most balanced"
-            // This means when h=w, scale_x should be 1.0 (balanced/square proportions).
-            0.9
+            // Zebra font 0 (smooth scalable) width-to-height ratio. Our Helvetica Bold
+            // substitute runs narrower than Zebra's CG Triumvirate, so long strings drift
+            // left of the reference; 0.91 removes most of that drift. The total-diff curve
+            // over the Labelary corpus keeps falling to ~0.925, but at that point "WWWWW"
+            // exceeds the width bound asserted in unit_renderer.
+            0.91
         } else if self.name == "D" {
             // Zebra font D's actual character advance is ~1.2× the nominal 10-dot cell width.
             // Empirically calibrated against Labelary: at 1x (w=10), Zebra font D renders
