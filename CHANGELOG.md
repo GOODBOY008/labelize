@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Docker Publishing CI** — New `Docker` workflow builds `linux/amd64` and `linux/arm64` images on native runners and publishes multi-arch manifests to Docker Hub and GHCR on pushes to `main` and on semver `v[0-9]*` tags; pull requests build and smoke-test the image without publishing
+- **Image Build Provenance** — Published GHCR manifests carry a signed build provenance attestation, verifiable with `gh attestation verify`
+
+### Fixed
+
+- **Docker Build** — Dropped the unsupported `--features` flag from `cargo chef prepare`, which caused `docker build` to fail with `error: unexpected argument '--features' found`
+
 ## [1.3.0] - 2026-07-20
 
 ### Added
