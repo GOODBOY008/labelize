@@ -236,7 +236,7 @@ fn golden_dhlpaket() {
 }
 #[test]
 fn golden_dhlparceluk() {
-    golden_zpl_with_tolerance("dhlparceluk", 5.5);
+    golden_zpl_with_tolerance("dhlparceluk", 6.0);
 }
 #[test]
 fn golden_dpdpl() {

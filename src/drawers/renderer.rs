@@ -42,6 +42,21 @@ impl Renderer {
         output: &mut dyn Write,
         options: DrawerOptions,
     ) -> Result<(), String> {
+        let canvas = self.draw_label_to_rgba(label, options)?;
+
+        let mut buf = Vec::new();
+        images::monochrome::encode_png(&canvas, &mut buf)
+            .map_err(|e| format!("failed to encode png: {}", e))?;
+        output
+            .write_all(&buf)
+            .map_err(|e| format!("failed to write png: {}", e))
+    }
+
+    pub fn draw_label_to_rgba(
+        &self,
+        label: &LabelInfo,
+        options: DrawerOptions,
+    ) -> Result<RgbaImage, String> {
         let options = options.with_defaults();
         let mut state = DrawerState::new();
 
@@ -119,13 +134,7 @@ impl Renderer {
             }
             canvas = final_canvas;
         }
-
-        let mut buf = Vec::new();
-        images::monochrome::encode_png(&canvas, &mut buf)
-            .map_err(|e| format!("failed to encode png: {}", e))?;
-        output
-            .write_all(&buf)
-            .map_err(|e| format!("failed to write png: {}", e))
+        Ok(canvas)
     }
 
     fn draw_element(
@@ -381,15 +390,18 @@ impl Renderer {
         let outer_r = gc.circle_diameter as f32 / 2.0;
         let thickness = gc.border_thickness.max(1) as f32;
 
+        let blend = |src: Rgba<u8>, dst: Rgba<u8>, alpha: f32| {
+            let a = (alpha * 255.0).round() as u8;
+            Rgba([
+                (dst[0] as i32 * (255 - a as i32) / 255 + src[0] as i32 * a as i32 / 255) as u8,
+                (dst[1] as i32 * (255 - a as i32) / 255 + src[1] as i32 * a as i32 / 255) as u8,
+                (dst[2] as i32 * (255 - a as i32) / 255 + src[2] as i32 * a as i32 / 255) as u8,
+                255,
+            ])
+        };
+
         if thickness >= outer_r {
-            // Filled circle
-            drawing::draw_filled_circle_mut(canvas, (cx as i32, cy as i32), outer_r as i32, color);
-        } else {
-            // Ring: draw filled outer, then erase inner with opposite pass
-            // Use per-pixel distance check for accurate ring rendering
-            let inner_r = outer_r - thickness;
-            let outer_r_sq = outer_r * outer_r;
-            let inner_r_sq = inner_r * inner_r;
+            // Filled circle with anti-aliased edge
             let (w, h) = canvas.dimensions();
             let min_x = ((cx - outer_r - 1.0).max(0.0)) as u32;
             let max_x = ((cx + outer_r + 1.0).min(w as f32 - 1.0)) as u32;
@@ -397,11 +409,54 @@ impl Renderer {
             let max_y = ((cy + outer_r + 1.0).min(h as f32 - 1.0)) as u32;
             for py in min_y..=max_y {
                 for px in min_x..=max_x {
-                    let dx = px as f32 - cx;
-                    let dy = py as f32 - cy;
-                    let dist_sq = dx * dx + dy * dy;
-                    if dist_sq <= outer_r_sq && dist_sq >= inner_r_sq {
+                    let dx = px as f32 + 0.5 - cx;
+                    let dy = py as f32 + 0.5 - cy;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist <= outer_r - 0.5 {
                         canvas.put_pixel(px, py, color);
+                    } else if dist < outer_r + 0.5 {
+                        let alpha = outer_r + 0.5 - dist;
+                        let dst = *canvas.get_pixel(px, py);
+                        canvas.put_pixel(px, py, blend(color, dst, alpha));
+                    }
+                }
+            }
+        } else {
+            // Ring with anti-aliased inner and outer edges
+            let inner_r = outer_r - thickness;
+            let (w, h) = canvas.dimensions();
+            let min_x = ((cx - outer_r - 1.0).max(0.0)) as u32;
+            let max_x = ((cx + outer_r + 1.0).min(w as f32 - 1.0)) as u32;
+            let min_y = ((cy - outer_r - 1.0).max(0.0)) as u32;
+            let max_y = ((cy + outer_r + 1.0).min(h as f32 - 1.0)) as u32;
+            for py in min_y..=max_y {
+                for px in min_x..=max_x {
+                    let dx = px as f32 + 0.5 - cx;
+                    let dy = py as f32 + 0.5 - cy;
+                    let dist = (dx * dx + dy * dy).sqrt();
+
+                    // Outer edge coverage: 1.0 inside outer_r-0.5, ramping to 0.0 at outer_r+0.5
+                    let outer_cov = if dist <= outer_r - 0.5 {
+                        1.0
+                    } else if dist < outer_r + 0.5 {
+                        outer_r + 0.5 - dist
+                    } else {
+                        0.0
+                    };
+
+                    // Inner edge coverage: 0.0 inside inner_r-0.5, ramping to 1.0 at inner_r+0.5
+                    let inner_cov = if dist <= inner_r - 0.5 {
+                        0.0
+                    } else if dist < inner_r + 0.5 {
+                        dist - (inner_r - 0.5)
+                    } else {
+                        1.0
+                    };
+
+                    let coverage = outer_cov * inner_cov;
+                    if coverage > 0.0 {
+                        let dst = *canvas.get_pixel(px, py);
+                        canvas.put_pixel(px, py, blend(color, dst, coverage));
                     }
                 }
             }
@@ -421,37 +476,88 @@ impl Renderer {
         let thickness = dl.border_thickness.max(1);
 
         if thickness <= 1 {
+            let blend = |src: Rgba<u8>, dst: Rgba<u8>, alpha: f32| {
+                let a = (alpha * 255.0).round() as u8;
+                Rgba([
+                    (dst[0] as i32 * (255 - a as i32) / 255 + src[0] as i32 * a as i32 / 255) as u8,
+                    (dst[1] as i32 * (255 - a as i32) / 255 + src[1] as i32 * a as i32 / 255) as u8,
+                    (dst[2] as i32 * (255 - a as i32) / 255 + src[2] as i32 * a as i32 / 255) as u8,
+                    255,
+                ])
+            };
             if dl.top_to_bottom {
-                drawing::draw_line_segment_mut(canvas, (x, y), (x + w, y + h), color);
+                drawing::draw_antialiased_line_segment_mut(
+                    canvas,
+                    (x as i32, y as i32),
+                    ((x + w) as i32, (y + h) as i32),
+                    color,
+                    blend,
+                );
             } else {
-                drawing::draw_line_segment_mut(canvas, (x, y + h), (x + w, y), color);
+                drawing::draw_antialiased_line_segment_mut(
+                    canvas,
+                    (x as i32, (y + h) as i32),
+                    ((x + w) as i32, y as i32),
+                    color,
+                    blend,
+                );
             }
         } else {
-            // Thick diagonal: fill a horizontal band of width `t` starting from the diagonal,
-            // extending to the right (positive x direction), unclipped vertically but bounded
-            // by the vertical span [y, y+h].
-            //
-            // The fill parallelogram for R (/): diagonal goes from (x+w,y) to (x,y+h).
-            //   At each row, fill starts at diag_x and extends t pixels right.
-            //   Parallelogram: (x+w, y), (x+w+t, y), (x+t, y+h), (x, y+h)
-            //
-            // The fill parallelogram for L (\): diagonal goes from (x,y) to (x+w,y+h).
-            //   At each row, fill starts at diag_x and extends t pixels right.
-            //   Parallelogram: (x, y), (x+t, y), (x+w+t, y+h), (x+w, y+h)
-            let t = (thickness - 1) as f32; // inclusive fill: t pixels wide
-            let para = if dl.top_to_bottom {
-                // L (\)
-                [(x, y), (x + t, y), (x + w + t, y + h), (x + w, y + h)]
-            } else {
-                // R (/)
-                [(x + w, y), (x + w + t, y), (x + t, y + h), (x, y + h)]
+            // Thick diagonal: fill the parallelogram manually with anti-aliased edges.
+            // For each scanline y, compute the left and right x-intercepts of the
+            // parallelogram edges, then blend at fractional x boundaries.
+            let t = thickness as f32;
+            let blend = |src: Rgba<u8>, dst: Rgba<u8>, alpha: f32| {
+                let a = (alpha * 255.0).round() as u8;
+                Rgba([
+                    (dst[0] as i32 * (255 - a as i32) / 255 + src[0] as i32 * a as i32 / 255) as u8,
+                    (dst[1] as i32 * (255 - a as i32) / 255 + src[1] as i32 * a as i32 / 255) as u8,
+                    (dst[2] as i32 * (255 - a as i32) / 255 + src[2] as i32 * a as i32 / 255) as u8,
+                    255,
+                ])
             };
 
-            let points: Vec<imageproc::point::Point<i32>> = para
-                .iter()
-                .map(|(px, py)| imageproc::point::Point::new(*px as i32, *py as i32))
-                .collect();
-            drawing::draw_polygon_mut(canvas, &points, color);
+            let (cw, ch) = canvas.dimensions();
+            let y0 = y as i32;
+            let y1 = (y + h) as i32;
+
+            for py in y0.max(0)..=y1.min(ch as i32 - 1) {
+                let fy = py as f32;
+                // For L (\): left edge from (x,y) to (x+w,y+h), right edge offset by t
+                // left_x(y) = x + (fy - y) * (w / h)
+                // For R (/): left edge from (x+w,y) to (x,y+h), right edge offset by t
+                let frac = if h != 0.0 { (fy - y) / h } else { 0.0 };
+
+                let (left_x, right_x) = if dl.top_to_bottom {
+                    // L (\): left = x + frac * w, right = left + t
+                    let l = x + frac * w;
+                    (l, l + t)
+                } else {
+                    // R (/): left = (x + w) - frac * w, right = left + t
+                    let l = (x + w) - frac * w;
+                    (l, l + t)
+                };
+
+                let l_floor = left_x.floor() as i32;
+                let r_ceil = right_x.ceil() as i32;
+
+                for px in l_floor.max(0)..=r_ceil.min(cw as i32 - 1) {
+                    let fx = px as f32;
+                    let mut coverage = 1.0f32;
+                    // Left edge AA
+                    if fx < left_x {
+                        coverage *= (fx + 1.0 - left_x).clamp(0.0, 1.0);
+                    }
+                    // Right edge AA
+                    if fx + 1.0 > right_x {
+                        coverage *= (right_x - fx).clamp(0.0, 1.0);
+                    }
+                    if coverage > 0.0 {
+                        let dst = *canvas.get_pixel(px as u32, py as u32);
+                        canvas.put_pixel(px as u32, py as u32, blend(color, dst, coverage));
+                    }
+                }
+            }
         }
     }
 

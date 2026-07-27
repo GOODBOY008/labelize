@@ -60,7 +60,7 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | dbs | zpl | 5.27 | 6.0 | Font metrics |
 | dhlecommercetr | zpl | 5.00 | 6.0 | Font metrics |
 | dhlpaket | zpl | 2.68 | 4.0 | Font metrics |
-| dhlparceluk | zpl | 5.14 | 5.7 | Font metrics (^FT Rotated270 multi-line x fixed) |
+| dhlparceluk | zpl | 5.57 | 6.0 | Font metrics + anti-aliasing grayscale |
 | dpdpl | zpl | 6.38 | 7.0 | Font metrics |
 | dpduk | epl | 5.79 | 6.5 | EPL reference from Go renderer |
 | ean13 | zpl | 2.84 | 3.0 | Sub-pixel barcode bars |

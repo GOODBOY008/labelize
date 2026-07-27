@@ -9,8 +9,7 @@ pub fn encode_png(img: &RgbaImage, w: &mut impl Write) -> Result<(), LabelizeErr
     for y in 0..height {
         for x in 0..width {
             let pixel = img.get_pixel(x, y);
-            let val = if pixel[0] > 128 { 255u8 } else { 0u8 };
-            gray.put_pixel(x, y, image::Luma([val]));
+            gray.put_pixel(x, y, image::Luma([pixel[0]]));
         }
     }
 

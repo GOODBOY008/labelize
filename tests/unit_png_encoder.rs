@@ -17,29 +17,29 @@ fn round_trip_preserves_dimensions() {
 }
 
 #[test]
-fn pixels_above_threshold_map_to_white() {
+fn grayscale_values_preserved() {
     let img = RgbaImage::from_pixel(10, 10, Rgba([200, 200, 200, 255]));
     let gray = round_trip(&img);
     for p in gray.pixels() {
-        assert_eq!(p[0], 255, "expected white for pixel > 128");
+        assert_eq!(p[0], 200, "grayscale value should be preserved");
     }
 }
 
 #[test]
-fn pixels_at_threshold_map_to_black() {
-    let img = RgbaImage::from_pixel(10, 10, Rgba([128, 128, 128, 255]));
+fn black_pixels_preserved() {
+    let img = RgbaImage::from_pixel(10, 10, Rgba([0, 0, 0, 255]));
     let gray = round_trip(&img);
     for p in gray.pixels() {
-        assert_eq!(p[0], 0, "expected black for pixel <= 128");
+        assert_eq!(p[0], 0, "black should be preserved");
     }
 }
 
 #[test]
-fn pixels_below_threshold_map_to_black() {
-    let img = RgbaImage::from_pixel(10, 10, Rgba([50, 50, 50, 255]));
+fn white_pixels_preserved() {
+    let img = RgbaImage::from_pixel(10, 10, Rgba([255, 255, 255, 255]));
     let gray = round_trip(&img);
     for p in gray.pixels() {
-        assert_eq!(p[0], 0, "expected black for pixel <= 128");
+        assert_eq!(p[0], 255, "white should be preserved");
     }
 }
 
@@ -47,14 +47,14 @@ fn pixels_below_threshold_map_to_black() {
 fn mixed_pixel_values() {
     let mut img = RgbaImage::new(4, 1);
     img.put_pixel(0, 0, Rgba([0, 0, 0, 255])); // black
-    img.put_pixel(1, 0, Rgba([128, 128, 128, 255])); // threshold -> black
-    img.put_pixel(2, 0, Rgba([129, 129, 129, 255])); // above -> white
+    img.put_pixel(1, 0, Rgba([128, 128, 128, 255])); // mid-gray
+    img.put_pixel(2, 0, Rgba([200, 200, 200, 255])); // light gray
     img.put_pixel(3, 0, Rgba([255, 255, 255, 255])); // white
 
     let gray = round_trip(&img);
     assert_eq!(gray.get_pixel(0, 0)[0], 0);
-    assert_eq!(gray.get_pixel(1, 0)[0], 0);
-    assert_eq!(gray.get_pixel(2, 0)[0], 255);
+    assert_eq!(gray.get_pixel(1, 0)[0], 128);
+    assert_eq!(gray.get_pixel(2, 0)[0], 200);
     assert_eq!(gray.get_pixel(3, 0)[0], 255);
 }
 
