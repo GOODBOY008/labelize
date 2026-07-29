@@ -43,11 +43,15 @@ clap = { version = "4", features = ["derive"], optional = true }
 axum = { version = "0.8", optional = true }
 tokio = { version = "1", features = ["full"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [features]
 default = []
 cli = ["dep:clap"]
-serve = ["cli", "dep:axum", "dep:tokio", "dep:serde"]
+serve = ["cli", "dep:axum", "dep:tokio", "dep:serde", "dep:serde_json"]
 skill = []
 
 [[bin]]

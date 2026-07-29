@@ -10,6 +10,44 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[cfg(any(feature = "cli", feature = "serve"))]
 use labelize::{DrawerOptions, EplParser, LabelInfo, Renderer, ZplParser};
 
+#[cfg(feature = "serve")]
+mod manage {
+    use std::sync::atomic::AtomicU64;
+    use std::time::Instant;
+
+    pub struct Metrics {
+        pub total_requests: AtomicU64,
+        pub total_renders: AtomicU64,
+        pub pdf_renders: AtomicU64,
+        pub failed_renders: AtomicU64,
+        pub total_render_time_us: AtomicU64,
+    }
+
+    impl Default for Metrics {
+        fn default() -> Self {
+            Self {
+                total_requests: AtomicU64::new(0),
+                total_renders: AtomicU64::new(0),
+                pdf_renders: AtomicU64::new(0),
+                failed_renders: AtomicU64::new(0),
+                total_render_time_us: AtomicU64::new(0),
+            }
+        }
+    }
+
+    pub struct AppState {
+        pub metrics: Metrics,
+        pub started_at: Instant,
+    }
+
+    pub fn app_state() -> AppState {
+        AppState {
+            metrics: Metrics::default(),
+            started_at: Instant::now(),
+        }
+    }
+}
+
 #[cfg(feature = "cli")]
 #[derive(Parser)]
 #[command(
@@ -244,12 +282,13 @@ fn convert_file(
 async fn serve(host: String, port: u16) {
     use axum::{
         body::Bytes,
-        extract::Query,
+        extract::{Query, State},
         http::{header, HeaderMap, StatusCode},
         response::IntoResponse,
         routing::{get, post},
         Router,
     };
+    use manage::AppState;
 
     async fn playground_page() -> impl IntoResponse {
         (
@@ -267,6 +306,150 @@ async fn serve(host: String, port: u16) {
             StatusCode::OK,
             [(header::CONTENT_TYPE, "application/json")],
             r#"{"status":"ok"}"#,
+        )
+    }
+
+    async fn manage_health() -> impl IntoResponse {
+        let (disk_total, disk_free) = {
+            #[cfg(unix)]
+            {
+                use std::ffi::CString;
+                let path = CString::new("/").unwrap();
+                let mut buf = unsafe { std::mem::zeroed::<libc::statvfs>() };
+                let rc = unsafe { libc::statvfs(path.as_ptr(), &mut buf) };
+                if rc == 0 {
+                    let total = buf.f_blocks as u64 * buf.f_frsize as u64;
+                    let free = buf.f_bavail as u64 * buf.f_frsize as u64;
+                    (total, free)
+                } else {
+                    (0, 0)
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                (0, 0)
+            }
+        };
+        let disk_up = disk_free > 10 * 1024 * 1024;
+        let body = serde_json::json!({
+            "status": "UP",
+            "components": {
+                "diskSpace": {
+                    "status": if disk_up { "UP" } else { "DOWN" },
+                    "details": {
+                        "total": disk_total,
+                        "free": disk_free,
+                        "threshold": 10485760,
+                        "exists": true
+                    }
+                }
+            }
+        });
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/json")],
+            body.to_string(),
+        )
+    }
+
+    async fn manage_info() -> impl IntoResponse {
+        let tz = std::env::var("TZ").unwrap_or_else(|_| "UTC".to_string());
+        let body = serde_json::json!({
+            "app": {
+                "name": "labelize-service",
+                "version": env!("CARGO_PKG_VERSION"),
+            },
+            "build": {
+                "rustc": "rustc",
+                "target": std::env::consts::ARCH,
+                "os": std::env::consts::OS,
+            },
+            "labelize": {
+                "version": env!("CARGO_PKG_VERSION"),
+            },
+            "environment": {
+                "timezone": tz,
+                "lang": std::env::var("LANG").unwrap_or_default(),
+            }
+        });
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/json")],
+            body.to_string(),
+        )
+    }
+
+    async fn manage_env() -> impl IntoResponse {
+        let env_vars: Vec<(String, String)> = std::env::vars()
+            .filter(|(k, _)| {
+                let ku = k.to_uppercase();
+                if ku.contains("TOKEN")
+                    || ku.contains("KEY")
+                    || ku.contains("PASSWORD")
+                    || ku.contains("SECRET")
+                    || ku.contains("CREDENTIAL")
+                {
+                    return false;
+                }
+                ku.starts_with("LABELIZE_")
+                    || ku.starts_with("RUST_")
+                    || ku == "PATH"
+                    || ku == "HOME"
+                    || ku == "HOSTNAME"
+                    || ku == "LANG"
+                    || ku == "LANGUAGE"
+                    || ku == "TZ"
+                    || ku == "LC_ALL"
+                    || ku == "LC_CTYPE"
+                    || ku == "TERM"
+                    || ku == "USER"
+                    || ku == "SHELL"
+            })
+            .collect();
+        let mut env_map: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
+        for (k, v) in env_vars {
+            env_map.insert(k, v);
+        }
+        let body = serde_json::json!({
+            "activeProfiles": [],
+            "propertySources": [{
+                "name": "systemEnvironment",
+                "properties": env_map,
+            }]
+        });
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/json")],
+            body.to_string(),
+        )
+    }
+
+    async fn manage_metrics(State(state): State<std::sync::Arc<AppState>>) -> impl IntoResponse {
+        use std::sync::atomic::Ordering;
+        let m = &state.metrics;
+        let total_renders = m.total_renders.load(Ordering::Relaxed);
+        let total_time_ms = m.total_render_time_us.load(Ordering::Relaxed) as f64 / 1000.0;
+        let avg_time_ms = if total_renders > 0 {
+            total_time_ms / total_renders as f64
+        } else {
+            0.0
+        };
+        let uptime_s = state.started_at.elapsed().as_secs();
+
+        let body = serde_json::json!({
+            "labelize.render.total": total_renders,
+            "labelize.render.pdf": m.pdf_renders.load(Ordering::Relaxed),
+            "labelize.render.failed": m.failed_renders.load(Ordering::Relaxed),
+            "labelize.requests.total": m.total_requests.load(Ordering::Relaxed),
+            "labelize.render.time.total_ms": total_time_ms.round() as u64,
+            "labelize.render.time.avg_ms": avg_time_ms.round() as u64,
+            "labelize.uptime.seconds": uptime_s,
+        });
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/json")],
+            body.to_string(),
         )
     }
 
@@ -293,10 +476,15 @@ async fn serve(host: String, port: u16) {
     }
 
     async fn convert_handler(
+        State(state): State<std::sync::Arc<AppState>>,
         headers: HeaderMap,
         Query(params): Query<ConvertParams>,
         body: Bytes,
     ) -> impl IntoResponse {
+        use std::sync::atomic::Ordering;
+
+        state.metrics.total_requests.fetch_add(1, Ordering::Relaxed);
+        let render_start = std::time::Instant::now();
         // Detect format from Content-Type header
         let content_type = headers
             .get(header::CONTENT_TYPE)
@@ -331,20 +519,30 @@ async fn serve(host: String, port: u16) {
         let want_pdf = params.output.as_deref() == Some("pdf");
 
         let renderer = Renderer::new();
+
         let mut buf = Cursor::new(Vec::new());
         if let Err(e) = renderer.draw_label_as_png(&label, &mut buf, options.clone()) {
+            state.metrics.failed_renders.fetch_add(1, Ordering::Relaxed);
             return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response();
         }
 
         if want_pdf {
+            state.metrics.pdf_renders.fetch_add(1, Ordering::Relaxed);
+            state.metrics.total_renders.fetch_add(1, Ordering::Relaxed);
+            state
+                .metrics
+                .total_render_time_us
+                .fetch_add(render_start.elapsed().as_micros() as u64, Ordering::Relaxed);
+
             let img = match image::load_from_memory(&buf.into_inner()) {
                 Ok(img) => img.to_rgba8(),
                 Err(e) => {
+                    state.metrics.failed_renders.fetch_add(1, Ordering::Relaxed);
                     return (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("image decode: {}", e),
                     )
-                        .into_response()
+                        .into_response();
                 }
             };
             let mut pdf_buf = Cursor::new(Vec::new());
@@ -355,13 +553,21 @@ async fn serve(host: String, port: u16) {
                     pdf_buf.into_inner(),
                 )
                     .into_response(),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("pdf encode: {}", e),
-                )
-                    .into_response(),
+                Err(e) => {
+                    state.metrics.failed_renders.fetch_add(1, Ordering::Relaxed);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("pdf encode: {}", e),
+                    )
+                        .into_response()
+                }
             }
         } else {
+            state.metrics.total_renders.fetch_add(1, Ordering::Relaxed);
+            state
+                .metrics
+                .total_render_time_us
+                .fetch_add(render_start.elapsed().as_micros() as u64, Ordering::Relaxed);
             (
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "image/png")],
@@ -371,10 +577,17 @@ async fn serve(host: String, port: u16) {
         }
     }
 
+    let shared_state = std::sync::Arc::new(manage::app_state());
+
     let app = Router::new()
         .route("/", get(playground_page))
         .route("/health", get(health))
-        .route("/convert", post(convert_handler));
+        .route("/convert", post(convert_handler))
+        .route("/manage/health", get(manage_health))
+        .route("/manage/info", get(manage_info))
+        .route("/manage/env", get(manage_env))
+        .route("/manage/metrics", get(manage_metrics))
+        .with_state(shared_state);
 
     let addr = format!("{}:{}", host, port);
     println!("Starting server on {}", addr);
