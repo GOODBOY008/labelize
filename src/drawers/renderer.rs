@@ -751,7 +751,17 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
         "0" => FONT_HELVETICA,
         "B" | "D" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
-        _ => FONT_DEJAVU_MONO,
+        // Remaining Zebra-resident fonts intentionally substitute DejaVu Sans Mono.
+        "A" | "C" | "E" | "F" | "G" | "H" | "R" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" => {
+            FONT_DEJAVU_MONO
+        }
+        _ => {
+            eprintln!(
+                "labelize: no mapping for ZPL font '{}'; substituting DejaVu Sans Mono (layout may differ)",
+                name
+            );
+            FONT_DEJAVU_MONO
+        }
     }
 }
 
