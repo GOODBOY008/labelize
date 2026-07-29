@@ -7,6 +7,7 @@ use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_position::LabelPosition;
+use crate::elements::measurement_unit::MeasurementUnit;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::StoredFormat;
 use crate::elements::stored_graphics::StoredGraphics;
@@ -33,6 +34,13 @@ pub struct VirtualPrinter {
     pub current_charset: i32,
     pub print_width: i32,
     pub label_inverted: bool,
+    /// Printer resolution; must match the resolution the label is rendered at, since
+    /// `^MU I`/`^MU M` need it to turn physical units into dots.
+    pub dpmm: i32,
+    /// Unit of measurement selected by `^MU` (parameter a).
+    pub measurement_unit: MeasurementUnit,
+    /// dpi conversion factor from `^MU`'s b (format base) and c (desired) parameters.
+    pub dpi_conversion: f64,
 }
 
 impl Default for VirtualPrinter {
@@ -62,6 +70,9 @@ impl Default for VirtualPrinter {
             current_charset: 0,
             print_width: 0,
             label_inverted: false,
+            dpmm: 8,
+            measurement_unit: MeasurementUnit::default(),
+            dpi_conversion: 1.0,
         }
     }
 }
@@ -69,6 +80,22 @@ impl Default for VirtualPrinter {
 impl VirtualPrinter {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_dpmm(dpmm: i32) -> Self {
+        VirtualPrinter {
+            dpmm: if dpmm > 0 { dpmm } else { 8 },
+            ..Self::default()
+        }
+    }
+
+    /// Factor converting a `^MU`-relative measurement into printer dots. The b/c dpi
+    /// conversion applies to dots only -- inches and millimeters are absolute sizes.
+    pub fn unit_scale(&self) -> f64 {
+        match self.measurement_unit {
+            MeasurementUnit::Dots => self.dpi_conversion,
+            other => other.dots_per_unit(self.dpmm as f64),
+        }
     }
 
     pub fn set_default_orientation(&mut self, orientation: FieldOrientation) {
