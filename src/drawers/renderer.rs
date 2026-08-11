@@ -121,7 +121,7 @@ impl Renderer {
         }
 
         let mut buf = Vec::new();
-        images::monochrome::encode_png(&canvas, &mut buf)
+        images::monochrome::encode_png_with(&canvas, &mut buf, options.antialias)
             .map_err(|e| format!("failed to encode png: {}", e))?;
         output
             .write_all(&buf)
@@ -184,6 +184,9 @@ impl Renderer {
         let font = FontRef::try_from_slice(font_data)
             .map_err(|e| format!("failed to load font: {}", e))?;
 
+        // The advance table and the vertical pen offset are calibrated for the scalable
+        // font 0 only; the bitmap fonts are left on their existing metrics.
+        let f0 = text.font.name == "0";
         let font_size = text.font.get_size() as f32;
         let scale_x = text.font.get_scale_x() as f32;
         let mut scale = PxScale {
@@ -192,9 +195,9 @@ impl Renderer {
         };
 
         // Compute font ascent for ^FT baseline positioning.
-        // Use a ZPL-proportional ascent (~78% of cell height) to match Zebra font metrics,
+        // Use a ZPL-proportional ascent (~76% of cell height) to match Zebra font metrics,
         // since our substitute TTF fonts have different ascent ratios.
-        let ascent = font_size * 0.78;
+        let ascent = font_size * 0.76;
 
         // Bitmap fonts (A–H) correction:
         // Zebra's built-in bitmap Font A uses 7 of its 9 dot rows for capital letters (cap-height
@@ -239,7 +242,7 @@ impl Renderer {
 
         // Measure text width approximately (scale already includes scale_x).
         // Use superscript-aware measurement so that ® is counted at its rendered size.
-        let text_width = measure_text_width_with_superscript(&drawn_text, &font, scale) as f64;
+        let text_width = measure_text_width_with_superscript(&drawn_text, &font, scale, f0) as f64;
 
         // For field blocks, use block width for positioning instead of measured text width
         let pos_width = if let Some(ref block) = text.block {
@@ -271,6 +274,7 @@ impl Renderer {
                     y as f32,
                     block,
                     &drawn_text,
+                    f0,
                 );
             } else {
                 draw_text_with_superscript(
@@ -281,12 +285,13 @@ impl Renderer {
                     x as f32,
                     y as f32,
                     &drawn_text,
+                    f0,
                 );
             }
         } else {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
-                let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32);
+                let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
                 let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
@@ -316,9 +321,19 @@ impl Renderer {
                     0.0,
                     block,
                     &drawn_text,
+                    f0,
                 );
             } else {
-                draw_text_with_superscript(&mut buf, &font, scale, color, 0.0, 0.0, &drawn_text);
+                draw_text_with_superscript(
+                    &mut buf,
+                    &font,
+                    scale,
+                    color,
+                    0.0,
+                    0.0,
+                    &drawn_text,
+                    f0,
+                );
             }
 
             let rotated = match orientation {
@@ -757,7 +772,7 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
     }
 }
 
-fn measure_text_width(text: &str, font: &FontRef, scale: PxScale) -> f32 {
+fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f32 {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
     let mut width = 0.0f32;
@@ -768,6 +783,9 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale) -> f32 {
             width += scaled.kern(prev_id, glyph_id);
         }
         width += scaled.h_advance(glyph_id);
+        if f0 {
+            width += crate::tuning::font0_advance_delta(ch) as f32 * scale.y;
+        }
         prev = Some(glyph_id);
     }
     width
@@ -780,9 +798,14 @@ const REGISTERED_MARK: char = '\u{00AE}';
 const REGISTERED_MARK_SCALE: f32 = 0.55;
 
 /// Measure text width treating ® as a superscript (at REGISTERED_MARK_SCALE of main scale).
-fn measure_text_width_with_superscript(text: &str, font: &FontRef, scale: PxScale) -> f32 {
+fn measure_text_width_with_superscript(
+    text: &str,
+    font: &FontRef,
+    scale: PxScale,
+    f0: bool,
+) -> f32 {
     if !text.contains(REGISTERED_MARK) {
-        return measure_text_width(text, font, scale);
+        return measure_text_width(text, font, scale, f0);
     }
     let super_scale = PxScale {
         x: scale.x * REGISTERED_MARK_SCALE,
@@ -792,16 +815,98 @@ fn measure_text_width_with_superscript(text: &str, font: &FontRef, scale: PxScal
     let mut width = 0.0f32;
     for (i, part) in text.split(REGISTERED_MARK).enumerate() {
         if i > 0 {
-            width += measure_text_width(&reg_str, font, super_scale);
+            width += measure_text_width(&reg_str, font, super_scale, f0);
         }
         if !part.is_empty() {
-            width += measure_text_width(part, font, scale);
+            width += measure_text_width(part, font, scale, f0);
         }
     }
     width
 }
 
+/// Draw `text` replicating imageproc's `draw_text_mut` layout, with the calibrated
+/// vertical offset applied to the pen before glyphs snap to the pixel grid, and the
+/// font-0 per-character advance corrections folded into the pen advance.
+///
+/// Both corrections are calibrated for the scalable font 0 and applied only when
+/// `f0` is set. The bitmap fonts already land where Labelary puts them — several of
+/// their golden cases render pixel-identical — so shifting them would only add error.
+///
+/// The layout quirks here are deliberate copies of imageproc's `layout_glyphs`
+/// (advance added before kerning, kern arguments in `(current, prev)` order, kerning
+/// only applied for glyphs that outline), so for `f0 == false` this renders exactly
+/// what the upstream helper renders.
+#[allow(clippy::too_many_arguments)]
+fn draw_text_snapped(
+    canvas: &mut RgbaImage,
+    color: Rgba<u8>,
+    x: i32,
+    y: i32,
+    scale: PxScale,
+    font: &FontRef,
+    text: &str,
+    f0: bool,
+) {
+    use ab_glyph::{Font, GlyphId, ScaleFont};
+    use image::Pixel;
+
+    let yoff = if f0 {
+        crate::tuning::TEXT_Y_OFFSET as f32
+            + (crate::tuning::TEXT_Y_OFFSET_EM * scale.y as f64) as f32
+    } else {
+        0.0
+    };
+    let scaled = font.as_scaled(scale);
+    let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
+
+    let mut w = 0.0f32;
+    let mut prev: Option<GlyphId> = None;
+
+    for c in text.chars() {
+        let glyph_id = font.glyph_id(c);
+        let glyph =
+            glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
+        w += scaled.h_advance(glyph_id);
+        if f0 {
+            w += crate::tuning::font0_advance_delta(c) as f32 * scale.y;
+        }
+        if let Some(g) = font.outline_glyph(glyph) {
+            if let Some(prev_id) = prev {
+                w += scaled.kern(glyph_id, prev_id);
+            }
+            prev = Some(glyph_id);
+            let bb = g.px_bounds();
+            let x_shift = x + bb.min.x.round() as i32;
+            let y_shift = y + bb.min.y.round() as i32;
+            g.draw(|gx, gy, gv| {
+                let px = gx as i32 + x_shift;
+                let py = gy as i32 + y_shift;
+                if (0..cw).contains(&px) && (0..ch).contains(&py) {
+                    let mut pixel = *canvas.get_pixel(px as u32, py as u32);
+                    let gv = gv.clamp(0.0, 1.0);
+                    // imageproc's Clamp<f32> for u8 truncates rather than rounds;
+                    // match it exactly so a zero offset is bit-identical to upstream.
+                    let a = color[3] as f32 * gv;
+                    let a = if a < 255.0 {
+                        if a > 0.0 {
+                            a as u8
+                        } else {
+                            0
+                        }
+                    } else {
+                        255
+                    };
+                    let src = Rgba([color[0], color[1], color[2], a]);
+                    pixel.blend(&src);
+                    canvas.put_pixel(px as u32, py as u32, pixel);
+                }
+            });
+        }
+    }
+}
+
 /// Draw text onto `canvas`, rendering ® as a top-aligned superscript at REGISTERED_MARK_SCALE.
+#[allow(clippy::too_many_arguments)]
 fn draw_text_with_superscript(
     canvas: &mut RgbaImage,
     font: &FontRef,
@@ -810,9 +915,10 @@ fn draw_text_with_superscript(
     x: f32,
     y: f32,
     text: &str,
+    f0: bool,
 ) {
     if !text.contains(REGISTERED_MARK) {
-        drawing::draw_text_mut(canvas, color, x as i32, y as i32, scale, font, text);
+        draw_text_snapped(canvas, color, x as i32, y as i32, scale, font, text, f0);
         return;
     }
     let super_scale = PxScale {
@@ -823,7 +929,7 @@ fn draw_text_with_superscript(
     let mut cx = x;
     for (i, part) in text.split(REGISTERED_MARK).enumerate() {
         if i > 0 {
-            drawing::draw_text_mut(
+            draw_text_snapped(
                 canvas,
                 color,
                 cx as i32,
@@ -831,17 +937,18 @@ fn draw_text_with_superscript(
                 super_scale,
                 font,
                 &reg_str,
+                f0,
             );
-            cx += measure_text_width(&reg_str, font, super_scale);
+            cx += measure_text_width(&reg_str, font, super_scale, f0);
         }
         if !part.is_empty() {
-            drawing::draw_text_mut(canvas, color, cx as i32, y as i32, scale, font, part);
-            cx += measure_text_width(part, font, scale);
+            draw_text_snapped(canvas, color, cx as i32, y as i32, scale, font, part, f0);
+            cx += measure_text_width(part, font, scale, f0);
         }
     }
 }
 
-fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32) -> Vec<String> {
+fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32, f0: bool) -> Vec<String> {
     let mut lines = Vec::new();
     for line in text.split('\n') {
         let words: Vec<&str> = line.split_whitespace().collect();
@@ -852,7 +959,7 @@ fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32) -> Vec<
         let mut current_line = words[0].to_string();
         for word in &words[1..] {
             let test = format!("{} {}", current_line, word);
-            let w = measure_text_width(&test, font, scale);
+            let w = measure_text_width(&test, font, scale, f0);
             if w > max_width {
                 lines.push(current_line);
                 current_line = word.to_string();
@@ -876,9 +983,10 @@ fn draw_text_block(
     y: f32,
     block: &crate::elements::field_block::FieldBlock,
     text: &str,
+    f0: bool,
 ) {
     let max_width = block.max_width as f32;
-    let lines = word_wrap(text, font, scale, max_width);
+    let lines = word_wrap(text, font, scale, max_width, f0);
     let font_size = scale.y;
     let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
 
@@ -890,16 +998,16 @@ fn draw_text_block(
         }
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
-                let lw = measure_text_width(line, font, scale);
+                let lw = measure_text_width(line, font, scale, f0);
                 x + (block.max_width as f32 - lw) / 2.0
             }
             crate::elements::text_alignment::TextAlignment::Right => {
-                let lw = measure_text_width(line, font, scale);
+                let lw = measure_text_width(line, font, scale, f0);
                 x + block.max_width as f32 - lw
             }
             _ => x,
         };
-        draw_text_with_superscript(canvas, font, scale, color, lx, cy, line);
+        draw_text_with_superscript(canvas, font, scale, color, lx, cy, line, f0);
         cy += line_height;
     }
 }
@@ -1260,7 +1368,7 @@ fn draw_barcode_interpretation_line(
         .filter(|c| !c.is_control() && *c != '\u{00F1}')
         .collect();
 
-    let text_width = measure_text_width(&display, &font, scale);
+    let text_width = measure_text_width(&display, &font, scale, false);
     let bw = barcode_img.width() as i32;
     let bh = barcode_img.height() as i32;
 

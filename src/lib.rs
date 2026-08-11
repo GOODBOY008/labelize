@@ -9,6 +9,7 @@ pub mod images;
 pub mod parsers;
 #[cfg(feature = "serve")]
 pub mod playground;
+pub(crate) mod tuning;
 
 #[cfg(feature = "skill")]
 pub mod skill;
