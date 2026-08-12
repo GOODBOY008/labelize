@@ -129,22 +129,43 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 
 ## Known Limitations
 
-### MaxiCode (ups, ups_surepost)
+### MaxiCode (ups, ups_surepost, ups_import_control)
 MaxiCode is a proprietary 2D symbology used by UPS. The encoder implements
 proper GF(64) Reed-Solomon ECC (primary 10+10, secondary 42+20 even/odd tracks)
-and greedy Set-A character encoding. Remaining diff (~5-7%) is due to minor
+and greedy Set-A character encoding. Remaining diff (~3-8%) is due to minor
 hex module placement differences vs Labelary and font metric differences.
+`ups_import_control`'s higher diff (~8.4%) is not a MaxiCode-specific defect —
+it comes from the label simply carrying far more text than `ups`/`ups_surepost`,
+which scales up the ordinary font-metric diff. Verified by visual inspection:
+the MaxiCode symbol renders at the correct position/size on all three; only the
+interior module bits differ, consistent with Labelary's secondary-message
+Set-switching heuristic diverging from our greedy Set-A-first one on the same
+(spec-valid) input.
 
-### PDF417 (fedex)
+### PDF417 (fedex, fedex_express, fedex_ground, dbschenker, dpdde, seur, tnt_express)
 The `pdf417` crate produces **valid, scannable** barcodes, but the specific
 codeword arrangement differs from Labelary's encoder. Both are correct per the
 ISO 15438 specification; different encoders may choose different text/byte/numeric
 compaction modes resulting in visually different (but equivalent) barcodes.
+`fedex_express`/`fedex_ground` use identical `^B7` parameters to `fedex` — their
+higher diff (~9-11% vs ~5%) is purely because their secondary message is longer,
+so a larger fraction of the label is barcode area exposed to this mismatch.
 
 ### Aztec (aztec_ec, pnldpd)
 The `rxing` crate's Aztec writer produces proper Aztec codes. Minor differences
 stem from error correction level defaults and symbol sizing when the ZPL
 parameters leave the size open.
+
+### DataMatrix (glsdk_return, purolator, posteit)
+The `datamatrix` crate produces a spec-correct ECC 200 symbol (no quiet zone,
+matching Labelary) at the same size and position as the reference. Pixel
+comparison shows the interior module pattern is still largely mismatched —
+confirmed by inspection to be a genuine bit-level difference, not a rendering
+bug (no rotation, mirroring, or size mismatch). ECC 200 leaves the encodation
+mode (ASCII/C40/text/base256) selection open when multiple paths are equally
+efficient for a given input; the `datamatrix` crate and Labelary's encoder
+resolve that ambiguity differently, producing different but equally valid
+codeword sequences for the same data.
 
 ### Font Rendering
 Labelize uses `ab_glyph` with Helvetica Bold Condensed for font 0 (width ratio
