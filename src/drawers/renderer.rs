@@ -558,6 +558,7 @@ impl Renderer {
                 bc.barcode.orientation,
                 bc.barcode.line_above,
                 bc.width,
+                bc.barcode.mode == BarcodeMode::Ean,
             );
         }
         Ok(())
@@ -581,6 +582,7 @@ impl Renderer {
                 bc.barcode.orientation,
                 bc.barcode.line_above,
                 bc.width,
+                false,
             );
         }
         Ok(())
@@ -611,6 +613,7 @@ impl Renderer {
                 bc.barcode.orientation,
                 bc.barcode.line_above,
                 bc.width,
+                false,
             );
         }
         Ok(())
@@ -636,6 +639,7 @@ impl Renderer {
                 bc.barcode.orientation,
                 bc.barcode.line_above,
                 bc.width,
+                false,
             );
         }
         Ok(())
@@ -1211,6 +1215,7 @@ fn draw_filled_rounded_rect_region(
 }
 
 /// Draw the human-readable interpretation line below (or above) a barcode.
+#[allow(clippy::too_many_arguments)]
 fn draw_barcode_interpretation_line(
     canvas: &mut RgbaImage,
     text: &str,
@@ -1219,19 +1224,35 @@ fn draw_barcode_interpretation_line(
     orientation: FieldOrientation,
     line_above: bool,
     module_width: i32,
+    ucc_ean_font: bool,
 ) {
-    let font_data = FONT_DEJAVU_MONO;
+    // Code 128 mode D (UCC/EAN) uses a larger condensed bold interpretation font,
+    // matching Labelary (~14×module ink height, ~7×module per-char advance).
+    // Other modes use the standard monospace font that scales with module width.
+    let (font_data, font_size) = if ucc_ean_font {
+        (
+            FONT_HELVETICA,
+            (module_width.max(1) as f32 * 14.3).clamp(14.0, 96.0),
+        )
+    } else {
+        (
+            FONT_DEJAVU_MONO,
+            (module_width.max(1) as f32 * 11.0).clamp(12.0, 72.0),
+        )
+    };
     let font = match ab_glyph::FontRef::try_from_slice(font_data) {
         Ok(f) => f,
         Err(_) => return,
     };
     // Zebra's interpretation line font scales with the barcode module width.
     // At module_width=2 (default), the standard font is ~23px to match reference width.
-    let font_size = (module_width.max(1) as f32 * 11.0).clamp(12.0, 72.0);
     let scale = PxScale {
         x: font_size,
         y: font_size,
     };
+    // Helvetica's ink starts at the buffer top, unlike DejaVu which has ~3px
+    // top padding — push the UCC/EAN text down to match Labelary's line position.
+    let text_y_off: i32 = if ucc_ean_font { 4 } else { 0 };
 
     // Strip control characters (like FNC1 escape) from display text
     let display: String = text
@@ -1259,7 +1280,7 @@ fn draw_barcode_interpretation_line(
             &mut big,
             Rgba([0, 0, 0, 255]),
             0,
-            0,
+            text_y_off * SS as i32,
             ss_scale,
             &font,
             &display,
@@ -1291,19 +1312,19 @@ fn draw_barcode_interpretation_line(
         FieldOrientation::Normal => {
             let cx = pos.x + (bw - text_width as i32) / 2;
             let ty = if line_above {
-                pos.y - font_size as i32 - 2
+                pos.y - font_size as i32 - 2 - text_y_off
             } else {
                 pos.y + bh + 2
             };
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
-            let buf_h = font_size.ceil() as u32 + 2;
+            let buf_h = font_size.ceil() as u32 + 2 + text_y_off as u32;
             let buf = render_text_crisp(buf_w, buf_h);
             overlay_at(canvas, &buf, cx, ty);
         }
         _ => {
             // Render text to buffer, rotate to match barcode orientation, then overlay
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
-            let buf_h = font_size.ceil() as u32 + 2;
+            let buf_h = font_size.ceil() as u32 + 2 + text_y_off as u32;
             let buf = render_text_crisp(buf_w, buf_h);
 
             let rotated = match orientation {
