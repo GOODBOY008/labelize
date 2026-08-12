@@ -98,6 +98,19 @@ fn code39_empty_input_handled() {
     let _result = code39::encode("", 100, 3, 2);
 }
 
+#[test]
+fn code128_ean_mode_keeps_ai_formatting_but_hides_fnc1_invocations() {
+    let (encoded, display) = code128::prepare_ean_mode_data("(91)0005886>8(10)0000410549>8(99)05");
+    let fnc1 = code128::ESCAPE_FNC_1;
+
+    assert_eq!(
+        encoded,
+        format!("{fnc1}910005886{fnc1}100000410549{fnc1}9905")
+    );
+    assert_eq!(display, "(91)0005886(10)0000410549(99)05");
+    assert!(!display.contains(">8"));
+}
+
 // --- EAN-13 ---
 
 #[test]

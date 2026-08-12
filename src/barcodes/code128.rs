@@ -20,6 +20,22 @@ pub fn prepare_ucc_mode_data(content: &str) -> String {
     format!("{}{}{}", ESCAPE_FNC_1, padded, check)
 }
 
+/// Prepare field data and human-readable text for ^BC mode D (UCC/EAN mode).
+///
+/// Parentheses and spaces are retained in the interpretation line but omitted
+/// from the encoded symbol. The ZPL `>8` invocation inserts FNC1 into the
+/// symbol and is not itself printable field data.
+pub fn prepare_ean_mode_data(content: &str) -> (String, String) {
+    let fnc1 = ESCAPE_FNC_1.to_string();
+    let encoded: String = content
+        .replace(">8", &fnc1)
+        .chars()
+        .filter(|c| *c != '(' && *c != ')' && *c != ' ')
+        .collect();
+    let display = content.replace(">8", "");
+    (format!("{}{}", ESCAPE_FNC_1, encoded), display)
+}
+
 /// GS1 Mod-10 check digit calculation.
 /// Rightmost digit gets weight 3, alternating 3/1 from right to left.
 fn gs1_mod10_check(digits: &str) -> char {
