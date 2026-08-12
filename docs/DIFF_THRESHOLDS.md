@@ -67,6 +67,8 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | edi_triangle | zpl | 0.63 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.91 | 3.0 | Character encoding |
 | fedex | zpl | 7.91 | 9.0 | PDF417 encoding + font |
+| fedex_express | zpl | 11.34 | 12.5 | PDF417 encoding + font |
+| fedex_ground | zpl | 9.51 | 10.5 | PDF417 encoding + font |
 | gb_0_height | zpl | 0.00 | 1.0 | Perfect |
 | gb_0_width | zpl | 0.00 | 1.0 | Perfect |
 | gb_normal | zpl | 0.00 | 1.0 | Perfect |
@@ -105,6 +107,7 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | text_ft_r | zpl | 0.16 | 1.0 | Sub-pixel |
 | text_multiline | zpl | 0.68 | 2.0 | Word-wrap boundaries |
 | ups | zpl | 5.74 | 7.0 | MaxiCode + font metrics |
+| ups_import_control | zpl | 8.38 | 9.5 | MaxiCode + font metrics |
 | ups_surepost | zpl | 7.61 | 8.5 | MaxiCode + font metrics |
 | usps | zpl | 4.05 | 5.0 | Font metrics + ® superscript glyph |
 | tnt_express | zpl | 5.25 | 6.0 | Font metrics + PDF417 |
