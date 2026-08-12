@@ -39,6 +39,7 @@
 ║ gd_thin_l                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gd_thin_r                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gs                             │ zpl  │    1.14% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ maxicode_default_mode2         │ zpl  │    0.84% │      813x1626 │      812x1624 │ GOOD(<1%)    ║
 ║ maxicode_mode4                 │ zpl  │    0.83% │      813x1626 │      812x1624 │ GOOD(<1%)    ║
 ║ mu_dpi_conversion              │ zpl  │    0.04% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ mu_millimeters                 │ zpl  │    6.56% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
@@ -68,5 +69,5 @@
 ║ usps_priority_mail             │ zpl  │    0.54% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.16% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 63 total │ 8 perfect │ 45 good │ 7 minor │ 3 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 65 total │ 8 perfect │ 47 good │ 7 minor │ 3 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

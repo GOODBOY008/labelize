@@ -229,7 +229,7 @@ fn apply_primary_ecc(codewords: &mut [u8; 144]) {
 //
 // The five-state shortest-path encoder below is an idiomatic Rust adaptation
 // of libzint's MaxiCode text compaction algorithm (BSD-3-Clause, Copyright
-// 2010-2025 Robin Stuart). It considers all sets A-E, every legal shift/latch
+// 2010-2026 Robin Stuart). It considers all sets A-E, every legal shift/latch
 // transition and the 9-digit numeric shift instead of making local greedy
 // choices.
 // ---------------------------------------------------------------------------
@@ -528,6 +528,15 @@ fn apply_secondary_ecc(codewords: &mut [u8; 144]) {
 // Public encode entry point
 // ---------------------------------------------------------------------------
 
+fn latin1_bytes(data: &str) -> Result<Vec<u8>, String> {
+    data.chars()
+        .map(|ch| {
+            u8::try_from(ch as u32)
+                .map_err(|_| format!("MaxiCode cannot encode character U+{:04X}", ch as u32))
+        })
+        .collect()
+}
+
 /// Encode a MaxiCode symbol into its 144 six-bit codewords.
 ///
 /// `data`  — raw ZPL `^FD` field content (hex escapes already resolved by the parser).
@@ -603,7 +612,8 @@ pub fn encode_codewords(data: &str, mode: i32) -> Result<[u8; 144], String> {
                 encode_primary_mode3(&mut codewords, &pc6, country, service);
             }
 
-            let message = encode_message(secondary_str.as_bytes(), 84)?;
+            let secondary_bytes = latin1_bytes(secondary_str)?;
+            let message = encode_message(&secondary_bytes, 84)?;
             codewords[20..104].copy_from_slice(&message);
         }
         4 => {
@@ -611,7 +621,8 @@ pub fn encode_codewords(data: &str, mode: i32) -> Result<[u8; 144], String> {
             // Mode 4 has 93 message codewords. The first nine share the
             // primary data block with the mode codeword; the remaining 84
             // occupy the secondary data block.
-            let message = encode_message(data.as_bytes(), 93)?;
+            let data_bytes = latin1_bytes(data)?;
+            let message = encode_message(&data_bytes, 93)?;
             codewords[1..10].copy_from_slice(&message[..9]);
             codewords[20..104].copy_from_slice(&message[9..]);
         }
@@ -716,7 +727,66 @@ fn draw_hexagon(img: &mut RgbaImage, cx: u32, cy: u32, r: u32, color: Rgba<u8>) 
 
 #[cfg(test)]
 mod tests {
-    use super::encode_message;
+    use super::{encode_codewords, encode_message};
+
+    // Full 144-codeword vectors generated with libzint commit
+    // 6ac010af0e9f1caebc06c1941b84f1904204cad6 in DATA_MODE, MaxiCode mode 4,
+    // with ZINT_DEBUG_PRINT. These exercise the public encoder including both
+    // Reed-Solomon blocks, rather than only testing internal compaction output.
+    const LIBZINT_SET_C: [u8; 144] = [
+        4, 60, 60, 0, 0, 0, 28, 29, 30, 59, 60, 5, 57, 7, 24, 21, 37, 54, 40, 17, 58, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 8, 60, 19, 40, 20, 9, 9, 43, 1, 14, 3, 50, 8,
+        12, 32, 53, 28, 57, 16, 58, 11, 36, 23, 28, 56, 10, 18, 53, 44, 37, 19, 30, 48, 14, 33, 5,
+        39, 31, 39, 40,
+    ];
+    const LIBZINT_SET_D: [u8; 144] = [
+        4, 61, 61, 0, 0, 0, 28, 29, 30, 59, 6, 38, 35, 25, 50, 30, 12, 26, 5, 17, 58, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 8, 60, 19, 40, 20, 9, 9, 43, 1, 14, 3, 50, 8,
+        12, 32, 53, 28, 57, 16, 58, 11, 36, 23, 28, 56, 10, 18, 53, 44, 37, 19, 30, 48, 14, 33, 5,
+        39, 31, 39, 40,
+    ];
+    const LIBZINT_SET_E: [u8; 144] = [
+        4, 62, 62, 1, 2, 3, 13, 32, 33, 34, 61, 15, 49, 58, 12, 12, 52, 38, 39, 49, 59, 28, 28, 28,
+        28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
+        28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
+        28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
+        28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 39, 26, 30, 45, 5, 49, 2, 38, 17, 31, 3, 5, 15,
+        44, 26, 43, 40, 7, 45, 12, 27, 1, 19, 62, 20, 58, 52, 43, 36, 57, 51, 13, 23, 31, 42, 29,
+        46, 53, 35, 45,
+    ];
+    const LIBZINT_MIXED: [u8; 144] = [
+        4, 1, 31, 7, 22, 60, 52, 21, 63, 2, 16, 27, 40, 34, 32, 50, 55, 12, 11, 42, 31, 7, 22, 60,
+        52, 21, 2, 2, 2, 63, 1, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+        33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 55, 56, 56, 45, 53, 41, 57, 9, 17, 61, 9, 41, 13,
+        12, 3, 23, 10, 25, 23, 42, 54, 28, 13, 1, 20, 36, 43, 17, 24, 60, 6, 50, 50, 29, 36, 49,
+        11, 43, 19, 33,
+    ];
+
+    #[test]
+    fn public_encoder_matches_libzint_sets_c_d_e_and_mixed_vectors() {
+        let cases: [(&str, &[u8; 144]); 4] = [
+            ("ÀÀÀ\u{1C}\u{1D}\u{1E} ", &LIBZINT_SET_C),
+            ("ààà\u{1C}\u{1D}\u{1E} ", &LIBZINT_SET_D),
+            ("\u{01}\u{02}\u{03}\r\u{1C}\u{1D}\u{1E} ", &LIBZINT_SET_E),
+            ("A123456789b123456789bbbA", &LIBZINT_MIXED),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(&encode_codewords(input, 4).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn public_encoder_rejects_characters_outside_latin1() {
+        assert!(encode_codewords("€", 4).is_err());
+    }
 
     #[test]
     fn text_encoder_reaches_all_five_code_sets() {

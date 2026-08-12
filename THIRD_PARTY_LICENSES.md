@@ -5,7 +5,7 @@
 Parts of `src/barcodes/maxicode.rs`, including character tables, Reed-Solomon
 encoding and text-compaction logic, are adapted from libzint.
 
-Copyright (C) 2010-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2010-2026 Robin Stuart <rstuart114@gmail.com>
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
