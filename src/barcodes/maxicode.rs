@@ -255,9 +255,8 @@ fn set_b_symbol(ch: u8) -> u8 {
     }
 }
 
-/// Encode secondary message bytes into codewords[20..104] (84 slots).
-fn encode_secondary(codewords: &mut [u8; 144], msg: &[u8]) {
-    let max_slots = 84usize;
+/// Encode message bytes into exactly `max_slots` data codewords.
+fn encode_message(msg: &[u8], max_slots: usize) -> Result<Vec<u8>, String> {
     let mut out: Vec<u8> = Vec::with_capacity(max_slots);
     let mut in_set_b = false;
     let mut i = 0;
@@ -296,8 +295,7 @@ fn encode_secondary(codewords: &mut [u8; 144], msg: &[u8]) {
                 out.push(MAXI_SYMBOL_CHAR[ch as usize]);
                 i += 1;
             } else {
-                out.push(PAD_CODEWORD);
-                i += 1;
+                return Err(format!("MaxiCode cannot encode byte 0x{ch:02X}"));
             }
         } else {
             // In Set A
@@ -336,10 +334,15 @@ fn encode_secondary(codewords: &mut [u8; 144], msg: &[u8]) {
                 out.push(MAXI_SYMBOL_CHAR[ch as usize]);
                 i += 1;
             } else {
-                out.push(PAD_CODEWORD);
-                i += 1;
+                return Err(format!("MaxiCode cannot encode byte 0x{ch:02X}"));
             }
         }
+    }
+
+    if i < msg.len() {
+        return Err(format!(
+            "MaxiCode message exceeds the {max_slots}-codeword capacity"
+        ));
     }
 
     // Pad remaining slots
@@ -347,7 +350,7 @@ fn encode_secondary(codewords: &mut [u8; 144], msg: &[u8]) {
         out.push(PAD_CODEWORD);
     }
 
-    codewords[20..104].copy_from_slice(&out[..max_slots]);
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -386,7 +389,7 @@ fn apply_secondary_ecc(codewords: &mut [u8; 144]) {
 // Public encode entry point
 // ---------------------------------------------------------------------------
 
-/// Encode a MaxiCode symbol and return a 200x193 RGBA image.
+/// Encode a MaxiCode symbol into its 144 six-bit codewords.
 ///
 /// `data`  — raw ZPL `^FD` field content (hex escapes already resolved by the parser).
 /// `mode`  — MaxiCode mode from the `^BD` command (typically 2, 3, or 4).
@@ -394,7 +397,7 @@ fn apply_secondary_ecc(codewords: &mut [u8; 144]) {
 /// For mode 2/3 the ZPL convention is:
 ///   data = {service(3)}{country(3)}{postal}[)>{secondary}
 /// For mode 4 the entire `data` string is the secondary message.
-pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
+pub fn encode_codewords(data: &str, mode: i32) -> Result<[u8; 144], String> {
     if data.is_empty() {
         return Err("MaxiCode: empty content".to_string());
     }
@@ -415,48 +418,80 @@ pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
                 ));
             }
 
-            // ZPL primary format: service(3) + country(3) + postal
-            let service: u32 = primary_str[..3].parse().unwrap_or(0);
-            let country: u32 = primary_str[3..6].parse().unwrap_or(0);
-            let postal_bytes = &primary_str.as_bytes()[6..];
+            // ZPL primary format: service(3) + country(3) + postal.
+            // Validate bytes before splitting so non-ASCII input cannot panic
+            // at an invalid UTF-8 boundary.
+            let primary_bytes = primary_str.as_bytes();
+            if !primary_bytes[..3].iter().all(u8::is_ascii_digit) {
+                return Err("MaxiCode service class must contain 3 digits".to_string());
+            }
+            if !primary_bytes[3..6].iter().all(u8::is_ascii_digit) {
+                return Err("MaxiCode country code must contain 3 digits".to_string());
+            }
+            let parse_digits = |digits: &[u8]| {
+                digits
+                    .iter()
+                    .fold(0u32, |value, digit| value * 10 + u32::from(*digit - b'0'))
+            };
+            let service = parse_digits(&primary_bytes[..3]);
+            let country = parse_digits(&primary_bytes[3..6]);
+            let postal_bytes = &primary_bytes[6..];
 
             if mode == 2 {
+                if postal_bytes.is_empty()
+                    || postal_bytes.len() > 9
+                    || !postal_bytes.iter().all(u8::is_ascii_digit)
+                {
+                    return Err(
+                        "MaxiCode mode 2 postal code must contain 1 to 9 digits".to_string()
+                    );
+                }
                 encode_primary_mode2(&mut codewords, postal_bytes, country, service);
             } else {
-                // Mode 3: alphanumeric postal, space-padded to 6 chars
-                let mut pc6 = [b' '; 6];
-                for (i, &b) in postal_bytes.iter().take(6).enumerate() {
-                    pc6[i] = b;
+                if postal_bytes.len() != 6
+                    || !postal_bytes
+                        .iter()
+                        .all(|byte| byte.is_ascii_alphanumeric() || *byte == b' ')
+                {
+                    return Err(
+                        "MaxiCode mode 3 postal code must contain exactly 6 alphanumeric characters"
+                            .to_string(),
+                    );
                 }
+                let pc6: [u8; 6] = postal_bytes
+                    .try_into()
+                    .expect("validated six-byte postal code");
                 encode_primary_mode3(&mut codewords, &pc6, country, service);
             }
 
-            encode_secondary(&mut codewords, secondary_str.as_bytes());
+            let message = encode_message(secondary_str.as_bytes(), 84)?;
+            codewords[20..104].copy_from_slice(&message);
         }
         4 => {
             codewords[0] = 4;
-            // For mode 4, the secondary area holds the full message.
-            // First encode into the secondary slots (indices 20..104),
-            // then copy the first 9 codewords of secondary back to primary
-            // positions 1..10 (as libzint does for mode 4).
-            encode_secondary(&mut codewords, data.as_bytes());
-            let tmp: [u8; 9] = codewords[20..29].try_into().unwrap();
-            codewords[1..10].copy_from_slice(&tmp);
+            // Mode 4 has 93 message codewords. The first nine share the
+            // primary data block with the mode codeword; the remaining 84
+            // occupy the secondary data block.
+            let message = encode_message(data.as_bytes(), 93)?;
+            codewords[1..10].copy_from_slice(&message[..9]);
+            codewords[20..104].copy_from_slice(&message[9..]);
         }
         _ => {
-            codewords[0] = 4;
-            // For mode 4, the secondary area holds the full message.
-            // First encode into the secondary slots (indices 20..104),
-            // then copy the first 9 codewords of secondary back to primary
-            // positions 1..10 (as libzint does for mode 4).
-            encode_secondary(&mut codewords, data.as_bytes());
-            let tmp: [u8; 9] = codewords[20..29].try_into().unwrap();
-            codewords[1..10].copy_from_slice(&tmp);
+            return Err(format!(
+                "MaxiCode mode {mode} is not supported; expected 2, 3, or 4"
+            ));
         }
     }
 
     apply_primary_ecc(&mut codewords);
     apply_secondary_ecc(&mut codewords);
+
+    Ok(codewords)
+}
+
+/// Encode a MaxiCode symbol and return a 200x193 RGBA image.
+pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
+    let codewords = encode_codewords(data, mode)?;
 
     // --- Render -----------------------------------------------------------
     let img_width = 200u32;

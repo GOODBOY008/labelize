@@ -553,6 +553,10 @@ fn golden_ups_maxicode() {
     golden_zpl_with_tolerance("ups_maxicode", 5.0);
 }
 #[test]
+fn golden_maxicode_mode4() {
+    golden_zpl_with_tolerance("maxicode_mode4", 1.0);
+}
+#[test]
 fn golden_aztec_ec_1_ec23() {
     golden_zpl_with_tolerance("aztec_ec_1_ec23", 7.5);
 }
