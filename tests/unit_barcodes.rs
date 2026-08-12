@@ -326,6 +326,18 @@ fn maxicode_mode_3_primary_matches_qr_atelier_reference() {
 }
 
 #[test]
+fn maxicode_numeric_compaction_matches_libzint_reference() {
+    let codewords = maxicode::encode_codewords("123456789", 4).unwrap();
+    assert_eq!(&codewords[1..7], &[31, 7, 22, 60, 52, 21]);
+}
+
+#[test]
+fn maxicode_numeric_compaction_avoids_false_capacity_error() {
+    assert!(maxicode::encode_codewords(&"1".repeat(138), 4).is_ok());
+    assert!(maxicode::encode_codewords(&"1".repeat(139), 4).is_err());
+}
+
+#[test]
 fn maxicode_rejects_unsupported_modes_and_excess_data() {
     assert!(maxicode::encode_codewords("HELLO", 5).is_err());
     assert!(maxicode::encode_codewords(&"A".repeat(94), 4).is_err());

@@ -226,130 +226,269 @@ fn apply_primary_ecc(codewords: &mut [u8; 144]) {
 
 // ---------------------------------------------------------------------------
 // Secondary message encoding
-// Greedy Set-A-first encoder with SHIFTB / SHIFTE for isolated non-Set-A chars.
-// Set A constants: SHIFTB=59, SHIFTE=62, LATCHB=63, PAD=33
-// Set B constants: SHIFTA=59, LATCHA=63
+//
+// The five-state shortest-path encoder below is an idiomatic Rust adaptation
+// of libzint's MaxiCode text compaction algorithm (BSD-3-Clause, Copyright
+// 2010-2025 Robin Stuart). It considers all sets A-E, every legal shift/latch
+// transition and the 9-digit numeric shift instead of making local greedy
+// choices.
 // ---------------------------------------------------------------------------
 
-const FLAG_A: u8 = 0x01;
-const FLAG_B: u8 = 0x02;
-const FLAG_E: u8 = 0x04;
-
-const SHIFTB_FROM_A: u8 = 59;
-const SHIFTE_FROM_A: u8 = 62;
-const LATCHB_FROM_A: u8 = 63;
-const SHIFTA_FROM_B: u8 = 59;
-const LATCHA_FROM_B: u8 = 63;
-const SHIFTE_FROM_B: u8 = 62;
+const SET_A: usize = 0;
+const SET_B: usize = 1;
+const SET_E: usize = 2;
+const SET_C: usize = 3;
+const SET_D: usize = 4;
+const SET_COUNT: usize = 5;
+const SET_FLAGS: [u8; SET_COUNT] = [0x01, 0x02, 0x04, 0x08, 0x10];
 const PAD_CODEWORD: u8 = 33;
 
-/// Symbol value of `ch` when encoded in Set B.
-fn set_b_symbol(ch: u8) -> u8 {
-    match ch {
-        b' ' => 47,
-        b',' => 48,
-        b'.' => 49,
-        b'/' => 50,
-        b':' => 51,
-        _ => MAXI_SYMBOL_CHAR[ch as usize],
+#[derive(Clone, Copy)]
+enum TextOperation {
+    Direct(usize),
+    Shift(usize),
+    ShiftA(usize),
+}
+
+const OPS_A: [TextOperation; 5] = [
+    TextOperation::Direct(SET_A),
+    TextOperation::Shift(SET_B),
+    TextOperation::Shift(SET_E),
+    TextOperation::Shift(SET_C),
+    TextOperation::Shift(SET_D),
+];
+const OPS_B: [TextOperation; 7] = [
+    TextOperation::Direct(SET_B),
+    TextOperation::ShiftA(1),
+    TextOperation::ShiftA(2),
+    TextOperation::ShiftA(3),
+    TextOperation::Shift(SET_E),
+    TextOperation::Shift(SET_C),
+    TextOperation::Shift(SET_D),
+];
+const OPS_E: [TextOperation; 3] = [
+    TextOperation::Direct(SET_E),
+    TextOperation::Shift(SET_C),
+    TextOperation::Shift(SET_D),
+];
+const OPS_C: [TextOperation; 3] = [
+    TextOperation::Direct(SET_C),
+    TextOperation::Shift(SET_E),
+    TextOperation::Shift(SET_D),
+];
+const OPS_D: [TextOperation; 3] = [
+    TextOperation::Direct(SET_D),
+    TextOperation::Shift(SET_E),
+    TextOperation::Shift(SET_C),
+];
+
+fn operations(set: usize) -> &'static [TextOperation] {
+    match set {
+        SET_A => &OPS_A,
+        SET_B => &OPS_B,
+        SET_E => &OPS_E,
+        SET_C => &OPS_C,
+        SET_D => &OPS_D,
+        _ => unreachable!("invalid MaxiCode set"),
+    }
+}
+
+/// Latch from `from` to `to`. Rows in libzint's table describe the later set,
+/// columns the prior set, hence the seemingly asymmetric A/E and A/C paths.
+fn latch_sequence(from: usize, to: usize) -> &'static [u8] {
+    if from == to {
+        return &[];
+    }
+    match to {
+        SET_A => match from {
+            SET_B => &[63],
+            _ => &[58],
+        },
+        SET_B => &[63],
+        SET_E => &[62, 62],
+        SET_C => &[60, 60],
+        SET_D => &[61, 61],
+        _ => unreachable!("invalid MaxiCode set"),
+    }
+}
+
+fn symbol_for_set(set: usize, ch: u8) -> u8 {
+    let flags = MAXI_CODE_SET[ch as usize];
+    if flags == SET_FLAGS[set] || set == SET_A {
+        return MAXI_SYMBOL_CHAR[ch as usize];
+    }
+    if set == SET_B {
+        if let Some(position) = b" ,./:".iter().position(|value| *value == ch) {
+            return 47 + position as u8;
+        }
+    }
+    if set == SET_E && (28..=30).contains(&ch) {
+        return ch + 4;
+    }
+    if ch == b' ' {
+        59
+    } else {
+        ch
+    }
+}
+
+fn operation_codewords(operation: TextOperation, msg: &[u8], position: usize) -> Option<Vec<u8>> {
+    match operation {
+        TextOperation::Direct(set) => {
+            let ch = *msg.get(position)?;
+            (MAXI_CODE_SET[ch as usize] & SET_FLAGS[set] != 0)
+                .then(|| vec![symbol_for_set(set, ch)])
+        }
+        TextOperation::Shift(set) => {
+            let ch = *msg.get(position)?;
+            if MAXI_CODE_SET[ch as usize] & SET_FLAGS[set] == 0 {
+                return None;
+            }
+            let shift = match set {
+                SET_A | SET_B => 59,
+                SET_C => 60,
+                SET_D => 61,
+                SET_E => 62,
+                _ => unreachable!("invalid MaxiCode set"),
+            };
+            Some(vec![shift, symbol_for_set(set, ch)])
+        }
+        TextOperation::ShiftA(count) => {
+            let chars = msg.get(position..position + count)?;
+            if !chars
+                .iter()
+                .all(|ch| MAXI_CODE_SET[*ch as usize] & SET_FLAGS[SET_A] != 0)
+            {
+                return None;
+            }
+            let mut result = Vec::with_capacity(count + 1);
+            result.push(match count {
+                1 => 59,
+                2 => 56,
+                3 => 57,
+                _ => unreachable!("invalid Set A shift length"),
+            });
+            result.extend(chars.iter().map(|ch| symbol_for_set(SET_A, *ch)));
+            Some(result)
+        }
+    }
+}
+
+fn operation_intake(operation: TextOperation) -> usize {
+    match operation {
+        TextOperation::ShiftA(count) => count,
+        TextOperation::Direct(_) | TextOperation::Shift(_) => 1,
+    }
+}
+
+fn numeric_codewords(digits: &[u8]) -> Option<[u8; 6]> {
+    if digits.len() < 9 || !digits[..9].iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    let value = digits[..9]
+        .iter()
+        .fold(0u32, |value, digit| value * 10 + u32::from(*digit - b'0'));
+    Some([
+        31,
+        ((value >> 24) & 0x3f) as u8,
+        ((value >> 18) & 0x3f) as u8,
+        ((value >> 12) & 0x3f) as u8,
+        ((value >> 6) & 0x3f) as u8,
+        (value & 0x3f) as u8,
+    ])
+}
+
+fn update_shortest(slot: &mut Option<Vec<u8>>, candidate: Vec<u8>) {
+    if slot
+        .as_ref()
+        .is_none_or(|current| candidate.len() < current.len())
+    {
+        *slot = Some(candidate);
     }
 }
 
 /// Encode message bytes into exactly `max_slots` data codewords.
 fn encode_message(msg: &[u8], max_slots: usize) -> Result<Vec<u8>, String> {
-    let mut out: Vec<u8> = Vec::with_capacity(max_slots);
-    let mut in_set_b = false;
-    let mut i = 0;
-
-    while i < msg.len() && out.len() < max_slots {
-        let ch = msg[i];
-        let flags = MAXI_CODE_SET[ch as usize];
-
-        if in_set_b {
-            if flags & FLAG_B != 0 {
-                out.push(set_b_symbol(ch));
-                i += 1;
-            } else if flags & FLAG_A != 0 {
-                // Count upcoming Set-A chars to decide latch vs shift
-                let run_a = msg[i..]
-                    .iter()
-                    .take_while(|&&c| MAXI_CODE_SET[c as usize] & FLAG_A != 0)
-                    .count();
-                if run_a >= 3 {
-                    out.push(LATCHA_FROM_B);
-                    in_set_b = false;
-                    // Re-process ch without incrementing i
-                } else {
-                    if out.len() + 2 > max_slots {
-                        break;
-                    }
-                    out.push(SHIFTA_FROM_B);
-                    out.push(MAXI_SYMBOL_CHAR[ch as usize]);
-                    i += 1;
-                }
-            } else if flags & FLAG_E != 0 {
-                if out.len() + 2 > max_slots {
-                    break;
-                }
-                out.push(SHIFTE_FROM_B);
-                out.push(MAXI_SYMBOL_CHAR[ch as usize]);
-                i += 1;
-            } else {
-                return Err(format!("MaxiCode cannot encode byte 0x{ch:02X}"));
-            }
-        } else {
-            // In Set A
-            if flags & FLAG_A != 0 {
-                out.push(MAXI_SYMBOL_CHAR[ch as usize]);
-                i += 1;
-            } else if flags & FLAG_B != 0 {
-                // Check length of Set-B-only run
-                let run_b = msg[i..]
-                    .iter()
-                    .take_while(|&&c| {
-                        let f = MAXI_CODE_SET[c as usize];
-                        f & FLAG_A == 0 && f & FLAG_B != 0
-                    })
-                    .count();
-                if run_b >= 3 {
-                    if out.len() >= max_slots {
-                        break;
-                    }
-                    out.push(LATCHB_FROM_A);
-                    in_set_b = true;
-                    // Re-process ch
-                } else {
-                    if out.len() + 2 > max_slots {
-                        break;
-                    }
-                    out.push(SHIFTB_FROM_A);
-                    out.push(set_b_symbol(ch));
-                    i += 1;
-                }
-            } else if flags & FLAG_E != 0 {
-                if out.len() + 2 > max_slots {
-                    break;
-                }
-                out.push(SHIFTE_FROM_A);
-                out.push(MAXI_SYMBOL_CHAR[ch as usize]);
-                i += 1;
-            } else {
-                return Err(format!("MaxiCode cannot encode byte 0x{ch:02X}"));
-            }
-        }
-    }
-
-    if i < msg.len() {
+    // Numeric shift is the densest MaxiCode representation: nine input bytes
+    // in six codewords. Reject impossible lengths before allocating the path
+    // table so hostile input cannot turn this small optimizer into a memory
+    // sink.
+    let maximum_input = (max_slots / 6) * 9 + (max_slots % 6);
+    if msg.len() > maximum_input {
         return Err(format!(
             "MaxiCode message exceeds the {max_slots}-codeword capacity"
         ));
     }
 
-    // Pad remaining slots
-    while out.len() < max_slots {
-        out.push(PAD_CODEWORD);
+    let mut paths = vec![vec![None::<Vec<u8>>; SET_COUNT]; msg.len() + 1];
+    paths[0][SET_A] = Some(Vec::new());
+
+    for position in 0..msg.len() {
+        for from_set in 0..SET_COUNT {
+            let Some(prefix) = paths[position][from_set].clone() else {
+                continue;
+            };
+
+            for (to_set, _) in SET_FLAGS.iter().enumerate() {
+                let latch = latch_sequence(from_set, to_set);
+
+                // Nine digits always fit in fewer codewords than any text-set
+                // representation, independent of the active set.
+                if let Some(numeric) = numeric_codewords(&msg[position..]) {
+                    let mut candidate = prefix.clone();
+                    candidate.extend_from_slice(latch);
+                    candidate.extend_from_slice(&numeric);
+                    update_shortest(&mut paths[position + 9][to_set], candidate);
+                    continue;
+                }
+
+                for &operation in operations(to_set) {
+                    let Some(encoded) = operation_codewords(operation, msg, position) else {
+                        continue;
+                    };
+                    let next_position = position + operation_intake(operation);
+                    let mut candidate = prefix.clone();
+                    candidate.extend_from_slice(latch);
+                    candidate.extend_from_slice(&encoded);
+                    update_shortest(&mut paths[next_position][to_set], candidate);
+                }
+            }
+        }
     }
 
+    let (end_set, mut out) = paths[msg.len()]
+        .iter()
+        .enumerate()
+        .filter_map(|(set, path)| path.clone().map(|path| (set, path)))
+        .min_by_key(|(_, path)| path.len())
+        .ok_or_else(|| {
+            let ch = msg
+                .iter()
+                .find(|ch| MAXI_CODE_SET[**ch as usize] == 0)
+                .copied()
+                .unwrap_or_default();
+            format!("MaxiCode cannot encode byte 0x{ch:02X}")
+        })?;
+
+    if out.len() > max_slots {
+        return Err(format!(
+            "MaxiCode message exceeds the {max_slots}-codeword capacity"
+        ));
+    }
+
+    // Sets C and D have no PAD character. Return to A before padding when
+    // there is room, exactly as the reference encoder does.
+    if out.len() < max_slots && matches!(end_set, SET_C | SET_D) {
+        out.push(58);
+    }
+    if out.len() > max_slots {
+        return Err(format!(
+            "MaxiCode message exceeds the {max_slots}-codeword capacity"
+        ));
+    }
+
+    let pad = if end_set == SET_E { 28 } else { PAD_CODEWORD };
+    out.resize(max_slots, pad);
     Ok(out)
 }
 
@@ -572,5 +711,32 @@ fn draw_hexagon(img: &mut RgbaImage, cx: u32, cy: u32, r: u32, color: Rgba<u8>) 
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::encode_message;
+
+    #[test]
+    fn text_encoder_reaches_all_five_code_sets() {
+        assert_eq!(&encode_message(b"A", 4).unwrap()[..1], &[1]);
+        assert_eq!(&encode_message(b"a", 4).unwrap()[..2], &[59, 1]);
+        assert_eq!(&encode_message(&[0x00], 4).unwrap()[..2], &[62, 0]);
+        assert_eq!(&encode_message(&[0xC0], 4).unwrap()[..2], &[60, 0]);
+        assert_eq!(&encode_message(&[0xE0], 4).unwrap()[..2], &[61, 0]);
+    }
+
+    #[test]
+    fn text_encoder_chooses_latch_for_lowercase_run() {
+        assert_eq!(&encode_message(b"abcd", 8).unwrap()[..5], &[63, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn text_encoder_compacts_nine_digits_into_six_codewords() {
+        assert_eq!(
+            &encode_message(b"123456789", 10).unwrap()[..6],
+            &[31, 7, 22, 60, 52, 21]
+        );
     }
 }

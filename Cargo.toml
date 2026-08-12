@@ -7,7 +7,7 @@ keywords = ["zpl", "epl", "label", "barcode", "thermal-printer"]
 categories = ["graphics", "parsing"]
 repository = "https://github.com/GOODBOY008/labelize"
 homepage = "https://github.com/GOODBOY008/labelize"
-license = "MIT"
+license = "MIT AND BSD-3-Clause"
 readme = "README.md"
 exclude = [
     "testdata/",
