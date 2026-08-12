@@ -520,31 +520,29 @@ impl Renderer {
             }
             _ => {
                 // Modes U and D (UCC/EAN) automatically insert FNC1 at start per ZPL spec
-                let content_to_encode = match bc.barcode.mode {
+                let (content_to_encode, display_text) = match bc.barcode.mode {
                     BarcodeMode::Ucc => {
                         // Mode U: truncate to 19 digits, append GS1 Mod-10 check digit, prepend FNC1
-                        barcodes::code128::prepare_ucc_mode_data(content)
+                        (
+                            barcodes::code128::prepare_ucc_mode_data(content),
+                            content.clone(),
+                        )
                     }
                     BarcodeMode::Ean => {
                         // Mode D: FNC1 prepended automatically; >8 in data = embedded FNC1 separator
                         // for chaining GS1 application identifiers; parentheses and spaces stripped
-                        // from encoding but preserved in display text per ZPL spec.
-                        let fnc1 = barcodes::code128::ESCAPE_FNC_1.to_string();
-                        let for_encoding: String = content
-                            .replace(">8", &fnc1)
-                            .chars()
-                            .filter(|c| *c != '(' && *c != ')' && *c != ' ')
-                            .collect();
-                        format!("{}{}", barcodes::code128::ESCAPE_FNC_1, for_encoding)
+                        // from encoding but preserved in display text per ZPL spec. Invocation
+                        // codes affect the symbol only and must not be printed as glyphs.
+                        barcodes::code128::prepare_ean_mode_data(content)
                     }
-                    _ => content.clone(),
+                    _ => (content.clone(), content.clone()),
                 };
                 let img = barcodes::code128::encode_auto(
                     &content_to_encode,
                     bc.barcode.height,
                     bc.width,
                 )?;
-                (img, content.clone())
+                (img, display_text)
             }
         };
 

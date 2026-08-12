@@ -203,6 +203,10 @@ fn golden_barcode128_mode_d() {
     golden_zpl_with_tolerance("barcode128_mode_d", 2.0);
 }
 #[test]
+fn golden_code128_mode_d_fnc1() {
+    golden_zpl_with_tolerance("code128_mode_d_fnc1", 1.0);
+}
+#[test]
 fn golden_barcode128_mode_n() {
     golden_zpl_with_tolerance("barcode128_mode_n", 2.0);
 }
