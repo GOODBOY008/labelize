@@ -30,7 +30,11 @@ pub(crate) const TEXT_Y_OFFSET: f64 = -0.8;
 /// the same on the calibration corpus; the split is preferred because the
 /// size-proportional part is the physically motivated one and so generalises to
 /// font sizes the corpus does not cover.
-pub(crate) const TEXT_Y_OFFSET_EM: f64 = -0.02;
+pub(crate) const TEXT_Y_OFFSET_EM: f64 = -0.015;
+pub(crate) const DIGIT_GAMMA: f64 = 2.2;
+pub(crate) const DIGIT_SCALE_X: f64 = 1.0;
+pub(crate) const DIGIT_Y_OFFSET: f64 = 0.0;
+pub(crate) const DIGIT_ADVANCE_ADJUST: f64 = 0.0;
 
 /// Per-character advance correction for font 0, in em units (multiplied by the
 /// font cell height at use). Characters absent from the table need no correction.

@@ -8,10 +8,6 @@ pub fn encode_pdf(
     opts: &DrawerOptions,
     w: &mut impl Write,
 ) -> Result<(), LabelizeError> {
-    // First encode image as PNG into a buffer
-    let mut png_buf = Vec::new();
-    crate::images::monochrome::encode_png(img, &mut png_buf)?;
-
     // Create PDF with lopdf
     use lopdf::dictionary;
     use lopdf::{Document, Object, Stream};
@@ -35,7 +31,7 @@ pub fn encode_pdf(
             "BitsPerComponent" => 8,
             "Filter" => "FlateDecode",
         },
-        compress_gray(img),
+        compress_gray(img, opts.grayscale),
     );
 
     let img_id = doc.add_object(img_stream);
@@ -83,7 +79,7 @@ pub fn encode_pdf(
     Ok(())
 }
 
-fn compress_gray(img: &RgbaImage) -> Vec<u8> {
+fn compress_gray(img: &RgbaImage, grayscale: bool) -> Vec<u8> {
     use flate2::write::ZlibEncoder;
     use flate2::Compression;
 
@@ -92,7 +88,13 @@ fn compress_gray(img: &RgbaImage) -> Vec<u8> {
     for y in 0..h {
         for x in 0..w {
             let p = img.get_pixel(x, y);
-            let val = if p[0] > 128 { 255u8 } else { 0u8 };
+            let val = if grayscale {
+                p[0]
+            } else if p[0] > 128 {
+                255u8
+            } else {
+                0u8
+            };
             raw.push(val);
         }
     }

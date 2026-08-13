@@ -45,7 +45,7 @@ impl Renderer {
         let canvas = self.draw_label_to_rgba(label, options.clone())?;
 
         let mut buf = Vec::new();
-        images::monochrome::encode_png_with(&canvas, &mut buf, options.antialias)
+        images::monochrome::encode_png_with(&canvas, &mut buf, options.grayscale)
             .map_err(|e| format!("failed to encode png: {}", e))?;
         output
             .write_all(&buf)
@@ -372,10 +372,19 @@ impl Renderer {
 
         if gb.corner_rounding > 0 {
             // ZPL corner_rounding 1-8: radius = (shorter_side / 2) * (rounding / 8)
-            let shorter = w.min(h);
-            let radius =
-                ((shorter as f64 / 2.0) * (gb.corner_rounding as f64 / 8.0)).round() as i32;
-            draw_rounded_rect(canvas, x, y, w, h, border, radius, color);
+            // Use float without rounding to match Labelary sub-pixel; inner radius
+            // is computed from inner dimensions, not outer - border, to keep
+            // uniform border thickness around the curve.
+            let shorter = w.min(h) as f32;
+            let outer_r = shorter / 2.0 * (gb.corner_rounding as f32 / 8.0);
+            let inner_w = w - 2 * border;
+            let inner_h = h - 2 * border;
+            let inner_r = if inner_w > 0 && inner_h > 0 {
+                (inner_w.min(inner_h) as f32 / 2.0) * (gb.corner_rounding as f32 / 8.0)
+            } else {
+                0.0
+            };
+            draw_rounded_rect(canvas, x, y, w, h, border, outer_r, inner_r, color);
         } else {
             // Draw box with border
             if border >= w || border >= h {
@@ -537,7 +546,7 @@ impl Renderer {
             let y1 = (y + h) as i32;
 
             for py in y0.max(0)..=y1.min(ch as i32 - 1) {
-                let fy = py as f32;
+                let fy = py as f32 + 0.5;
                 // For L (\): left edge from (x,y) to (x+w,y+h), right edge offset by t
                 // left_x(y) = x + (fy - y) * (w / h)
                 // For R (/): left edge from (x+w,y) to (x,y+h), right edge offset by t
@@ -553,8 +562,8 @@ impl Renderer {
                     (l, l + t)
                 };
 
-                let l_floor = left_x.floor() as i32;
-                let r_ceil = right_x.ceil() as i32;
+                let l_floor = (left_x - 1.0).floor() as i32;
+                let r_ceil = (right_x + 1.0).ceil() as i32;
 
                 for px in l_floor.max(0)..=r_ceil.min(cw as i32 - 1) {
                     let fx = px as f32;
@@ -963,33 +972,51 @@ fn draw_text_snapped(
         0.0
     };
     let scaled = font.as_scaled(scale);
+    let digit_scale = PxScale {
+        x: scale.x * crate::tuning::DIGIT_SCALE_X as f32,
+        y: scale.y,
+    };
+    let digit_scaled = font.as_scaled(digit_scale);
     let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
 
     let mut w = 0.0f32;
     let mut prev: Option<GlyphId> = None;
 
     for c in text.chars() {
+        let is_digit = c.is_ascii_digit();
+        let cur_scale = if is_digit { digit_scale } else { scale };
+        let cur_scaled = if is_digit { &digit_scaled } else { &scaled };
         let glyph_id = font.glyph_id(c);
-        let glyph =
-            glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
-        w += scaled.h_advance(glyph_id);
+        let glyph = glyph_id
+            .with_scale_and_position(cur_scale, ab_glyph::point(w, cur_scaled.ascent() + yoff));
+        w += cur_scaled.h_advance(glyph_id);
         if f0 {
-            w += crate::tuning::font0_advance_delta(c) as f32 * scale.y;
+            let mut delta = crate::tuning::font0_advance_delta(c) as f32 * cur_scale.y;
+            if is_digit {
+                delta += crate::tuning::DIGIT_ADVANCE_ADJUST as f32 * cur_scale.y;
+            }
+            w += delta;
         }
         if let Some(g) = font.outline_glyph(glyph) {
             if let Some(prev_id) = prev {
-                w += scaled.kern(glyph_id, prev_id);
+                w += cur_scaled.kern(glyph_id, prev_id);
             }
             prev = Some(glyph_id);
             let bb = g.px_bounds();
             let x_shift = x + bb.min.x.round() as i32;
-            let y_shift = y + bb.min.y.round() as i32;
+            let mut y_shift = y + bb.min.y.round() as i32;
+            if is_digit {
+                y_shift += crate::tuning::DIGIT_Y_OFFSET.round() as i32;
+            }
             g.draw(|gx, gy, gv| {
                 let px = gx as i32 + x_shift;
                 let py = gy as i32 + y_shift;
                 if (0..cw).contains(&px) && (0..ch).contains(&py) {
                     let mut pixel = *canvas.get_pixel(px as u32, py as u32);
-                    let gv = gv.clamp(0.0, 1.0);
+                    let mut gv = gv.clamp(0.0, 1.0);
+                    if is_digit {
+                        gv = gv.powf(crate::tuning::DIGIT_GAMMA as f32);
+                    }
                     // imageproc's Clamp<f32> for u8 truncates rather than rounds;
                     // match it exactly so a zero offset is bit-identical to upstream.
                     let a = color[3] as f32 * gv;
@@ -1347,6 +1374,39 @@ fn rotate_270(img: &RgbaImage) -> RgbaImage {
     out
 }
 
+/// Signed distance from a point to a rounded rectangle; negative inside.
+fn rounded_rect_sdf(px: f32, py: f32, x: f32, y: f32, w: f32, h: f32, r: f32) -> f32 {
+    let qx = (px - (x + w / 2.0)).abs() - (w / 2.0 - r);
+    let qy = (py - (y + h / 2.0)).abs() - (h / 2.0 - r);
+    let outside = (qx.max(0.0) * qx.max(0.0) + qy.max(0.0) * qy.max(0.0)).sqrt();
+    outside + qx.max(qy).min(0.0) - r
+}
+
+/// Coverage of pixel `(px, py)` by the rounded rect, with a 1px antialiasing ramp.
+fn rounded_rect_coverage(px: i32, py: i32, x: i32, y: i32, w: i32, h: i32, r: f32) -> f32 {
+    let d = rounded_rect_sdf(
+        px as f32 + 0.5,
+        py as f32 + 0.5,
+        x as f32,
+        y as f32,
+        w as f32,
+        h as f32,
+        r,
+    );
+    (0.5 - d).clamp(0.0, 1.0)
+}
+
+/// Blend `src` over `dst` at fractional coverage (0.0–1.0).
+fn blend_coverage(src: Rgba<u8>, dst: Rgba<u8>, coverage: f32) -> Rgba<u8> {
+    let a = (coverage * 255.0).round().clamp(0.0, 255.0) as i32;
+    Rgba([
+        ((dst[0] as i32 * (255 - a) + src[0] as i32 * a + 127) / 255) as u8,
+        ((dst[1] as i32 * (255 - a) + src[1] as i32 * a + 127) / 255) as u8,
+        ((dst[2] as i32 * (255 - a) + src[2] as i32 * a + 127) / 255) as u8,
+        255,
+    ])
+}
+
 /// Draw a rounded rectangle with border. ZPL corner rounding uses radius
 /// computed as (shorter_side/2) * (rounding/8).
 #[allow(clippy::too_many_arguments)]
@@ -1357,72 +1417,48 @@ fn draw_rounded_rect(
     w: i32,
     h: i32,
     border: i32,
-    radius: i32,
+    outer_r: f32,
+    inner_r: f32,
     color: Rgba<u8>,
 ) {
-    let r = radius.min(w / 2).min(h / 2).max(0);
+    let r = outer_r.min(w as f32 / 2.0).min(h as f32 / 2.0).max(0.0);
+    let ir = inner_r.min((w - 2 * border) as f32 / 2.0).min((h - 2 * border) as f32 / 2.0).max(0.0);
+    let filled = border >= w || border >= h || w - 2 * border <= 0 || h - 2 * border <= 0;
 
-    if border >= w || border >= h {
-        // Filled rounded rect
-        draw_filled_rounded_rect_region(canvas, x, y, w, h, r, color);
-    } else {
-        // Draw outer rounded rect, then carve out inner
-        draw_filled_rounded_rect_region(canvas, x, y, w, h, r, color);
-        let inner_r = (r - border).max(0);
-        let bg = Rgba([255, 255, 255, 255]);
-        draw_filled_rounded_rect_region(
-            canvas,
-            x + border,
-            y + border,
-            w - 2 * border,
-            h - 2 * border,
-            inner_r,
-            bg,
-        );
-    }
-}
+    // Scan one pixel past the bounds to capture the antialiasing ramp.
+    let min_x = (x - 1).max(0);
+    let max_x = (x + w + 1).min(canvas.width() as i32);
+    let min_y = (y - 1).max(0);
+    let max_y = (y + h + 1).min(canvas.height() as i32);
 
-/// Fill a rounded rectangle region pixel-by-pixel.
-fn draw_filled_rounded_rect_region(
-    canvas: &mut RgbaImage,
-    x: i32,
-    y: i32,
-    w: i32,
-    h: i32,
-    r: i32,
-    color: Rgba<u8>,
-) {
-    let r_sq = (r as i64) * (r as i64);
-    for py in y.max(0)..(y + h).min(canvas.height() as i32) {
-        for px in x.max(0)..(x + w).min(canvas.width() as i32) {
-            let lx = px - x;
-            let ly = py - y;
-            // Check if pixel is in a corner region that should be rounded
-            let in_corner = if lx < r && ly < r {
-                // Top-left corner
-                let dx = (r - 1 - lx) as i64;
-                let dy = (r - 1 - ly) as i64;
-                dx * dx + dy * dy > r_sq
-            } else if lx >= w - r && ly < r {
-                // Top-right corner
-                let dx = (lx - (w - r)) as i64;
-                let dy = (r - 1 - ly) as i64;
-                dx * dx + dy * dy > r_sq
-            } else if lx < r && ly >= h - r {
-                // Bottom-left corner
-                let dx = (r - 1 - lx) as i64;
-                let dy = (ly - (h - r)) as i64;
-                dx * dx + dy * dy > r_sq
-            } else if lx >= w - r && ly >= h - r {
-                // Bottom-right corner
-                let dx = (lx - (w - r)) as i64;
-                let dy = (ly - (h - r)) as i64;
-                dx * dx + dy * dy > r_sq
+    for py in min_y..max_y {
+        for px in min_x..max_x {
+            let outer = rounded_rect_coverage(px, py, x, y, w, h, r);
+            if outer <= 0.0 {
+                continue;
+            }
+            let coverage = if filled {
+                outer
             } else {
-                false
+                let inner = rounded_rect_coverage(
+                    px,
+                    py,
+                    x + border,
+                    y + border,
+                    w - 2 * border,
+                    h - 2 * border,
+                    ir,
+                );
+                (outer - inner).clamp(0.0, 1.0)
             };
-            if !in_corner {
+            if coverage <= 0.0 {
+                continue;
+            }
+            let dst = *canvas.get_pixel(px as u32, py as u32);
+            if coverage >= 1.0 {
                 canvas.put_pixel(px as u32, py as u32, color);
+            } else {
+                canvas.put_pixel(px as u32, py as u32, blend_coverage(color, dst, coverage));
             }
         }
     }
@@ -1481,7 +1517,7 @@ fn draw_barcode_interpretation_line(
     // Supersampled crisp text: render at 3× then box-filter downsample and threshold.
     // This gives sub-pixel shape accuracy before the binary threshold, producing
     // crisper strokes than direct thresholding of a single-resolution render.
-    let render_text_crisp = |w: u32, h: u32| -> RgbaImage {
+    let render_text_supersampled = |w: u32, h: u32| -> RgbaImage {
         const SS: u32 = 3;
         let ss_scale = PxScale {
             x: scale.x * SS as f32,
@@ -1532,14 +1568,14 @@ fn draw_barcode_interpretation_line(
             };
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
             let buf_h = font_size.ceil() as u32 + 2 + text_y_off as u32;
-            let buf = render_text_crisp(buf_w, buf_h);
+            let buf = render_text_supersampled(buf_w, buf_h);
             overlay_at(canvas, &buf, cx, ty);
         }
         _ => {
             // Render text to buffer, rotate to match barcode orientation, then overlay
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
             let buf_h = font_size.ceil() as u32 + 2 + text_y_off as u32;
-            let buf = render_text_crisp(buf_w, buf_h);
+            let buf = render_text_supersampled(buf_w, buf_h);
 
             let rotated = match orientation {
                 FieldOrientation::Rotated90 => rotate_90(&buf),

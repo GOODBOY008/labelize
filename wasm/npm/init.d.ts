@@ -12,7 +12,7 @@ export function lz_render(
   width_mm: number,
   height_mm: number,
   dpmm: number,
-  antialias: boolean,
+  grayscale: boolean,
   want_pdf: boolean,
   is_epl: boolean,
 ): Uint8Array;
