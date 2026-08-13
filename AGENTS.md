@@ -136,7 +136,9 @@ This ensures PR reviewers can visually inspect the before/after rendering impact
 
 ## Known Limitations
 
-- **MaxiCode**: No compliant encoder; structural rendering only (~35% diff)
+- **MaxiCode**: Standards-oriented encoder for modes 2-4 with sets A-E,
+  shortest-path text compaction and numeric shift. Modes 5/6, ECI and
+  Structured Append remain unsupported.
 - **PDF417**: Encoding gaps vs reference (~18% diff)
 - **Font metrics**: Helvetica Bold vs Zebra built-in fonts causes 2–7% typical diff
 - **`^LL` command**: Not parsed (label length)

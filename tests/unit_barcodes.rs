@@ -288,6 +288,63 @@ fn maxicode_empty_input_returns_error() {
     assert!(result.is_err(), "expected error for empty input");
 }
 
+#[test]
+fn maxicode_mode_4_matches_qr_atelier_reference_codewords() {
+    // Cross-checked against QR-Atelier's dependency-free MaxiCodeCore.
+    let codewords = maxicode::encode_codewords("HELLO WORLD", 4).unwrap();
+    assert_eq!(
+        &codewords[..20],
+        &[4, 8, 5, 12, 12, 15, 32, 23, 15, 18, 52, 3, 23, 18, 30, 12, 21, 9, 11, 39]
+    );
+    assert_eq!(&codewords[20..22], &[12, 4]);
+    assert!(codewords[22..104].iter().all(|&value| value == 33));
+    assert_eq!(
+        &codewords[104..],
+        &[
+            35, 11, 38, 60, 46, 45, 14, 36, 31, 45, 34, 37, 0, 51, 10, 44, 21, 40, 7, 8, 22, 54, 1,
+            0, 31, 60, 31, 26, 62, 7, 9, 3, 15, 58, 42, 11, 20, 42, 57, 11
+        ]
+    );
+}
+
+#[test]
+fn maxicode_mode_2_primary_matches_qr_atelier_reference() {
+    let codewords = maxicode::encode_codewords("002840336091062[)>ABC", 2).unwrap();
+    assert_eq!(
+        &codewords[..20],
+        &[34, 45, 23, 33, 0, 21, 2, 18, 11, 0, 18, 59, 54, 25, 36, 30, 59, 12, 34, 61]
+    );
+}
+
+#[test]
+fn maxicode_mode_3_primary_matches_qr_atelier_reference() {
+    let codewords = maxicode::encode_codewords("001124K1A0B1[)>ABC", 3).unwrap();
+    assert_eq!(
+        &codewords[..20],
+        &[19, 44, 0, 28, 16, 60, 2, 31, 4, 0, 5, 55, 36, 44, 7, 9, 48, 63, 50, 17]
+    );
+}
+
+#[test]
+fn maxicode_numeric_compaction_matches_libzint_reference() {
+    let codewords = maxicode::encode_codewords("123456789", 4).unwrap();
+    assert_eq!(&codewords[1..7], &[31, 7, 22, 60, 52, 21]);
+}
+
+#[test]
+fn maxicode_numeric_compaction_avoids_false_capacity_error() {
+    assert!(maxicode::encode_codewords(&"1".repeat(138), 4).is_ok());
+    assert!(maxicode::encode_codewords(&"1".repeat(139), 4).is_err());
+}
+
+#[test]
+fn maxicode_rejects_unsupported_modes_and_excess_data() {
+    assert!(maxicode::encode_codewords("HELLO", 5).is_err());
+    assert!(maxicode::encode_codewords(&"A".repeat(94), 4).is_err());
+    assert!(maxicode::encode_codewords("002840NOT-A-POSTAL-CODE", 2).is_err());
+    assert!(maxicode::encode_codewords("ü02840336091062", 2).is_err());
+}
+
 // --- Multiple barcode widths ---
 
 #[test]

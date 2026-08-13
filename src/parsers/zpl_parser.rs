@@ -880,7 +880,8 @@ impl ZplParser {
 
     fn parse_maxicode(&mut self, command: &str) {
         let parts = split_command(command, "^BD");
-        let mut mc = Maxicode { mode: 0 };
+        // Zebra defines Mode 2 as the default when the ^BD mode parameter is omitted.
+        let mut mc = Maxicode { mode: 2 };
         if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
             mc.mode = v;
         }
