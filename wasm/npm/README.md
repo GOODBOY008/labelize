@@ -33,14 +33,14 @@ without bundler support or Node flags.
 
 ### API
 
-`lz_render(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl) -> Uint8Array`
+`lz_render(src, width_mm, height_mm, dpmm, grayscale, want_pdf, is_epl) -> Uint8Array`
 
 | param | meaning |
 |---|---|
 | `src` | raw label bytes (ZPL, or EPL when `is_epl = true`) |
 | `width_mm` / `height_mm` | label canvas size in millimetres (defaults: 102 × 152) |
 | `dpmm` | dots per millimetre (default 8) |
-| `antialias` | keep renderer greys instead of thresholding to 1-bit |
+| `grayscale` | emit 8-bit grayscale output keeping renderer greys instead of thresholding to 1-bit |
 | `want_pdf` | return a PDF instead of PNG |
 | `is_epl` | parse input as EPL instead of ZPL |
 

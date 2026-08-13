@@ -99,7 +99,7 @@ const png = lz_render(zpl, 102.0, 152.0, 8, false, false, false); // Uint8Array 
 import { lz_render } from "@goodboy008/labelize-wasm";
 ```
 
-`lz_render(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl)` returns PNG (or PDF) bytes.
+`lz_render(src, width_mm, height_mm, dpmm, grayscale, want_pdf, is_epl)` returns PNG (or PDF) bytes.
 Errors throw `1:`/`2:`-prefixed strings (parse vs. render failure). The same raw glue + wasm files
 are attached to every GitHub Release as `labelize-wasm-wasm32.zip`.
 
@@ -189,7 +189,7 @@ Serve Options:
 | `height`  | 152     | Label height in mm     |
 | `dpmm`    | 8       | Dots per mm            |
 | `output`  | png     | Output format: png/pdf |
-| `antialias` | false | Preserve antialiased greys instead of 1-bit black/white |
+| `grayscale` | false | Emit 8-bit grayscale output preserving antialiased greys instead of 1-bit black/white (`antialias` accepted as a legacy alias) |
 
 Set `Content-Type: application/zpl` or `Content-Type: application/epl` to select the parser.
 

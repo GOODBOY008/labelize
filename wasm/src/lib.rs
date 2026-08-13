@@ -21,7 +21,7 @@ fn render_payload(
     width_mm: f64,
     height_mm: f64,
     dpmm: i32,
-    antialias: bool,
+    grayscale: bool,
     want_pdf: bool,
     is_epl: bool,
 ) -> Result<Vec<u8>, (Stage, String)> {
@@ -41,7 +41,7 @@ fn render_payload(
         label_width_mm: width_mm,
         label_height_mm: height_mm,
         dpmm,
-        antialias,
+        grayscale,
         ..Default::default()
     };
 
@@ -82,11 +82,11 @@ pub fn lz_render(
     width_mm: f64,
     height_mm: f64,
     dpmm: i32,
-    antialias: bool,
+    grayscale: bool,
     want_pdf: bool,
     is_epl: bool,
 ) -> Result<Vec<u8>, String> {
-    render_payload(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl)
+    render_payload(src, width_mm, height_mm, dpmm, grayscale, want_pdf, is_epl)
         .map_err(|(stage, msg)| render_error(&stage, msg))
 }
 

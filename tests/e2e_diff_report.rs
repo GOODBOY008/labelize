@@ -41,7 +41,7 @@ fn ensure_ref_png(path: &std::path::Path, content: &str, ext: &str) {
     if path.exists() {
         return;
     }
-    let opts = render_helpers::default_options();
+    let opts = render_helpers::default_options_grayscale();
     let name = path.file_stem().unwrap().to_string_lossy().to_string();
     let png = if ext != "epl" {
         let w = opts.label_width_mm / 25.4;
@@ -113,7 +113,7 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             continue;
         }
 
-        let opts = render_helpers::default_options();
+        let opts = render_helpers::default_options_grayscale();
 
         let actual_png = match ext.as_str() {
             "epl" => std::panic::catch_unwind(|| {

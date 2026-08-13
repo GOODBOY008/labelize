@@ -9,7 +9,7 @@ fn round_trip(img: &RgbaImage) -> image::GrayImage {
     decoded.to_luma8()
 }
 
-fn round_trip_antialiased(img: &RgbaImage) -> image::GrayImage {
+fn round_trip_grayscale(img: &RgbaImage) -> image::GrayImage {
     let mut buf = Vec::new();
     encode_png_with(img, &mut buf, true).expect("encode_png_with failed");
     let decoded = image::load_from_memory(&buf).expect("decode PNG");
@@ -52,9 +52,9 @@ fn pixels_below_threshold_map_to_black() {
 }
 
 #[test]
-fn grayscale_values_preserved_with_antialias() {
+fn grayscale_values_preserved_with_grayscale() {
     let img = RgbaImage::from_pixel(10, 10, Rgba([200, 200, 200, 255]));
-    let gray = round_trip_antialiased(&img);
+    let gray = round_trip_grayscale(&img);
     for p in gray.pixels() {
         assert_eq!(p[0], 200, "grayscale value should be preserved");
     }
@@ -94,14 +94,14 @@ fn mixed_pixel_values_thresholded() {
 }
 
 #[test]
-fn mixed_pixel_values_preserved_with_antialias() {
+fn mixed_pixel_values_preserved_with_grayscale() {
     let mut img = RgbaImage::new(4, 1);
     img.put_pixel(0, 0, Rgba([0, 0, 0, 255])); // black
     img.put_pixel(1, 0, Rgba([128, 128, 128, 255])); // mid-gray
     img.put_pixel(2, 0, Rgba([200, 200, 200, 255])); // light gray
     img.put_pixel(3, 0, Rgba([255, 255, 255, 255])); // white
 
-    let gray = round_trip_antialiased(&img);
+    let gray = round_trip_grayscale(&img);
     assert_eq!(gray.get_pixel(0, 0)[0], 0);
     assert_eq!(gray.get_pixel(1, 0)[0], 128);
     assert_eq!(gray.get_pixel(2, 0)[0], 200);

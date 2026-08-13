@@ -61,6 +61,17 @@ pub fn unit_options() -> DrawerOptions {
     }
 }
 
+/// `default_options()` with grayscale (antialiased, greys-preserving) PNG output.
+///
+/// Labelary's reference PNGs are antialiased grayscale, so the e2e diff/golden
+/// pipeline renders with `grayscale: true` to compare like with like.
+pub fn default_options_grayscale() -> DrawerOptions {
+    DrawerOptions {
+        grayscale: true,
+        ..default_options()
+    }
+}
+
 /// Path to the testdata directory.
 pub fn testdata_dir() -> std::path::PathBuf {
     let local = std::path::Path::new("testdata");

@@ -25,7 +25,7 @@ const CANVAS_H: u32 = 1626;
 /// reference always matches the canvas our renderer produces. Falls back to the
 /// renderer when Labelary is unreachable (offline / CI without network).
 fn auto_bootstrap_zpl(content: &str, path: &std::path::Path, name: &str) {
-    let opts = render_helpers::default_options();
+    let opts = render_helpers::default_options_grayscale();
     let width_in = opts.label_width_mm / 25.4;
     let height_in = opts.label_height_mm / 25.4;
 
@@ -58,7 +58,7 @@ fn auto_bootstrap_epl(content: &str, path: &std::path::Path, name: &str) {
         "[bootstrap] '{}': using renderer baseline for EPL (813×1626)",
         name
     );
-    let opts = render_helpers::default_options();
+    let opts = render_helpers::default_options_grayscale();
     let png = render_helpers::render_epl_to_png(content, opts);
     std::fs::create_dir_all(path.parent().unwrap()).ok();
     std::fs::write(path, &png).expect("write auto-generated golden PNG");
@@ -92,7 +92,7 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
         auto_bootstrap_zpl(&content, &expected, name);
     }
 
-    let options = render_helpers::default_options();
+    let options = render_helpers::default_options_grayscale();
     let effective_tolerance = if is_unit { UNIT_TOLERANCE } else { tolerance };
     let content = std::fs::read_to_string(&input).expect("read input");
     let actual_png = render_helpers::render_zpl_to_png(&content, options);
@@ -144,7 +144,8 @@ fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
     }
 
     let content = std::fs::read_to_string(&input).expect("read input");
-    let actual_png = render_helpers::render_epl_to_png(&content, render_helpers::default_options());
+    let actual_png =
+        render_helpers::render_epl_to_png(&content, render_helpers::default_options_grayscale());
     let expected_png = std::fs::read(&expected).expect("read golden");
     let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
 

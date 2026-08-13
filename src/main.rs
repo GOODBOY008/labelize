@@ -67,6 +67,10 @@ enum Commands {
         /// Dots per mm (6, 8, 12, or 24)
         #[arg(long, default_value_t = 8)]
         dpmm: i32,
+
+        /// Emit 8-bit grayscale output preserving antialiasing (default: 1-bit)
+        #[arg(long)]
+        grayscale: bool,
     },
 
     /// Start HTTP server for label conversion
@@ -95,6 +99,7 @@ fn main() {
             width,
             height,
             dpmm,
+            grayscale,
         } => {
             if let Err(e) = convert_file(
                 &input,
@@ -104,6 +109,7 @@ fn main() {
                 width,
                 height,
                 dpmm,
+                grayscale,
             ) {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
@@ -199,6 +205,7 @@ fn convert_file(
     width: f64,
     height: f64,
     dpmm: i32,
+    grayscale: bool,
 ) -> Result<(), String> {
     let content = fs::read(input).map_err(|e| format!("Failed to read input file: {}", e))?;
 
@@ -213,6 +220,7 @@ fn convert_file(
         label_width_mm: width,
         label_height_mm: height,
         dpmm,
+        grayscale,
         ..Default::default()
     };
 
@@ -280,6 +288,10 @@ async fn serve(host: String, port: u16) {
         dpmm: i32,
         #[serde(default)]
         output: Option<String>,
+        /// Emit 8-bit grayscale output preserving antialiasing.
+        #[serde(default)]
+        grayscale: bool,
+        /// Legacy alias for `grayscale`.
         #[serde(default)]
         antialias: bool,
     }
@@ -327,7 +339,7 @@ async fn serve(host: String, port: u16) {
             label_width_mm: params.width,
             label_height_mm: params.height,
             dpmm: params.dpmm,
-            antialias: params.antialias,
+            grayscale: params.grayscale || params.antialias,
             ..Default::default()
         };
 

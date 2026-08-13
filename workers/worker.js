@@ -65,7 +65,9 @@ async function convert(request, url) {
   const width = parseFloat(url.searchParams.get("width")) || 102.0;
   const height = parseFloat(url.searchParams.get("height")) || 152.0;
   const dpmm = parseInt(url.searchParams.get("dpmm"), 10) || 8;
-  const antialias = url.searchParams.get("antialias") === "true";
+  const grayscale =
+    url.searchParams.get("grayscale") === "true" ||
+    url.searchParams.get("antialias") === "true"; // legacy alias
   const wantPdf = url.searchParams.get("output") === "pdf";
   const isEpl = ct.includes("epl");
 
@@ -75,7 +77,7 @@ async function convert(request, url) {
   }
 
   try {
-    const png = lz_render(body, width, height, dpmm, antialias, wantPdf, isEpl);
+    const png = lz_render(body, width, height, dpmm, grayscale, wantPdf, isEpl);
     return new Response(png, {
       headers: { "content-type": wantPdf ? "application/pdf" : "image/png" },
     });
