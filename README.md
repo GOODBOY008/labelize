@@ -154,6 +154,7 @@ Serve Options:
 | `height`  | 152     | Label height in mm     |
 | `dpmm`    | 8       | Dots per mm            |
 | `output`  | png     | Output format: png/pdf |
+| `antialias` | false | Preserve antialiased greys instead of 1-bit black/white |
 
 Set `Content-Type: application/zpl` or `Content-Type: application/epl` to select the parser.
 

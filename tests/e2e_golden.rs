@@ -263,6 +263,14 @@ fn golden_fedex() {
     golden_zpl_with_tolerance("fedex", 7.0);
 }
 #[test]
+fn golden_fedex_express() {
+    golden_zpl_with_tolerance("fedex_express", 12.5);
+}
+#[test]
+fn golden_fedex_ground() {
+    golden_zpl_with_tolerance("fedex_ground", 10.5);
+}
+#[test]
 fn golden_font_p() {
     golden_zpl("font_p");
 }
@@ -437,6 +445,10 @@ fn golden_ups_surepost() {
 #[test]
 fn golden_ups() {
     golden_zpl_with_tolerance("ups", 8.0);
+}
+#[test]
+fn golden_ups_import_control() {
+    golden_zpl_with_tolerance("ups_import_control", 9.5);
 }
 #[test]
 fn golden_usps() {

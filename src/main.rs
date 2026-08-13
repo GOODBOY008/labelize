@@ -280,6 +280,8 @@ async fn serve(host: String, port: u16) {
         dpmm: i32,
         #[serde(default)]
         output: Option<String>,
+        #[serde(default)]
+        antialias: bool,
     }
 
     fn default_width() -> f64 {
@@ -325,6 +327,7 @@ async fn serve(host: String, port: u16) {
             label_width_mm: params.width,
             label_height_mm: params.height,
             dpmm: params.dpmm,
+            antialias: params.antialias,
             ..Default::default()
         };
 
