@@ -5,18 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2026-08-20
 
 ### Added
 
 - **Antialiased PNG Output (opt-in)** — `POST /convert?antialias=true` (and `DrawerOptions::antialias`) preserves the renderer's coverage-blended greys instead of thresholding to pure black and white, matching what Labelary's PNG preview produces. The default stays 1-bit, which is what a thermal printer actually prints
 - **Docker Publishing CI** — New `Docker` workflow builds `linux/amd64` and `linux/arm64` images on native runners and publishes multi-arch manifests to Docker Hub and GHCR on pushes to `main` and on semver `v[0-9]*` tags; pull requests build and smoke-test the image without publishing
 - **Image Build Provenance** — Published GHCR manifests carry a signed build provenance attestation, verifiable with `gh attestation verify`
+- **`^MU` Units of Measurement** — Support the `^MU` command to set the unit of measurement used by subsequent positioning commands (#26)
 
 ### Fixed
 
 - **Font 0 Metrics** — Recalibrated the scalable font 0 against Labelary: a 107-character per-glyph advance table, a width ratio re-fitted to 0.95 now that it only has to describe glyph shape rather than absorb spacing error, and a vertical text origin corrected by -0.02 em -0.8 px. Mean pixel difference across the 50 carrier labels in the golden suite drops from 4.47% to 3.24%, with 49 of 50 improving and none regressing
 - **`^FT` Baseline** — Lowered the proportional font ascent used for `^FT` baseline positioning from 0.78 to 0.76 of the cell height, which places `^FT` text closer to where Zebra puts it
+- **MaxiCode Encoding** — Replaced the encoder with a standards-oriented implementation for modes 2–4 with data sets A–E, shortest-path text compaction and numeric shift (#32)
+- **Code 128 Text Rendering** — Use the condensed bold font for the mode D interpretation line and stop rendering explicit FNC1 invocations in the human-readable text to match Labelary
 - **Docker Build** — Dropped the unsupported `--features` flag from `cargo chef prepare`, which caused `docker build` to fail with `error: unexpected argument '--features' found`
 
 ## [1.3.0] - 2026-07-20
