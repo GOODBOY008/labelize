@@ -1,13 +1,16 @@
 # Labelize — ZPL / EPL Label Renderer
 
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
+[![npm](https://img.shields.io/npm/v/@goodboy008/labelize-wasm)](https://www.npmjs.com/package/@goodboy008/labelize-wasm)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/ci.yml?branch=main)](https://github.com/GOODBOY008/labelize/actions)
 [![Docker](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/docker.yml?branch=main&label=docker)](https://github.com/GOODBOY008/labelize/actions/workflows/docker.yml)
 
 > **Turn ZPL/EPL into pixels — label rendering, simplified.**
 
-Labelize is a fast, open-source Rust engine that parses **ZPL** (Zebra Programming Language) and **EPL** (Eltron Programming Language) label data and renders it to **PNG** or **PDF**. Use it as a **CLI tool**, an **HTTP microservice**, or embed it as a **Rust library** — no printer hardware required.
+Labelize is a fast, open-source Rust engine that parses **ZPL** (Zebra Programming Language) and **EPL** (Eltron Programming Language) label data and renders it to **PNG** or **PDF**. Use it as a **CLI tool**, an **HTTP microservice**, a **Rust library**, or a **WebAssembly package** for JavaScript/TypeScript projects — no printer hardware required.
+
+**Try it online** — a free public playground runs on Cloudflare Workers: <https://labelize.764629910.workers.dev>. Paste ZPL/EPL, preview the rendered label, and download PNG or PDF, no install needed.
 
 If you need a self-hosted, offline alternative to [Labelary](http://labelary.com/) for previewing and converting thermal label formats, Labelize has you covered.
 
@@ -43,12 +46,17 @@ Benchmarked against the Labelary API on the same set of labels:
 - **10 Barcode Symbologies** — Code 128, Code 39, EAN-13, Interleaved 2-of-5, PDF417, Aztec, DataMatrix, QR Code, MaxiCode
 - **PNG & PDF Output** — Monochrome 1-bit PNG or single-page embedded PDF output
 - **CLI Tool** — Convert ZPL/EPL files from the command line with format auto-detection, multi-label support, and customizable label dimensions
-- **HTTP Microservice** — RESTful API for label conversion with format detection via `Content-Type` header; deploy anywhere with Docker or bare metal
-- **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, and download PNG or PDF with one click
+- **HTTP Microservice** — RESTful API for label conversion with format detection via `Content-Type` header; deploy anywhere with Docker, bare metal, or Cloudflare Workers
+- **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, and download PNG or PDF with one click. A free public instance is hosted at <https://labelize.764629910.workers.dev>
+- **WebAssembly Package** — `@goodboy008/labelize-wasm` renders ZPL/EPL to PNG/PDF directly in browsers, Node.js, and bundlers — no server required
 - **Embedded Fonts** — Zero runtime font dependencies; bundles Helvetica Bold Condensed, DejaVu Sans Mono, and ZPL GS fonts
 - **Rust Library** — Integrate label rendering directly into your Rust application via the public API
 
 ## Quick Start
+
+### Try it online
+
+Open **<https://labelize.764629910.workers.dev>** — a free playground hosted on Cloudflare Workers. Paste ZPL/EPL, preview the rendered label in your browser, and download PNG or PDF. Same engine, same UI as the self-hosted version.
 
 ### Installation
 
@@ -67,6 +75,33 @@ cargo install --path . --features cli
 # Windows — via cargo (requires Rust toolchain):
 cargo install labelize --features cli
 ```
+
+### Use from JavaScript / TypeScript
+
+The engine is compiled to WebAssembly and published as [`@goodboy008/labelize-wasm`](https://www.npmjs.com/package/@goodboy008/labelize-wasm):
+
+```bash
+npm install @goodboy008/labelize-wasm
+```
+
+**Node.js (≥ 20)** — no bundler or flags needed:
+
+```js
+import { lz_render } from "@goodboy008/labelize-wasm/init";
+
+const zpl = Buffer.from("^XA^FO50,50^A0N,40,40^FDHello World^FS^XZ", "ascii");
+const png = lz_render(zpl, 102.0, 152.0, 8, false, false, false); // Uint8Array PNG
+```
+
+**Bundlers** (webpack 5, Vite with `vite-plugin-wasm`):
+
+```js
+import { lz_render } from "@goodboy008/labelize-wasm";
+```
+
+`lz_render(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl)` returns PNG (or PDF) bytes.
+Errors throw `1:`/`2:`-prefixed strings (parse vs. render failure). The same raw glue + wasm files
+are attached to every GitHub Release as `labelize-wasm-wasm32.zip`.
 
 ### Convert a ZPL label to PNG
 
