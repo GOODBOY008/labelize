@@ -1,0 +1,23 @@
+[package]
+name = "labelize-wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+labelize = { path = "../..", features = ["playground"] }
+image = "0.25"
+wasm-bindgen = "0.2"
+# Unifies the wasm_js feature onto getrandom 0.4 (rand 0.10 / lopdf's chain);
+# imageproc already enables wasm_js for getrandom 0.3. Both backends talk to
+# the host's Web Crypto via wasm-bindgen glue.
+getrandom = { version = "0.4", features = ["wasm_js"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
