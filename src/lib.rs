@@ -7,7 +7,7 @@ pub mod error;
 pub mod hex;
 pub mod images;
 pub mod parsers;
-#[cfg(feature = "serve")]
+#[cfg(feature = "playground")]
 pub mod playground;
 pub(crate) mod tuning;
 
