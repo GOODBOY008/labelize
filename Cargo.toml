@@ -47,7 +47,8 @@ serde = { version = "1", features = ["derive"], optional = true }
 [features]
 default = []
 cli = ["dep:clap"]
-serve = ["cli", "dep:axum", "dep:tokio", "dep:serde"]
+playground = []
+serve = ["cli", "playground", "dep:axum", "dep:tokio", "dep:serde"]
 skill = []
 
 [[bin]]
