@@ -58,6 +58,16 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 
   .header-spacer { flex: 1; }
 
+  .github-link {
+    font-size: 12px; color: var(--text); background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 2px 10px;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+  }
+
+  .github-link:hover {
+    color: #fff; background: var(--accent); border-color: var(--accent);
+  }
+
   .badge {
     font-size: 11px; color: var(--text-dim); background: var(--surface2);
     border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
@@ -257,6 +267,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   </div>
   <span class="tagline">ZPL &amp; EPL Label Playground</span>
   <span class="header-spacer"></span>
+  <a class="github-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
   <span class="badge">v0.5</span>
 </header>
 
