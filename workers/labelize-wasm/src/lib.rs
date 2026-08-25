@@ -163,5 +163,6 @@ mod tests {
     fn exports_playground_html() {
         let html = lz_playground_html();
         assert!(html.contains("<textarea"), "playground page has editor");
+        assert!(html.contains("compare-btn"), "playground page has compare tool");
     }
 }
