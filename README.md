@@ -47,7 +47,7 @@ Benchmarked against the Labelary API on the same set of labels:
 - **PNG & PDF Output** — Monochrome 1-bit PNG or single-page embedded PDF output
 - **CLI Tool** — Convert ZPL/EPL files from the command line with format auto-detection, multi-label support, and customizable label dimensions
 - **HTTP Microservice** — RESTful API for label conversion with format detection via `Content-Type` header; deploy anywhere with Docker, bare metal, or Cloudflare Workers
-- **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, and download PNG or PDF with one click. A free public instance is hosted at <https://labelize.764629910.workers.dev>
+- **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, download PNG or PDF with one click, and compare your render side-by-side against the Labelary reference with a diff score. A free public instance is hosted at <https://labelize.764629910.workers.dev>
 - **WebAssembly Package** — `@goodboy008/labelize-wasm` renders ZPL/EPL to PNG/PDF directly in browsers, Node.js, and bundlers — no server required
 - **Embedded Fonts** — Zero runtime font dependencies; bundles Helvetica Bold Condensed, DejaVu Sans Mono, and ZPL GS fonts
 - **Rust Library** — Integrate label rendering directly into your Rust application via the public API
@@ -56,7 +56,7 @@ Benchmarked against the Labelary API on the same set of labels:
 
 ### Try it online
 
-Open **<https://labelize.764629910.workers.dev>** — a free playground hosted on Cloudflare Workers. Paste ZPL/EPL, preview the rendered label in your browser, and download PNG or PDF. Same engine, same UI as the self-hosted version.
+Open **<https://labelize.764629910.workers.dev>** — a free playground hosted on Cloudflare Workers. Paste ZPL/EPL, preview the rendered label in your browser, and download PNG or PDF. Same engine, same UI as the self-hosted version. Hit **Compare with Labelary** (ZPL only) to fetch the Labelary reference render and get a diff score on the same scale as the CI golden tests.
 
 ### Installation
 
@@ -118,7 +118,7 @@ labelize convert label.zpl --width 100 --height 62 --dpmm 12  # custom dimension
 labelize serve --port 8080
 ```
 
-Open **http://localhost:8080/** in your browser to use the built-in **interactive playground** — paste ZPL/EPL, pick a label size, and render PNG instantly. Download PNG or PDF directly from the page.
+Open **http://localhost:8080/** in your browser to use the built-in **interactive playground** — paste ZPL/EPL, pick a label size, and render PNG instantly. Download PNG or PDF directly from the page, or click **Compare with Labelary** to score your render against the Labelary reference image.
 
 ```bash
 # Convert via REST API
