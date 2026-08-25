@@ -1,0 +1,10 @@
+engine.wasm
+target/
+node_modules/
+labelize_wasm*.js
+labelize_wasm*.wasm
+labelize_wasm*.d.ts
+
+# Wrangler local state
+.wrangler/
+*.tgz
