@@ -1,8 +1,8 @@
+use image::{Rgba, RgbaImage};
 use labelize::barcodes::{
     aztec, code128, code39, datamatrix, ean13, maxicode, pdf417, qrcode, twooffive,
 };
 use labelize::elements::barcode_qr::QrErrorCorrectionLevel;
-use image::{Rgba, RgbaImage};
 
 // --- Code128 ---
 
@@ -247,7 +247,7 @@ fn aztec_empty_input_returns_empty_image() {
         Err(_) => {
             panic!("empty Aztec input should not return an error");
         }
-    }        
+    }
 }
 
 // --- DataMatrix ---
@@ -268,9 +268,9 @@ fn datamatrix_empty_input_returns_error() {
             assert_eq!(img.height(), 0, "empty DataMatrix code should have height 0");
         }
         Err(_) => {
-            panic!("empty Aztec input should not return an error");
+            panic!("empty DataMatrix input should not return an error");
         }
-    }   
+    }
 }
 
 // --- QR code ---
