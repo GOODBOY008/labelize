@@ -136,10 +136,11 @@ fn detect_format(path: &Path, override_fmt: Option<InputFormat>) -> InputFormat 
 }
 
 #[cfg(feature = "cli")]
-fn parse_labels(content: &[u8], format: InputFormat) -> Result<Vec<LabelInfo>, String> {
+fn parse_labels(content: &[u8], format: InputFormat, dpmm: i32) -> Result<Vec<LabelInfo>, String> {
     match format {
         InputFormat::Epl => EplParser::new().parse(content),
-        InputFormat::Zpl => ZplParser::new().parse(content),
+        // dpmm up front: ^MU may express coordinates in mm/inches.
+        InputFormat::Zpl => ZplParser::with_dpmm(dpmm).parse(content),
     }
 }
 
@@ -202,7 +203,7 @@ fn convert_file(
     let content = fs::read(input).map_err(|e| format!("Failed to read input file: {}", e))?;
 
     let fmt = detect_format(input, format);
-    let labels = parse_labels(&content, fmt)?;
+    let labels = parse_labels(&content, fmt, dpmm)?;
 
     if labels.is_empty() {
         return Err("No labels found in input".to_string());
@@ -279,6 +280,8 @@ async fn serve(host: String, port: u16) {
         dpmm: i32,
         #[serde(default)]
         output: Option<String>,
+        #[serde(default)]
+        antialias: bool,
     }
 
     fn default_width() -> f64 {
@@ -305,7 +308,7 @@ async fn serve(host: String, port: u16) {
         let labels = if content_type.contains("epl") {
             EplParser::new().parse(&body)
         } else {
-            ZplParser::new().parse(&body)
+            ZplParser::with_dpmm(params.dpmm).parse(&body)
         };
 
         let labels = match labels {
@@ -324,6 +327,7 @@ async fn serve(host: String, port: u16) {
             label_width_mm: params.width,
             label_height_mm: params.height,
             dpmm: params.dpmm,
+            antialias: params.antialias,
             ..Default::default()
         };
 

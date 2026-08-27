@@ -23,6 +23,7 @@ pub mod label_info;
 pub mod label_position;
 pub mod line_color;
 pub mod maxicode;
+pub mod measurement_unit;
 pub mod reverse_print;
 pub mod stored_format;
 pub mod stored_graphics;

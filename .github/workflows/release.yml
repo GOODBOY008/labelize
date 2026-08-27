@@ -20,13 +20,24 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            binary: labelize
             artifact: labelize-x86_64-unknown-linux-gnu.tar.gz
+            package: tar
           - os: macos-latest
             target: aarch64-apple-darwin
+            binary: labelize
             artifact: labelize-aarch64-apple-darwin.tar.gz
+            package: tar
           - os: macos-latest
             target: x86_64-apple-darwin
+            binary: labelize
             artifact: labelize-x86_64-apple-darwin.tar.gz
+            package: tar
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: labelize.exe
+            artifact: labelize-x86_64-pc-windows-msvc.zip
+            package: zip
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -34,34 +45,90 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --features serve --target ${{ matrix.target }}
-      - name: Package
+      - name: Package (tar.gz)
+        if: matrix.package == 'tar'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.artifact }} labelize
+          tar czf ../../../${{ matrix.artifact }} ${{ matrix.binary }}
+      - name: Package (zip)
+        if: matrix.package == 'zip'
+        shell: pwsh
+        run: |
+          Push-Location target/${{ matrix.target }}/release
+          Compress-Archive -Path ${{ matrix.binary }} -DestinationPath ../../../${{ matrix.artifact }}
+          Pop-Location
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
 
+  wasm-build:
+    name: Build (wasm32-unknown-unknown)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: workers/labelize-wasm
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --locked
+      - name: Build engine and glue
+        run: ./build.sh
+        working-directory: workers
+      - name: Package wasm bundle (zip)
+        working-directory: workers
+        run: |
+          mkdir -p /tmp/wasm-bundle
+          cp labelize_wasm.js labelize_wasm_bg.js labelize_wasm_bg.wasm \
+             labelize_wasm.d.ts labelize_wasm_bg.wasm.d.ts \
+             npm/init.mjs npm/init.d.ts npm/README.md \
+             /tmp/wasm-bundle/
+          cd /tmp/wasm-bundle
+          zip -r labelize-wasm-wasm32.zip .
+          mv labelize-wasm-wasm32.zip "$GITHUB_WORKSPACE/"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: labelize-wasm-wasm32.zip
+          path: labelize-wasm-wasm32.zip
+
   release:
     name: Create Release
-    needs: build
+    needs: [build, wasm-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v6
         with:
           path: artifacts
+      - name: Generate checksums
+        # download-artifact nests each file under artifacts/<name>/<file>,
+        # where <name> equals the file name. Flatten so checksums.txt lists
+        # the bare archive name (e.g. "...  labelize-x86_64-unknown-linux-gnu.tar.gz").
+        run: |
+          cd artifacts
+          find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec sha256sum {} \; \
+            | awk '{ hash=$1; $1=""; sub(/^ +/,""); n=split($0, parts, "/"); print hash "  " parts[n] }' \
+            | sort -k2 \
+            > checksums.txt
+          cat checksums.txt
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: artifacts/**/*.tar.gz
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+            artifacts/**/checksums.txt
 
   crates-io:
     name: Publish to crates.io
     needs: release
     runs-on: ubuntu-latest
+    # Only publish stable releases (vX.Y.Z), not prereleases like v1.0.0-rc.1.
+    if: ${{ !contains(github.ref_name, '-') }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -73,6 +140,8 @@ jobs:
     name: Update Homebrew Tap
     needs: crates-io
     runs-on: ubuntu-latest
+    # Only update the tap for stable releases (vX.Y.Z).
+    if: ${{ !contains(github.ref_name, '-') }}
     steps:
       - uses: actions/download-artifact@v6
         with:
@@ -96,3 +165,30 @@ jobs:
               "mac_arm64_sha256": "${{ steps.sha.outputs.mac_arm64 }}",
               "mac_x64_sha256": "${{ steps.sha.outputs.mac_x64 }}"
             }
+
+  npm-publish:
+    name: Publish npm package
+    needs: release
+    runs-on: ubuntu-latest
+    # Only publish stable releases (vX.Y.Z), not prereleases like v1.0.0-rc.1.
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: workers/labelize-wasm
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --locked
+      - name: Build engine and stage npm package
+        run: ./build.sh
+        working-directory: workers
+      - name: Publish to npm registry
+        working-directory: workers
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          ./npm-publish.sh

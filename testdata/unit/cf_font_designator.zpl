@@ -1,0 +1,1 @@
+^XA^CFB0,30^FO50,50^FDHello^FS^XZ

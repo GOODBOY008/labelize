@@ -73,21 +73,32 @@ impl FontInfo {
         let sizes = bitmap_font_sizes();
 
         if let Some(org_size) = sizes.get(font.name.as_str()) {
-            // Bitmap font
+            // Bitmap font.
+            // Font B empirics (measured against Labelary at magnifications 1-9): the width
+            // parameter selects magnification on the 11-dot cell height -- NOT the 7-dot glyph
+            // width -- and the character advance is 9 dots per magnification (7-dot glyph plus
+            // 2-dot intercharacter gap). With the generic rules a ^CFB,80 route code rendered
+            // ~26% smaller than Labelary/Zebra output.
+            let advance = if font.name == "B" { 9.0 } else { org_size[1] };
+            let width_mag_base = if font.name == "B" {
+                org_size[0]
+            } else {
+                org_size[1]
+            };
             if font.width == 0.0 && font.height == 0.0 {
-                font.width = org_size[1];
+                font.width = advance;
                 font.height = org_size[0];
                 return font;
             }
 
             if font.width == 0.0 {
-                font.width = org_size[1] * (font.height / org_size[0]).round().max(1.0);
+                font.width = advance * (font.height / org_size[0]).round().max(1.0);
             } else {
-                font.width = org_size[1] * (font.width / org_size[1]).round().max(1.0);
+                font.width = advance * (font.width / width_mag_base).round().max(1.0);
             }
 
             if font.height == 0.0 {
-                font.height = org_size[0] * (font.width / org_size[1]).round().max(1.0);
+                font.height = org_size[0] * (font.width / advance).round().max(1.0);
             } else {
                 font.height = org_size[0] * (font.height / org_size[0]).round().max(1.0);
             }
@@ -111,10 +122,11 @@ impl FontInfo {
         if self.name == "GS" {
             1.0
         } else if self.name == "0" {
-            // Zebra font 0 (smooth scalable) width-to-height ratio.
-            // Per ZPL docs: "setting height and width equally produces characters that appear most balanced"
-            // This means when h=w, scale_x should be 1.0 (balanced/square proportions).
-            0.9
+            // Zebra font 0 (smooth scalable) width-to-height ratio. Our Helvetica Bold
+            // substitute runs narrower than Zebra's CG Triumvirate, so glyph shapes need
+            // widening; per-character spacing is corrected separately by
+            // `tuning::font0_advance_delta`. See `tuning::FONT0_RATIO` for the calibration.
+            crate::tuning::FONT0_RATIO
         } else if self.name == "D" {
             // Zebra font D's actual character advance is ~1.2× the nominal 10-dot cell width.
             // Empirically calibrated against Labelary: at 1x (w=10), Zebra font D renders

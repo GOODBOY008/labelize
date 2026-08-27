@@ -58,6 +58,16 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 
   .header-spacer { flex: 1; }
 
+  .github-link {
+    font-size: 12px; color: var(--text); background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 2px 10px;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+  }
+
+  .github-link:hover {
+    color: #fff; background: var(--accent); border-color: var(--accent);
+  }
+
   .badge {
     font-size: 11px; color: var(--text-dim); background: var(--surface2);
     border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
@@ -236,6 +246,56 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   .dl-btn-pdf.loading .mini-spinner { display: inline-block; }
   .dl-btn-pdf.loading .dl-icon-pdf  { display: none; }
 
+  /* ── Compare with Labelary ── */
+  .compare-btn {
+    background: var(--surface2); color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 14px; font-size: 12px; font-weight: 600;
+    font-family: var(--font-ui); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color 0.15s, color 0.15s; white-space: nowrap;
+  }
+
+  .compare-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .compare-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  #compare-section { display: none; width: 100%; }
+  #compare-section.visible { display: block; }
+
+  .verdict-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px;
+  }
+
+  .verdict-badge {
+    font-size: 12px; font-weight: 800; letter-spacing: 0.6px;
+    padding: 3px 10px; border-radius: 4px; color: #0f0f11;
+  }
+
+  .verdict-meta { font-size: 12px; color: var(--text-dim); }
+  .verdict-note { font-size: 12px; color: var(--text-dim); }
+
+  .compare-grid {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px;
+  }
+
+  .compare-col {
+    flex: 1 1 200px; min-width: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+
+  .compare-col .col-title {
+    display: block; padding: 6px 12px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim);
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+
+  .compare-col img {
+    display: block; width: 100%; background: #fff;
+  }
+
   /* ── Status bar ── */
   .status-bar {
     flex-shrink: 0; background: var(--surface);
@@ -257,6 +317,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   </div>
   <span class="tagline">ZPL &amp; EPL Label Playground</span>
   <span class="header-spacer"></span>
+  <a class="github-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
   <span class="badge">v0.5</span>
 </header>
 
@@ -345,6 +406,10 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
         Open File
       </button>
 
+      <button id="compare-btn" class="compare-btn" title="Fetch the Labelary reference image and estimate the visual diff">
+        &#8646; Compare with&nbsp;Labelary
+      </button>
+
       <button id="render-btn">
         &#9654; Render <span class="shortcut">Ctrl+&#9166;</span>
       </button>
@@ -398,6 +463,27 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
           Download PDF
         </button>
       </div>
+    <!-- Compare with Labelary — appears after a successful comparison -->
+      <div id="compare-section">
+        <div class="verdict-row">
+          <span id="verdict-badge" class="verdict-badge"></span>
+          <span id="verdict-meta" class="verdict-meta"></span>
+        </div>
+        <div class="compare-grid">
+          <div class="compare-col">
+            <span class="col-title">Labelary &mdash; reference</span>
+            <img id="compare-labelary" alt="Labelary reference render">
+          </div>
+          <div class="compare-col">
+            <span class="col-title">Labelize</span>
+            <img id="compare-labelize" alt="Labelize render">
+          </div>
+          <div class="compare-col">
+            <span class="col-title">Diff &mdash; red = differing pixels</span>
+            <img id="compare-diff" alt="Diff overlay">
+          </div>
+        </div>
+      </div>
     </div><!-- /preview-scroll -->
 
     <div class="status-bar">
@@ -429,6 +515,13 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   var statusText = document.getElementById("status-text");
   var statusSize = document.getElementById("status-size");
   var statusTime = document.getElementById("status-time");
+  var compareBtn     = document.getElementById("compare-btn");
+  var compareSection = document.getElementById("compare-section");
+  var verdictBadge   = document.getElementById("verdict-badge");
+  var verdictMeta    = document.getElementById("verdict-meta");
+  var compareImgL    = document.getElementById("compare-labelary");
+  var compareImgZ    = document.getElementById("compare-labelize");
+  var compareImgD    = document.getElementById("compare-diff");
 
   var pngBlobUrl = null;
 
@@ -475,6 +568,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     errBanner.classList.remove("visible");
     previewImg.classList.remove("visible");
     dlBar.classList.remove("visible");
+    compareSection.classList.remove("visible");
     emptyState.style.display = "none";
     if (pngBlobUrl) { URL.revokeObjectURL(pngBlobUrl); pngBlobUrl = null; }
   }
@@ -536,6 +630,172 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     });
   }
 
+  /* ── Compare with Labelary ── */
+  // Verdict scale mirrors docs/DIFF_THRESHOLDS.md; the pixel rule (any channel
+  // differs by more than 32) mirrors tests/common/image_compare.rs so the
+  // playground number is on the same scale as the CI golden diffs.
+  var VERDICTS = [
+    { name: "PERFECT",  max: 0,   color: "#4dbd74", note: "Pixel-identical to Labelary." },
+    { name: "GOOD",     max: 1,   color: "#4dbd74", note: "Sub-pixel / anti-alias level noise." },
+    { name: "MINOR",    max: 5,   color: "#e0b84f", note: "Small font or position deltas." },
+    { name: "MODERATE", max: 15,  color: "#e0803c", note: "Font engine, embedded graphics, or 2D barcode differences." },
+    { name: "HIGH",     max: Infinity, color: "#e05555", note: "Missing encoder or large structural mismatch." }
+  ];
+
+  function verdictFor(pct) {
+    for (var i = 0; i < VERDICTS.length; i++) {
+      if (pct <= VERDICTS[i].max) return VERDICTS[i];
+    }
+    return VERDICTS[VERDICTS.length - 1];
+  }
+
+  function decodeToCanvas(blob) {
+    return createImageBitmap(blob).then(function (bmp) {
+      var cv = document.createElement("canvas");
+      cv.width = bmp.width;
+      cv.height = bmp.height;
+      cv.getContext("2d").drawImage(bmp, 0, 0);
+      bmp.close();
+      return cv;
+    });
+  }
+
+  // Normalizes both images onto a common white canvas (Labelary is routinely
+  // 1-2 px smaller than Labelize at the same nominal size), then counts pixels
+  // where any channel differs by more than 32.
+  function pixelCompare(aCv, bCv) {
+    var W = Math.max(aCv.width, bCv.width);
+    var H = Math.max(aCv.height, bCv.height);
+
+    function onWhite(cv) {
+      var c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      var ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(cv, 0, 0);
+      return ctx.getImageData(0, 0, W, H).data;
+    }
+    var da = onWhite(aCv);
+    var db = onWhite(bCv);
+
+    var diff = document.createElement("canvas");
+    diff.width = W; diff.height = H;
+    var dCtx = diff.getContext("2d");
+    dCtx.fillStyle = "#fff";
+    dCtx.fillRect(0, 0, W, H);
+    var dd = dCtx.getImageData(0, 0, W, H).data;
+
+    var diffCount = 0;
+    for (var i = 0; i < da.length; i += 4) {
+      var differs = Math.abs(da[i] - db[i]) > 32 ||
+                    Math.abs(da[i + 1] - db[i + 1]) > 32 ||
+                    Math.abs(da[i + 2] - db[i + 2]) > 32 ||
+                    Math.abs(da[i + 3] - db[i + 3]) > 32;
+      if (differs) {
+        diffCount++;
+        dd[i] = 255; dd[i + 1] = 0; dd[i + 2] = 0; dd[i + 3] = 255;
+      }
+    }
+    dCtx.putImageData(new ImageData(dd, W, H), 0, 0);
+
+    return {
+      pct: (diffCount / (W * H)) * 100,
+      diffCanvas: diff,
+      aw: aCv.width, ah: aCv.height,
+      bw: bCv.width, bh: bCv.height
+    };
+  }
+
+  function compareWithLabelary() {
+    var fmt = document.getElementById("fmt").value;
+    if (fmt === "epl") {
+      showError("Labelary does not support EPL — switch to ZPL to compare.");
+      return;
+    }
+    var zpl = input.value.trim();
+    if (!zpl) { showError("Editor is empty — paste some ZPL first."); return; }
+
+    var params = getParams();
+    var pxW = Math.ceil(params.w_mm * params.dpmm);
+    var pxH = Math.ceil(params.h_mm * params.dpmm);
+    if (pxW > 4096 || pxH > 4096) {
+      showError("Canvas too large (" + pxW + "\u00d7" + pxH + " px) for comparison — lower the dpmm or label size.");
+      return;
+    }
+
+    clearPreview();
+    loading.classList.add("active");
+    compareBtn.disabled = true;
+    statusText.textContent = "Comparing\u2026";
+    statusText.className = "";
+    statusSize.textContent = "";
+    statusTime.textContent = "";
+
+    var t0 = performance.now();
+
+    // Labelary: HTTPS + CORS * (verified 2026-08-25); form-urlencoded is a
+    // CORS-safelisted content type, so no preflight is triggered. Labelary does
+    // not support EPL and rejects `application/epl` preflights, hence ZPL-only.
+    var labelaryUrl = "https://api.labelary.com/v1/printers/" + params.dpmm +
+                      "dpmm/labels/" + widthIn.value + "x" + heightIn.value + "/0/";
+
+    var ours = fetch(buildUrl(params, null), {
+      method: "POST",
+      headers: { "Content-Type": ctFor(fmt) },
+      body: zpl
+    }).then(function (res) {
+      if (!res.ok) throw new Error("render failed: HTTP " + res.status);
+      return res.blob();
+    });
+
+    var theirs = fetch(labelaryUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "image/png" },
+      body: zpl
+    }).then(function (res) {
+      if (!res.ok) {
+        if (res.status === 429) throw new Error("Labelary is rate-limited (~3 req/s) — wait a moment and retry");
+        if (res.status === 404) throw new Error("Labelary rejected the request (HTTP 404) — unsupported label size or format");
+        throw new Error("Labelary request failed: HTTP " + res.status);
+      }
+      return res.blob();
+    });
+
+    Promise.all([ours, theirs])
+      .then(function (results) {
+        return Promise.all([decodeToCanvas(results[0]), decodeToCanvas(results[1])]);
+      })
+      .then(function (cvs) {
+        var r = pixelCompare(cvs[0], cvs[1]);
+        var v = verdictFor(r.pct);
+        var elapsed = Math.round(performance.now() - t0);
+        loading.classList.remove("active");
+        compareBtn.disabled = false;
+
+        compareImgZ.src = cvs[0].toDataURL("image/png");
+        compareImgL.src = cvs[1].toDataURL("image/png");
+        compareImgD.src = r.diffCanvas.toDataURL("image/png");
+
+        verdictBadge.textContent = v.name;
+        verdictBadge.style.background = v.color;
+        verdictBadge.title = v.note;
+        verdictMeta.textContent = r.pct.toFixed(2) + "%  \u00b7  Labelary " + r.bw + "\u00d7" + r.bh +
+          "  \u00b7  Labelize " + r.aw + "\u00d7" + r.ah + "  \u00b7  " + elapsed + " ms  \u00b7  " + v.note;
+
+        compareSection.classList.add("visible");
+        statusSize.textContent = "Diff " + r.pct.toFixed(2) + "%";
+        statusTime.textContent = elapsed + " ms";
+        statusText.textContent = "OK";
+        statusText.className = "status-ok";
+      })
+      .catch(function (err) {
+        loading.classList.remove("active");
+        compareBtn.disabled = false;
+        showError("Compare failed: " + err.message);
+      });
+  }
+
   /* ── PDF download (lazy) ── */
   dlPdf.addEventListener("click", function () {
     var zpl = input.value.trim();
@@ -595,6 +855,17 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   });
 
   btn.addEventListener("click", render);
+
+  compareBtn.addEventListener("click", compareWithLabelary);
+
+  // Labelary does not support EPL (404), so the compare tool is ZPL-only.
+  document.getElementById("fmt").addEventListener("change", function () {
+    var isEpl = this.value === "epl";
+    compareBtn.disabled = isEpl;
+    compareBtn.title = isEpl
+      ? "Labelary does not support EPL \u2014 ZPL only"
+      : "Fetch the Labelary reference image and estimate the visual diff";
+  });
 
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {

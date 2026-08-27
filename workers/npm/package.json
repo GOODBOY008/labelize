@@ -1,0 +1,37 @@
+{
+  "name": "@goodboy008/labelize-wasm",
+  "version": "1.4.0",
+  "description": "Labelize ZPL/EPL label renderer compiled to WebAssembly — render ZPL/EPL to PNG/PDF in browsers, Node.js, and bundlers",
+  "type": "module",
+  "license": "MIT AND BSD-3-Clause",
+  "homepage": "https://github.com/GOODBOY008/labelize",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GOODBOY008/labelize.git"
+  },
+  "keywords": ["zpl", "epl", "label", "barcode", "thermal-printer", "wasm", "labelary"],
+  "exports": {
+    ".": {
+      "types": "./labelize_wasm.d.ts",
+      "default": "./labelize_wasm.js"
+    },
+    "./init": {
+      "types": "./init.d.ts",
+      "default": "./init.mjs"
+    }
+  },
+  "files": [
+    "labelize_wasm.js",
+    "labelize_wasm_bg.js",
+    "labelize_wasm_bg.wasm",
+    "labelize_wasm.d.ts",
+    "labelize_wasm_bg.wasm.d.ts",
+    "init.mjs",
+    "init.d.ts",
+    "README.md"
+  ],
+  "sideEffects": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

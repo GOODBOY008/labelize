@@ -34,6 +34,56 @@ jobs:
         run: cargo test --test 'e2e_*' -- --test-threads=4
         timeout-minutes: 8
 
+  test-windows:
+    name: Test (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # ── Rust tests ──────────────────────────────────────────────
+      - name: Unit & integration tests
+        run: cargo test --test 'unit_*' --features skill -- --test-threads=4
+        timeout-minutes: 8
+      - name: Golden diff regression
+        run: cargo test --test 'e2e_*' -- --test-threads=4
+        timeout-minutes: 8
+
+      # ── Build binary for e2e scripts ────────────────────────────
+      - name: Build labelize binary
+        run: cargo build --release --features serve
+
+      - name: Add labelize to PATH
+        shell: bash
+        run: echo "$(pwd)/target/release" >> "$GITHUB_PATH"
+
+      - name: Verify installation
+        shell: bash
+        run: labelize --version
+
+      # ── CLI E2E ─────────────────────────────────────────────────
+      - name: Run CLI E2E tests
+        shell: bash
+        run: bash e2e/cli/test_cli.sh
+
+      # ── HTTP E2E ────────────────────────────────────────────────
+      - name: Run HTTP E2E tests
+        shell: bash
+        run: bash e2e/http/test_http.sh
+
+      # ── Upload e2e outputs ──────────────────────────────────────
+      - name: Upload e2e outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-windows-outputs
+          retention-days: 1
+          path: |
+            e2e/cli-output/
+            e2e/http-output/
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
@@ -63,10 +113,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            binary: labelize
           - os: macos-latest
             target: aarch64-apple-darwin
+            binary: labelize
           - os: macos-latest
             target: x86_64-apple-darwin
+            binary: labelize
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: labelize.exe
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -77,4 +133,4 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: labelize-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/labelize
+          path: target/${{ matrix.target }}/release/${{ matrix.binary }}

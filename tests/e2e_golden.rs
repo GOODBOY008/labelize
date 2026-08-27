@@ -203,6 +203,10 @@ fn golden_barcode128_mode_d() {
     golden_zpl_with_tolerance("barcode128_mode_d", 2.0);
 }
 #[test]
+fn golden_code128_mode_d_fnc1() {
+    golden_zpl_with_tolerance("code128_mode_d_fnc1", 1.0);
+}
+#[test]
 fn golden_barcode128_mode_n() {
     golden_zpl_with_tolerance("barcode128_mode_n", 2.0);
 }
@@ -257,6 +261,14 @@ fn golden_encodings_013() {
 #[test]
 fn golden_fedex() {
     golden_zpl_with_tolerance("fedex", 7.0);
+}
+#[test]
+fn golden_fedex_express() {
+    golden_zpl_with_tolerance("fedex_express", 12.5);
+}
+#[test]
+fn golden_fedex_ground() {
+    golden_zpl_with_tolerance("fedex_ground", 10.5);
 }
 #[test]
 fn golden_font_p() {
@@ -329,6 +341,14 @@ fn golden_kmart() {
 #[test]
 fn golden_labelary() {
     golden_zpl_with_tolerance("labelary", 4.5);
+}
+#[test]
+fn golden_mu_millimeters() {
+    golden_zpl_with_tolerance("mu_millimeters", 8.0);
+}
+#[test]
+fn golden_mu_dpi_conversion() {
+    golden_zpl_with_tolerance("mu_dpi_conversion", 2.0);
 }
 #[test]
 fn golden_pnldpd() {
@@ -425,6 +445,10 @@ fn golden_ups_surepost() {
 #[test]
 fn golden_ups() {
     golden_zpl_with_tolerance("ups", 8.0);
+}
+#[test]
+fn golden_ups_import_control() {
+    golden_zpl_with_tolerance("ups_import_control", 9.5);
 }
 #[test]
 fn golden_usps() {
@@ -541,6 +565,14 @@ fn golden_ups_maxicode() {
     golden_zpl_with_tolerance("ups_maxicode", 5.0);
 }
 #[test]
+fn golden_maxicode_mode4() {
+    golden_zpl_with_tolerance("maxicode_mode4", 1.0);
+}
+#[test]
+fn golden_maxicode_default_mode2() {
+    golden_zpl_with_tolerance("maxicode_default_mode2", 1.0);
+}
+#[test]
 fn golden_aztec_ec_1_ec23() {
     golden_zpl_with_tolerance("aztec_ec_1_ec23", 7.5);
 }
@@ -583,6 +615,18 @@ fn golden_qr_ft_600() {
 #[test]
 fn golden_qr_ft_test() {
     golden_zpl_with_tolerance("qr_ft_test", 1.0);
+}
+#[test]
+fn golden_cf_font_designator() {
+    golden_zpl_with_tolerance("cf_font_designator", 5.0);
+}
+#[test]
+fn golden_cf_font_no_orientation() {
+    golden_zpl_with_tolerance("cf_font_no_orientation", 5.0);
+}
+#[test]
+fn golden_fo_lenient_coord() {
+    golden_zpl_with_tolerance("fo_lenient_coord", 5.0);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────

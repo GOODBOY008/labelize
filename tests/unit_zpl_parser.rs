@@ -114,6 +114,34 @@ fn gc_produces_graphic_circle() {
 // --- Barcode commands ---
 
 #[test]
+fn bd_without_mode_defaults_to_mode_2() {
+    let labels = parse("^XA^FO50,50^BD^FD002840336091062[)>ABC^FS^XZ");
+    let maxicode = labels[0]
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            LabelElement::Maxicode(maxicode) => Some(maxicode),
+            _ => None,
+        })
+        .expect("expected MaxiCode element");
+    assert_eq!(maxicode.code.mode, 2);
+}
+
+#[test]
+fn bd_explicit_mode_overrides_default() {
+    let labels = parse("^XA^FO50,50^BD4^FDHELLO WORLD^FS^XZ");
+    let maxicode = labels[0]
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            LabelElement::Maxicode(maxicode) => Some(maxicode),
+            _ => None,
+        })
+        .expect("expected MaxiCode element");
+    assert_eq!(maxicode.code.mode, 4);
+}
+
+#[test]
 fn bc_produces_barcode128() {
     let labels = parse("^XA^FO50,50^BCN,100,Y,N,N^FD12345^FS^XZ");
     let bc = labels[0]
@@ -177,6 +205,113 @@ fn bq_produces_qr_code() {
 fn pw_sets_print_width() {
     let labels = parse("^XA^PW600^FO50,50^A0N,30,30^FDWidth^FS^XZ");
     assert_eq!(labels[0].print_width, 600);
+}
+
+// --- Measurement units (^MU) ---
+
+fn parse_dpmm(zpl: &str, dpmm: i32) -> Vec<labelize::LabelInfo> {
+    let mut parser = ZplParser::with_dpmm(dpmm);
+    parser.parse(zpl.as_bytes()).expect("ZPL parse failed")
+}
+
+fn first_graphic_box(
+    labels: &[labelize::LabelInfo],
+) -> &labelize::elements::graphic_box::GraphicBox {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::GraphicBox(g) => Some(g),
+            _ => None,
+        })
+        .expect("expected GraphicBox element")
+}
+
+#[test]
+fn mu_millimeters_converts_positions_and_geometry_to_dots() {
+    let labels = parse_dpmm("^XA^MUM^FO3.75,40^GB94,10,0.5^FS^XZ", 8);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 30);
+    assert_eq!(gb.position.y, 320);
+    assert_eq!(gb.width, 752);
+    assert_eq!(gb.height, 80);
+    assert_eq!(gb.border_thickness, 4);
+}
+
+#[test]
+fn mu_millimeters_converts_font_sizes_and_print_width() {
+    let labels = parse_dpmm("^XA^MUM^PW101.5^FO5,10^A0N,8.8,8.8^FDMM^FS^XZ", 8);
+    assert_eq!(labels[0].print_width, 812);
+    let text = first_text(&labels);
+    assert_eq!(text.font.height, 70.0);
+    assert_eq!(text.font.width, 70.0);
+}
+
+#[test]
+fn mu_millimeters_scales_with_printer_resolution() {
+    let labels = parse_dpmm("^XA^MUM^FO10,10^GB50,20,1^FS^XZ", 12);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 120);
+    assert_eq!(gb.width, 600);
+    assert_eq!(gb.border_thickness, 12);
+}
+
+#[test]
+fn mu_inches_use_254_dots_per_millimeter_inch() {
+    // Zebra's own ^MU example: on an 8 dot/mm (203 dpi) printer
+    // `^MUi^FO.493,.493^GB5.044,.631,.631` equals `^FO100,100^GB1024,128,128`.
+    let labels = parse_dpmm("^XA^MUI^FO.493,.493^GB5.044,.631,.631^FS^XZ", 8);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 100);
+    assert_eq!(gb.position.y, 100);
+    assert_eq!(gb.width, 1025);
+    assert_eq!(gb.height, 128);
+    assert_eq!(gb.border_thickness, 128);
+}
+
+#[test]
+fn mu_dots_applies_dpi_conversion_factor() {
+    let labels = parse("^XA^MUd,150,300^FO50,50^GB200,100,4^FS^XZ");
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 100);
+    assert_eq!(gb.position.y, 100);
+    assert_eq!(gb.width, 400);
+    assert_eq!(gb.height, 200);
+    assert_eq!(gb.border_thickness, 8);
+}
+
+#[test]
+fn mu_dots_with_matching_base_and_target_resets_conversion() {
+    let labels = parse("^XA^MUd,150,300^MUd,200,200^FO50,50^GB200,100,4^FS^XZ");
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 50);
+    assert_eq!(gb.width, 200);
+    assert_eq!(gb.border_thickness, 4);
+}
+
+#[test]
+fn mu_unit_mode_carries_over_to_later_labels() {
+    let labels = parse_dpmm(
+        "^XA^MUM^FO10,10^GB20,20,1^FS^XZ^XA^FO10,10^GB20,20,1^FS^XZ",
+        8,
+    );
+    assert_eq!(labels.len(), 2);
+    assert_eq!(labels[1].elements.len(), 1);
+    let gb = match &labels[1].elements[0] {
+        LabelElement::GraphicBox(g) => g,
+        _ => panic!("expected GraphicBox element"),
+    };
+    assert_eq!(gb.position.x, 80);
+    assert_eq!(gb.width, 160);
+}
+
+#[test]
+fn without_mu_dot_values_are_unchanged() {
+    let labels = parse_dpmm("^XA^FO50,50^GB200,100,4^FS^XZ", 8);
+    let gb = first_graphic_box(&labels);
+    assert_eq!(gb.position.x, 50);
+    assert_eq!(gb.width, 200);
+    assert_eq!(gb.border_thickness, 4);
 }
 
 // --- Field block ---
@@ -339,4 +474,114 @@ fn fo_right_justification() {
         text.alignment,
         labelize::elements::field_alignment::FieldAlignment::Right
     );
+}
+
+// --- lenient ^FO/^FT numeric parameters ---
+
+#[test]
+fn field_origin_tolerates_leading_garbage_in_coordinates() {
+    // Real printers and Labelary render ^FOB50,660 at x=50 -- observed verbatim in
+    // courier-generated ZPL. Strict parsing yielded x=0 and overprinted fields.
+    let labels = parse("^XA^FOB50,660^A0N,30,30^FDHello^FS^XZ");
+    let text = labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("no text element");
+    assert_eq!(text.position.x, 50);
+    assert_eq!(text.position.y, 660);
+}
+
+#[test]
+fn field_origin_well_formed_coordinates_are_unchanged() {
+    let labels = parse("^XA^FO40,90^A0N,30,30^FDHello^FS^XZ");
+    let text = labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("no text element");
+    assert_eq!(text.position.x, 40);
+    assert_eq!(text.position.y, 90);
+}
+
+// --- font B Zebra metrics (measured against Labelary at magnifications 1-9) ---
+
+fn text_font(labels: &[labelize::LabelInfo]) -> labelize::elements::font::FontInfo {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t.font.clone()),
+            _ => None,
+        })
+        .expect("no text element")
+}
+
+#[test]
+fn font_b_height_driven_uses_nine_dot_advance() {
+    // ^CFB,80: magnification round(80/11)=7 -> cell 77, advance 9*7=63
+    // (7-dot glyph + 2-dot intercharacter gap; the gap was previously dropped).
+    let font = text_font(&parse("^XA^CFB,80^FO50,50^FDCJ^FS^XZ"));
+    assert_eq!(font.name, "B");
+    assert_eq!(font.height, 77.0);
+    assert_eq!(font.width, 63.0);
+}
+
+#[test]
+fn font_b_width_parameter_selects_magnification_on_the_cell_height() {
+    // ^CFB,0,30 (width only): Labelary selects magnification round(30/11)=3, not round(30/7)=4.
+    let font = text_font(&parse("^XA^CFB,0,30^FO50,50^FDCJ^FS^XZ"));
+    assert_eq!(font.name, "B");
+    assert_eq!(font.height, 33.0);
+    assert_eq!(font.width, 27.0);
+}
+
+#[test]
+fn other_bitmap_fonts_keep_their_existing_metrics() {
+    // Font A advance was verified against Labelary previously (6 dots/mag) -- unchanged.
+    let font = text_font(&parse("^XA^CFA,18^FO50,50^FDHello^FS^XZ"));
+    assert_eq!(font.name, "A");
+    assert_eq!(font.height, 18.0);
+    assert_eq!(font.width, 12.0);
+}
+
+// --- ^CF single-character font designator (glued height digits) ---
+
+fn first_text(labels: &[labelize::LabelInfo]) -> &labelize::elements::text_field::TextField {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("no text element")
+}
+
+#[test]
+fn cf_font_designator_is_a_single_character_with_glued_height_digits() {
+    // Real printers and Labelary parse ^CFB0,30 as font B, height 0, width 30 -- observed
+    // verbatim in courier-generated ZPL. The designator must not swallow the height digits.
+    let labels = parse("^XA^CFB0,30^FO50,50^FDHello^FS^XZ");
+    assert_eq!(first_text(&labels).font.name, "B");
+}
+
+#[test]
+fn cf_plain_single_character_font_still_parses() {
+    let labels = parse("^XA^CF0,30^FO50,50^FDHello^FS^XZ");
+    let font = &first_text(&labels).font;
+    assert_eq!(font.name, "0");
+    assert_eq!(font.height, 30.0);
+}
+
+#[test]
+fn cf_numeric_user_font_falls_back_to_scalable_font_0() {
+    let labels = parse("^XA^CF3,20^FO50,50^FDHello^FS^XZ");
+    assert_eq!(first_text(&labels).font.name, "0");
 }

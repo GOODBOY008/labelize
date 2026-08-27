@@ -1,13 +1,13 @@
 [package]
 name = "labelize"
-version = "1.1.0"
+version = "1.4.1"
 edition = "2021"
 description = "Fast ZPL & EPL label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
 keywords = ["zpl", "epl", "label", "barcode", "thermal-printer"]
 categories = ["graphics", "parsing"]
 repository = "https://github.com/GOODBOY008/labelize"
 homepage = "https://github.com/GOODBOY008/labelize"
-license = "MIT"
+license = "MIT AND BSD-3-Clause"
 readme = "README.md"
 exclude = [
     "testdata/",
@@ -47,7 +47,8 @@ serde = { version = "1", features = ["derive"], optional = true }
 [features]
 default = []
 cli = ["dep:clap"]
-serve = ["cli", "dep:axum", "dep:tokio", "dep:serde"]
+playground = []
+serve = ["cli", "playground", "dep:axum", "dep:tokio", "dep:serde"]
 skill = []
 
 [[bin]]

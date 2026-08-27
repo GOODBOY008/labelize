@@ -58,6 +58,22 @@ pub fn to_positive_int(s: &str) -> Option<i32> {
     s.trim().parse::<f64>().ok().map(|v| v.abs().round() as i32)
 }
 
+/// Like [`to_positive_int`] but tolerates leading garbage before the number, matching
+/// printer/Labelary leniency for malformed numeric parameters (e.g. `^FOB50,660` -> x=50,
+/// observed verbatim in courier-generated ZPL). Strict parse is tried first so well-formed
+/// input is unaffected.
+pub fn to_positive_int_lenient(s: &str) -> Option<i32> {
+    let t = s.trim();
+    to_positive_int(t).or_else(|| {
+        let start = t.find(|c: char| c.is_ascii_digit())?;
+        let digits: String = t[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '.')
+            .collect();
+        to_positive_int(&digits)
+    })
+}
+
 pub fn parse_int(s: &str) -> Option<i32> {
     s.trim().parse::<i32>().ok()
 }
@@ -68,4 +84,45 @@ pub fn parse_float(s: &str) -> Option<f64> {
 
 pub fn parse_int_ceil(s: &str) -> Option<i32> {
     s.trim().parse::<f64>().ok().map(|v| v.ceil() as i32)
+}
+
+// ── ^MU-aware variants ───────────────────────────────────────────────────────
+// `scale` is dots-per-unit per ^MU, exactly 1.0 while ^MU is inactive -- then each
+// helper delegates to its unscaled counterpart so existing behaviour is untouched.
+// Non-dot units are fractional by nature (^FO37.5,5 in mm), hence parse-then-round.
+
+pub fn parse_int_scaled(s: &str, scale: f64) -> Option<i32> {
+    if scale == 1.0 {
+        return parse_int(s);
+    }
+    parse_float(s).map(|v| (v * scale).round() as i32)
+}
+
+pub fn parse_int_ceil_scaled(s: &str, scale: f64) -> Option<i32> {
+    if scale == 1.0 {
+        return parse_int_ceil(s);
+    }
+    parse_float(s).map(|v| (v * scale).ceil() as i32)
+}
+
+pub fn to_positive_int_scaled(s: &str, scale: f64) -> Option<i32> {
+    if scale == 1.0 {
+        return to_positive_int(s);
+    }
+    parse_float(s).map(|v| (v.abs() * scale).round() as i32)
+}
+
+pub fn to_positive_int_lenient_scaled(s: &str, scale: f64) -> Option<i32> {
+    if scale == 1.0 {
+        return to_positive_int_lenient(s);
+    }
+    let t = s.trim();
+    to_positive_int_scaled(t, scale).or_else(|| {
+        let start = t.find(|c: char| c.is_ascii_digit())?;
+        let digits: String = t[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '.')
+            .collect();
+        to_positive_int_scaled(&digits, scale)
+    })
 }

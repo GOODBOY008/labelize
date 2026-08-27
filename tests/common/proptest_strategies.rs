@@ -9,6 +9,7 @@ pub fn arb_drawer_options() -> impl Strategy<Value = DrawerOptions> {
         label_height_mm: h,
         dpmm: d,
         enable_inverted_labels: false,
+        ..Default::default()
     })
 }
 

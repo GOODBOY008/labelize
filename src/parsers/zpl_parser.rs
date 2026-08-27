@@ -17,6 +17,7 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
+use crate::elements::measurement_unit::MeasurementUnit;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
 use crate::hex;
@@ -40,6 +41,15 @@ impl Default for ZplParser {
 impl ZplParser {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Parser for a printer of the given resolution (dots per millimeter). Pass the same
+    /// dpmm the label is rendered at, or `^MU I`/`^MU M` formats come out at the wrong
+    /// scale; everything else is resolution-independent.
+    pub fn with_dpmm(dpmm: i32) -> Self {
+        ZplParser {
+            printer: VirtualPrinter::with_dpmm(dpmm),
+        }
     }
 
     pub fn parse(&mut self, zpl_data: &[u8]) -> Result<Vec<LabelInfo>, String> {
@@ -140,9 +150,15 @@ impl ZplParser {
         // Print width
         if upper.starts_with("^PW") {
             let parts = split_command(command, "^PW");
-            if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
+            let scale = self.printer.unit_scale();
+            if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
                 self.printer.print_width = v.max(2);
             }
+            return Ok(None);
+        }
+        // Units of measurement
+        if upper.starts_with("^MU") {
+            self.parse_measurement_units(command);
             return Ok(None);
         }
         // Change charset
@@ -307,38 +323,87 @@ impl ZplParser {
 
     fn parse_label_home(&mut self, command: &str) {
         let parts = split_command(command, "^LH");
-        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
+        let scale = self.printer.unit_scale();
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.label_home_position.x = v;
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.label_home_position.y = v;
+        }
+    }
+
+    /// `^MUa,b,c` -- unit of measurement (a) plus dpi conversion (b -> c). Per spec b and
+    /// c are ignored unless both are given; matching values reset the conversion. The mode
+    /// carries over from field to field until the next `^MU`.
+    fn parse_measurement_units(&mut self, command: &str) {
+        let parts = split_command(command, "^MU");
+        if let Some(unit) = parts
+            .first()
+            .and_then(|s| s.trim().as_bytes().first().copied())
+            .and_then(MeasurementUnit::from_byte)
+        {
+            self.printer.measurement_unit = unit;
+        }
+        let base = parts.get(1).and_then(|s| parse_float(s));
+        let target = parts.get(2).and_then(|s| parse_float(s));
+        if let (Some(base), Some(target)) = (base, target) {
+            if base > 0.0 && target > 0.0 {
+                self.printer.dpi_conversion = target / base;
+            }
         }
     }
 
     fn parse_change_default_font(&mut self, command: &str) {
         let parts = split_command(command, "^CF");
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                self.printer.default_font.name = s.to_uppercase();
+        // The font designator is a single character; real printers and Labelary tolerate height
+        // digits glued onto it (^CFB0,30 = font B, height 0, width 30) -- the same leniency
+        // parse_change_font() already applies to ^A. Taking the whole first part as the name
+        // ("B0") matches no font and silently falls back to the default TTF, shredding layouts
+        // authored for the intended font (observed on production courier labels).
+        let (extra_height, height_idx, width_idx) = match parts.first() {
+            Some(s) if !s.is_empty() => {
+                let first = s.as_bytes();
+                let name = (first[0] as char).to_uppercase().to_string();
+                let mut probe = self.printer.default_font.clone();
+                probe.name = name.clone();
+                if probe.is_standard_font() {
+                    self.printer.default_font.name = name;
+                } else if (first[0] as char).is_ascii_digit() {
+                    // Numeric font names (1-9) are user-installed fonts on Zebra printers.
+                    // Fall back to font "0" (proportional), as parse_change_font does.
+                    self.printer.default_font.name = "0".to_string();
+                }
+                if first.len() > 1 {
+                    let glued = std::str::from_utf8(&first[1..]).unwrap_or("").to_string();
+                    (Some(glued), usize::MAX, 1usize)
+                } else {
+                    (None, 1, 2)
+                }
             }
-        }
-        let has_height = parts.get(1).and_then(|s| parse_int(s)).is_some();
-        let has_width = parts.get(2).and_then(|s| parse_int(s)).is_some();
-        if let Some(s) = parts.get(1) {
-            if let Some(v) = parse_int(s) {
-                self.printer.default_font.height = v as f64;
-            }
+            _ => (None, 1, 2),
+        };
+
+        let scale = self.printer.unit_scale();
+        let height = match &extra_height {
+            Some(hs) => parse_int_scaled(hs, scale),
+            None => parts
+                .get(height_idx)
+                .and_then(|s| parse_int_scaled(s, scale)),
+        };
+        let width = parts
+            .get(width_idx)
+            .and_then(|s| parse_int_scaled(s, scale));
+        if let Some(v) = height {
+            self.printer.default_font.height = v as f64;
         }
         // Per ZPL spec: "Defining only the height or width forces the magnification to be
         // proportional to the parameter defined." When only height is given (no explicit width),
         // reset width to 0 so with_adjusted_sizes() derives it proportionally from height.
-        if has_height && !has_width {
+        if height.is_some() && width.is_none() {
             self.printer.default_font.width = 0.0;
         }
-        if let Some(s) = parts.get(2) {
-            if let Some(v) = parse_int(s) {
-                self.printer.default_font.width = v as f64;
-            }
+        if let Some(v) = width {
+            self.printer.default_font.width = v as f64;
         }
     }
 
@@ -385,17 +450,18 @@ impl ZplParser {
             (None, 1, 2)
         };
 
+        let scale = self.printer.unit_scale();
         if let Some(hs) = extra_height_str {
-            if let Some(v) = parse_int(&hs) {
+            if let Some(v) = parse_int_scaled(&hs, scale) {
                 font.height = v as f64;
             }
         } else if let Some(s) = parts.get(height_part_idx) {
-            if let Some(v) = parse_int(s) {
+            if let Some(v) = parse_int_scaled(s, scale) {
                 font.height = v as f64;
             }
         }
         if let Some(s) = parts.get(width_part_idx) {
-            if let Some(v) = parse_int(s) {
+            if let Some(v) = parse_int_scaled(s, scale) {
                 font.width = v as f64;
             }
         }
@@ -420,14 +486,21 @@ impl ZplParser {
 
     fn parse_field_origin(&mut self, command: &str) {
         let parts = split_command(command, "^FO");
+        let scale = self.printer.unit_scale();
         let mut pos = LabelPosition {
             calculate_from_bottom: false,
             ..Default::default()
         };
-        if let Some(v) = parts.first().and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts
+            .first()
+            .and_then(|s| to_positive_int_lenient_scaled(s, scale))
+        {
             pos.x = v;
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts
+            .get(1)
+            .and_then(|s| to_positive_int_lenient_scaled(s, scale))
+        {
             pos.y = v;
         }
         if let Some(s) = parts.get(2) {
@@ -440,16 +513,23 @@ impl ZplParser {
 
     fn parse_field_typeset(&mut self, command: &str) {
         let parts = split_command(command, "^FT");
+        let scale = self.printer.unit_scale();
         let mut pos = LabelPosition {
             calculate_from_bottom: true,
             automatic_position: true,
             ..Default::default()
         };
-        if let Some(v) = parts.first().and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts
+            .first()
+            .and_then(|s| to_positive_int_lenient_scaled(s, scale))
+        {
             pos.x = v;
             pos.automatic_position = false;
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts
+            .get(1)
+            .and_then(|s| to_positive_int_lenient_scaled(s, scale))
+        {
             pos.y = v;
             pos.automatic_position = false;
         }
@@ -470,13 +550,14 @@ impl ZplParser {
             alignment: crate::elements::text_alignment::TextAlignment::Left,
             hanging_indent: 0,
         };
-        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
+        let scale = self.printer.unit_scale();
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             block.max_width = v;
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
             block.max_lines = v;
         }
-        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(2).and_then(|s| parse_int_scaled(s, scale)) {
             block.line_spacing = v;
         }
         if let Some(s) = parts.get(3) {
@@ -484,7 +565,7 @@ impl ZplParser {
                 block.alignment = to_text_alignment(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(4).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(4).and_then(|s| parse_int_scaled(s, scale)) {
             block.hanging_indent = v;
         }
         self.printer.next_element_field_element =
@@ -531,6 +612,7 @@ impl ZplParser {
     // Barcode parsers
     fn parse_barcode_128(&mut self, command: &str) {
         let parts = split_command(command, "^BC");
+        let scale = self.printer.unit_scale();
         let mut bc = Barcode128 {
             orientation: self.printer.default_orientation,
             height: self.printer.default_barcode_dimensions.height,
@@ -544,7 +626,7 @@ impl ZplParser {
                 bc.orientation = to_field_orientation(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
         if let Some(s) = parts.get(2) {
@@ -573,6 +655,7 @@ impl ZplParser {
 
     fn parse_barcode_ean13(&mut self, command: &str) {
         let parts = split_command(command, "^BE");
+        let scale = self.printer.unit_scale();
         let mut bc = BarcodeEan13 {
             orientation: self.printer.default_orientation,
             height: self.printer.default_barcode_dimensions.height,
@@ -584,7 +667,7 @@ impl ZplParser {
                 bc.orientation = to_field_orientation(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
         if let Some(s) = parts.get(2) {
@@ -603,6 +686,7 @@ impl ZplParser {
 
     fn parse_barcode_2of5(&mut self, command: &str) {
         let parts = split_command(command, "^B2");
+        let scale = self.printer.unit_scale();
         let mut bc = Barcode2of5 {
             orientation: self.printer.default_orientation,
             height: self.printer.default_barcode_dimensions.height,
@@ -615,7 +699,7 @@ impl ZplParser {
                 bc.orientation = to_field_orientation(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
         if let Some(s) = parts.get(2) {
@@ -639,6 +723,7 @@ impl ZplParser {
 
     fn parse_barcode_39(&mut self, command: &str) {
         let parts = split_command(command, "^B3");
+        let scale = self.printer.unit_scale();
         let mut bc = Barcode39 {
             orientation: self.printer.default_orientation,
             height: self.printer.default_barcode_dimensions.height,
@@ -656,7 +741,7 @@ impl ZplParser {
                 bc.check_digit = to_bool_field(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(2).and_then(|s| parse_int_ceil(s)) {
+        if let Some(v) = parts.get(2).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
         if let Some(s) = parts.get(3) {
@@ -674,6 +759,7 @@ impl ZplParser {
 
     fn parse_barcode_pdf417(&mut self, command: &str) {
         let parts = split_command(command, "^B7");
+        let scale = self.printer.unit_scale();
         let mut bc = BarcodePdf417 {
             orientation: self.printer.default_orientation,
             row_height: 0,
@@ -689,7 +775,7 @@ impl ZplParser {
                 bc.orientation = to_field_orientation(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             bc.row_height = v;
         }
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
@@ -734,6 +820,7 @@ impl ZplParser {
 
     fn parse_barcode_datamatrix(&mut self, command: &str) {
         let parts = split_command(command, "^BX");
+        let scale = self.printer.unit_scale();
         let mut bc = BarcodeDatamatrix {
             orientation: self.printer.default_orientation,
             height: self.printer.default_barcode_dimensions.height,
@@ -749,7 +836,7 @@ impl ZplParser {
                 bc.orientation = to_field_orientation(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
@@ -793,7 +880,8 @@ impl ZplParser {
 
     fn parse_maxicode(&mut self, command: &str) {
         let parts = split_command(command, "^BD");
-        let mut mc = Maxicode { mode: 0 };
+        // Zebra defines Mode 2 as the default when the ^BD mode parameter is omitted.
+        let mut mc = Maxicode { mode: 2 };
         if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
             mc.mode = v;
         }
@@ -802,13 +890,16 @@ impl ZplParser {
 
     fn parse_barcode_field_defaults(&mut self, command: &str) {
         let parts = split_command(command, "^BY");
-        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
-            self.printer.default_barcode_dimensions.module_width = v;
+        let scale = self.printer.unit_scale();
+        // Never below one dot: a sub-dot module collapses the barcode.
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
+            self.printer.default_barcode_dimensions.module_width = v.max(1);
         }
+        // Parameter b is a ratio, not a measurement: never scaled.
         if let Some(v) = parts.get(1).and_then(|s| parse_float(s)) {
             self.printer.default_barcode_dimensions.width_ratio = v.clamp(2.0, 3.0);
         }
-        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(2).and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.default_barcode_dimensions.height = v;
         }
     }
@@ -816,6 +907,7 @@ impl ZplParser {
     // Graphic commands
     fn parse_graphic_box(&self, command: &str) -> Result<Option<LabelElement>, String> {
         let parts = split_command(command, "^GB");
+        let scale = self.printer.unit_scale();
         let mut gb = GraphicBox {
             position: self.printer.next_element_position.clone(),
             width: 1,
@@ -825,17 +917,17 @@ impl ZplParser {
             line_color: LineColor::Black,
             reverse_print: self.printer.get_reverse_print(),
         };
-        if let Some(v) = parts.get(2).and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.get(2).and_then(|s| to_positive_int_scaled(s, scale)) {
             if v > 0 {
                 gb.border_thickness = v;
             }
         }
-        if let Some(v) = parts.first().and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.first().and_then(|s| to_positive_int_scaled(s, scale)) {
             if v > 0 {
                 gb.width = v.max(gb.border_thickness);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_scaled(s, scale)) {
             if v > 0 {
                 gb.height = v.max(gb.border_thickness);
             }
@@ -853,6 +945,7 @@ impl ZplParser {
 
     fn parse_graphic_circle(&self, command: &str) -> Result<Option<LabelElement>, String> {
         let parts = split_command(command, "^GC");
+        let scale = self.printer.unit_scale();
         let mut gc = GraphicCircle {
             position: self.printer.next_element_position.clone(),
             circle_diameter: 3,
@@ -860,10 +953,10 @@ impl ZplParser {
             line_color: LineColor::Black,
             reverse_print: self.printer.get_reverse_print(),
         };
-        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             gc.circle_diameter = v;
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             gc.border_thickness = v;
         }
         if parts.get(2).is_some_and(|s| *s == "W") {
@@ -874,6 +967,7 @@ impl ZplParser {
 
     fn parse_graphic_diagonal_line(&self, command: &str) -> Result<Option<LabelElement>, String> {
         let parts = split_command(command, "^GD");
+        let scale = self.printer.unit_scale();
         let mut gd = GraphicDiagonalLine {
             position: self.printer.next_element_position.clone(),
             width: 3,
@@ -884,16 +978,16 @@ impl ZplParser {
             reverse_print: self.printer.get_reverse_print(),
         };
         // Parse thickness first — w and h default to max(t, 3) per spec
-        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(2).and_then(|s| parse_int_scaled(s, scale)) {
             gd.border_thickness = v.max(1);
         }
         let default_wh = gd.border_thickness.max(3);
         gd.width = default_wh;
         gd.height = default_wh;
-        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             gd.width = v.max(3);
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             gd.height = v.max(3);
         }
         if parts.get(3).is_some_and(|s| *s == "W") {
@@ -957,6 +1051,7 @@ impl ZplParser {
 
     fn parse_graphic_symbol(&mut self, command: &str) {
         let parts = split_command(command, "^GS");
+        let scale = self.printer.unit_scale();
         // When ^GS has no explicit size, inherit from last rendered field's font
         // (Labelary behavior: GS follows the most recent ^A font dimensions)
         let fallback = if self.printer.last_field_font.height > 0.0 {
@@ -974,10 +1069,10 @@ impl ZplParser {
                 gs.orientation = to_field_orientation(s.as_bytes()[0]);
             }
         }
-        if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             gs.height = v as f64;
         }
-        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
+        if let Some(v) = parts.get(2).and_then(|s| parse_int_scaled(s, scale)) {
             gs.width = v as f64;
         }
         self.printer.next_element_field_element =
