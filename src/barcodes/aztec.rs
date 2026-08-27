@@ -12,7 +12,7 @@ use rxing::{BarcodeFormat, EncodeHintValue, EncodeHints, Writer};
 ///   300     = Aztec Rune (not yet supported, falls back to default)
 pub fn encode(content: &str, magnification: i32, ec_symbol_size: i32) -> Result<RgbaImage, String> {
     if content.is_empty() {
-        return Ok(RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0])));
+        return Ok(RgbaImage::from_pixel(0, 0, Rgba([0, 0, 0, 0])));
     }
 
     let mag = magnification.max(1) as u32;
