@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../"
 PROJECT_NAME="labelize"
 IMAGE_TAG="${PROJECT_NAME}:windows-build"
 OUTPUT_DIR="${SCRIPT_DIR}/target/windows-release"
