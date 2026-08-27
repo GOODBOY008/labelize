@@ -238,7 +238,7 @@ fn aztec_encodes_text() {
 
 #[test]
 fn aztec_empty_input_returns_empty_image() {
-    // Empty input should return a 1×1 transparent image instead of an error
+    let result = aztec::encode("", 4, 0);
     match result {
         Ok(img) => {
             assert_eq!(img.width(), 0, "empty Aztec code should have width 0");
@@ -246,7 +246,8 @@ fn aztec_empty_input_returns_empty_image() {
         }
         Err(_) => {
             panic!("empty Aztec input should not return an error");
-      }
+        }
+    }        
 }
 
 // --- DataMatrix ---
@@ -261,7 +262,15 @@ fn datamatrix_encodes_text() {
 #[test]
 fn datamatrix_empty_input_returns_error() {
     let result = datamatrix::encode("", 4, 0, 0);
-    assert!(result.is_err(), "expected error for empty input");
+    match result {
+        Ok(img) => {
+            assert_eq!(img.width(), 0, "empty DataMatrix code should have width 0");
+            assert_eq!(img.height(), 0, "empty DataMatrix code should have height 0");
+        }
+        Err(_) => {
+            panic!("empty Aztec input should not return an error");
+        }
+    }   
 }
 
 // --- QR code ---
