@@ -265,7 +265,11 @@ fn datamatrix_empty_input_returns_error() {
     match result {
         Ok(img) => {
             assert_eq!(img.width(), 0, "empty DataMatrix code should have width 0");
-            assert_eq!(img.height(), 0, "empty DataMatrix code should have height 0");
+            assert_eq!(
+                img.height(),
+                0,
+                "empty DataMatrix code should have height 0"
+            );
         }
         Err(_) => {
             panic!("empty DataMatrix input should not return an error");
