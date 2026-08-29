@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Playground Redesign (v2.0)** — The playground page at `GET /` is restyled with a light/dark theme system and internationalization, plus several new tools. Still a single self-contained HTML page with no external dependencies; served unchanged by both the local HTTP service and the Cloudflare Worker
+- **Light/Dark Theme** — Follows `prefers-color-scheme` by default with a header toggle and `localStorage` persistence; applied before first paint to avoid a flash of the wrong theme
+- **i18n (English / 简体中文)** — Auto-detects the browser language, with a header selector and persistence; every string including dynamic errors, statuses, and Labelary-compare verdict notes is localized
+- **Live Auto-Render** — Optionally re-renders the label automatically ~600 ms after typing stops (toggleable, on by default); keeps the last successful preview and reports background failures only in the status line
+- **Share Permalink** — Encodes the label code and render settings into the URL hash and copies the link to the clipboard; opening the link restores everything and renders immediately. Ideal for bug reports
+- **Sample Labels** — Built-in shipping, barcodes & 2D, and shapes & graphics examples reachable from the header
+- **Preview Zoom** — Zoom in/out (25–400 %), fit-to-panel, and double-click toggle on the preview image
+- **Copy PNG to Clipboard** — One-click copy of the current render, alongside the existing PNG/PDF downloads
+- **Editor & A11y Polish** — Caret Ln/Col indicator, `Ctrl/Cmd+S` to download the PNG, toast notifications, inline SVG favicon, focus-visible outlines, `prefers-reduced-motion` support, and a stacked responsive layout for narrow screens
+
 ## [1.4.1] - 2026-08-23
 
 ### Changed
