@@ -72,18 +72,18 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: workers/labelize-wasm
+          workspaces: wasm
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --locked
       - name: Build engine and glue
         run: ./build.sh
-        working-directory: workers
+        working-directory: wasm
       - name: Package wasm bundle (zip)
-        working-directory: workers
+        working-directory: wasm
         run: |
           mkdir -p /tmp/wasm-bundle
-          cp labelize_wasm.js labelize_wasm_bg.js labelize_wasm_bg.wasm \
-             labelize_wasm.d.ts labelize_wasm_bg.wasm.d.ts \
+          cp npm/labelize_wasm.js npm/labelize_wasm_bg.js npm/labelize_wasm_bg.wasm \
+             npm/labelize_wasm.d.ts npm/labelize_wasm_bg.wasm.d.ts \
              npm/init.mjs npm/init.d.ts npm/README.md \
              /tmp/wasm-bundle/
           cd /tmp/wasm-bundle
@@ -179,14 +179,14 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: workers/labelize-wasm
+          workspaces: wasm
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --locked
       - name: Build engine and stage npm package
         run: ./build.sh
-        working-directory: workers
+        working-directory: wasm
       - name: Publish to npm registry
-        working-directory: workers
+        working-directory: wasm
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |

@@ -6,6 +6,7 @@ on:
     # Only redeploy when the worker or its tooling actually changes.
     paths:
       - 'workers/**'
+      - 'wasm/**'
       - '.github/workflows/deploy-worker.yml'
   workflow_dispatch:
 
@@ -21,12 +22,12 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: workers/labelize-wasm
+          workspaces: wasm
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --locked
       - name: Build engine
         run: ./build.sh
-        working-directory: workers
+        working-directory: wasm
       - name: Deploy
         run: npx --yes wrangler@4 deploy
         working-directory: workers
