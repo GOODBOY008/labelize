@@ -8,7 +8,7 @@ pub fn encode_png(img: &RgbaImage, w: &mut impl Write) -> Result<(), LabelizeErr
 
 /// Encode the canvas as 8-bit greyscale PNG.
 ///
-/// With `antialias` false the canvas is thresholded to pure black/white, matching
+/// With `grayscale` false the canvas is thresholded to pure black/white, matching
 /// what a 1-bit thermal printer actually puts on the label. With it true the
 /// coverage-blended greys the renderer already produced are preserved, which is
 /// what Labelary's own PNG preview does — on a 10,000-label corpus that removes
@@ -16,7 +16,7 @@ pub fn encode_png(img: &RgbaImage, w: &mut impl Write) -> Result<(), LabelizeErr
 pub fn encode_png_with(
     img: &RgbaImage,
     w: &mut impl Write,
-    antialias: bool,
+    grayscale: bool,
 ) -> Result<(), LabelizeError> {
     let (width, height) = img.dimensions();
     let mut gray = image::GrayImage::new(width, height);
@@ -24,7 +24,7 @@ pub fn encode_png_with(
     for y in 0..height {
         for x in 0..width {
             let pixel = img.get_pixel(x, y);
-            let val = if antialias {
+            let val = if grayscale {
                 pixel[0]
             } else if pixel[0] > 128 {
                 255u8

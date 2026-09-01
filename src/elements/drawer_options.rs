@@ -4,10 +4,11 @@ pub struct DrawerOptions {
     pub label_height_mm: f64,
     pub dpmm: i32,
     pub enable_inverted_labels: bool,
-    /// Preserve the renderer's antialiased greys instead of thresholding to 1-bit.
-    /// Off by default: a thermal printer is bi-level, so 1-bit is the faithful
-    /// default. Turn it on to match Labelary's antialiased PNG preview.
-    pub antialias: bool,
+    /// Emit 8-bit grayscale PNG/PDF output, preserving the renderer's antialiasing
+    /// coverage instead of thresholding to 1-bit. Off by default: a thermal printer
+    /// is bi-level, so 1-bit is the faithful default. Turn it on to match Labelary's
+    /// antialiased grayscale PNG preview (`X-Quality: Grayscale`).
+    pub grayscale: bool,
 }
 
 impl Default for DrawerOptions {
@@ -17,7 +18,7 @@ impl Default for DrawerOptions {
             label_height_mm: 203.2,
             dpmm: 8,
             enable_inverted_labels: true,
-            antialias: false,
+            grayscale: false,
         }
     }
 }

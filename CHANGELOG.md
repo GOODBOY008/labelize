@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--grayscale` CLI flag** — `labelize convert --grayscale` emits 8-bit grayscale output preserving antialiased greys, matching Labelary's PNG preview; without it output stays 1-bit, what a thermal printer actually prints
 - **Playground Redesign (v2.0)** — The playground page at `GET /` is restyled with a light/dark theme system and internationalization, plus several new tools. Still a single self-contained HTML page with no external dependencies; served unchanged by both the local HTTP service and the Cloudflare Worker
 - **Light/Dark Theme** — Follows `prefers-color-scheme` by default with a header toggle and `localStorage` persistence; applied before first paint to avoid a flash of the wrong theme
 - **i18n (English / 简体中文)** — Auto-detects the browser language, with a header selector and persistence; every string including dynamic errors, statuses, and Labelary-compare verdict notes is localized
@@ -18,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preview Zoom** — Zoom in/out (25–400 %), fit-to-panel, and double-click toggle on the preview image
 - **Copy PNG to Clipboard** — One-click copy of the current render, alongside the existing PNG/PDF downloads
 - **Editor & A11y Polish** — Caret Ln/Col indicator, `Ctrl/Cmd+S` to download the PNG, toast notifications, inline SVG favicon, focus-visible outlines, `prefers-reduced-motion` support, and a stacked responsive layout for narrow screens
+
+### Changed
+
+- **Grayscale Output Option (renamed from `antialias`)** — the opt-in antialiased 8-bit output introduced in 1.4.0 is now the `grayscale` option throughout: `DrawerOptions::grayscale`, `POST /convert?grayscale=true`, the Cloudflare Worker query parameter, and the wasm `lz_render` flag. The HTTP server and worker keep accepting `antialias=true` as a legacy alias. PDF output now honors the option too
+- **Grayscale Rendering Polish** — rounded `^GB` boxes are now antialiased with signed-distance coverage instead of a binary corner test, which measures closer to Labelary's reference renders; 1-bit output is unchanged. Other coverage-blending experiments (soft barcode interpretation lines, alpha-composited overlays) were evaluated against the Labelary corpus and reverted because they measured worse than the crisp binary edges Labelary produces
 
 ## [1.4.1] - 2026-08-23
 
