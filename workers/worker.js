@@ -10,8 +10,8 @@ import {
   lz_playground_html,
   __wbindgen_init_externref_table,
   __wbindgen_cast_0000000000000001,
-} from "./labelize_wasm_bg.js";
-import wasmBytes from "./labelize_wasm_bg.wasm";
+} from "../wasm/npm/labelize_wasm_bg.js";
+import wasmBytes from "../wasm/npm/labelize_wasm_bg.wasm";
 
 let ready = null;
 let htmlPage = null;

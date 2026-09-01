@@ -8,7 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-labelize = { path = "../..", features = ["playground"] }
+labelize = { path = "..", features = ["playground"] }
 image = "0.25"
 wasm-bindgen = "0.2"
 # Unifies the wasm_js feature onto getrandom 0.4 (rand 0.10 / lopdf's chain);

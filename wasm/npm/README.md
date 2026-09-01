@@ -52,10 +52,10 @@ HTTP server's `/`).
 ## Release assets
 
 GitHub releases also attach `labelize-wasm-wasm32.zip` with the raw glue + `.wasm` files,
-for direct use without npm. See `workers/build.sh` to rebuild the engine:
+for direct use without npm. See `wasm/build.sh` to rebuild the engine:
 
 ```bash
-cd workers && ./build.sh   # requires Rust wasm32 target + wasm-bindgen-cli
+cd wasm && ./build.sh   # requires Rust wasm32 target + wasm-bindgen-cli
 ```
 
 ## License
