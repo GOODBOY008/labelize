@@ -67,6 +67,10 @@ enum Commands {
         /// Dots per mm (6, 8, 12, or 24)
         #[arg(long, default_value_t = 8)]
         dpmm: i32,
+
+        /// Emit 8-bit grayscale output preserving antialiasing (default: 1-bit)
+        #[arg(long)]
+        antialias: bool,
     },
 
     /// Start HTTP server for label conversion
@@ -95,6 +99,7 @@ fn main() {
             width,
             height,
             dpmm,
+            antialias,
         } => {
             if let Err(e) = convert_file(
                 &input,
@@ -104,6 +109,7 @@ fn main() {
                 width,
                 height,
                 dpmm,
+                antialias,
             ) {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
@@ -191,6 +197,7 @@ fn render_label(
 }
 
 #[cfg(feature = "cli")]
+#[allow(clippy::too_many_arguments)]
 fn convert_file(
     input: &Path,
     output: Option<&Path>,
@@ -199,6 +206,7 @@ fn convert_file(
     width: f64,
     height: f64,
     dpmm: i32,
+    antialias: bool,
 ) -> Result<(), String> {
     let content = fs::read(input).map_err(|e| format!("Failed to read input file: {}", e))?;
 
@@ -213,6 +221,7 @@ fn convert_file(
         label_width_mm: width,
         label_height_mm: height,
         dpmm,
+        antialias,
         ..Default::default()
     };
 
@@ -280,6 +289,7 @@ async fn serve(host: String, port: u16) {
         dpmm: i32,
         #[serde(default)]
         output: Option<String>,
+        /// Emit 8-bit grayscale output preserving antialiasing.
         #[serde(default)]
         antialias: bool,
     }

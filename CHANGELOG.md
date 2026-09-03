@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preview Zoom** — Zoom in/out (25–400 %), fit-to-panel, and double-click toggle on the preview image
 - **Copy PNG to Clipboard** — One-click copy of the current render, alongside the existing PNG/PDF downloads
 - **Editor & A11y Polish** — Caret Ln/Col indicator, `Ctrl/Cmd+S` to download the PNG, toast notifications, inline SVG favicon, focus-visible outlines, `prefers-reduced-motion` support, and a stacked responsive layout for narrow screens
+- **CLI `--antialias` and playground toggle** — `labelize convert --antialias` emits 8-bit grayscale PNG output preserving the renderer's antialiased greys (default remains 1-bit, the faithful thermal-printer output); the playground gains an Antialias checkbox, persisted locally and carried in share permalinks
 
 ## [1.4.1] - 2026-08-23
 

@@ -110,6 +110,7 @@ labelize convert label.zpl          # → label.png  (format auto-detected)
 labelize convert label.epl          # EPL works too
 labelize convert label.zpl -t pdf   # output as PDF
 labelize convert label.zpl --width 100 --height 62 --dpmm 12  # custom dimensions
+labelize convert label.zpl --antialias  # 8-bit grayscale output (default: 1-bit)
 ```
 
 ### Run as an HTTP microservice
