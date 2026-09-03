@@ -592,6 +592,11 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
         <span data-i18n="btn.auto">Auto</span>
       </label>
 
+      <label class="sg" for="antialias" id="aa-wrap" title="Emit 8-bit grayscale output instead of 1-bit black/white" data-i18n-title="tip.aa">
+        <input type="checkbox" id="antialias">
+        <span data-i18n="btn.aa">Antialias</span>
+      </label>
+
       <button id="share-btn" class="ghost-btn" title="Copy a permalink to this label" data-i18n-title="tip.share">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -740,6 +745,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       "btn.compare": "Compare with Labelary",
       "btn.render": "Render",
       "btn.auto": "Auto",
+      "btn.aa": "Antialias",
       "btn.share": "Share",
       "empty.title": "Press <strong>Render</strong> to preview your label",
       "loading.render": "Rendering…",
@@ -756,6 +762,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       "tip.compare": "Fetch the Labelary reference image and estimate the visual diff",
       "tip.compareEpl": "Labelary does not support EPL — ZPL only",
       "tip.auto": "Re-render automatically as you type",
+      "tip.aa": "Emit 8-bit grayscale output instead of 1-bit black/white",
       "tip.share": "Copy a permalink to this label",
       "tip.copyImg": "Copy PNG to clipboard",
       "tip.zoomIn": "Zoom in",
@@ -813,6 +820,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       "btn.compare": "与 Labelary 对比",
       "btn.render": "渲染",
       "btn.auto": "自动",
+      "btn.aa": "抗锯齿",
       "btn.share": "分享",
       "empty.title": "点击<strong>渲染</strong>预览你的标签",
       "loading.render": "渲染中…",
@@ -829,6 +837,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       "tip.compare": "获取 Labelary 参考渲染图并估算视觉差异",
       "tip.compareEpl": "Labelary 不支持 EPL — 仅限 ZPL",
       "tip.auto": "输入时自动重新渲染",
+      "tip.aa": "输出 8 位灰度（替代 1 位黑白）",
       "tip.share": "复制此标签的分享链接",
       "tip.copyImg": "复制 PNG 到剪贴板",
       "tip.zoomIn": "放大",
@@ -987,6 +996,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   var themeBtn     = document.getElementById("theme-btn");
   var samplesSel   = document.getElementById("samples");
   var autoChk      = document.getElementById("auto-render");
+  var aaChk        = document.getElementById("antialias");
   var shareBtn     = document.getElementById("share-btn");
   var toastEl      = document.getElementById("toast");
   var zoomCtrl     = document.getElementById("zoom-ctrl");
@@ -1085,11 +1095,12 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     var h_in  = parseFloat(heightIn.value) || 6;
     var w_mm  = +(w_in * 25.4).toFixed(2);
     var h_mm  = +(h_in * 25.4).toFixed(2);
-    return { fmt: fmtVal, dpmm: dpmm, w_mm: w_mm, h_mm: h_mm };
+    return { fmt: fmtVal, dpmm: dpmm, w_mm: w_mm, h_mm: h_mm, aa: aaChk.checked };
   }
 
   function buildUrl(p, output) {
     var u = "/convert?width=" + p.w_mm + "&height=" + p.h_mm + "&dpmm=" + p.dpmm;
+    if (p.aa) u += "&antialias=true";
     if (output) u += "&output=" + output;
     return u;
   }
@@ -1235,6 +1246,12 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   autoChk.addEventListener("change", function () {
     store.set("labelize-auto", this.checked ? "1" : "0");
     if (this.checked && input.value.trim()) render({ auto: true });
+  });
+
+  aaChk.checked = store.get("labelize-aa") === "1";
+  aaChk.addEventListener("change", function () {
+    store.set("labelize-aa", this.checked ? "1" : "0");
+    if (input.value.trim()) render({ auto: true });
   });
 
   /* ── Compare with Labelary ── */
@@ -1497,6 +1514,10 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     input.value = code;
     if (q.f === "epl" || q.f === "zpl") fmtSel.value = q.f;
     if (q.d && [6, 8, 12, 24].indexOf(parseInt(q.d, 10)) >= 0) dpmmSel.value = String(parseInt(q.d, 10));
+    // Permalinks without `a` predate the antialias option (default off), so
+    // fall back to false rather than the viewer's localStorage: shared links
+    // must fully define render settings.
+    aaChk.checked = q.a === "1";
     var w = parseFloat(q.w), h = parseFloat(q.h);
     if (w > 0 && h > 0) {
       widthIn.value = w;
@@ -1518,7 +1539,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     try { enc = "b" + b64encode(code); }
     catch (e) { enc = "u" + encodeURIComponent(code); }
     var hash = "f=" + fmtSel.value + "&w=" + widthIn.value + "&h=" + heightIn.value +
-               "&d=" + dpmmSel.value + "&c=" + encodeURIComponent(enc);
+               "&d=" + dpmmSel.value + "&a=" + (aaChk.checked ? 1 : 0) + "&c=" + encodeURIComponent(enc);
     history.replaceState(null, "", "#" + hash);
     copyText(location.href)
       .then(function () { showToast(t("toast.urlCopied")); })
