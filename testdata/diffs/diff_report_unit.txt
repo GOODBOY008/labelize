@@ -29,7 +29,11 @@
 ║ fo_lenient_coord               │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_p                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_q                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_r                         │ zpl  │    0.44% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_s                         │ zpl  │    0.36% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_t                         │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_u                         │ zpl  │    1.22% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ font_v                         │ zpl  │    2.14% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ gb_0_height                    │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ gb_0_width                     │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ gb_normal                      │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
@@ -69,5 +73,5 @@
 ║ usps_priority_mail             │ zpl  │    0.32% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 65 total │ 5 perfect │ 51 good │ 7 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 69 total │ 5 perfect │ 53 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

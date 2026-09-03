@@ -1,0 +1,1 @@
+^XA^FO30,30^AUN,,106^FDFont U Wide^FS^FO30,80^AUN,118,^FDFont U Tall^FS^XZ
