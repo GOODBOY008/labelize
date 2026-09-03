@@ -212,12 +212,21 @@ impl Renderer {
         // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
         // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
         // the ab_glyph scale -- hence 11.5/11/0.657 = 1.59 vs the generic 7/6 font-A correction.
+        // Fonts P-V (resident bitmaps): Labelary caps measure ~0.60-0.625x the base
+        // cell (P: 12/20, Q: 17/28, S: 25/40), where DejaVu Mono Bold caps land at
+        // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
+        let is_pv = matches!(
+            text.font.name.as_str(),
+            "P" | "Q" | "R" | "S" | "T" | "U" | "V"
+        );
         let cap_scale: f32 = if text.font.name == "B" {
             1.59
+        } else if is_pv {
+            0.85
         } else {
             7.0 / 6.0
         };
-        let bitmap_y_shift: f64 = if is_bitmap {
+        let bitmap_y_shift: f64 = if is_bitmap || is_pv {
             scale.y = font_size * cap_scale;
 
             let orig_scale = PxScale {
@@ -235,7 +244,11 @@ impl Renderer {
 
             // With the cap-scaled em, the ascender gap also scales by the same factor.
             // Shift the draw origin UP by that new gap so cap_top = field y.
-            -(orig_gap * cap_scale as f64)
+            // Labelary anchors P-V caps ~0.15x cell BELOW the field origin (measured:
+            // P top is 3px below origin at 20-dot cell, Q 4px at 28-dot, S 6px at
+            // 40-dot), so push the origin back down by that amount.
+            let p_low_cap = if is_pv { font_size as f64 * 0.15 } else { 0.0 };
+            -(orig_gap * cap_scale as f64) + p_low_cap
         } else {
             0.0
         };
@@ -766,7 +779,7 @@ impl Renderer {
 fn get_ttf_font_data(name: &str) -> &'static [u8] {
     match name {
         "0" => FONT_HELVETICA,
-        "B" | "D" | "P" | "Q" | "S" => FONT_DEJAVU_BOLD,
+        "B" | "D" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
         _ => FONT_DEJAVU_MONO,
     }

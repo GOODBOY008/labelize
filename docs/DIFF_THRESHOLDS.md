@@ -69,6 +69,9 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | fedex | zpl | 7.91 | 9.0 | PDF417 encoding + font |
 | fedex_express | zpl | 11.34 | 12.5 | PDF417 encoding + font |
 | fedex_ground | zpl | 9.51 | 10.5 | PDF417 encoding + font |
+| font_p | zpl | 0.17 | 1.0 | Bitmap font P (20x18 base, DejaVu Mono Bold substitute) |
+| font_q | zpl | 0.17 | 1.0 | Bitmap font Q (28x24 base, DejaVu Mono Bold substitute) |
+| font_s | zpl | 0.36 | 1.0 | Bitmap font S (40x35 base, DejaVu Mono Bold substitute) |
 | gb_0_height | zpl | 0.00 | 1.0 | Perfect |
 | gb_0_width | zpl | 0.00 | 1.0 | Perfect |
 | gb_normal | zpl | 0.00 | 1.0 | Perfect |
