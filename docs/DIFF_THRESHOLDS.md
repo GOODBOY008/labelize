@@ -71,7 +71,11 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | fedex_ground | zpl | 9.51 | 10.5 | PDF417 encoding + font |
 | font_p | zpl | 0.17 | 1.0 | Bitmap font P (20x18 base, DejaVu Mono Bold substitute) |
 | font_q | zpl | 0.17 | 1.0 | Bitmap font Q (28x24 base, DejaVu Mono Bold substitute) |
+| font_r | zpl | 0.44 | 1.0 | Bitmap font R (35x31 base, DejaVu Mono Bold substitute) |
 | font_s | zpl | 0.36 | 1.0 | Bitmap font S (40x35 base, DejaVu Mono Bold substitute) |
+| font_t | zpl | 0.73 | 1.0 | Bitmap font T (48x42 base, DejaVu Mono Bold substitute) |
+| font_u | zpl | 1.22 | 1.5 | Bitmap font U (59x53 base, DejaVu Mono Bold substitute) |
+| font_v | zpl | 2.14 | 2.5 | Bitmap font V (80x71 base, DejaVu Mono Bold substitute) |
 | gb_0_height | zpl | 0.00 | 1.0 | Perfect |
 | gb_0_width | zpl | 0.00 | 1.0 | Perfect |
 | gb_normal | zpl | 0.00 | 1.0 | Perfect |

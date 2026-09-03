@@ -283,6 +283,22 @@ fn golden_font_s() {
     golden_zpl("font_s");
 }
 #[test]
+fn golden_font_r() {
+    golden_zpl("font_r");
+}
+#[test]
+fn golden_font_t() {
+    golden_zpl("font_t");
+}
+#[test]
+fn golden_font_u() {
+    golden_zpl("font_u");
+}
+#[test]
+fn golden_font_v() {
+    golden_zpl("font_v");
+}
+#[test]
 fn golden_gd_thin_r() {
     golden_zpl_with_tolerance("gd_thin_r", 1.0);
 }
