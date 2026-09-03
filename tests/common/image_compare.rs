@@ -71,7 +71,11 @@ pub fn compare_images(actual: &[u8], expected: &[u8], _tolerance: f64) -> Compar
         dimensions_match,
         actual_dims,
         expected_dims,
-        diff_image: if diff_count > 0 { Some(diff_img) } else { None },
+        // Always save the diff image — even for a perfect match — so every label has a
+        // `_diff.png` artifact at the current canvas size (a fully transparent one when
+        // there are no differing pixels). This also prevents stale diff images from an
+        // older canvas from lingering: each run rewrites every label's diff image.
+        diff_image: Some(diff_img),
         actual_image: Some(actual_img),
         expected_image: Some(expected_img),
     }
