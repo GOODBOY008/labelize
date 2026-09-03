@@ -27,9 +27,9 @@
 ║ edi_triangle                   │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ encodings_013                  │ zpl  │    1.56% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fo_lenient_coord               │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ font_p                         │ zpl  │    0.54% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ font_q                         │ zpl  │    0.55% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ font_s                         │ zpl  │    0.65% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_p                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_q                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_s                         │ zpl  │    0.36% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gb_0_height                    │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ gb_0_width                     │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ gb_normal                      │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
