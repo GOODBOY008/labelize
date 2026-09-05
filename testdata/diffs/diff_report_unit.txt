@@ -23,7 +23,8 @@
 ║ cp850_hex_chars                │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ dhlparceluk_dhl_text           │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ dhlparceluk_ver                │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ ean13                          │ zpl  │    2.76% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ ean13                          │ zpl  │    0.71% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ ean8_upca                      │ zpl  │    0.41% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ edi_triangle                   │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ encodings_013                  │ zpl  │    1.56% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fo_lenient_coord               │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -42,7 +43,9 @@
 ║ gd_thick                       │ zpl  │    0.08% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gd_thin_l                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gd_thin_r                      │ zpl  │    0.03% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ ge_ellipse                     │ zpl  │    0.22% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ gs                             │ zpl  │    1.14% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ lt_ls                          │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ maxicode_default_mode2         │ zpl  │    0.59% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ maxicode_mode4                 │ zpl  │    0.58% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ mu_dpi_conversion              │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -69,9 +72,10 @@
 ║ text_ft_n                      │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_r                      │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ upce                           │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ ups_maxicode                   │ zpl  │    0.75% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_priority_mail             │ zpl  │    0.32% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 69 total │ 5 perfect │ 53 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 73 total │ 5 perfect │ 58 good │ 8 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
