@@ -115,9 +115,9 @@ fn code128_ean_mode_keeps_ai_formatting_but_hides_fnc1_invocations() {
 
 #[test]
 fn ean13_encodes_12_digits() {
-    let img = ean13::encode("123456789012", 100, 2).expect("ean13 failed");
-    assert!(img.width() > 0);
-    assert!(img.height() > 0);
+    let sym = ean13::encode("123456789012", 100, 2).expect("ean13 failed");
+    assert!(sym.image.width() > 0);
+    assert!(sym.image.height() > 0);
 }
 
 #[test]

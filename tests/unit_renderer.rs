@@ -429,11 +429,11 @@ fn barcode_interpretation_line_rotates_with_barcode() {
 
 #[test]
 fn ean13_guard_bars_taller_than_data_bars() {
-    let img =
+    let sym =
         labelize::barcodes::ean13::encode("123456789012", 200, 2).expect("ean13 encode failed");
 
     // Image should be taller than 200px to accommodate guard bar extension
-    let total_height = img.height();
+    let total_height = sym.image.height();
     assert!(
         total_height > 200,
         "EAN-13 image height ({}) should exceed barcode height (200) for guard bars",
@@ -444,9 +444,9 @@ fn ean13_guard_bars_taller_than_data_bars() {
     let bar_width = 2usize;
     let extended_row = 205u32; // in the guard bar extension area
     let has_guard_extension = (0..bar_width).any(|x| {
-        x < img.width() as usize
-            && extended_row < img.height()
-            && img.get_pixel(x as u32, extended_row)[0] < 128
+        x < sym.image.width() as usize
+            && extended_row < sym.image.height()
+            && sym.image.get_pixel(x as u32, extended_row)[0] < 128
     });
     assert!(
         has_guard_extension,

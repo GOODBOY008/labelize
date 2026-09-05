@@ -145,6 +145,10 @@ impl Renderer {
                 self.draw_graphic_circle(canvas, gc);
                 Ok(())
             }
+            LabelElement::GraphicEllipse(ge) => {
+                self.draw_graphic_ellipse(canvas, ge);
+                Ok(())
+            }
             LabelElement::DiagonalLine(dl) => {
                 self.draw_diagonal_line(canvas, dl);
                 Ok(())
@@ -155,6 +159,8 @@ impl Renderer {
             }
             LabelElement::Barcode128(bc) => self.draw_barcode_128(canvas, bc),
             LabelElement::BarcodeEan13(bc) => self.draw_barcode_ean13(canvas, bc),
+            LabelElement::BarcodeEan8(bc) => self.draw_barcode_ean8(canvas, bc),
+            LabelElement::BarcodeUca(bc) => self.draw_barcode_upca(canvas, bc),
             LabelElement::Barcode2of5(bc) => self.draw_barcode_2of5(canvas, bc),
             LabelElement::Barcode39(bc) => self.draw_barcode_39(canvas, bc),
             LabelElement::BarcodePdf417(bc) => self.draw_barcode_pdf417(canvas, bc),
@@ -162,6 +168,7 @@ impl Renderer {
             LabelElement::BarcodeDatamatrix(bc) => self.draw_barcode_datamatrix(canvas, bc),
             LabelElement::BarcodeQr(bc) => self.draw_barcode_qr(canvas, bc, options),
             LabelElement::Maxicode(mc) => self.draw_maxicode(canvas, mc),
+            LabelElement::BarcodeUcpe(bc) => self.draw_barcode_upce(canvas, bc),
             _ => Ok(()), // Config/template elements are not drawn
         }
     }
@@ -436,6 +443,45 @@ impl Renderer {
         }
     }
 
+    fn draw_graphic_ellipse(
+        &self,
+        canvas: &mut RgbaImage,
+        ge: &crate::elements::graphic_ellipse::GraphicEllipse,
+    ) {
+        let color = line_color_to_rgba(ge.line_color);
+        let rx = (ge.width.max(1) as f32) / 2.0;
+        let ry = (ge.height.max(1) as f32) / 2.0;
+        let cx = ge.position.x as f32 + rx;
+        let cy = ge.position.y as f32 + ry;
+        let thickness = ge.border_thickness.max(1) as f32;
+
+        // Fill when the border reaches the minor axis (like the circle rule).
+        let min_r = rx.min(ry);
+        let (w, h) = canvas.dimensions();
+        let min_x = ((cx - rx - 1.0).max(0.0)) as u32;
+        let max_x = ((cx + rx + 1.0).min(w as f32 - 1.0)) as u32;
+        let min_y = ((cy - ry - 1.0).max(0.0)) as u32;
+        let max_y = ((cy + ry + 1.0).min(h as f32 - 1.0)) as u32;
+        for py in min_y..=max_y {
+            for px in min_x..=max_x {
+                let dx = px as f32 - cx;
+                let dy = py as f32 - cy;
+                let d = (dx / rx) * (dx / rx) + (dy / ry) * (dy / ry);
+                if d <= 1.0
+                    && (thickness >= min_r || {
+                        let inner_rx = rx - thickness;
+                        let inner_ry = ry - thickness;
+                        let d2 =
+                            (dx / inner_rx) * (dx / inner_rx) + (dy / inner_ry) * (dy / inner_ry);
+                        d2 >= 1.0
+                    })
+                {
+                    canvas.put_pixel(px, py, color);
+                }
+            }
+        }
+    }
+
     fn draw_diagonal_line(
         &self,
         canvas: &mut RgbaImage,
@@ -597,20 +643,170 @@ impl Renderer {
         canvas: &mut RgbaImage,
         bc: &crate::elements::barcode_ean13::BarcodeEan13WithData,
     ) -> Result<(), String> {
-        let img = barcodes::ean13::encode(&bc.data, bc.barcode.height, bc.width)?;
+        let sym = barcodes::ean13::encode(&bc.data, bc.barcode.height, bc.width)?;
+        let img = sym.image.clone();
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
-        overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
+        // For 90°/180° rotations the guard extension hangs on the far side of the
+        // data block, keeping the data-block origin at the field origin (Labelary).
+        let mut bar_pos = pos.clone();
+        match bc.barcode.orientation {
+            FieldOrientation::Rotated90 => bar_pos.x -= sym.guard_height as i32,
+            FieldOrientation::Rotated180 => bar_pos.y -= sym.guard_height as i32,
+            _ => {}
+        }
+        overlay_with_rotation(canvas, &img, &bar_pos, bc.barcode.orientation);
 
         if bc.barcode.line {
-            draw_barcode_interpretation_line(
+            let mw = bc.width.max(1) as f32;
+            let chars: Vec<char> = sym.digits.iter().map(|d| char::from(b'0' + d)).collect();
+            // Number-system digit left of the bars; digits 2..7 and 8..13 (incl.
+            // check) at a uniform ~6.6-module cadence calibrated off Labelary.
+            let mut centers = vec![pos.x as f32 - 6.5 * mw];
+            centers.extend((0..6).map(|i| pos.x as f32 + mw * (7.0 + 6.6 * i as f32)));
+            centers.extend((0..6).map(|j| pos.x as f32 + mw * (53.2 + 6.6 * j as f32)));
+            draw_module_centered_interpretation_line(
                 canvas,
-                &bc.data,
+                &chars,
+                &centers,
                 &pos,
                 &img,
                 bc.barcode.orientation,
                 bc.barcode.line_above,
                 bc.width,
-                false,
+                sym.image.height() as i32 - sym.guard_height as i32,
+            );
+        }
+        Ok(())
+    }
+
+    fn draw_barcode_ean8(
+        &self,
+        canvas: &mut RgbaImage,
+        bc: &crate::elements::barcode_ean8::BarcodeEan8WithData,
+    ) -> Result<(), String> {
+        let sym = barcodes::ean8::encode(&bc.data, bc.barcode.height, bc.width)?;
+        let img = sym.image.clone();
+        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        // 90°/180°: guard hangs on the far side; data origin stays at the field
+        // origin (Labelary behavior).
+        let mut bar_pos = pos.clone();
+        match bc.barcode.orientation {
+            FieldOrientation::Rotated90 => bar_pos.x -= sym.guard_height as i32,
+            FieldOrientation::Rotated180 => bar_pos.y -= sym.guard_height as i32,
+            _ => {}
+        }
+        overlay_with_rotation(canvas, &img, &bar_pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            let mw = bc.width.max(1) as f32;
+            let chars: Vec<char> = sym.digits.iter().map(|d| char::from(b'0' + d)).collect();
+            // Left digits under modules 3..30, right digits under 36..63.
+            let centers: Vec<f32> = (0..4)
+                .map(|i| pos.x as f32 + mw * (6.5 + 7.0 * i as f32))
+                .chain((0..4).map(|j| pos.x as f32 + mw * (39.5 + 7.0 * j as f32)))
+                .collect();
+            draw_module_centered_interpretation_line(
+                canvas,
+                &chars,
+                &centers,
+                &pos,
+                &img,
+                bc.barcode.orientation,
+                bc.barcode.line_above,
+                bc.width,
+                sym.image.height() as i32 - sym.guard_height as i32,
+            );
+        }
+        Ok(())
+    }
+
+    fn draw_barcode_upca(
+        &self,
+        canvas: &mut RgbaImage,
+        bc: &crate::elements::barcode_upca::BarcodeUcaWithData,
+    ) -> Result<(), String> {
+        let sym = barcodes::upca::encode(&bc.data, bc.barcode.height, bc.width)?;
+        let img = sym.image.clone();
+        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        // 90°/180°: guard hangs on the far side; data origin stays at the field
+        // origin (Labelary behavior).
+        let mut bar_pos = pos.clone();
+        match bc.barcode.orientation {
+            FieldOrientation::Rotated90 => bar_pos.x -= sym.guard_height as i32,
+            FieldOrientation::Rotated180 => bar_pos.y -= sym.guard_height as i32,
+            _ => {}
+        }
+        overlay_with_rotation(canvas, &img, &bar_pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            let mw = bc.width.max(1) as f32;
+            let chars: Vec<char> = sym
+                .digits
+                .iter()
+                .map(|d| char::from(b'0' + d))
+                .chain(std::iter::once(char::from(b'0' + sym.check_digit)))
+                .collect();
+            // Number-system digit left of the bars; M1..M5 under left groups
+            // 2..6, P1..P5 under right groups 1..5, check digit right of the
+            // end guard (~module 99) — all calibrated against Labelary.
+            let mut centers = vec![pos.x as f32 - 9.0 * mw];
+            centers.extend((0..5).map(|i| pos.x as f32 + mw * (13.5 + 7.0 * i as f32)));
+            centers.extend((0..5).map(|j| pos.x as f32 + mw * (53.5 + 7.0 * j as f32)));
+            centers.push(pos.x as f32 + 99.0 * mw);
+            draw_module_centered_interpretation_line(
+                canvas,
+                &chars,
+                &centers,
+                &pos,
+                &img,
+                bc.barcode.orientation,
+                bc.barcode.line_above,
+                bc.width,
+                sym.image.height() as i32 - sym.guard_height as i32,
+            );
+        }
+        Ok(())
+    }
+
+    fn draw_barcode_upce(
+        &self,
+        canvas: &mut RgbaImage,
+        bc: &crate::elements::barcode_upce::BarcodeUcpeWithData,
+    ) -> Result<(), String> {
+        let sym = barcodes::upce::encode(&bc.data, bc.barcode.height, bc.width)?;
+        let img = sym.image.clone();
+        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        // 90°/180°: guard hangs on the far side; data origin stays at the field
+        // origin (Labelary behavior).
+        let guard = (img.height() - sym.data_height) as i32;
+        let mut bar_pos = pos.clone();
+        match bc.barcode.orientation {
+            FieldOrientation::Rotated90 => bar_pos.x -= guard,
+            FieldOrientation::Rotated180 => bar_pos.y -= guard,
+            _ => {}
+        }
+        overlay_with_rotation(canvas, &img, &bar_pos, bc.barcode.orientation);
+
+        if bc.barcode.line {
+            let mw = bc.width.max(1) as f32;
+            let mut chars = vec![char::from(b'0' + sym.number_system)];
+            chars.extend(sym.digits.iter().map(|d| char::from(b'0' + d)));
+            let mut centers = vec![pos.x as f32 - 9.0 * mw];
+            centers.extend((0..6).map(|i| pos.x as f32 + mw * (6.5 + 7.0 * i as f32)));
+            if bc.barcode.check_digit {
+                chars.push(char::from(b'0' + sym.check_digit));
+                centers.push(pos.x as f32 + 55.0 * mw);
+            }
+            draw_module_centered_interpretation_line(
+                canvas,
+                &chars,
+                &centers,
+                &pos,
+                &img,
+                bc.barcode.orientation,
+                bc.barcode.line_above,
+                bc.width,
+                sym.data_height as i32,
             );
         }
         Ok(())
@@ -1475,6 +1671,163 @@ fn draw_barcode_interpretation_line(
                 }
                 FieldOrientation::Rotated270 => {
                     let cy = pos.y + (bw - text_width as i32) / 2;
+                    if line_above {
+                        (pos.x - rotated.width() as i32 - 2, cy)
+                    } else {
+                        (pos.x + bh + 2, cy)
+                    }
+                }
+                _ => (0, 0),
+            };
+            overlay_at(canvas, &rotated, tx, ty);
+        }
+    }
+}
+
+/// Interpretation line for the EAN/UPC family (^B8/^B9/^BU): each digit glyph is
+/// centered on its own 7-module group; the UPC-E/UPC-A number-system digit sits
+/// left of the start guard and the UPC-E check digit right of the end guard --
+/// all calibrated against Labelary renders. The check digit selects digit parity, so it
+/// is always encoded even when not printed.
+#[allow(clippy::too_many_arguments)]
+fn draw_module_centered_interpretation_line(
+    canvas: &mut RgbaImage,
+    chars: &[char],
+    centers: &[f32],
+    pos: &LabelPosition,
+    barcode_img: &RgbaImage,
+    orientation: FieldOrientation,
+    line_above: bool,
+    module_width: i32,
+    data_height: i32,
+) {
+    let mw = module_width.max(1) as f32;
+    // Labelary's UPC-E interpretation font scales 9.5px per module width, capped at
+    // ~28.5px (ink height measured 14px at mw=2, 21px at mw>=3).
+    let font_size = (9.5 * mw).min(28.5);
+    let font = match FontRef::try_from_slice(FONT_DEJAVU_MONO) {
+        Ok(f) => f,
+        Err(_) => return,
+    };
+    // Labelary's interpretation font has a larger x-height and narrower advance
+    // than DejaVu Sans Mono; stretch non-uniformly to match (calibrated).
+    let scale = PxScale {
+        x: font_size * 0.67,
+        y: font_size * 1.17,
+    };
+
+    // Render each glyph crisply (3x supersample + threshold) into its own buffer.
+    let render_glyph = |ch: char, w: u32, h: u32| -> RgbaImage {
+        const SS: u32 = 3;
+        let ss_scale = PxScale {
+            x: scale.x * SS as f32,
+            y: scale.y * SS as f32,
+        };
+        let mut big = RgbaImage::from_pixel((w * SS).max(1), (h * SS).max(1), Rgba([0, 0, 0, 0]));
+        drawing::draw_text_mut(
+            &mut big,
+            Rgba([0, 0, 0, 255]),
+            0,
+            0,
+            ss_scale,
+            &font,
+            &ch.to_string(),
+        );
+        let mut out = RgbaImage::from_pixel(w.max(1), h.max(1), Rgba([0, 0, 0, 0]));
+        for y in 0..h {
+            for x in 0..w {
+                let mut sum = 0u32;
+                for dy in 0..SS {
+                    for dx in 0..SS {
+                        let sx = x * SS + dx;
+                        let sy = y * SS + dy;
+                        if sx < big.width() && sy < big.height() {
+                            sum += big.get_pixel(sx, sy)[3] as u32;
+                        }
+                    }
+                }
+                if sum / (SS * SS) > 127 {
+                    out.put_pixel(x, y, Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+        out
+    };
+
+    let _buf_w = (font_size.ceil() as u32).max(1) + 2;
+    let buf_h = font_size.ceil() as u32 + 2;
+    let mut glyphs: Vec<(RgbaImage, f32)> = Vec::with_capacity(chars.len());
+    let mut min_x = f32::MAX;
+    let mut max_x = f32::MIN;
+    for (ch, cx) in chars.iter().zip(centers.iter()) {
+        // Measure the glyph's ink width to center it on the module group.
+        let tw = measure_text_width(&ch.to_string(), &font, scale, false);
+        let w = (tw.ceil() as i32).max(2) as u32;
+        let gbuf = render_glyph(*ch, w, buf_h);
+        let left = cx - tw / 2.0;
+        min_x = min_x.min(left);
+        max_x = max_x.max(left + tw);
+        glyphs.push((gbuf, left));
+    }
+
+    // Strip dimensions and the demo text baseline spacing used by Labelary: glyph
+    // top sits 4px below the data bars (6px for the capped 28.5px font).
+    let strip_w = (max_x - min_x).ceil() as i32 + 2;
+    let mut strip = RgbaImage::from_pixel(strip_w.max(1) as u32, buf_h, Rgba([0, 0, 0, 0]));
+    for (gbuf, left) in &glyphs {
+        let ox = (left - min_x).round() as i32;
+        for y in 0..gbuf.height() {
+            for x in 0..gbuf.width() {
+                if gbuf.get_pixel(x, y)[3] > 0 {
+                    let px = ox + x as i32;
+                    if px >= 0 && px < strip.width() as i32 {
+                        strip.put_pixel(px as u32, y, Rgba([0, 0, 0, 255]));
+                    }
+                }
+            }
+        }
+    }
+
+    let bh = barcode_img.height() as i32;
+    let top_off: i32 = if font_size > 19.0 { 2 } else { 0 };
+    let text_h = buf_h as i32;
+
+    match orientation {
+        FieldOrientation::Normal => {
+            // Text top sits top_off below the DATA bars, not the guard extension.
+            let ty = if line_above {
+                pos.y - text_h - 2
+            } else {
+                pos.y + data_height + top_off
+            };
+            overlay_at(canvas, &strip, min_x.round() as i32 - 1, ty);
+        }
+        _ => {
+            let rotated = match orientation {
+                FieldOrientation::Rotated90 => rotate_90(&strip),
+                FieldOrientation::Rotated180 => rotate_180(&strip),
+                FieldOrientation::Rotated270 => rotate_270(&strip),
+                _ => strip,
+            };
+            let (tx, ty) = match orientation {
+                FieldOrientation::Rotated90 => {
+                    let cy = pos.y + (barcode_img.width() as i32 - strip_w) / 2;
+                    if line_above {
+                        (pos.x + bh + 2, cy)
+                    } else {
+                        (pos.x - rotated.width() as i32 - 2, cy)
+                    }
+                }
+                FieldOrientation::Rotated180 => {
+                    let cx = pos.x + (barcode_img.width() as i32 - strip_w) / 2;
+                    if line_above {
+                        (cx, pos.y + bh + 2)
+                    } else {
+                        (cx, pos.y - rotated.height() as i32 - 2)
+                    }
+                }
+                FieldOrientation::Rotated270 => {
+                    let cy = pos.y + (barcode_img.width() as i32 - strip_w) / 2;
                     if line_above {
                         (pos.x - rotated.width() as i32 - 2, cy)
                     } else {

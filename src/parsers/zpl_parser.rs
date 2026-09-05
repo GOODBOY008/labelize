@@ -4,12 +4,16 @@ use crate::elements::barcode_39::Barcode39;
 use crate::elements::barcode_aztec::BarcodeAztec;
 use crate::elements::barcode_datamatrix::{BarcodeDatamatrix, DatamatrixRatio};
 use crate::elements::barcode_ean13::BarcodeEan13;
+use crate::elements::barcode_ean8::BarcodeEan8;
 use crate::elements::barcode_pdf417::BarcodePdf417;
 use crate::elements::barcode_qr::BarcodeQr;
+use crate::elements::barcode_upca::BarcodeUca;
+use crate::elements::barcode_upce::BarcodeUcpe;
 use crate::elements::field_block::FieldBlock;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
+use crate::elements::graphic_ellipse::GraphicEllipse;
 use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
 use crate::elements::graphic_symbol::GraphicSymbol;
 use crate::elements::label_element::LabelElement;
@@ -81,11 +85,26 @@ impl ZplParser {
                 }
 
                 if self.printer.next_download_format_name.is_empty() {
-                    results.push(LabelInfo {
-                        print_width: self.printer.print_width,
-                        inverted: self.printer.label_inverted,
-                        elements: result_elements.clone(),
-                    });
+                    // ^LT/^LS apply when the label is emitted, never when a format is
+                    // stored: recalled formats keep raw positions and shift with the
+                    // recall format's own ^LT/^LS (Labelary behavior, verified). This
+                    // also makes the shift retroactive for fields placed before the
+                    // command appeared in the format.
+                    let mut shifted = result_elements.clone();
+                    apply_label_offsets(
+                        &mut shifted,
+                        self.printer.label_shift,
+                        self.printer.label_top,
+                    );
+                    let quantity =
+                        self.printer.print_quantity.max(1) * self.printer.print_copies.max(1);
+                    for _ in 0..quantity {
+                        results.push(LabelInfo {
+                            print_width: self.printer.print_width,
+                            inverted: self.printer.label_inverted,
+                            elements: shifted.clone(),
+                        });
+                    }
                 } else {
                     self.printer.stored_formats.insert(
                         self.printer.next_download_format_name.clone(),
@@ -135,6 +154,32 @@ impl ZplParser {
             self.parse_label_home(command);
             return Ok(None);
         }
+        // Label top
+        if upper.starts_with("^LT") {
+            self.parse_label_top(command);
+            return Ok(None);
+        }
+        // Label shift
+        if upper.starts_with("^LS") {
+            self.parse_label_shift(command);
+            return Ok(None);
+        }
+        // Label length (recorded; rendering size comes from the canvas, so ^LL
+        // has no visible effect, matching Labelary)
+        if upper.starts_with("^LL") {
+            let scale = self.printer.unit_scale();
+            if let Some(v) = command_text(command, "^LL")
+                .trim()
+                .parse::<f64>()
+                .ok()
+                .map(|v| (v * scale).round() as i32)
+            {
+                if v > 0 {
+                    self.printer.label_length = v;
+                }
+            }
+            return Ok(None);
+        }
         // Label reverse print
         if upper.starts_with("^LR") {
             let text = command_text(command, "^LR");
@@ -174,9 +219,24 @@ impl ZplParser {
             self.parse_change_default_font(command);
             return Ok(None);
         }
+        // Change font by name
+        if upper.starts_with("^A@") {
+            self.parse_change_font_named(command);
+            return Ok(None);
+        }
         // Change font
         if upper.starts_with("^A") && !upper.starts_with("^A@") {
             self.parse_change_font(command);
+            return Ok(None);
+        }
+        // Font identifier assignment
+        if upper.starts_with("^CW") {
+            self.parse_font_identifier(command);
+            return Ok(None);
+        }
+        // Comment — payload is ignored (recognized explicitly so future command
+        // additions can never intercept comment text).
+        if upper.starts_with("^FX") {
             return Ok(None);
         }
         // Field orientation
@@ -248,6 +308,14 @@ impl ZplParser {
             self.parse_barcode_ean13(command);
             return Ok(None);
         }
+        if upper.starts_with("^B8") {
+            self.parse_barcode_ean8(command);
+            return Ok(None);
+        }
+        if upper.starts_with("^BU") {
+            self.parse_barcode_upca(command);
+            return Ok(None);
+        }
         if upper.starts_with("^B2") {
             self.parse_barcode_2of5(command);
             return Ok(None);
@@ -276,6 +344,10 @@ impl ZplParser {
             self.parse_maxicode(command);
             return Ok(None);
         }
+        if upper.starts_with("^B9") {
+            self.parse_barcode_upce(command);
+            return Ok(None);
+        }
         if upper.starts_with("^BY") {
             self.parse_barcode_field_defaults(command);
             return Ok(None);
@@ -287,6 +359,9 @@ impl ZplParser {
         }
         if upper.starts_with("^GC") {
             return self.parse_graphic_circle(command);
+        }
+        if upper.starts_with("^GE") {
+            return self.parse_graphic_ellipse(command);
         }
         if upper.starts_with("^GD") {
             return self.parse_graphic_diagonal_line(command);
@@ -304,6 +379,22 @@ impl ZplParser {
             self.parse_download_graphics(command)?;
             return Ok(None);
         }
+        if upper.starts_with("^ID") {
+            self.parse_image_delete(command);
+            return Ok(None);
+        }
+        if upper.starts_with("^IM") {
+            self.parse_image_move(command);
+            return Ok(None);
+        }
+        if upper.starts_with("^IS") {
+            self.parse_image_save(command);
+            return Ok(None);
+        }
+        if upper.starts_with("~EG") {
+            self.parse_erase_graphic(command);
+            return Ok(None);
+        }
         if upper.starts_with("^IL") {
             return self.parse_image_load(command);
         }
@@ -318,6 +409,21 @@ impl ZplParser {
             return self.parse_recall_format(command);
         }
 
+        // Print quantity and serial state (serial markers in ^FD render literally,
+        // matching Labelary, so ^SN/^SF only record stream state)
+        if upper.starts_with("^PQ") {
+            self.parse_print_quantity(command);
+            return Ok(None);
+        }
+        if upper.starts_with("^SN") {
+            self.printer.serial_number = command_text(command, "^SN").to_string();
+            return Ok(None);
+        }
+        if upper.starts_with("^SF") {
+            self.printer.serial_format = command_text(command, "^SF").to_string();
+            return Ok(None);
+        }
+
         Ok(None)
     }
 
@@ -329,6 +435,29 @@ impl ZplParser {
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.label_home_position.y = v;
+        }
+    }
+
+    /// `^LTv` -- label top. Shifts every element's y by +v at label emission.
+    /// Zebra/Labelary accept only |v| <= 120 dots and ignore larger values
+    /// (calibrated: `^LT121` and `^LT-121` render unshifted).
+    fn parse_label_top(&mut self, command: &str) {
+        let parts = split_command(command, "^LT");
+        let scale = self.printer.unit_scale();
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
+            if v.abs() <= 120 {
+                self.printer.label_top = v;
+            }
+        }
+    }
+
+    /// `^LSv` -- label shift. Positive shifts content left, negative right;
+    /// per-element x is clamped at 0 (Labelary behavior).
+    fn parse_label_shift(&mut self, command: &str) {
+        let parts = split_command(command, "^LS");
+        let scale = self.printer.unit_scale();
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
+            self.printer.label_shift = v;
         }
     }
 
@@ -421,6 +550,11 @@ impl ZplParser {
             ..Default::default()
         };
 
+        // ^CW can remap a font identifier (the ^A first character) to a font name.
+        if let Some(mapped) = self.printer.font_map.get(&font.name).cloned() {
+            font.name = self.resolve_font_name(&mapped);
+        }
+
         if !font.is_standard_font() {
             // Numeric font names (1-9) are user-installed fonts on Zebra printers.
             // Fall back to font "0" (proportional) rather than font "A" (monospaced).
@@ -467,6 +601,81 @@ impl ZplParser {
         }
 
         self.printer.next_font = Some(font);
+    }
+
+    /// `^A@f,h,w` -- change font by name. `f` may be a built-in designator or a
+    /// downloadable font name (device prefix, extension); names we cannot render
+    /// degrade to the default font like `^A`'s numeric fallback does.
+    fn parse_change_font_named(&mut self, command: &str) {
+        let parts = split_command(command, "^A@");
+        if parts.is_empty() || parts[0].is_empty() {
+            self.printer.next_font = None;
+            return;
+        }
+        let mut font = crate::elements::font::FontInfo {
+            name: self.resolve_font_name(parts[0]),
+            orientation: self.printer.default_font.orientation,
+            ..Default::default()
+        };
+
+        let scale = self.printer.unit_scale();
+        if let Some(s) = parts.get(1) {
+            if let Some(v) = parse_int_scaled(s, scale) {
+                font.height = v as f64;
+            }
+        }
+        if let Some(s) = parts.get(2) {
+            if let Some(v) = parse_int_scaled(s, scale) {
+                font.width = v as f64;
+            }
+        }
+        self.printer.next_font = Some(font);
+    }
+
+    /// `^CWx,f` -- assign a font name to a font identifier character (A-Z, 0-9);
+    /// later `^A` with that identifier uses the mapped font.
+    fn parse_font_identifier(&mut self, command: &str) {
+        let parts = split_command(command, "^CW");
+        if let Some(id) = parts.first() {
+            if let Some(c) = id.trim().chars().next() {
+                if c.is_ascii_alphanumeric() {
+                    let name = parts
+                        .get(1)
+                        .map(|s| s.trim().to_string())
+                        .unwrap_or_default();
+                    if !name.is_empty() {
+                        self.printer
+                            .font_map
+                            .insert(c.to_uppercase().to_string(), name);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Resolve a font name (from `^A@` or a `^CW`-mapped name) to a renderable
+    /// built-in designator. Downloadable font names are unrecognizable here and fall
+    /// back to the default font.
+    fn resolve_font_name(&self, name: &str) -> String {
+        let base = name.rsplit(':').next().unwrap_or(name);
+        let base = base.split('.').next().unwrap_or(base);
+        let mut chars = base.chars();
+        let single = match (chars.next(), chars.next()) {
+            (Some(c), None) => c,
+            _ => return self.printer.default_font.name.clone(),
+        };
+        let probe = crate::elements::font::FontInfo {
+            name: single.to_uppercase().to_string(),
+            ..Default::default()
+        };
+        if probe.is_standard_font() {
+            probe.name
+        } else if single.is_ascii_digit() {
+            // Numeric font names (1-9) are user-installed fonts: fall back to font 0.
+            "0".to_string()
+        } else {
+            self.printer.default_font.name.clone()
+        }
     }
 
     fn parse_field_orientation(&mut self, command: &str) {
@@ -684,6 +893,71 @@ impl ZplParser {
             Some(Box::new(LabelElement::BarcodeEan13Config(bc)));
     }
 
+    /// `^B8o,h,f,g` -- EAN-8. Defaults: orientation N, height from ^BY,
+    /// interpretation line on (below), not above.
+    fn parse_barcode_ean8(&mut self, command: &str) {
+        let parts = split_command(command, "^B8");
+        let scale = self.printer.unit_scale();
+        let mut bc = BarcodeEan8 {
+            orientation: self.printer.default_orientation,
+            height: self.printer.default_barcode_dimensions.height,
+            line: true,
+            line_above: false,
+        };
+        if let Some(s) = parts.first() {
+            if !s.is_empty() {
+                bc.orientation = to_field_orientation(s.as_bytes()[0]);
+            }
+        }
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
+            bc.height = v;
+        }
+        if let Some(s) = parts.get(2) {
+            if !s.is_empty() {
+                bc.line = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        if let Some(s) = parts.get(3) {
+            if !s.is_empty() {
+                bc.line_above = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        self.printer.next_element_field_element =
+            Some(Box::new(LabelElement::BarcodeEan8Config(bc)));
+    }
+
+    /// `^BUo,h,f,g` -- UPC-A. Defaults like ^B8.
+    fn parse_barcode_upca(&mut self, command: &str) {
+        let parts = split_command(command, "^BU");
+        let scale = self.printer.unit_scale();
+        let mut bc = BarcodeUca {
+            orientation: self.printer.default_orientation,
+            height: self.printer.default_barcode_dimensions.height,
+            line: true,
+            line_above: false,
+        };
+        if let Some(s) = parts.first() {
+            if !s.is_empty() {
+                bc.orientation = to_field_orientation(s.as_bytes()[0]);
+            }
+        }
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
+            bc.height = v;
+        }
+        if let Some(s) = parts.get(2) {
+            if !s.is_empty() {
+                bc.line = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        if let Some(s) = parts.get(3) {
+            if !s.is_empty() {
+                bc.line_above = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        self.printer.next_element_field_element =
+            Some(Box::new(LabelElement::BarcodeUcaConfig(bc)));
+    }
+
     fn parse_barcode_2of5(&mut self, command: &str) {
         let parts = split_command(command, "^B2");
         let scale = self.printer.unit_scale();
@@ -888,6 +1162,45 @@ impl ZplParser {
         self.printer.next_element_field_element = Some(Box::new(LabelElement::MaxicodeConfig(mc)));
     }
 
+    /// `^B9o,h,f,g,e` -- UPC-E. Defaults: orientation N, height from ^BY,
+    /// interpretation line on (below), not above, check digit printed.
+    fn parse_barcode_upce(&mut self, command: &str) {
+        let parts = split_command(command, "^B9");
+        let scale = self.printer.unit_scale();
+        let mut bc = BarcodeUcpe {
+            orientation: self.printer.default_orientation,
+            height: self.printer.default_barcode_dimensions.height,
+            line: true,
+            line_above: false,
+            check_digit: true,
+        };
+        if let Some(s) = parts.first() {
+            if !s.is_empty() {
+                bc.orientation = to_field_orientation(s.as_bytes()[0]);
+            }
+        }
+        if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
+            bc.height = v;
+        }
+        if let Some(s) = parts.get(2) {
+            if !s.is_empty() {
+                bc.line = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        if let Some(s) = parts.get(3) {
+            if !s.is_empty() {
+                bc.line_above = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        if let Some(s) = parts.get(4) {
+            if !s.is_empty() {
+                bc.check_digit = to_bool_field(s.as_bytes()[0]);
+            }
+        }
+        self.printer.next_element_field_element =
+            Some(Box::new(LabelElement::BarcodeUcpeConfig(bc)));
+    }
+
     fn parse_barcode_field_defaults(&mut self, command: &str) {
         let parts = split_command(command, "^BY");
         let scale = self.printer.unit_scale();
@@ -963,6 +1276,38 @@ impl ZplParser {
             gc.line_color = LineColor::White;
         }
         Ok(Some(LabelElement::GraphicCircle(gc)))
+    }
+
+    fn parse_graphic_ellipse(&self, command: &str) -> Result<Option<LabelElement>, String> {
+        let parts = split_command(command, "^GE");
+        let scale = self.printer.unit_scale();
+        let mut ge = GraphicEllipse {
+            position: self.printer.next_element_position.clone(),
+            width: 3,
+            height: 3,
+            border_thickness: 1,
+            line_color: LineColor::Black,
+            reverse_print: self.printer.get_reverse_print(),
+        };
+        if let Some(v) = parts.first().and_then(|s| to_positive_int_scaled(s, scale)) {
+            if v > 0 {
+                ge.width = v;
+            }
+        }
+        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_scaled(s, scale)) {
+            if v > 0 {
+                ge.height = v;
+            }
+        }
+        if let Some(v) = parts.get(2).and_then(|s| to_positive_int_scaled(s, scale)) {
+            if v > 0 {
+                ge.border_thickness = v;
+            }
+        }
+        if parts.get(3).is_some_and(|s| *s == "W") {
+            ge.line_color = LineColor::White;
+        }
+        Ok(Some(LabelElement::GraphicEllipse(ge)))
     }
 
     fn parse_graphic_diagonal_line(&self, command: &str) -> Result<Option<LabelElement>, String> {
@@ -1213,6 +1558,145 @@ impl ZplParser {
         } else {
             Ok(None)
         }
+    }
+
+    /// `^IDname` -- delete a stored object. Without an extension the raw key, then
+    /// the `.GRF`, then the `.ZPL` store are tried (spec: bare name deletes all
+    /// stored objects of that name).
+    fn parse_image_delete(&mut self, command: &str) {
+        let name = command_text(command, "^ID").trim();
+        if name.is_empty() {
+            return;
+        }
+        let key = name.to_string();
+        if self.printer.stored_graphics.remove(&key).is_some() {
+            return;
+        }
+        if self.printer.stored_formats.remove(&key).is_some() {
+            return;
+        }
+        let grf = ensure_extension(&key, "GRF");
+        if self.printer.stored_graphics.remove(&grf).is_some() {
+            return;
+        }
+        let zpl = ensure_extension(&key, "ZPL");
+        self.printer.stored_formats.remove(&zpl);
+    }
+
+    /// `^IMa,b` -- move (rename) a stored object from a to b. The extension picks
+    /// the store: `.ZPL` moves formats, anything else moves graphics.
+    fn parse_image_move(&mut self, command: &str) {
+        let parts = split_command(command, "^IM");
+        if parts.len() < 2 {
+            return;
+        }
+        let (from, to) = (parts[0].trim(), parts[1].trim());
+        if let Some(key) = storage_key(from, "ZPL") {
+            if let Some(v) = self.printer.stored_formats.remove(&key) {
+                self.printer
+                    .stored_formats
+                    .insert(storage_key(to, "ZPL").unwrap_or_default(), v);
+            }
+            return;
+        }
+        let from_key = ensure_extension(from, "GRF");
+        let to_key = ensure_extension(to, "GRF");
+        if let Some(g) = self.printer.stored_graphics.remove(&from_key) {
+            self.printer.stored_graphics.insert(to_key, g);
+        }
+    }
+
+    /// `^ISa,b` -- copy a stored object from a to b (both names remain usable).
+    fn parse_image_save(&mut self, command: &str) {
+        let parts = split_command(command, "^IS");
+        if parts.len() < 2 {
+            return;
+        }
+        let (from, to) = (parts[0].trim(), parts[1].trim());
+        if let Some(key) = storage_key(from, "ZPL") {
+            if let Some(v) = self.printer.stored_formats.get(&key).cloned() {
+                self.printer
+                    .stored_formats
+                    .insert(storage_key(to, "ZPL").unwrap_or_default(), v);
+            }
+            return;
+        }
+        let from_key = ensure_extension(from, "GRF");
+        let to_key = ensure_extension(to, "GRF");
+        if let Some(g) = self.printer.stored_graphics.get(&from_key).cloned() {
+            self.printer.stored_graphics.insert(to_key, g);
+        }
+    }
+
+    /// `~EGname` -- erase stored graphics; a blank name erases all of them.
+    fn parse_erase_graphic(&mut self, command: &str) {
+        let name = command_text(command, "~EG").trim();
+        if name.is_empty() {
+            self.printer.stored_graphics.clear();
+        } else {
+            let key = ensure_extension(name, "GRF");
+            self.printer.stored_graphics.remove(&key);
+        }
+    }
+
+    /// `^PQa,b,c,d` -- labels to print (a) and copies of the same label (c).
+    /// The format emits a * c identical labels (serials render literally, so
+    /// copies are pixel-identical, matching Labelary).
+    fn parse_print_quantity(&mut self, command: &str) {
+        let parts = split_command(command, "^PQ");
+        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
+            if v > 0 {
+                self.printer.print_quantity = v;
+            }
+        }
+        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
+            if v > 0 {
+                self.printer.print_copies = v;
+            }
+        }
+    }
+}
+
+/// Storage key for a `.ZPL` extension check on `^IM`/`^IS` targets: returns the
+/// normalized key when the name carries a `.ZPL` extension, else None (graphics).
+fn storage_key(name: &str, ext: &str) -> Option<String> {
+    if name.to_ascii_uppercase().ends_with(&format!(".{}", ext)) {
+        Some(ensure_extension(name, ext))
+    } else {
+        None
+    }
+}
+
+/// Apply `^LS`/`^LT` offsets to every positioned element at label emission time:
+/// `^LS` shifts x left by `shift_x` (clamped at 0 per element), `^LT` shifts y down
+/// by `top_y` (clamped at 0) — exactly Labelary's rendering. Stored formats keep
+/// raw positions; only emitted labels are shifted, so a recalled format shifts with
+/// the recall format's own `^LT`/`^LS`.
+fn apply_label_offsets(elements: &mut [LabelElement], shift_x: i32, top_y: i32) {
+    if shift_x == 0 && top_y == 0 {
+        return;
+    }
+    for el in elements {
+        let pos = match el {
+            LabelElement::Text(t) => &mut t.position,
+            LabelElement::GraphicBox(g) => &mut g.position,
+            LabelElement::GraphicCircle(g) => &mut g.position,
+            LabelElement::DiagonalLine(g) => &mut g.position,
+            LabelElement::GraphicField(g) => &mut g.position,
+            LabelElement::Barcode128(b) => &mut b.position,
+            LabelElement::BarcodeEan13(b) => &mut b.position,
+            LabelElement::Barcode2of5(b) => &mut b.position,
+            LabelElement::Barcode39(b) => &mut b.position,
+            LabelElement::BarcodePdf417(b) => &mut b.position,
+            LabelElement::BarcodeAztec(b) => &mut b.position,
+            LabelElement::BarcodeDatamatrix(b) => &mut b.position,
+            LabelElement::BarcodeQr(b) => &mut b.position,
+            LabelElement::Maxicode(m) => &mut m.position,
+            LabelElement::StoredField(sf) => &mut sf.field.position,
+            _ => continue,
+        };
+        pos.x = (pos.x - shift_x).max(0);
+        pos.y = (pos.y + top_y).max(0);
     }
 }
 
