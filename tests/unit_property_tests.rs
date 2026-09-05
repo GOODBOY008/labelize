@@ -61,9 +61,9 @@ proptest! {
     #[test]
     fn ean13_produces_output(input in proptest_strategies::arb_ean13_input()) {
         let result = labelize::barcodes::ean13::encode(&input, 100, 2);
-        if let Ok(img) = result {
-            prop_assert!(img.width() > 0);
-            prop_assert!(img.height() > 0);
+        if let Ok(sym) = result {
+            prop_assert!(sym.image.width() > 0);
+            prop_assert!(sym.image.height() > 0);
         }
     }
 

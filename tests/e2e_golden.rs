@@ -248,7 +248,7 @@ fn golden_dpdpl() {
 }
 #[test]
 fn golden_ean13() {
-    golden_zpl_with_tolerance("ean13", 3.0);
+    golden_zpl_with_tolerance("ean13", 2.0);
 }
 #[test]
 fn golden_cp850_hex_chars() {
@@ -385,6 +385,22 @@ fn golden_posten() {
 #[test]
 fn golden_qr_code_ft_manual() {
     golden_zpl_with_tolerance("qr_code_ft_manual", 1.0);
+}
+#[test]
+fn golden_upce() {
+    golden_zpl_with_tolerance("upce", 2.0);
+}
+#[test]
+fn golden_lt_ls() {
+    golden_zpl_with_tolerance("lt_ls", 2.0);
+}
+#[test]
+fn golden_ge_ellipse() {
+    golden_zpl_with_tolerance("ge_ellipse", 2.0);
+}
+#[test]
+fn golden_ean8_upca() {
+    golden_zpl_with_tolerance("ean8_upca", 2.0);
 }
 #[test]
 fn golden_qr_code_offset() {

@@ -1,8 +1,13 @@
 use super::bit_matrix::BitMatrix;
 use image::{Rgba, RgbaImage};
 
-// EAN-13 encoding patterns
-// L-codes (odd parity), G-codes (even parity), R-codes
+// UPC-A (^BU): a 95-module EAN-13-style symbol built from an 11-digit code
+// (NS + manufacturer + product). The left half encodes the first six digits with
+// L parity, the right half the remaining five plus the computed check digit.
+// Calibrated against Labelary: the left half is the input's first six digits
+// (number system included) with fixed L parity -- Labelary does not apply the
+// EAN-13 first-digit parity table to ^BU.
+
 static L_PATTERNS: [[u8; 7]; 10] = [
     [0, 0, 0, 1, 1, 0, 1],
     [0, 0, 1, 1, 0, 0, 1],
@@ -14,19 +19,6 @@ static L_PATTERNS: [[u8; 7]; 10] = [
     [0, 1, 1, 1, 0, 1, 1],
     [0, 1, 1, 0, 1, 1, 1],
     [0, 0, 0, 1, 0, 1, 1],
-];
-
-static G_PATTERNS: [[u8; 7]; 10] = [
-    [0, 1, 0, 0, 1, 1, 1],
-    [0, 1, 1, 0, 0, 1, 1],
-    [0, 0, 1, 1, 0, 1, 1],
-    [0, 1, 0, 0, 0, 0, 1],
-    [0, 0, 1, 1, 1, 0, 1],
-    [0, 1, 1, 1, 0, 0, 1],
-    [0, 0, 0, 0, 1, 0, 1],
-    [0, 0, 1, 0, 0, 0, 1],
-    [0, 0, 0, 1, 0, 0, 1],
-    [0, 0, 1, 0, 1, 1, 1],
 ];
 
 static R_PATTERNS: [[u8; 7]; 10] = [
@@ -42,34 +34,25 @@ static R_PATTERNS: [[u8; 7]; 10] = [
     [1, 1, 1, 0, 1, 0, 0],
 ];
 
-// First digit encoding: which pattern (L or G) to use for digits 2-7
-static FIRST_DIGIT_PATTERNS: [[u8; 6]; 10] = [
-    [0, 0, 0, 0, 0, 0], // 0: LLLLLL
-    [0, 0, 1, 0, 1, 1], // 1: LLGLGG
-    [0, 0, 1, 1, 0, 1], // 2: LLGGLG
-    [0, 0, 1, 1, 1, 0], // 3: LLGGGL
-    [0, 1, 0, 0, 1, 1], // 4: LGLLGG
-    [0, 1, 1, 0, 0, 1], // 5: LGGLGL (actually LGGLLG)
-    [0, 1, 1, 1, 0, 0], // 6: LGGGLL
-    [0, 1, 0, 1, 0, 1], // 7: LGLGLG
-    [0, 1, 0, 1, 1, 0], // 8: LGLGGL
-    [0, 1, 1, 0, 1, 0], // 9: LGGLGL
-];
-
 #[derive(Clone, Debug)]
-pub struct Ean13Symbol {
+pub struct UpcaSymbol {
     pub image: RgbaImage,
-    /// The thirteen displayed digits (twelve data digits + check).
-    pub digits: [u8; 13],
+    /// The eleven encoded digits (NS + manufacturer + product).
+    pub digits: [u8; 11],
+    /// Check digit for the interpretation line.
     pub check_digit: u8,
     /// Height of the guard-bar extension below the data bars.
     pub guard_height: u32,
 }
 
-fn calculate_checksum(digits: &[u8; 12]) -> u8 {
+/// Check digit over an 11-digit UPC-A string ("NS M P"): weights alternate x3
+/// starting from the last digit, per the EAN/UPC standard (same rule as UPC-E).
+/// Verified against Labelary: "01234567890" -> 5, "11234567890" -> 2.
+fn upca_check_digit(digits: &[u8]) -> u8 {
     let mut sum = 0u32;
+    let n = digits.len();
     for (i, &d) in digits.iter().enumerate() {
-        if i % 2 == 0 {
+        if (n - i).is_multiple_of(2) {
             sum += d as u32;
         } else {
             sum += d as u32 * 3;
@@ -78,49 +61,37 @@ fn calculate_checksum(digits: &[u8; 12]) -> u8 {
     ((10 - (sum % 10)) % 10) as u8
 }
 
-pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol, String> {
+pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<UpcaSymbol, String> {
     let digits: Vec<u8> = content
         .chars()
         .filter(|c| c.is_ascii_digit())
         .map(|c| c as u8 - b'0')
         .collect();
 
-    if digits.len() < 12 {
-        return Err(format!(
-            "EAN-13: need at least 12 digits, got {}",
-            digits.len()
-        ));
-    }
+    // 11 digits = NS + M5 + P5 (check computed); 12 digits = full UPC-A (the given
+    // check digit is recomputed, matching Labelary's ^BU which uses the first 11).
+    let body: [u8; 11] = match digits.len() {
+        11 | 12 => digits[..11].try_into().expect("11 digits"),
+        n => return Err(format!("UPC-A: expected 11 or 12 digits, got {}", n)),
+    };
 
-    let mut d12 = [0u8; 12];
-    d12.copy_from_slice(&digits[..12]);
-    let check = calculate_checksum(&d12);
+    let check = upca_check_digit(&body);
 
-    let first_digit = d12[0] as usize;
-    let parity_pattern = &FIRST_DIGIT_PATTERNS[first_digit];
-
-    // Total width: 3 (start) + 6*7 (left) + 5 (center) + 6*7 (right) + 3 (end) = 95 modules
-    let module_count = 95;
-    let total_width = module_count;
-
-    let mut bm = BitMatrix::new(total_width, 1);
+    // 95 modules: 3 start + 6x7 left + 5 center + 6x7 right + 3 end.
+    let module_count = 95usize;
+    let mut bm = BitMatrix::new(module_count, 1);
     let mut pos = 0;
 
-    // Start guard: 101
+    // Start guard 101
     bm.set(pos, 0, true);
     pos += 1;
-    pos += 1; // space
+    pos += 1;
     bm.set(pos, 0, true);
     pos += 1;
 
-    // Left side (digits 2-7)
+    // Left digits: the first six input digits, L parity (Labelary behavior).
     for i in 0..6 {
-        let digit = d12[i + 1] as usize;
-        let pattern = if parity_pattern[i] == 0 {
-            &L_PATTERNS[digit]
-        } else {
-            &G_PATTERNS[digit]
-        };
+        let pattern = &L_PATTERNS[body[i] as usize];
         for &bit in pattern {
             if bit == 1 {
                 bm.set(pos, 0, true);
@@ -129,7 +100,7 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol,
         }
     }
 
-    // Center guard: 01010
+    // Center guard 01010
     pos += 1;
     bm.set(pos, 0, true);
     pos += 1;
@@ -138,8 +109,8 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol,
     pos += 1;
     pos += 1;
 
-    // Right side (digits 8-12 + checksum)
-    let right_digits = [d12[7], d12[8], d12[9], d12[10], d12[11], check];
+    // Right digits: remaining five digits + check digit, R parity.
+    let right_digits = [body[6], body[7], body[8], body[9], body[10], check];
     for &digit in &right_digits {
         let pattern = &R_PATTERNS[digit as usize];
         for &bit in pattern {
@@ -150,7 +121,7 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol,
         }
     }
 
-    // End guard: 101
+    // End guard 101
     bm.set(pos, 0, true);
     pos += 1;
     pos += 1;
@@ -158,21 +129,14 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol,
 
     let bw = bar_width.max(1) as usize;
     let h = height.max(1) as usize;
-    // Guard bars extend a fixed ~12 dots below the data bars (Labelary: 12 at
-    // h=100 and 13 at h=320 -- height-independent, unlike a 12% rule).
+    // Fixed ~12-dot guard extension (Labelary-measured, height-independent).
     let guard_extension = 12usize;
     let total_height = h + guard_extension;
-
-    // Guard bar positions in the 95-module pattern:
-    // Start guard: modules 0-2
-    // Center guard: modules 45-49
-    // End guard: modules 92-94
-    let is_guard_module = |m: usize| -> bool { m <= 2 || (45..=49).contains(&m) || m >= 92 };
-
     let iw = module_count * bw;
     let black = Rgba([0, 0, 0, 255]);
     let mut img = RgbaImage::from_pixel(iw as u32, total_height as u32, Rgba([0, 0, 0, 0]));
 
+    let is_guard_module = |m: usize| m <= 2 || (45..=49).contains(&m) || m >= 92;
     for m in 0..module_count {
         if bm.get(m, 0) {
             let bar_h = if is_guard_module(m) { total_height } else { h };
@@ -187,12 +151,9 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol,
         }
     }
 
-    let mut d13 = [0u8; 13];
-    d13[..12].copy_from_slice(&d12);
-    d13[12] = check;
-    Ok(Ean13Symbol {
+    Ok(UpcaSymbol {
         image: img,
-        digits: d13,
+        digits: body,
         check_digit: check,
         guard_height: guard_extension as u32,
     })
