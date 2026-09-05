@@ -296,11 +296,20 @@ The following commands are currently implemented in this project:
 - `^XA`, `^XZ` - Label format delimiters
 - `^LH` - Label home position
 - `^LR` - Label reverse print
+- `^LT` - Label top (shift content down/up; |value| > 120 dots ignored, per Zebra)
+- `^LS` - Label shift (positive = left, clamped at the left edge)
+- `^LL` - Label length (recorded; no rendering effect — label size comes from the canvas, matching Labelary)
 - `^PO` - Print orientation
 - `^PW` - Print width
+- `^MU` - Units of measurement
+- `^PQ` - Print quantity / copies (emits quantity × copies labels)
+- `^FX` - Comment (ignored)
+- `^SN`, `^SF` - Serial number state (inert: `#` serial markers in `^FD` render literally, matching Labelary)
 
 ### Text/Font
 - `^A` - Scalable/bitmapped font
+- `^A@` - Named font (built-in names resolve; downloaded names fall back to default)
+- `^CW` - Font identifier mapping
 - `^FO` - Field origin
 - `^FT` - Field typeset
 - `^FW` - Field orientation
@@ -317,6 +326,9 @@ The following commands are currently implemented in this project:
 ### Barcodes
 - `^BC` - Code 128
 - `^BE` - EAN-13
+- `^B8` - EAN-8 (7/8-digit input; check digit recomputed)
+- `^B9` - UPC-E (6/7/11/12-digit input; standard zero-suppression and check digit)
+- `^BU` - UPC-A (11/12-digit input; Labelary-style 6/5 digit split, all-L left half)
 - `^B2` - Interleaved 2 of 5
 - `^B3` - Code 39
 - `^B7` - PDF417
@@ -330,6 +342,7 @@ The following commands are currently implemented in this project:
 - `^GB` - Graphic box
 - `^GC` - Graphic circle
 - `^GD` - Graphic diagonal
+- `^GE` - Graphic ellipse
 - `^GF` - Graphic field
 - `^GS` - Graphic symbol
 
@@ -337,6 +350,10 @@ The following commands are currently implemented in this project:
 - `~DG` - Download graphic
 - `^IL` - Image load
 - `^XG` - Recall graphic
+- `^ID` - Delete stored object (graphic or format)
+- `^IM` - Move stored object
+- `^IS` - Copy stored object
+- `~EG` - Erase graphics (blank name erases all)
 - `^DF` - Download format
 - `^XF` - Recall format
 
@@ -346,3 +363,9 @@ The following commands are currently implemented in this project:
 - **PDF417** (`^B7`): Encoding gaps vs reference (~18% diff)
 - **Font metrics**: Helvetica Bold vs Zebra built-in fonts causes 2-7% typical diff
 - **`^LL` command**: Not parsed (label length)
+- **`^B9` with >7-digit data**: follows the UPC-E standard; Labelary's own
+  zero-suppression of 11/12-digit input diverges from the standard
+- **`^A@`/`^CW` downloaded fonts**: named downloadable fonts (e.g. `E:ARI000.TTF`)
+  cannot be rendered and fall back to the default font; Labelary's `^A@` handling
+  is nonstandard (treats the name as an orientation on font 0), so we follow the
+  Zebra spec instead

@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`^LT` (Label Top) / `^LS` (Label Shift)** — Global content offsets applied at label
+  emission (retroactive within a format, persisting across formats; `^LT` caps at ±120
+  dots per Zebra, `^LS` clamps element x at 0). Pixel-identical to Labelary.
+- **`^B9` (UPC-E)** — Full encoder: parity table verified against Labelary for all 20
+  (number system, check digit) pairs, standard zero-suppression for 11/12-digit input,
+  guard extension and interpretation line (NS digit, module-centered digits, check
+  digit toggle via parameter e) calibrated against Labelary (bars pixel-perfect).
+- **`^A@` (named font) / `^CW` (font identifier)** — Built-in font names resolve;
+  downloadable names fall back to the default font (Labelary's `^A@` is nonstandard,
+  so we follow the Zebra spec).
+- **Stored-object management** — `^ID` (delete graphic or format), `^IM` (move),
+  `^IS` (copy), `~EG` (erase graphics; blank name erases all).
+- **`^PQ` (print quantity)** — Emits quantity × copies labels (`^PQa,b,c,d`; scoped
+  to the format). `^SN`/`^SF` record serial state; `#` serial markers in `^FD` render
+  literally, matching Labelary.
+- **`^FX` (comment)** — Explicitly parsed and ignored.
+- **`^GE` (Graphic Ellipse)** — Ring or filled ellipse (`^GEw,h,t,c`), per-pixel
+  elliptical distance; thickness >= minor axis fills. Fixture diff 0.22%.
+- **`^B8` (EAN-8)** — 67-module encoder with computed check digit and
+  interpretation line; bars pixel-perfect, fixture diff 0.89% total.
+- **`^BU` (UPC-A)** — 95-module EAN-13-style symbol with Labelary's 6/5 digit
+  split (first six digits L-parity, remaining five + check R-parity), check
+  digit from the 11-digit string (verified: 01234567890 -> 5).
+- **`^LL` (Label Length)** — Parsed and recorded; no rendering effect (canvas
+  size comes from draw options), matching Labelary.
+
+
 - **Playground Redesign (v2.0)** — The playground page at `GET /` is restyled with a light/dark theme system and internationalization, plus several new tools. Still a single self-contained HTML page with no external dependencies; served unchanged by both the local HTTP service and the Cloudflare Worker
 - **Light/Dark Theme** — Follows `prefers-color-scheme` by default with a header toggle and `localStorage` persistence; applied before first paint to avoid a flash of the wrong theme
 - **i18n (English / 简体中文)** — Auto-detects the browser language, with a header selector and persistence; every string including dynamic errors, statuses, and Labelary-compare verdict notes is localized

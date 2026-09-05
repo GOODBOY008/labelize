@@ -45,6 +45,10 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 
 | Label | Ext | Diff % | Tolerance | Primary diff source |
 |-------|-----|--------|-----------|---------------------|
+| ean8_upca | zpl | 0.41 | 2.0 | EAN-8/UPC-A ^B8/^BU (bars pixel-perfect, module-centered interpretation font) |
+| ge_ellipse | zpl | 0.22 | 2.0 | ^GE ellipse (exact ring; Labelary rasterizer cap differs slightly) |
+| lt_ls | zpl | 0.73 | 2.0 | ^LT/^LS content shift (position-perfect, font substitution on text) |
+| upce | zpl | 0.73 | 2.0 | UPC-E ^B9 (bars pixel-perfect, module-centered interpretation font) |
 | amazon | zpl | 2.81 | 4.0 | Font metrics |
 | aztec_ec | zpl | 6.82 | 7.5 | Aztec barcode encoding (correct symbol size, different internal patterns from rxing) |
 | barcode128_default_width | zpl | 0.63 | 2.0 | Sub-pixel barcode bars |
@@ -63,7 +67,7 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | dhlparceluk | zpl | 5.14 | 5.7 | Font metrics (^FT Rotated270 multi-line x fixed) |
 | dpdpl | zpl | 6.38 | 7.0 | Font metrics |
 | dpduk | epl | 5.79 | 6.5 | EPL reference from Go renderer |
-| ean13 | zpl | 2.84 | 3.0 | Sub-pixel barcode bars |
+| ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.63 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.91 | 3.0 | Character encoding |
 | fedex | zpl | 7.91 | 9.0 | PDF417 encoding + font |
