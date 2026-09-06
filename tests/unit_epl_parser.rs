@@ -133,11 +133,9 @@ fn parse_barcode_2of5_check_digit() {
     for code in ["2C", "2D"] {
         let labels = parse(&format!("N\nB50,100,0,{},2,5,100,B,\"1234\"\nP1\n", code));
         match &labels[0].elements[0] {
-            LabelElement::Barcode2of5(b) => assert!(
-                b.barcode.check_digit,
-                "{} must add a check digit",
-                code
-            ),
+            LabelElement::Barcode2of5(b) => {
+                assert!(b.barcode.check_digit, "{} must add a check digit", code)
+            }
             other => panic!("expected Barcode2of5 for {}, got {:?}", code, other),
         }
     }
@@ -151,15 +149,21 @@ fn parse_barcode_code128_modes() {
         ("1", labelize::elements::barcode_128::BarcodeMode::Automatic),
         ("1E", labelize::elements::barcode_128::BarcodeMode::Ean),
         // Subset pins have no BarcodeMode variant; auto re-encodes the data.
-        ("1A", labelize::elements::barcode_128::BarcodeMode::Automatic),
-        ("1B", labelize::elements::barcode_128::BarcodeMode::Automatic),
-        ("1C", labelize::elements::barcode_128::BarcodeMode::Automatic),
+        (
+            "1A",
+            labelize::elements::barcode_128::BarcodeMode::Automatic,
+        ),
+        (
+            "1B",
+            labelize::elements::barcode_128::BarcodeMode::Automatic,
+        ),
+        (
+            "1C",
+            labelize::elements::barcode_128::BarcodeMode::Automatic,
+        ),
     ];
     for (code, want) in cases {
-        let labels = parse(&format!(
-            "N\nB50,100,0,{},2,5,100,N,\"12345\"\nP1\n",
-            code
-        ));
+        let labels = parse(&format!("N\nB50,100,0,{},2,5,100,N,\"12345\"\nP1\n", code));
         let bc = match &labels[0].elements[0] {
             LabelElement::Barcode128(b) => b,
             other => panic!("expected Barcode128 for {}, got {:?}", code, other),
@@ -523,7 +527,10 @@ fn parse_line_white() {
     assert_eq!(gb.position.y, 20);
     assert_eq!(gb.width, 300);
     assert_eq!(gb.height, 5);
-    assert!(matches!(gb.line_color, labelize::elements::line_color::LineColor::White));
+    assert!(matches!(
+        gb.line_color,
+        labelize::elements::line_color::LineColor::White
+    ));
 }
 
 // ─── P1: LS (diagonal line) ───
@@ -754,8 +761,14 @@ fn parse_2d_qr() {
     // And it must round-trip through the element's own parser.
     let (content, level, mode) = bc.get_input_data().expect("qr data parses");
     assert_eq!(content, "HELLO");
-    assert_eq!(level, labelize::elements::barcode_qr::QrErrorCorrectionLevel::H);
-    assert_eq!(mode, labelize::elements::barcode_qr::QrCharacterMode::Binary);
+    assert_eq!(
+        level,
+        labelize::elements::barcode_qr::QrErrorCorrectionLevel::H
+    );
+    assert_eq!(
+        mode,
+        labelize::elements::barcode_qr::QrCharacterMode::Binary
+    );
 }
 
 #[test]

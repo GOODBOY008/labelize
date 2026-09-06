@@ -2,7 +2,9 @@ use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
 use crate::elements::barcode_aztec::{BarcodeAztec, BarcodeAztecWithData};
-use crate::elements::barcode_datamatrix::{BarcodeDatamatrix, BarcodeDatamatrixWithData, DatamatrixRatio};
+use crate::elements::barcode_datamatrix::{
+    BarcodeDatamatrix, BarcodeDatamatrixWithData, DatamatrixRatio,
+};
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_ean8::{BarcodeEan8, BarcodeEan8WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
@@ -59,7 +61,9 @@ impl EplParser {
 
             // GW carries raw binary graphic data that may extend past this
             // line's newline; on success the cursor jumps past the data block.
-            if let Some((element, end)) = parse_epl_graphic_write(epl_data, cursor, line_end, ref_x, ref_y)? {
+            if let Some((element, end)) =
+                parse_epl_graphic_write(epl_data, cursor, line_end, ref_x, ref_y)?
+            {
                 current_elements.push(element);
                 cursor = end;
                 continue;
@@ -504,11 +508,7 @@ fn parse_epl_line(
 }
 
 /// `LS,x1,y1,thickness,x2,y2` -- Line Draw Diagonal between two points.
-fn parse_epl_diagonal(
-    line: &str,
-    ref_x: i32,
-    ref_y: i32,
-) -> Result<Option<LabelElement>, String> {
+fn parse_epl_diagonal(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElement>, String> {
     let parts: Vec<&str> = line[2..].split(',').collect();
     if parts.len() < 5 {
         return Err(format!(
@@ -611,7 +611,9 @@ fn parse_epl_graphic_write(
         comma_positions.next(),
         comma_positions.next(),
     ) else {
-        return Err("EPL GW command requires 4 parameters: x, y, width (bytes), length (dots)".to_string());
+        return Err(
+            "EPL GW command requires 4 parameters: x, y, width (bytes), length (dots)".to_string(),
+        );
     };
 
     let x = epl_parse_int(&header[..c1]).unwrap_or(0);
