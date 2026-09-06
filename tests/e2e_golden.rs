@@ -69,6 +69,21 @@ fn golden_zpl(name: &str) {
     golden_zpl_with_tolerance(name, LABEL_TOLERANCE);
 }
 
+fn effective_zpl_tolerance(is_unit: bool, requested: f64) -> f64 {
+    if is_unit {
+        requested.min(UNIT_TOLERANCE)
+    } else {
+        requested
+    }
+}
+
+#[test]
+fn unit_golden_tolerance_honors_stricter_requested_limit() {
+    assert_eq!(effective_zpl_tolerance(true, 1.0), 1.0);
+    assert_eq!(effective_zpl_tolerance(true, 15.0), UNIT_TOLERANCE);
+    assert_eq!(effective_zpl_tolerance(false, 15.0), 15.0);
+}
+
 fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
     // Try labels/ first, then unit/, then root
@@ -93,7 +108,7 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     }
 
     let options = render_helpers::default_options();
-    let effective_tolerance = if is_unit { UNIT_TOLERANCE } else { tolerance };
+    let effective_tolerance = effective_zpl_tolerance(is_unit, tolerance);
     let content = std::fs::read_to_string(&input).expect("read input");
     let actual_png = render_helpers::render_zpl_to_png(&content, options);
     let expected_png = std::fs::read(&expected).expect("read golden");
@@ -116,7 +131,7 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
         "ZPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
         name,
         result.diff_percent,
-        tolerance,
+        effective_tolerance,
         result.actual_dims,
         result.expected_dims,
     );
