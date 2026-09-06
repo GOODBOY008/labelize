@@ -23,6 +23,7 @@
 ║ dpdde                          │ zpl  │    2.55% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    5.60% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ dpduk                          │ epl  │    4.00% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ epl2_showcase                  │ epl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ evri                           │ zpl  │    1.40% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fedex                          │ zpl  │    4.85% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fedex_express                  │ zpl  │   11.34% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
@@ -54,5 +55,5 @@
 ║ usps_intl                      │ zpl  │    6.83% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ yodel                          │ zpl  │    1.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 50 total │ 1 perfect │ 1 good │ 40 minor │ 8 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 51 total │ 2 perfect │ 1 good │ 40 minor │ 8 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

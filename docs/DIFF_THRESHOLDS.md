@@ -26,7 +26,10 @@ reference images from the [Labelary ZPL viewer](https://labelary.com/viewer.html
 Unit tests use a smaller canvas for easier visual comparison and faster rendering.
 
 The EPL label `dpduk.epl` uses a reference rendered by the Go-based labelize
-predecessor because Labelary does not support EPL.
+predecessor because Labelary does not support EPL. The `epl2_showcase.epl`
+snippet (Table 1 bar code types, `b` 2-D bar codes, `GW`/`X`/`LS`/`LW`)
+uses the renderer baseline as its reference (0.00 % at rest), so its
+tolerance only guards against regressions in the covered EPL paths.
 
 ## Diff Categories
 
@@ -67,6 +70,7 @@ If a future change raises the diff beyond this ceiling the golden test fails.
 | dhlparceluk | zpl | 5.14 | 5.7 | Font metrics (^FT Rotated270 multi-line x fixed) |
 | dpdpl | zpl | 6.38 | 7.0 | Font metrics |
 | dpduk | epl | 5.79 | 6.5 | EPL reference from Go renderer |
+| epl2_showcase | epl | 0.00 | 2.0 | Renderer baseline reference (Labelary has no EPL) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.63 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.91 | 3.0 | Character encoding |
