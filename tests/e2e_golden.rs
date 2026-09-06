@@ -129,8 +129,13 @@ fn golden_epl(name: &str) {
 
 fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
-    let input = dir.join(format!("{}.epl", name));
-    let expected = dir.join(format!("{}.png", name));
+    // Try labels/ first, then the testdata root
+    let input = if dir.join("labels").join(format!("{}.epl", name)).exists() {
+        dir.join("labels").join(format!("{}.epl", name))
+    } else {
+        dir.join(format!("{}.epl", name))
+    };
+    let expected = input.with_extension("png");
 
     if !input.exists() {
         eprintln!("SKIP {}: missing EPL input", name);
@@ -666,4 +671,15 @@ fn golden_fo_lenient_coord() {
 #[test]
 fn golden_dpduk_epl() {
     golden_epl_with_tolerance("dpduk", 6.5);
+}
+
+/// Warehouse pick-ticket snippet exercising the EPL2 Table 1 bar code types
+/// (`1`/`3`/`E30`/`2`/`UA0`), the `b` 2-D command (Q/D/A/P/M), `GW` raw
+/// binary data (payload contains a newline byte), `X`/`LS`/`LW`/`LO` and the
+/// ignored printer-setup commands (Q/R/S/D/ZB/JF/O/C). Labelary does not
+/// render EPL, so the reference is the renderer baseline (0.00% at rest);
+/// the tolerance only guards against regressions in the covered paths.
+#[test]
+fn golden_epl2_showcase() {
+    golden_epl_with_tolerance("epl2_showcase", 2.0);
 }
