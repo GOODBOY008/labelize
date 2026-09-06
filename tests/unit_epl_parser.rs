@@ -773,15 +773,55 @@ fn parse_2d_qr() {
 
 #[test]
 fn parse_2d_qr_params_without_commas() {
-    // Commas between optional params are optional per the manual.
-    let labels = parse("N\nb10,20,Q,m2s3eMiA,\"X\"\nP1\n");
+    // Commas between optional params are optional per the manual. Values are
+    // chosen off-default so a tokenizer regression cannot pass by accident:
+    // `s4` must beat the default scale 3 and `eH` the default EC level M.
+    let labels = parse("N\nb10,20,Q,m2s4eHiA,\"X\"\nP1\n");
     match &labels[0].elements[0] {
         LabelElement::BarcodeQr(b) => {
-            assert_eq!(b.barcode.magnification, 3);
-            assert_eq!(b.data, "MM,B0001X");
+            assert_eq!(b.barcode.magnification, 4);
+            assert_eq!(b.data, "HM,B0001X");
         }
         other => panic!("expected BarcodeQr, got {:?}", other),
     }
+}
+
+#[test]
+fn parse_2d_aztec_params_without_commas() {
+    // Concatenated numeric params must split at the prefix letters.
+    let labels = parse("N\nb10,20,A,d4e208,\"DATA\"\nP1\n");
+    match &labels[0].elements[0] {
+        LabelElement::BarcodeAztec(b) => {
+            assert_eq!(b.barcode.magnification, 4);
+            assert_eq!(b.barcode.size, 208);
+        }
+        other => panic!("expected BarcodeAztec, got {:?}", other),
+    }
+}
+
+#[test]
+fn parse_box_thickness_clamped_to_one() {
+    // Zero/negative border thickness renders as a 1-dot outline.
+    for t in ["0", "-5"] {
+        let labels = parse(&format!("N\nX50,50,{},450,250\nP1\n", t));
+        match &labels[0].elements[0] {
+            LabelElement::GraphicBox(b) => assert_eq!(b.border_thickness, 1, "thickness {}", t),
+            other => panic!("expected GraphicBox, got {:?}", other),
+        }
+    }
+}
+
+#[test]
+fn parse_graphic_write_dimension_overflow_errors() {
+    // width_bytes * lines must never wrap around the truncation check:
+    // absurd dimensions are rejected (via the overflow guard on 32-bit
+    // usize, via the truncation check on 64-bit).
+    let parser = EplParser::new();
+    let epl = b"N\nGW10,20,2000000000,2000000000,\nP1\n";
+    assert!(
+        parser.parse(epl).is_err(),
+        "absurd GW dimensions must be rejected"
+    );
 }
 
 #[test]

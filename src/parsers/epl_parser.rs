@@ -557,7 +557,7 @@ fn parse_epl_box(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelEleme
 
     let x1: i32 = parts[0].trim().parse().unwrap_or(0);
     let y1: i32 = parts[1].trim().parse().unwrap_or(0);
-    let thickness: i32 = parts[2].trim().parse().unwrap_or(1);
+    let thickness: i32 = parts[2].trim().parse().unwrap_or(1).max(1);
     let x2: i32 = parts[3].trim().parse().unwrap_or(0);
     let y2: i32 = parts[4].trim().parse().unwrap_or(0);
 
@@ -612,7 +612,7 @@ fn parse_epl_graphic_write(
         comma_positions.next(),
     ) else {
         return Err(
-            "EPL GW command requires 4 parameters: x, y, width (bytes), length (dots)".to_string(),
+            "EPL GW command requires 4 parameters: x, y, width (bytes), length (lines)".to_string(),
         );
     };
 
@@ -625,8 +625,16 @@ fn parse_epl_graphic_write(
     }
 
     let data_start = line_start + first + 2 + c4 + 1;
-    let total = width_bytes as usize * lines as usize;
-    if data_start + total > epl_data.len() {
+    // Checked arithmetic: absurd dimensions must error, not wrap around the
+    // truncation check (usize is 32-bit on some targets).
+    let dimensions_overflow = || "EPL GW graphic dimensions overflow".to_string();
+    let total = (width_bytes as usize)
+        .checked_mul(lines as usize)
+        .ok_or_else(dimensions_overflow)?;
+    let data_end = data_start
+        .checked_add(total)
+        .ok_or_else(dimensions_overflow)?;
+    if data_end > epl_data.len() {
         return Err(format!(
             "EPL GW graphic data truncated: need {} bytes, have {}",
             total,
@@ -645,12 +653,12 @@ fn parse_epl_graphic_write(
         data_bytes: total as i32,
         total_bytes: total as i32,
         row_bytes: width_bytes,
-        data: epl_data[data_start..data_start + total].to_vec(),
+        data: epl_data[data_start..data_end].to_vec(),
         magnification_x: 1,
         magnification_y: 1,
     });
 
-    Ok(Some((element, data_start + total)))
+    Ok(Some((element, data_end)))
 }
 
 fn epl_parse_int(bytes: &[u8]) -> Option<i32> {
@@ -905,8 +913,15 @@ fn parse_epl_2d_params(tokens: &[&str]) -> Vec<(char, String)> {
         while i < bytes.len() {
             let c = bytes[i] as char;
             if c.is_ascii_alphabetic() {
+                // A value is either a run of digits (`d4`, `e208`) or a single
+                // letter (`eM`, `iA`); the next prefix letter always starts a
+                // new parameter, so concatenated tokens split unambiguously.
                 let mut j = i + 1;
-                while j < bytes.len() && bytes[j].is_ascii_alphanumeric() {
+                if j < bytes.len() && bytes[j].is_ascii_digit() {
+                    while j < bytes.len() && bytes[j].is_ascii_digit() {
+                        j += 1;
+                    }
+                } else if j < bytes.len() && bytes[j].is_ascii_alphabetic() {
                     j += 1;
                 }
                 out.push((c, token[i + 1..j].to_string()));
