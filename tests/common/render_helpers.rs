@@ -2,6 +2,16 @@ use std::io::Cursor;
 
 use labelize::{DrawerOptions, EplParser, LabelInfo, Renderer, ZplParser};
 
+/// Label size (in inches) for every Labelary API request, yielding a native
+/// 813×1626 px canvas — exactly the `default_options()` canvas.
+///
+/// Do NOT derive this from `default_options()` mm values (`mm / 25.4`): Labelary
+/// floor-rounds the resulting 4.00197×8.00197 in request to a 812×1624 px canvas,
+/// and padding that response up to 813×1626 shifts all content by (−1, −2) px
+/// relative to a native render — every `^POI` (inverted) label then misaligns
+/// against our renderer by that offset.
+pub const LABELARY_LABEL_SIZE_IN: (f64, f64) = (4.005, 8.01);
+
 /// Default DrawerOptions matching Labelary reference images (101.625mm × 203.25mm, 8 dpmm → 813×1626 px).
 pub fn default_options() -> DrawerOptions {
     DrawerOptions {

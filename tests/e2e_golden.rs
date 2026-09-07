@@ -26,8 +26,9 @@ const CANVAS_H: u32 = 1626;
 /// renderer when Labelary is unreachable (offline / CI without network).
 fn auto_bootstrap_zpl(content: &str, path: &std::path::Path, name: &str) {
     let opts = render_helpers::default_options();
-    let width_in = opts.label_width_mm / 25.4;
-    let height_in = opts.label_height_mm / 25.4;
+    // Labelary renders this size natively at 813×1626 — the exact default_options canvas
+    // (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must not be used).
+    let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
 
     let png = if let Some(fetched) =
         labelary_client::labelary_render(content, opts.dpmm as u8, width_in, height_in)
@@ -269,11 +270,11 @@ fn golden_fedex() {
 }
 #[test]
 fn golden_fedex_express() {
-    golden_zpl_with_tolerance("fedex_express", 12.5);
+    golden_zpl_with_tolerance("fedex_express", 7.0);
 }
 #[test]
 fn golden_fedex_ground() {
-    golden_zpl_with_tolerance("fedex_ground", 10.5);
+    golden_zpl_with_tolerance("fedex_ground", 6.0);
 }
 #[test]
 fn golden_font_p() {
@@ -485,7 +486,7 @@ fn golden_ups() {
 }
 #[test]
 fn golden_ups_import_control() {
-    golden_zpl_with_tolerance("ups_import_control", 9.5);
+    golden_zpl_with_tolerance("ups_import_control", 4.5);
 }
 #[test]
 fn golden_usps() {
