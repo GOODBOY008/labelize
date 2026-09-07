@@ -26,8 +26,8 @@ a native render, which misaligned every `^POI` (inverted) label — e.g. the fed
 frame lines and barcodes sat 2 px off, inflating `fedex_express` from 6.2 % to 11.3 %.
 References fetched before this convention were re-fetched at the native size (all
 `^POI` labels: bpost, brtit, canadapost, colissimo, fedex, fedex_express, fedex_ground,
-mu_millimeters, purolator, ups, ups_apo, ups_import_control, ups_maxicode, ups_surepost,
-usps_intl).
+mu_millimeters, purolator, ups, ups_import_control, ups_maxicode, ups_surepost,
+usps_apo, usps_intl).
 
 Non-inverted labels are insensitive to this (their content anchors to the top-left
 origin), so a few of their references may still contain padded 812 × 1624 renders —
