@@ -99,21 +99,18 @@ impl Renderer {
             let offset_x = ((label_width - image_width) / 2) as i64;
 
             if invert_label {
-                // Draw inverted (rotated 180): pixel at (x,y) in rendered content
-                // maps to (label_width - 1 - x - offset_x, image_height - 1 - y)
-                for y in 0..canvas.height() {
-                    for x in 0..canvas.width() {
-                        let src_pixel = *canvas.get_pixel(x, y);
-                        let dst_x = (label_width as u32 - 1 - x) as i64 - offset_x;
-                        let dst_y = image_height as u32 - 1 - y;
-                        if dst_x >= 0
-                            && (dst_x as u32) < final_canvas.width()
-                            && dst_y < final_canvas.height()
-                        {
-                            final_canvas.put_pixel(dst_x as u32, dst_y, src_pixel);
-                        }
-                    }
-                }
+                // Rotate the rendered content 180° and composite it over the white
+                // canvas with imageops::overlay, exactly like the centering branch
+                // below. Element drawing leaves semi-transparent pixels on the canvas
+                // (rotated text buffers are stamped in without blending), so ink must
+                // go through the same src-over compositing as every other label;
+                // copying pixels verbatim here kept their R=0 and turned any covered
+                // pixel solid black in the 1-bit encode — bolding all ^POI text.
+                // offset (label_width - image_width) - offset_x reproduces the previous
+                // dst_x = label_width - 1 - x - offset_x mapping one-to-one.
+                let rotated = image::imageops::rotate180(&canvas);
+                let inverted_offset_x = (label_width - image_width) as i64 - offset_x;
+                image::imageops::overlay(&mut final_canvas, &rotated, inverted_offset_x, 0);
             } else {
                 image::imageops::overlay(&mut final_canvas, &canvas, offset_x, 0);
             }

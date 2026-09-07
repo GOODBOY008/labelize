@@ -64,7 +64,7 @@ informational.
 | aztec_ec_2_ec45 | zpl | 0.53 | 7.5 | Aztec encoder pattern differences, EC 45% |
 | aztec_ec_3_ec70 | zpl | 0.87 | 7.5 | Aztec encoder pattern differences, EC 70% |
 | aztec_ec_4_ec95 | zpl | 5.06 | 7.5 | Aztec encoder pattern differences, EC 95% |
-| brtit | zpl | 1.87 | 3.0 | ^POI orientation + ~DG logo + font metrics |
+| brtit | zpl | 1.91 | 3.0 | ^POI orientation + ~DG logo + font metrics |
 | cf_font_designator | zpl | 0.13 | 5.0 | ^CF default font metrics |
 | cf_font_no_orientation | zpl | 0.18 | 5.0 | ^CF default font metrics |
 | code128_mode_d_fnc1 | zpl | 0.23 | 1.0 | Code128 mode D FNC1 display |
@@ -178,8 +178,8 @@ informational.
 | yodel | zpl | 1.74 | 4.5 | QR code + font metrics |
 | dhl_express | zpl | 1.26 | — | Font metrics (A0 font) |
 | dhl_home_delivery | zpl | 1.84 | — | ^GFA logo + font metrics |
-| usps_apo | zpl | 5.55 | — | Font metrics (^POI rotated text) |
-| usps_intl | zpl | 2.83 | — | Font metrics (^POI rotated text) |
+| usps_apo | zpl | 5.48 | 6.5 | Font metrics (^POI rotated text) |
+| usps_intl | zpl | 2.83 | 4.0 | Font metrics (^POI rotated text) |
 | usps_priority_mail | zpl | 0.32 | — | Font metrics (^FB centered) |
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
 
