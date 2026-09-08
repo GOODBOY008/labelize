@@ -24,7 +24,9 @@ jobs:
         with:
           workspaces: wasm
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --locked
+        run: |
+          WBG_VERSION="$(cargo pkgid -p wasm-bindgen --manifest-path wasm/Cargo.toml | sed 's/.*@//')"
+          cargo install wasm-bindgen-cli --version "$WBG_VERSION" --locked
       - name: Build engine
         run: ./build.sh
         working-directory: wasm
