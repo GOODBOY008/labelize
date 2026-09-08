@@ -492,6 +492,14 @@ fn golden_ups_import_control() {
 fn golden_usps() {
     golden_zpl_with_tolerance("usps", 5.0);
 }
+#[test]
+fn golden_usps_apo() {
+    golden_zpl_with_tolerance("usps_apo", 6.5);
+}
+#[test]
+fn golden_usps_intl() {
+    golden_zpl_with_tolerance("usps_intl", 4.0);
+}
 
 // ── New Carrier Labels (March 2026) ────────────────────────────────
 

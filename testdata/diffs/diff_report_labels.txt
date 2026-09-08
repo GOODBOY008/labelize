@@ -7,7 +7,7 @@
 ║ amazonshipping                 │ zpl  │    2.29% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ auspost                        │ zpl  │    1.93% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ bpost                          │ zpl  │    1.78% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ brtit                          │ zpl  │    1.87% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ brtit                          │ zpl  │    1.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ bstc                           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ canadapost                     │ zpl  │    2.22% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ colissimo                      │ zpl  │    2.09% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -51,7 +51,7 @@
 ║ ups_import_control             │ zpl  │    3.59% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups_surepost                   │ zpl  │    3.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ usps                           │ zpl  │    2.72% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ usps_apo                       │ zpl  │    5.55% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ usps_apo                       │ zpl  │    5.48% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
 ║ usps_intl                      │ zpl  │    2.83% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    1.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
