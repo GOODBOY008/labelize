@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-09-08
 
 ### Added
 
@@ -34,13 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   digit from the 11-digit string (verified: 01234567890 -> 5).
 - **`^LL` (Label Length)** — Parsed and recorded; no rendering effect (canvas
   size comes from draw options), matching Labelary.
-
-
 - **EPL2 `B` bar code types** — The bar code selection parameter now follows Table 1 of the EPL Programming Guide (14245L-003 Rev A) instead of silently defaulting unknown types to Code 128: `3`/`3C` (Code 39, optional check digit), `0`/`1`/`1A`/`1B`/`1C`/`1E` (Code 128 UCC/auto/subsets/UCC-EAN), `2`/`2C`/`2D` (Interleaved 2 of 5, optional mod-10 check digit), `E30` (EAN-13), `E80` (EAN-8), `UA0` (UPC-A), and `UE0` (UPC-E). Previously valid files could render the wrong symbology (e.g. type `0` rendered Code 39 instead of Code 128 UCC, `E30` fell through to Code 128). Symbologies without an encoder (Code 93, Codabar, Postnet/Planet, Plessey/MSI, German Post, add-on variants) now fail with an explicit error naming the symbology.
 - **EPL2 2-D bar codes (`b`)** — New command with per-symbology options per the EPL Programming Guide: Aztec (`A`; `d` scaling, `e` EC%/layers), Data Matrix (`D`; `c` columns, `r` rows, `h` module size), MaxiCode (`M`; `m` mode with the documented numeric-postal auto-selection between Modes 2/3, otherwise Mode 4), PDF417 (`P`; `s` EC level, `x` module width, `y` per-row bar height, `r`/`l` row/column limits, `t` truncated, `o` rotation), and QR Code (`Q`; `s` scale, `e` EC level). Unsupported options (`f`/`m`/`r` inverse/format flags, structured append, code model 1) are ignored; unknown symbology letters fail with an explicit error.
 - **EPL2 graphics & line commands** — `GW` (Direct Graphic Write) now decodes raw binary bitmap data (width in bytes, height in lines) directly from the byte stream — binary payloads containing newline bytes are consumed correctly; `LW` (Line Draw White) draws erasing white rectangles; `LS` (Line Draw Diagonal, `LS,x1,y1,thickness,x2,y2`) draws diagonal lines between two points; `X` (Box Draw, `X,x1,y1,thickness,x2,y2`) draws bordered boxes from two corners. `LE` (exclusive-OR line) remains unsupported. Note `LO`/`LW`/`LE` are four-parameter solid rectangles per the manual — the parser previously handled `LO` correctly.
-
-
 - **Playground Redesign (v2.0)** — The playground page at `GET /` is restyled with a light/dark theme system and internationalization, plus several new tools. Still a single self-contained HTML page with no external dependencies; served unchanged by both the local HTTP service and the Cloudflare Worker
 - **Light/Dark Theme** — Follows `prefers-color-scheme` by default with a header toggle and `localStorage` persistence; applied before first paint to avoid a flash of the wrong theme
 - **i18n (English / 简体中文)** — Auto-detects the browser language, with a header selector and persistence; every string including dynamic errors, statuses, and Labelary-compare verdict notes is localized
@@ -51,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Copy PNG to Clipboard** — One-click copy of the current render, alongside the existing PNG/PDF downloads
 - **Editor & A11y Polish** — Caret Ln/Col indicator, `Ctrl/Cmd+S` to download the PNG, toast notifications, inline SVG favicon, focus-visible outlines, `prefers-reduced-motion` support, and a stacked responsive layout for narrow screens
 - **CLI `--antialias` and playground toggle** — `labelize convert --antialias` emits 8-bit grayscale PNG output preserving the renderer's antialiased greys (default remains 1-bit, the faithful thermal-printer output); the playground gains an Antialias checkbox, persisted locally and carried in share permalinks
+
+### Fixed
+- **Resident bitmap fonts P–V calibration** — Font cell metrics now follow the Zebra Font Matrices (P 20×18 through V 80×71) with independent height/width stepping, fixing scaled `^A` output for fonts P/Q/R/T/U/V against Labelary.
+- **`^PO I` inverted label compositing** — Inverted labels are now composited via alpha-aware src-over rotation instead of a raw pixel copy, which turned semi-transparent pixels black and doubled text-stroke weight on 1-bit output.
 
 ## [1.4.1] - 2026-08-23
 
