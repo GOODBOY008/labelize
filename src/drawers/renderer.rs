@@ -100,12 +100,11 @@ impl Renderer {
 
             if invert_label {
                 // Rotate the rendered content 180° and composite it over the white
-                // canvas with imageops::overlay, exactly like the centering branch
-                // below. Element drawing leaves semi-transparent pixels on the canvas
-                // (rotated text buffers are stamped in without blending), so ink must
-                // go through the same src-over compositing as every other label;
-                // copying pixels verbatim here kept their R=0 and turned any covered
-                // pixel solid black in the 1-bit encode — bolding all ^POI text.
+                // canvas with imageops::overlay, matching the centering path below.
+                // Element drawing can leave semi-transparent pixels on the canvas
+                // (rotated text buffers are stamped in without blending), so this
+                // branch must also use src-over compositing rather than raw pixel copy;
+                // otherwise the 1-bit encode will treat any covered pixel as solid black.
                 // offset (label_width - image_width) - offset_x reproduces the previous
                 // dst_x = label_width - 1 - x - offset_x mapping one-to-one.
                 let rotated = image::imageops::rotate180(&canvas);
