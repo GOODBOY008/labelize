@@ -73,7 +73,7 @@
 ║ text_ft_r                      │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ upce                           │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ ups_maxicode                   │ zpl  │    0.75% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ ups_maxicode                   │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_priority_mail             │ zpl  │    0.32% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
