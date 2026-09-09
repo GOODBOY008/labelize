@@ -324,8 +324,7 @@ impl Renderer {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
                 let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
-                let line_height =
-                    font_size * line_height_factor + block.line_spacing as f32;
+                let line_height = font_size * line_height_factor + block.line_spacing as f32;
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
                 let h = (num_lines as f32 * line_height).ceil() as u32 + 2;
@@ -1255,7 +1254,6 @@ fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32, f0: boo
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn draw_text_block(
     canvas: &mut RgbaImage,
     font: &FontRef,
@@ -1280,7 +1278,13 @@ fn draw_text_block(
     // sub-pixel drift on wrapped lines; round those line tops. The first line
     // keeps the raw (truncating) pen — its anchor is already probe-calibrated
     // via bitmap_y_shift, and rounding it shifts single-line fields by 1px.
-    let snap_y = |v: f32, first: bool| if first || line_height_factor == 1.0 { v } else { v.round() };
+    let snap_y = |v: f32, first: bool| {
+        if first || line_height_factor == 1.0 {
+            v
+        } else {
+            v.round()
+        }
+    };
     for (i, line) in lines.iter().enumerate() {
         if i >= max_lines {
             break;
@@ -1301,7 +1305,17 @@ fn draw_text_block(
             crate::elements::text_alignment::TextAlignment::Justified
                 if i + 1 < lines.len().min(max_lines) =>
             {
-                draw_justified_line(canvas, font, scale, color, x, snap_y(cy, first), line, f0, max_width);
+                draw_justified_line(
+                    canvas,
+                    font,
+                    scale,
+                    color,
+                    x,
+                    snap_y(cy, first),
+                    line,
+                    f0,
+                    max_width,
+                );
                 cy += line_height;
                 continue;
             }
@@ -1336,7 +1350,16 @@ fn draw_justified_line(
     let extra = (max_width - lw) / (words.len() - 1) as f32;
     let mut cx = x;
     for (k, word) in words.iter().enumerate() {
-        draw_text_snapped(canvas, color, cx.round() as i32, y as i32, scale, font, word, f0);
+        draw_text_snapped(
+            canvas,
+            color,
+            cx.round() as i32,
+            y as i32,
+            scale,
+            font,
+            word,
+            f0,
+        );
         cx += measure_text_width(word, font, scale, f0);
         if k + 1 < words.len() {
             cx += space_w + extra;
