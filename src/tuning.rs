@@ -32,6 +32,17 @@ pub(crate) const TEXT_Y_OFFSET: f64 = -0.8;
 /// font sizes the corpus does not cover.
 pub(crate) const TEXT_Y_OFFSET_EM: f64 = -0.02;
 
+/// Advance-axis correction for rotated font 0 text, in pixels.
+///
+/// Rotated fields (I = 180°, B = 270°) are drawn into a buffer whose length is
+/// `ceil(text_width) + 2`, and after rotation the buffer's far end — not the pen
+/// origin — sits on the field origin. The 2px padding therefore pushes the whole
+/// string 2px along the reading direction relative to Labelary, which anchors the
+/// pen origin at the field origin. Probes across h=12..113 and the golden corpus
+/// agree on 2.0 as the joint optimum; R and N rotations anchor at the pen already
+/// and are unaffected.
+pub(crate) const ROTATED_ADVANCE_OFFSET: f64 = 2.0;
+
 /// Per-character advance correction for font 0, in em units (multiplied by the
 /// font cell height at use). Characters absent from the table need no correction.
 pub(crate) fn font0_advance_delta(ch: char) -> f64 {

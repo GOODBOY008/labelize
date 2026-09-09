@@ -359,7 +359,36 @@ impl Renderer {
                 _ => buf,
             };
 
-            overlay_at(canvas, &rotated, x as i32, y as i32);
+            // Font 0 only: the calibrated advance-axis correction for I/B rotations
+            // (see `tuning::ROTATED_ADVANCE_OFFSET`). Blocks whose text is centred
+            // inside the block box are excluded — the box padding cancels out for
+            // centred lines, and their rotated golden cases (amazonshipping ^FWB ^FB
+            // centered fields) already align with the raw overlay position. Left-
+            // justified rotated blocks (dhlparceluk) anchor at the pen like plain
+            // text and need the same correction. Bitmap fonts stay uncorrected too.
+            let anchored_at_pen = text
+                .block
+                .as_ref()
+                .map(|b| {
+                    matches!(
+                        b.alignment,
+                        crate::elements::text_alignment::TextAlignment::Left
+                            | crate::elements::text_alignment::TextAlignment::Justified
+                            | crate::elements::text_alignment::TextAlignment::Right
+                    )
+                })
+                .unwrap_or(true);
+            let (ox, oy) = if f0 && anchored_at_pen {
+                match orientation {
+                    FieldOrientation::Rotated180 => (x - crate::tuning::ROTATED_ADVANCE_OFFSET, y),
+                    FieldOrientation::Rotated270 => (x, y - crate::tuning::ROTATED_ADVANCE_OFFSET),
+                    _ => (x, y),
+                }
+            } else {
+                (x, y)
+            };
+
+            overlay_at(canvas, &rotated, ox as i32, oy as i32);
         }
 
         Ok(())
