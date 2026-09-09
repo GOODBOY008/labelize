@@ -218,18 +218,28 @@ impl Renderer {
         // Fonts P-V (resident bitmaps): Labelary caps measure ~0.60-0.625x the base
         // cell (P: 12/20, Q: 17/28, S: 25/40), where DejaVu Mono Bold caps land at
         // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
+        // Font 1 (mono substitute): DejaVu Sans Mono regular caps land at 1493/2384
+        // ≈ 0.626 of the ab_glyph scale and must read as 0.73 of the height param.
         let is_pv = matches!(
             text.font.name.as_str(),
             "P" | "Q" | "R" | "S" | "T" | "U" | "V"
         );
+        let is_font1 = text.font.name == "1";
+        let line_height_factor: f32 = if is_font1 {
+            crate::tuning::FONT1_LINE_HEIGHT as f32
+        } else {
+            1.0
+        };
         let cap_scale: f32 = if text.font.name == "B" {
             1.59
         } else if is_pv {
             0.85
+        } else if is_font1 {
+            crate::tuning::FONT1_CAP_SCALE as f32
         } else {
             7.0 / 6.0
         };
-        let bitmap_y_shift: f64 = if is_bitmap || is_pv {
+        let bitmap_y_shift: f64 = if is_bitmap || is_pv || is_font1 {
             scale.y = font_size * cap_scale;
 
             let orig_scale = PxScale {
@@ -270,6 +280,11 @@ impl Renderer {
         let (x, y) = get_text_top_left_pos(text, pos_width, font_size as f64, ascent as f64, state);
         // Apply bitmap y-correction (zero for non-bitmap fonts).
         let y = y + bitmap_y_shift;
+        let x = if is_font1 {
+            x + crate::tuning::FONT1_X_OFFSET
+        } else {
+            x
+        };
         state.update_automatic_text_position(text, pos_width);
 
         let color = Rgba([0, 0, 0, 255]);
@@ -291,6 +306,7 @@ impl Renderer {
                     block,
                     &drawn_text,
                     f0,
+                    line_height_factor,
                 );
             } else {
                 draw_text_with_superscript(
@@ -308,7 +324,8 @@ impl Renderer {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
                 let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
-                let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+                let line_height =
+                    font_size * line_height_factor + block.line_spacing as f32;
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
                 let h = (num_lines as f32 * line_height).ceil() as u32 + 2;
@@ -338,6 +355,7 @@ impl Renderer {
                     block,
                     &drawn_text,
                     f0,
+                    line_height_factor,
                 );
             } else {
                 draw_text_with_superscript(
@@ -1237,6 +1255,7 @@ fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32, f0: boo
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn draw_text_block(
     canvas: &mut RgbaImage,
     font: &FontRef,
@@ -1248,18 +1267,25 @@ fn draw_text_block(
     block: &crate::elements::field_block::FieldBlock,
     text: &str,
     f0: bool,
+    line_height_factor: f32,
 ) {
     let max_width = block.max_width as f32;
     let lines = word_wrap(text, font, scale, max_width, f0);
     let font_size = scale.y;
-    let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+    let line_height = font_size * line_height_factor + block.line_spacing as f32;
 
     let mut cy = y;
     let max_lines = block.max_lines.max(1) as usize;
+    // A fractional line pitch (font 1's calibrated 0.7625 factor) accumulates
+    // sub-pixel drift on wrapped lines; round those line tops. The first line
+    // keeps the raw (truncating) pen — its anchor is already probe-calibrated
+    // via bitmap_y_shift, and rounding it shifts single-line fields by 1px.
+    let snap_y = |v: f32, first: bool| if first || line_height_factor == 1.0 { v } else { v.round() };
     for (i, line) in lines.iter().enumerate() {
         if i >= max_lines {
             break;
         }
+        let first = i == 0;
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
                 let lw = measure_text_width(line, font, scale, f0);
@@ -1269,10 +1295,52 @@ fn draw_text_block(
                 let lw = measure_text_width(line, font, scale, f0);
                 x + block.max_width as f32 - lw
             }
+            // Justified (J): every line except the block's last is stretched to
+            // the full block width by distributing the slack across the word
+            // gaps; the last line stays left-aligned (ZPL ^FB d=J semantics).
+            crate::elements::text_alignment::TextAlignment::Justified
+                if i + 1 < lines.len().min(max_lines) =>
+            {
+                draw_justified_line(canvas, font, scale, color, x, snap_y(cy, first), line, f0, max_width);
+                cy += line_height;
+                continue;
+            }
             _ => x,
         };
-        draw_text_with_superscript(canvas, font, scale, color, lx, cy, line, f0);
+        draw_text_with_superscript(canvas, font, scale, color, lx, snap_y(cy, first), line, f0);
         cy += line_height;
+    }
+}
+
+/// Draw one ^FB justified line: words at their natural advances with the
+/// block's leftover width distributed evenly across the inter-word gaps.
+#[allow(clippy::too_many_arguments)]
+fn draw_justified_line(
+    canvas: &mut RgbaImage,
+    font: &FontRef,
+    scale: PxScale,
+    color: Rgba<u8>,
+    x: f32,
+    y: f32,
+    line: &str,
+    f0: bool,
+    max_width: f32,
+) {
+    let words: Vec<&str> = line.split_whitespace().collect();
+    if words.len() < 2 {
+        draw_text_with_superscript(canvas, font, scale, color, x, y, line, f0);
+        return;
+    }
+    let lw = measure_text_width(line, font, scale, f0);
+    let space_w = measure_text_width(" ", font, scale, f0);
+    let extra = (max_width - lw) / (words.len() - 1) as f32;
+    let mut cx = x;
+    for (k, word) in words.iter().enumerate() {
+        draw_text_snapped(canvas, color, cx.round() as i32, y as i32, scale, font, word, f0);
+        cx += measure_text_width(word, font, scale, f0);
+        if k + 1 < words.len() {
+            cx += space_w + extra;
+        }
     }
 }
 

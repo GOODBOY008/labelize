@@ -83,6 +83,7 @@ impl FontInfo {
 
     pub fn is_standard_font(&self) -> bool {
         self.name == "0"
+            || self.name == "1"
             || bitmap_font_sizes().contains_key(self.name.as_str())
             // Zebra resident scalable fonts (not bitmap, not font-0)
             || matches!(
@@ -98,6 +99,27 @@ impl FontInfo {
 
     pub fn with_adjusted_sizes(&self) -> FontInfo {
         let mut font = self.clone();
+
+        if font.name == "1" {
+            // Zebra scalable font 1 — Labelary substitutes a monospace face
+            // (see tuning::FONT1_* for the probed model). With the height slot
+            // empty the width value feeds both axes with a doubled em
+            // (^A1,,10,40 renders identical to ^A1,,10,10); a missing width
+            // derives from the height, mirroring the font-0 rule.
+            if font.width == 0.0 && font.height == 0.0 {
+                font.width = 10.0;
+                font.height = 10.0;
+            } else {
+                if font.width == 0.0 {
+                    font.width = font.height;
+                }
+                if font.height == 0.0 {
+                    font.height = 2.0 * font.width;
+                }
+            }
+            return font;
+        }
+
         let sizes = bitmap_font_sizes();
 
         if let Some(org_size) = sizes.get(font.name.as_str()) {
@@ -172,6 +194,11 @@ impl FontInfo {
     fn get_width_to_height_ratio(&self) -> f64 {
         if self.name == "GS" {
             1.0
+        } else if self.name == "1" {
+            // Monospace substitute: advance must come out at ~1.17 dots per
+            // width dot. ab_glyph advances DejaVu Sans Mono at ≈0.518 of
+            // scale.x and scale.x = ratio × w, so ratio ≈ 1.17/0.518.
+            crate::tuning::FONT1_RATIO
         } else if self.name == "0" {
             // Zebra font 0 (smooth scalable) width-to-height ratio. Our Helvetica Bold
             // substitute runs narrower than Zebra's CG Triumvirate, so glyph shapes need

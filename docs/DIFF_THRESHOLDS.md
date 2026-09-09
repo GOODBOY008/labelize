@@ -145,7 +145,8 @@ informational.
 | reverse_qr | zpl | 0.12 | 1.5 | QR barcode |
 | swisspost | zpl | 0.98 | 2.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
-| text_fallback_default | zpl | 2.84 | 5.0 | Font metrics |
+| text_fallback_default | zpl | 2.03 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
+| dein_ticket_packliste | zpl | 1.21 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
 | text_fo_b | zpl | 0.03 | 1.0 | Sub-pixel |
 | text_fo_i | zpl | 0.07 | 1.0 | Sub-pixel |
 | text_fo_n | zpl | 0.03 | 1.0 | Sub-pixel |

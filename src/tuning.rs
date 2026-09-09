@@ -57,6 +57,36 @@ pub(crate) const ROTATED_ADVANCE_OFFSET: f64 = 2.0;
 /// Labelary's output; drawing anything (box or fallback glyph) diverges.
 pub(crate) const FONT0_MISSING_GLYPH_ADVANCE_EM: f64 = 0.2976;
 
+/// Labelary's substitute for Zebra scalable font 1 is a monospace face (DejaVu
+/// Sans Mono class), unlike font 0's condensed-proportional substitute. Probed
+/// against Labelary at h=10..40, w=10..40:
+///
+/// - `^A1N,h,w` renders cap ≈ 0.73·h with advance ≈ 1.17·w.
+/// - `^A1,,…,w` (height slot empty) feeds the width value to BOTH axes with a
+///   doubled em: cap ≈ 0.73·2w, advance ≈ 1.17·w — a trailing extra parameter
+///   is ignored (`^A1,,10,40` renders identical to `^A1,,10,10`).
+///
+/// [`FONT1_RATIO`] is the scale.x-per-width-dot for `get_scale_x`: ab_glyph
+/// advances DejaVu Sans Mono at h_advance(≈1235)/height(2384) ≈ 0.518 of
+/// scale.x, and scale.x = ratio × w, so ratio ≈ 1.17 / 0.518.
+pub(crate) const FONT1_RATIO: f64 = 2.32;
+
+/// Cap-height correction for font 1: DejaVu Sans Mono caps land at
+/// 1493/2384 ≈ 0.626 of the ab_glyph scale; multiplying scale.y by this factor
+/// puts caps at 0.73 of the height parameter, matching Labelary.
+pub(crate) const FONT1_CAP_SCALE: f64 = 1.164;
+/// ^FB line pitch factor for font 1. Labelary's block line pitch measures
+/// 18.75px (five justified lines at tops 1429/1447.75/1466.5/1485.25/1504 in
+/// the packliste reference at a 23.3px scaled em), i.e. (18.75 − 1px spacing)
+/// / em ≈ 0.7625 of the scaled em, versus the 1.0 factor used elsewhere.
+pub(crate) const FONT1_LINE_HEIGHT: f64 = 0.7625;
+
+/// Constant pen-x offset for font 1, in pixels. The mono substitute's
+/// left side bearing rounds one pixel wider than Labelary's face — every
+/// probed font-1 line (numbers row and justified block) starts 1px right of
+/// the reference, so the whole pen is shifted back.
+pub(crate) const FONT1_X_OFFSET: f64 = -1.0;
+
 /// Per-character advance correction for font 0, in em units (multiplied by the
 /// font cell height at use). Characters absent from the table need no correction.
 pub(crate) fn font0_advance_delta(ch: char) -> f64 {

@@ -434,7 +434,15 @@ fn golden_templating() {
 }
 #[test]
 fn golden_text_fallback_default() {
-    golden_zpl_with_tolerance("text_fallback_default", 5.0);
+    golden_zpl_with_tolerance("text_fallback_default", 2.5);
+}
+#[test]
+fn golden_dein_ticket_packliste() {
+    // Real-world German packing-list fragment: ^FB L/J blocks with the
+    // scalable font 1 (^A1,,10,10) and scaled font 0 (^A0,,50,50). The
+    // font-1 mono substitute model and ^FB justification live in
+    // tuning::FONT1_* / draw_text_block.
+    golden_zpl_with_tolerance("dein_ticket_packliste", 1.5);
 }
 #[test]
 fn golden_text_fo_b() {
