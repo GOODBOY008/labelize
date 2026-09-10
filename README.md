@@ -220,7 +220,7 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 | **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^A@` (named font) `^CF` `^CW` (font identifier) `^FB` `^FR` `^FH` `^FN` `^FW` `^FV` |
 | **Barcodes** | `^BC` (Code 128) `^BE` (EAN-13) `^B8` (EAN-8) `^B9` (UPC-E) `^BU` (UPC-A) `^B2` (Interleaved 2-of-5) `^B3` (Code 39) `^B7` (PDF417) `^BO` (Aztec) `^BX` (DataMatrix) `^BQ` (QR Code) `^BD` (MaxiCode) `^BY` (defaults) |
 | **Graphics** | `^GB` (box) `^GC` (circle) `^GD` (diagonal) `^GE` (ellipse) `^GF` (graphic field) `^GS` (symbol) `~DG` (download graphic) `^IL` `^XG` `^ID` `^IM` `^IS` `~EG` |
-| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units of measurement) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
+| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^PM` (persistent mirror image) `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units of measurement) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
 | **Stored Formats** | `^DF` `^XF` |
 
 ### EPL Commands

@@ -24,6 +24,7 @@ use crate::encodings;
 #[derive(Clone, Debug)]
 pub struct StoredFormat {
     pub inverted: bool,
+    pub mirrored: Option<bool>,
     pub elements: Vec<LabelElement>,
 }
 
@@ -31,6 +32,7 @@ impl StoredFormat {
     pub fn to_recalled_format(&self) -> RecalledFormat {
         let mut rf = RecalledFormat {
             inverted: self.inverted,
+            mirrored: self.mirrored,
             elements: Vec::new(),
             field_refs: HashMap::new(),
         };
@@ -62,6 +64,7 @@ pub struct RecalledField {
 #[derive(Clone, Debug)]
 pub struct RecalledFormat {
     pub inverted: bool,
+    pub mirrored: Option<bool>,
     pub elements: Vec<LabelElement>,
     pub field_refs: HashMap<i32, Vec<usize>>, // indices into elements
 }
