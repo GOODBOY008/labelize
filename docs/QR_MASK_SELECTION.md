@@ -8,7 +8,8 @@ codewords are identical.
 
 ## Reproduced counterexamples
 
-The following inputs use one Byte segment, version 1, no ECI. Both the automatic
+The following inputs use one Byte segment and no ECI. The H case requires
+version 2; the other four fit version 1. Both the automatic
 and explicit Byte Labelize APIs are tested, since these lowercase payloads are
 also encoded as Byte by the existing optimizer. Mask numbers are zero-based.
 
