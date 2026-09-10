@@ -1,7 +1,12 @@
 mod common;
+#[path = "common/golden_fixture.rs"]
+mod golden_fixture;
+#[path = "common/reference_generation.rs"]
+mod reference_generation;
 
 use common::image_compare;
-use common::labelary_client;
+#[path = "common/labelary_client.rs"]
+mod labelary_client;
 use common::render_helpers;
 
 /// Tolerance for Labelary comparison tests.
@@ -15,8 +20,7 @@ fn compare_against_labelary(zpl: &str, name: &str) {
         match labelary_client::labelary_render(zpl, opts.dpmm as u8, width_in, height_in) {
             Some(png) => png,
             None => {
-                eprintln!("SKIP {}: Labelary API unreachable", name);
-                return;
+                panic!("Labelary API unavailable for explicitly requested comparison {name}");
             }
         };
 
@@ -106,140 +110,62 @@ fn labelary_gd_default_params() {
     );
 }
 
-/// Download Labelary reference PNGs (813×1626) for every ZPL file in testdata/unit/.
-/// Uses default_options() dimensions so the reference size matches our renderer output,
-/// eliminating the systematic size-mismatch diff.
-/// Run with: cargo test --test e2e_labelary update_unit_golden_pngs -- --ignored --nocapture
+/// Explicitly replace unit ZPL references with validated Labelary PNGs.
+/// Run: cargo test --test e2e_labelary update_unit_golden_pngs -- --ignored --exact --nocapture
 #[test]
-#[ignore = "requires network access; updates unit golden PNGs in place"]
+#[ignore = "requires network access; replaces unit references with Labelary PNGs"]
 fn update_unit_golden_pngs() {
-    let opts = render_helpers::default_options();
-    let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
-    let unit_dir = render_helpers::testdata_dir().join("unit");
+    generate_references(&[render_helpers::testdata_dir().join("unit")], true);
+}
 
-    let mut paths: Vec<_> = std::fs::read_dir(&unit_dir)
-        .expect("read unit dir")
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("zpl"))
-        .collect();
-    paths.sort();
-
-    let mut updated = 0usize;
-    let mut failed = 0usize;
-
-    for zpl_path in &paths {
-        let name = zpl_path.file_stem().unwrap().to_string_lossy().to_string();
-        let zpl = std::fs::read_to_string(zpl_path).expect("read zpl");
-        eprint!("  {}: ", name);
-
-        match labelary_client::labelary_render(&zpl, opts.dpmm as u8, width_in, height_in) {
-            Some(png) => {
-                let out = unit_dir.join(format!("{}.png", name));
-                std::fs::write(&out, &png).expect("write png");
-                eprintln!("OK ({} bytes)", png.len());
-                updated += 1;
-            }
-            None => {
-                eprintln!("FAILED (API unreachable or error)");
-                failed += 1;
-            }
-        }
-    }
-
-    eprintln!("\nDone — updated: {}, failed: {}", updated, failed);
-    assert_eq!(
-        failed, 0,
-        "{} unit golden PNGs could not be fetched from Labelary",
-        failed
+/// Explicitly generate missing ZPL references. Existing PNGs are retained.
+/// Run: cargo test --test e2e_labelary bootstrap_golden_pngs -- --ignored --exact --nocapture
+#[test]
+#[ignore = "requires network access; generates missing Labelary references"]
+fn bootstrap_golden_pngs() {
+    let root = render_helpers::testdata_dir();
+    generate_references(
+        &[root.clone(), root.join("labels"), root.join("unit")],
+        false,
     );
 }
 
-/// Bootstrap Labelary reference PNGs for any ZPL file that does not yet have a matching PNG.
-/// Scans both testdata/unit/ (→ 813×1626) and testdata/labels/ (→ 813×1626).
-/// Uses default_options() for both directories so reference size matches our renderer output.
-/// Safe to re-run: existing PNGs are never overwritten.
-///
-/// Run with:
-///   cargo test --test e2e_labelary bootstrap_golden_pngs -- --ignored --nocapture
-///
-/// After this, regenerate diff images:
-///   cargo test --test e2e_diff_report -- --nocapture
-#[test]
-#[ignore = "requires network access to Labelary API"]
-fn bootstrap_golden_pngs() {
-    struct DirConfig {
-        dir: std::path::PathBuf,
-        opts: labelize::DrawerOptions,
-        label: &'static str,
-    }
-
-    let testdata = render_helpers::testdata_dir();
-    let configs = vec![
-        DirConfig {
-            dir: testdata.join("unit"),
-            opts: render_helpers::default_options(),
-            label: "unit (813×1626)",
-        },
-        DirConfig {
-            dir: testdata.join("labels"),
-            opts: render_helpers::default_options(),
-            label: "labels (813×1626)",
-        },
-    ];
-
-    let mut bootstrapped = 0usize;
-    let mut skipped = 0usize;
-    let mut failed = 0usize;
-
-    for cfg in &configs {
-        if !cfg.dir.exists() {
-            continue;
-        }
-        let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
-
-        let mut paths: Vec<_> = std::fs::read_dir(&cfg.dir)
-            .expect("read dir")
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("zpl"))
-            .collect();
-        paths.sort();
-
-        eprintln!("\n[{}]", cfg.label);
-        for zpl_path in &paths {
-            let name = zpl_path.file_stem().unwrap().to_string_lossy().to_string();
-            let png_path = cfg.dir.join(format!("{}.png", name));
-
-            if png_path.exists() {
-                skipped += 1;
-                continue;
+fn generate_references(dirs: &[std::path::PathBuf], overwrite: bool) {
+    let paths = golden_fixture::discover_inputs(dirs).unwrap_or_else(|e| panic!("{e}"));
+    let opts = render_helpers::default_options();
+    let (width, height) = render_helpers::LABELARY_LABEL_SIZE_IN;
+    let mut written = 0;
+    let mut retained = 0;
+    let mut errors = Vec::new();
+    for input in paths
+        .iter()
+        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("zpl"))
+    {
+        match reference_generation::write_labelary_reference(input, overwrite, |zpl| {
+            labelary_client::labelary_render(zpl, opts.dpmm as u8, width, height)
+        }) {
+            Ok(true) => {
+                written += 1;
+                eprintln!("wrote {}", input.with_extension("png").display());
             }
-
-            let zpl = std::fs::read_to_string(zpl_path).expect("read zpl");
-            eprint!("  {} [NEW]: ", name);
-
-            match labelary_client::labelary_render(&zpl, cfg.opts.dpmm as u8, width_in, height_in) {
-                Some(png) => {
-                    std::fs::write(&png_path, &png).expect("write png");
-                    eprintln!("OK ({} bytes)", png.len());
-                    bootstrapped += 1;
-                }
-                None => {
-                    eprintln!("FAILED (API unreachable or error)");
-                    failed += 1;
-                }
+            Ok(false) => retained += 1,
+            Err(error) => {
+                eprintln!("{error}");
+                errors.push(error);
             }
         }
     }
-
-    eprintln!(
-        "\nDone — bootstrapped: {}, already existed: {}, failed: {}",
-        bootstrapped, skipped, failed
+    assert!(
+        written + retained + errors.len() > 0,
+        "no ZPL inputs found in {dirs:?}"
     );
-    assert_eq!(
-        failed, 0,
-        "{} golden PNGs could not be fetched from Labelary",
-        failed
+    eprintln!(
+        "references written: {written}, retained: {retained}, failed: {}",
+        errors.len()
+    );
+    assert!(
+        errors.is_empty(),
+        "reference generation failed:\n{}",
+        errors.join("\n")
     );
 }

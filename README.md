@@ -275,7 +275,10 @@ PATH="$PATH:target/debug" bash e2e/http/test_http.sh   # HTTP microservice tests
 PATH="$PATH:target/debug" bash e2e/cli/test_cli.sh     # CLI tests
 ```
 
-82 golden-file E2E tests compare rendered output pixel-by-pixel against reference PNGs from the Labelary reference renderer.
+Golden-file E2E tests compare rendered output against committed reference PNGs.
+Missing inputs or references fail; normal tests never fetch or replace references.
+See [Golden test workflow](docs/GOLDEN_TESTS.md) for explicit Labelary reference
+generation, EPL references, and tolerance rules.
 
 ## Building from Source
 

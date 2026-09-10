@@ -100,6 +100,12 @@ These sizes come from `render_helpers::default_options()` and `render_helpers::u
 
 ### Adding a New ZPL Test File
 
+Normal golden tests and diff reports are offline comparisons: missing inputs or
+references must fail. They must never generate or overwrite reference PNGs,
+including when `LABELIZE_UPDATE_GOLDEN` is set. Use the explicit generation
+command below; a failed Labelary fetch must not fall back to our renderer.
+EPL references require a documented independent source. See `docs/GOLDEN_TESTS.md`.
+
 1. Drop `<name>.zpl` into `testdata/unit/` (synthetic) or `testdata/labels/` (real-world carrier label)
 2. Fetch its Labelary reference PNG (requires network):
    ```bash
