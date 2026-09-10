@@ -99,5 +99,29 @@ Labelary's optimized Numeric symbol and the requested Byte symbol. Its golden
 test now decodes the Byte/H payload at the fixed 29-module, 10-dot scale and
 `^FT` position, verifies every module pixel, and compares the surrounding
 pixels with the unchanged reference at the original 1% limit. It does not relax
-the threshold or
-rely on the pre-#31 8% unit-tolerance override.
+the threshold or rely on the pre-#31 8% unit-tolerance override.
+### Decoded format details
+
+A follow-up inspection with the separate ZXing JavaScript decoder explains the
+pixel differences more precisely. The same saved images were used; no reference
+was regenerated.
+
+| Fixture | Labelary mode / EC / mask / modules | Labelize mode / EC / mask / modules |
+|---|---|---|
+| `qr_manual_alphanumeric` (`AC-42`) | Alphanumeric / H / 4 / 21x21 | Alphanumeric / Q / 3 / 21x21 |
+| `qr_manual_byte` (`lowercase`) | Byte / Q / 7 / 21x21 | Byte / Q / 7 / 21x21 |
+| `qr_manual_numeric` (20 digits) | Numeric / Q / 0 / 21x21 | Numeric / Q / 0 / 21x21 |
+| `qr_code_ft_manual` (20 digits) | Numeric / H / 2 / 25x25 | Byte / H / 2 / 29x29 |
+
+All decoded payloads agree. For the Byte/Numeric controls, unmasked codewords
+also agree exactly. For Alphanumeric, Labelary emits H although the fixture
+requests Q. Thus its difference is not merely mask selection: the correction
+level and codewords differ too. Raising correction without enlarging the symbol
+is a possible explanation, but Labelary's internal reason was not verified.
+
+The 0.1404% is 1,856 changed pixels divided by the entire 813x1626 label. Within
+the 84x84 QR square, 26.30% of pixels differ. The manual Byte fixture has larger
+10-dot modules and a different symbol size (290x290 instead of 250x250 pixels),
+so its 36,872 changed label pixels produce 2.7892%. That whole-image number also
+includes the pre-existing one-dot horizontal positioning difference. Neither
+percentage measures decoded-data correctness or scanner reliability.

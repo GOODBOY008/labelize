@@ -81,7 +81,7 @@ informational.
 | postnl_qr | zpl | 0.68 | 5.0 | Explicit Alphanumeric segment vs Labelary optimization |
 | qr_manual_byte | zpl | 0.00 | 1.0 | Explicit Byte segment |
 | qr_manual_numeric | zpl | 0.00 | 1.0 | Explicit Numeric segment |
-| qr_manual_alphanumeric | zpl | 0.14 | 1.0 | QR mask selection |
+| qr_manual_alphanumeric | zpl | 0.14 | 1.0 | Labelary emits H instead of requested Q, and selects a different mask |
 | qr_ft_600 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
 | qr_ft_by100 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
 | qr_ft_test | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
