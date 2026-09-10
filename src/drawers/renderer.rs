@@ -958,8 +958,9 @@ impl Renderer {
         bc: &crate::elements::barcode_qr::BarcodeQrWithData,
         _options: &DrawerOptions,
     ) -> Result<(), String> {
-        let (input_data, ec, _) = bc.get_input_data()?;
-        let img = barcodes::qrcode::encode(&input_data, bc.barcode.magnification, ec)?;
+        let (input_data, ec, mode) = bc.get_input_data()?;
+        let img =
+            barcodes::qrcode::encode_with_mode(&input_data, bc.barcode.magnification, ec, mode)?;
 
         let quiet_zone_px = 4 * bc.barcode.magnification;
 
