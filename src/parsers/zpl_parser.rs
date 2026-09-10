@@ -1102,7 +1102,7 @@ impl ZplParser {
             columns: 0,
             rows: 0,
             format: 6,
-            escape: b'~',
+            escape: b'_', // ECC 200 default on modern Zebra firmware.
             ratio: Some(DatamatrixRatio::Square),
         };
         if let Some(s) = parts.first() {

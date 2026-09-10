@@ -945,8 +945,17 @@ impl Renderer {
         bc: &crate::elements::barcode_datamatrix::BarcodeDatamatrixWithData,
     ) -> Result<(), String> {
         let scale = bc.barcode.height.max(1);
-        let img_raw =
-            barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?;
+        let img_raw = if bc.barcode.quality == 200 && bc.barcode.escape != 0 {
+            barcodes::datamatrix::encode_zpl(
+                bc.data.as_bytes(),
+                scale,
+                bc.barcode.rows,
+                bc.barcode.columns,
+                bc.barcode.escape,
+            )?
+        } else {
+            barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?
+        };
         let pos = adjust_image_typeset_position(&img_raw, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img_raw, &pos, bc.barcode.orientation);
         Ok(())

@@ -215,6 +215,9 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 
 ### ZPL Commands
 
+DataMatrix ECC 200 field-data escapes and firmware defaults are described in
+[DataMatrix field data](docs/DATAMATRIX_FIELD_DATA.md).
+
 | Category | Commands |
 |----------|----------|
 | **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^A@` (named font) `^CF` `^CW` (font identifier) `^FB` `^FR` `^FH` `^FN` `^FW` `^FV` |
