@@ -80,9 +80,44 @@ fn effective_zpl_tolerance(is_unit: bool, requested: f64) -> f64 {
 
 #[test]
 fn unit_golden_tolerance_honors_stricter_requested_limit() {
+    assert_eq!(effective_zpl_tolerance(true, 0.0), 0.0);
     assert_eq!(effective_zpl_tolerance(true, 1.0), 1.0);
     assert_eq!(effective_zpl_tolerance(true, 15.0), UNIT_TOLERANCE);
     assert_eq!(effective_zpl_tolerance(false, 15.0), 15.0);
+}
+
+fn assert_zpl_comparison(name: &str, result: &image_compare::CompareResult, tolerance: f64) {
+    assert!(
+        result.diff_percent <= tolerance,
+        "ZPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
+        name,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
+    );
+}
+
+#[test]
+fn unit_golden_rejects_two_percent_pixel_diff_at_one_percent_limit() {
+    let expected = image::RgbaImage::from_pixel(100, 1, image::Rgba([255, 255, 255, 255]));
+    let mut actual = expected.clone();
+    actual.put_pixel(0, 0, image::Rgba([0, 0, 0, 255]));
+    actual.put_pixel(1, 0, image::Rgba([0, 0, 0, 255]));
+    let encode = |img: image::RgbaImage| {
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+        bytes.into_inner()
+    };
+    let limit = effective_zpl_tolerance(true, 1.0);
+    let result = image_compare::compare_images(&encode(actual), &encode(expected), limit);
+    assert_eq!(result.diff_percent, 2.0);
+    let failure = std::panic::catch_unwind(|| assert_zpl_comparison("two_pixels", &result, limit))
+        .expect_err("2% difference must fail a requested 1% limit");
+    let message = failure.downcast_ref::<String>().unwrap();
+    assert!(message.contains("tolerance: 1.00%"), "{message}");
+    assert_zpl_comparison("boundary", &result, effective_zpl_tolerance(true, 2.0));
+    assert_zpl_comparison("default", &result, effective_zpl_tolerance(true, 15.0));
 }
 
 fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
@@ -127,15 +162,7 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
         return;
     }
 
-    assert!(
-        result.diff_percent <= effective_tolerance,
-        "ZPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
-        name,
-        result.diff_percent,
-        effective_tolerance,
-        result.actual_dims,
-        result.expected_dims,
-    );
+    assert_zpl_comparison(name, &result, effective_tolerance);
 }
 
 /// Run a golden-file comparison for an EPL test case.
