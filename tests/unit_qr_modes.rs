@@ -175,7 +175,7 @@ fn invalid_or_oversized_manual_api_data_returns_errors_without_panicking() {
 }
 
 #[test]
-fn automatic_api_preserves_the_existing_encoder_modules_and_scaling() {
+fn automatic_api_preserves_codewords_and_scaling_when_mask_selection_changes() {
     use labelize::barcodes::qrcode::encode;
     use labelize::elements::barcode_qr::QrErrorCorrectionLevel as Ec;
     use qrcode::{
@@ -195,28 +195,42 @@ fn automatic_api_preserves_the_existing_encoder_modules_and_scaling() {
             "ä😀",
         ] {
             let legacy = QrCode::with_error_correction_level(data.as_bytes(), legacy_ec).unwrap();
+            let matrix: Vec<Vec<bool>> = (0..legacy.width())
+                .map(|y| {
+                    (0..legacy.width())
+                        .map(|x| legacy[(x, y)] == Color::Dark)
+                        .collect()
+                })
+                .collect();
+            let expected =
+                rxing::qrcode::decoder::qrcode_decoder::decode_bool_array(&matrix).unwrap();
+            let unscaled = encode(data, 1, ec).unwrap();
             for mag in [1, 2, 4] {
                 let actual = encode(data, mag, ec).unwrap();
-                let mag = mag as u32;
-                assert_eq!(actual.width(), (legacy.width() as u32 + 8) * mag);
-                for y in 0..actual.height() {
-                    for x in 0..actual.width() {
-                        let mx = x / mag;
-                        let my = y / mag;
-                        let expected = mx >= 4
-                            && my >= 4
-                            && mx < legacy.width() as u32 + 4
-                            && my < legacy.width() as u32 + 4
-                            && legacy[((mx - 4) as usize, (my - 4) as usize)] == Color::Dark;
-                        let p = actual.get_pixel(x, y);
-                        assert_eq!(p[3] != 0 && p[0] < 128, expected, "{ec:?}, {data}, {x},{y}");
+                let decoded = decode_modules(&actual, mag as u32);
+                assert_eq!(decoded.getRawBytes(), expected.getRawBytes());
+                assert_eq!(decoded.getByteSegments(), expected.getByteSegments());
+                assert_eq!(decoded.getECLevel(), expected.getECLevel());
+                assert_eq!(actual.width(), (legacy.width() as u32 + 8) * mag as u32);
+                for (x, y, pixel) in actual.enumerate_pixels() {
+                    let (mx, my) = (x / mag as u32, y / mag as u32);
+                    assert_eq!(
+                        pixel,
+                        unscaled.get_pixel(mx, my),
+                        "{ec:?} {data} scale {mag} at {x},{y}"
+                    );
+                    if mx < 4
+                        || my < 4
+                        || mx >= legacy.width() as u32 + 4
+                        || my >= legacy.width() as u32 + 4
+                    {
+                        assert_eq!(pixel[3], 0, "quiet zone");
                     }
                 }
             }
         }
     }
 }
-
 #[test]
 fn labelary_digit_probes_document_optimization_instead_of_defining_manual_modes() {
     for (name, field, mode) in [
