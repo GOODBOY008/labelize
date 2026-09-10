@@ -51,12 +51,15 @@
 ║ mu_dpi_conversion              │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ mu_millimeters                 │ zpl  │    3.18% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ pdf417_basic                   │ zpl  │    0.29% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ postnl_qr                      │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
-║ qr_code_ft_manual              │ zpl  │    0.29% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ postnl_qr                      │ zpl  │    0.68% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_code_ft_manual              │ zpl  │    2.79% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ qr_code_offset                 │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ qr_ft_600                      │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_by100                    │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_test                     │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_manual_alphanumeric         │ zpl  │    0.14% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_manual_byte                 │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ qr_manual_numeric              │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ return_qrcode                  │ zpl  │    1.96% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ reverse                        │ zpl  │    0.25% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ reverse_qr                     │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -77,5 +80,5 @@
 ║ usps_priority_mail             │ zpl  │    0.32% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 73 total │ 5 perfect │ 58 good │ 8 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 76 total │ 6 perfect │ 59 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

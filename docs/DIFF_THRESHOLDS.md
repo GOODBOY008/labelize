@@ -78,7 +78,10 @@ informational.
 | mu_millimeters | zpl | 3.18 | 8.0 | ^MU millimeter units + font metrics |
 | pdf417_basic | zpl | 0.29 | 1.0 | PDF417 compaction mode selection |
 | posteit | zpl | 3.26 | 7.5 | ^GFA Z64 logo + DataMatrix + font metrics |
-| postnl_qr | zpl | 0.00 | 5.0 | Perfect |
+| postnl_qr | zpl | 0.68 | 5.0 | Explicit Alphanumeric segment vs Labelary optimization |
+| qr_manual_byte | zpl | 0.00 | 1.0 | Explicit Byte segment |
+| qr_manual_numeric | zpl | 0.00 | 1.0 | Explicit Numeric segment |
+| qr_manual_alphanumeric | zpl | 0.14 | 1.0 | Labelary emits H instead of requested Q, and selects a different mask |
 | qr_ft_600 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
 | qr_ft_by100 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
 | qr_ft_test | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
@@ -105,7 +108,7 @@ informational.
 | dhlparceluk | zpl | 3.63 | 4.5 | Font metrics (rotated I/B pen-anchor offset fixed) |
 | dpdpl | zpl | 5.60 | 7.5 | Font metrics |
 | dpduk | epl | 5.79 | 6.5 | EPL reference from Go renderer |
-| epl2_showcase | epl | 0.00 | 2.0 | Renderer baseline reference (Labelary has no EPL) |
+| epl2_showcase | epl | 0.19 | 2.0 | Renderer baseline reference (Labelary has no EPL) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.03 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.56 | 2.5 | Character encoding |
@@ -138,7 +141,7 @@ informational.
 | pocztex | zpl | 2.31 | 4.5 | Font metrics |
 | porterbuddy | zpl | 5.64 | 7.0 | QR code + font metrics |
 | posten | zpl | 1.17 | 3.0 | Font metrics |
-| qr_code_ft_manual | zpl | 0.29 | 1.0 | Perfect |
+| qr_code_ft_manual | zpl | 2.79 | 1.0 (surroundings) + exact QR modules | Explicit Byte mode vs Labelary Numeric optimization; fixed module scale and ^FT baseline |
 | qr_code_offset | zpl | 0.00 | 1.0 | Perfect |
 | return_qrcode | zpl | 1.96 | 4.0 | QR + font |
 | reverse | zpl | 0.25 | 1.5 | Sub-pixel |
@@ -161,21 +164,21 @@ informational.
 | ups_surepost | zpl | 3.74 | 10.0 | MaxiCode + font metrics |
 | usps | zpl | 2.72 | 5.0 | Font metrics + ® superscript glyph |
 | tnt_express | zpl | 2.71 | 5.0 | Font metrics + PDF417 |
-| royalmail | zpl | 1.48 | 4.5 | QR code + font metrics |
-| canadapost | zpl | 2.22 | 5.0 | QR code + PDF417 + font |
-| auspost | zpl | 1.93 | 5.0 | QR code + font metrics |
+| royalmail | zpl | 1.84 | 4.5 | QR code + font metrics |
+| canadapost | zpl | 2.43 | 5.0 | QR code + PDF417 + font |
+| auspost | zpl | 2.27 | 5.0 | QR code + font metrics |
 | colissimo | zpl | 2.09 | 4.5 | DataMatrix + font metrics |
-| postnl | zpl | 1.78 | 5.0 | QR code + font metrics |
-| bpost | zpl | 1.78 | 4.5 | QR code + font metrics |
-| correos | zpl | 1.91 | 5.0 | QR code + font metrics |
+| postnl | zpl | 2.44 | 5.0 | QR code + font metrics |
+| bpost | zpl | 2.13 | 4.5 | QR code + font metrics |
+| correos | zpl | 2.59 | 5.0 | QR code + font metrics |
 | dbschenker | zpl | 2.70 | 5.5 | PDF417 + font metrics |
-| evri | zpl | 1.40 | 4.5 | QR code + font metrics |
+| evri | zpl | 1.67 | 4.5 | QR code + font metrics |
 | dpdde | zpl | 2.55 | 4.5 | PDF417 + font metrics |
-| ontrac | zpl | 1.89 | 4.5 | QR code + font metrics |
+| ontrac | zpl | 2.52 | 4.5 | QR code + font metrics |
 | seur | zpl | 2.34 | 4.5 | PDF417 + font metrics |
 | purolator | zpl | 1.94 | 4.0 | DataMatrix + font metrics |
-| inpost | zpl | 2.99 | 5.5 | QR code + font metrics |
-| yodel | zpl | 1.74 | 4.5 | QR code + font metrics |
+| inpost | zpl | 2.94 | 5.5 | QR code + font metrics |
+| yodel | zpl | 2.41 | 4.5 | QR code + font metrics |
 | dhl_express | zpl | 1.26 | — | Font metrics (A0 font) |
 | dhl_home_delivery | zpl | 1.84 | — | ^GFA logo + font metrics |
 | usps_apo | zpl | 3.46 | 4.0 | Font metrics (rotated I/B pen-anchor fixed; residual = glyph weight + 1-bit AA fringe) |
@@ -239,6 +242,13 @@ coordinate rounding.
 dominate its ^A0I text was fixed (see `tuning::ROTATED_ADVANCE_OFFSET`). The
 `^XG.GRF` (unnamed recall) does not match the stored `CMR.GRF` key — both our
 implementation and Labelary skip it.
+
+## Manual QR modes
+
+Manual QR modes are checked by decoding their segment indicators and payloads in
+`unit_qr_modes`. Labelary can optimize explicit Byte/Alphanumeric input, so valid
+manual-mode output can differ in pattern and size from older references. See
+[QR_CHARACTER_MODES.md](QR_CHARACTER_MODES.md) for measured cases and reference provenance.
 
 ## Updating References
 

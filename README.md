@@ -223,6 +223,10 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 | **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units of measurement) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
 | **Stored Formats** | `^DF` `^XF` |
 
+Manual QR Numeric, Alphanumeric, and Byte modes are honored explicitly; unsupported
+Kanji mode returns an error. See [QR character modes](docs/QR_CHARACTER_MODES.md)
+for the API, compatibility details, and the observed Labelary optimization difference.
+
 ### EPL Commands
 
 `N` (new label) · `A` (text) · `B` (barcode) · `LO` (line draw) · `R` (reference point) · `P` (print)

@@ -41,7 +41,10 @@ impl BarcodeQrWithData {
         }
 
         let bytes = self.data.as_bytes();
-        let mut data = &self.data[3..];
+        let mut data = self
+            .data
+            .get(3..)
+            .ok_or_else(|| "invalid qr barcode data prefix".to_string())?;
         let mut mode = QrCharacterMode::Automatic;
         let level = match bytes[0] {
             b'H' => QrErrorCorrectionLevel::H,
@@ -58,9 +61,11 @@ impl BarcodeQrWithData {
                 b'N' => QrCharacterMode::Numeric,
                 b'A' => QrCharacterMode::Alphanumeric,
                 b'K' => QrCharacterMode::Kanji,
-                _ => QrCharacterMode::Automatic,
+                _ => return Err("invalid qr barcode manual character mode".to_string()),
             };
-            data = &data[1..];
+            data = data
+                .get(1..)
+                .ok_or_else(|| "invalid qr barcode character mode".to_string())?;
         }
 
         if mode != QrCharacterMode::Binary {
@@ -74,13 +79,18 @@ impl BarcodeQrWithData {
             return Err("invalid qr barcode byte mode data".to_string());
         }
 
-        let data_len: usize = data[0..4]
+        let data_len: usize = data
+            .get(..4)
+            .ok_or_else(|| "invalid qr barcode byte mode data length".to_string())?
             .parse()
             .map_err(|_| "invalid qr barcode byte mode data length".to_string())?;
 
         let data = &data[4..];
         let data_len = data_len.min(data.len());
 
-        Ok((data[..data_len].to_string(), level, mode))
+        let content = data
+            .get(..data_len)
+            .ok_or_else(|| "qr barcode byte mode length splits a UTF-8 character".to_string())?;
+        Ok((content.to_string(), level, mode))
     }
 }

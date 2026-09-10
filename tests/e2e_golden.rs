@@ -390,7 +390,63 @@ fn golden_posten() {
 }
 #[test]
 fn golden_qr_code_ft_manual() {
-    golden_zpl_with_tolerance("qr_code_ft_manual", 1.0);
+    // Labelary optimizes this explicitly requested Byte segment to Numeric.
+    // Check the requested data and fixed ^FT placement independently, and keep
+    // the old 1% tolerance for surrounding graphics; QR modules are exact.
+    let input = testdata_dir().join("unit/qr_code_ft_manual.zpl");
+    let source = std::fs::read_to_string(&input).expect("read manual QR fixture");
+    let png = render_helpers::render_zpl_to_png(&source, render_helpers::default_options());
+    let actual = image::load_from_memory(&png).unwrap().to_rgba8();
+    let reference = image::open(input.with_extension("png"))
+        .expect("read independent manual QR reference")
+        .to_rgba8();
+    assert_eq!(actual.dimensions(), reference.dimensions());
+
+    // 20 Byte-mode bytes at H require version 3: 29 modules, magnification 10.
+    // ^FT34,500 places the lower edge at y=430; ^PW799 centers x by 7 dots.
+    let (left, top, modules, mag) = (41, 140, 29, 10);
+    let matrix: Vec<Vec<bool>> = (0..modules)
+        .map(|y| {
+            (0..modules)
+                .map(|x| actual.get_pixel(left + x * mag, top + y * mag)[0] == 0)
+                .collect()
+        })
+        .collect();
+    let decoded = rxing::qrcode::decoder::qrcode_decoder::decode_bool_array(&matrix).unwrap();
+    assert_eq!(decoded.getRawBytes()[0] >> 4, 0b0100);
+    assert_eq!(decoded.getECLevel(), "2"); // rxing returns the format bits: H = 0b10.
+    assert_eq!(decoded.getText(), "12345678901234567890");
+    assert_eq!(
+        decoded.getByteSegments(),
+        &vec![b"12345678901234567890".to_vec()]
+    );
+    let (mut surrounding_pixels, mut surrounding_differences) = (0u64, 0u64);
+    for (x, y, pixel) in actual.enumerate_pixels() {
+        if x >= left && x < left + modules * mag && y >= top && y < top + modules * mag {
+            let value = if matrix[((y - top) / mag) as usize][((x - left) / mag) as usize] {
+                0
+            } else {
+                255
+            };
+            assert_eq!(
+                *pixel,
+                image::Rgba([value, value, value, 255]),
+                "QR module at {x},{y}"
+            );
+        } else {
+            surrounding_pixels += 1;
+            if pixel != reference.get_pixel(x, y) {
+                surrounding_differences += 1;
+            }
+        }
+    }
+    // Preserve the original 1% limit for pre-existing reference geometry deltas
+    // (notably one dot of ^PW centering), with no 8% override.
+    let diff_percent = surrounding_differences as f64 * 100.0 / surrounding_pixels as f64;
+    assert!(
+        diff_percent <= 1.0,
+        "surrounding graphics differ by {diff_percent:.2}% (limit 1%)"
+    );
 }
 #[test]
 fn golden_upce() {
@@ -675,6 +731,19 @@ fn golden_fo_lenient_coord() {
     golden_zpl_with_tolerance("fo_lenient_coord", 5.0);
 }
 
+// Manual QR modes also have independent decoded-segment checks in unit_qr_modes.
+#[test]
+fn golden_qr_manual_byte() {
+    golden_zpl_with_tolerance("qr_manual_byte", 1.0);
+}
+#[test]
+fn golden_qr_manual_numeric() {
+    golden_zpl_with_tolerance("qr_manual_numeric", 1.0);
+}
+#[test]
+fn golden_qr_manual_alphanumeric() {
+    golden_zpl_with_tolerance("qr_manual_alphanumeric", 1.0);
+}
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]
