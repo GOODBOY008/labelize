@@ -161,6 +161,7 @@ impl EplParser {
                     results.push(LabelInfo {
                         print_width: 0,
                         inverted: false,
+                        mirrored: false,
                         elements: current_elements.clone(),
                     });
                 }
@@ -175,6 +176,7 @@ impl EplParser {
             results.push(LabelInfo {
                 print_width: 0,
                 inverted: false,
+                mirrored: false,
                 elements: current_elements,
             });
         }

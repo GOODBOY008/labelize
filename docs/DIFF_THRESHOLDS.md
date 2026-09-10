@@ -242,6 +242,11 @@ implementation and Labelary skip it.
 
 ## Updating References
 
+The `print_mirror`, `print_mirror_width`, and `print_mirror_inverted` fixtures
+have a strict pixel-for-pixel check in `tests/unit_print_mirror.rs` in addition
+to the golden suite. Their independent Labelary references and measured
+coordinate expectations are documented in [PRINT_MIRROR.md](PRINT_MIRROR.md).
+
 To regenerate all Labelary reference images:
 
 ```sh

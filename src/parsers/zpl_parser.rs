@@ -59,6 +59,7 @@ impl ZplParser {
     pub fn parse(&mut self, zpl_data: &[u8]) -> Result<Vec<LabelInfo>, String> {
         let mut results = Vec::new();
         let mut result_elements: Vec<LabelElement> = Vec::new();
+        let mut mirror_at_format_start = self.printer.label_mirrored;
 
         let commands = split_zpl_commands(zpl_data)?;
         let mut current_recalled_format: Option<crate::elements::stored_format::RecalledFormat> =
@@ -68,6 +69,7 @@ impl ZplParser {
             let upper = command.to_uppercase();
 
             if upper.starts_with("^XA") {
+                mirror_at_format_start = self.printer.label_mirrored;
                 self.printer.reset_label_state();
                 current_recalled_format = None;
                 continue;
@@ -80,7 +82,7 @@ impl ZplParser {
                     result_elements.extend(resolved);
                 }
 
-                if result_elements.is_empty() {
+                if result_elements.is_empty() && self.printer.next_download_format_name.is_empty() {
                     continue;
                 }
 
@@ -102,6 +104,7 @@ impl ZplParser {
                         results.push(LabelInfo {
                             print_width: self.printer.print_width,
                             inverted: self.printer.label_inverted,
+                            mirrored: self.printer.label_mirrored,
                             elements: shifted.clone(),
                         });
                     }
@@ -110,9 +113,12 @@ impl ZplParser {
                         self.printer.next_download_format_name.clone(),
                         StoredFormat {
                             inverted: self.printer.label_inverted,
+                            mirrored: self.printer.format_mirrored,
                             elements: result_elements.clone(),
                         },
                     );
+                    // This also handles ^PM before ^DF in the stored format.
+                    self.printer.label_mirrored = mirror_at_format_start;
                 }
 
                 result_elements.clear();
@@ -128,6 +134,9 @@ impl ZplParser {
                         result_elements.extend(resolved);
                     }
                     self.printer.label_inverted = rf.inverted;
+                    if let Some(mirrored) = rf.mirrored {
+                        self.printer.set_print_mirror(mirrored);
+                    }
                     current_recalled_format = Some(rf);
                     continue;
                 }
@@ -184,6 +193,16 @@ impl ZplParser {
         if upper.starts_with("^LR") {
             let text = command_text(command, "^LR");
             self.printer.label_reverse = text == "Y";
+            return Ok(None);
+        }
+        // Print mirror is persistent printer state. Missing/invalid parameters
+        // are ignored rather than replacing the current setting with a default.
+        if upper.starts_with("^PM") {
+            match command_text(&upper, "^PM").trim() {
+                "Y" => self.printer.set_print_mirror(true),
+                "N" => self.printer.set_print_mirror(false),
+                _ => {}
+            }
             return Ok(None);
         }
         // Print orientation
@@ -1709,6 +1728,7 @@ fn resolve_recalled_field(
     // Build a temporary RecalledFormat with a single field and resolve it
     let rf = RecalledFormat {
         inverted: false,
+        mirrored: None,
         elements: vec![LabelElement::RecalledField(f.clone())],
         field_refs: std::collections::HashMap::new(),
     };

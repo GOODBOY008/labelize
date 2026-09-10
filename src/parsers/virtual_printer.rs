@@ -34,6 +34,11 @@ pub struct VirtualPrinter {
     pub current_charset: i32,
     pub print_width: i32,
     pub label_inverted: bool,
+    /// `^PM` is printer state: it survives ^XA/^XZ until explicitly changed.
+    pub label_mirrored: bool,
+    /// Explicit ^PM in this format, retained for replay by ^XF. None means
+    /// inherit the printer's setting at recall time, not at definition time.
+    pub format_mirrored: Option<bool>,
     /// Printer resolution; must match the resolution the label is rendered at, since
     /// `^MU I`/`^MU M` need it to turn physical units into dots.
     pub dpmm: i32,
@@ -93,6 +98,8 @@ impl Default for VirtualPrinter {
             current_charset: 0,
             print_width: 0,
             label_inverted: false,
+            label_mirrored: false,
+            format_mirrored: None,
             dpmm: 8,
             measurement_unit: MeasurementUnit::default(),
             dpi_conversion: 1.0,
@@ -184,9 +191,19 @@ impl VirtualPrinter {
         self.next_hex_escape_char = 0;
     }
 
+    pub fn set_print_mirror(&mut self, mirrored: bool) {
+        self.format_mirrored = Some(mirrored);
+        // A downloaded format records the command without changing the printer.
+        if self.next_download_format_name.is_empty() {
+            self.label_mirrored = mirrored;
+        }
+    }
+
     pub fn reset_label_state(&mut self) {
         self.next_download_format_name = String::new();
         self.label_inverted = false;
+        self.format_mirrored = None;
+        // Do not reset label_mirrored: ^PM persists across label formats.
         // ^PQ is scoped to the label format it appears in.
         self.print_quantity = 1;
         self.print_copies = 1;
