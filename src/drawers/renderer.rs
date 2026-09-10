@@ -277,13 +277,32 @@ impl Renderer {
             text_width
         };
 
-        let (x, y) = get_text_top_left_pos(text, pos_width, font_size as f64, ascent as f64, state);
+        // Effective between-line pitch actually drawn by draw_text_block. For
+        // font 1 (fractional factor + cap-scaled em) this differs from the raw
+        // height param, and multiline ^FT anchoring must span the drawn extent.
+        let line_pitch = scale.y * line_height_factor
+            + text
+                .block
+                .as_ref()
+                .map(|b| b.line_spacing as f32)
+                .unwrap_or(0.0);
+        let (x, y) = get_text_top_left_pos(
+            text,
+            pos_width,
+            font_size as f64,
+            ascent as f64,
+            state,
+            line_pitch as f64,
+        );
         // Apply bitmap y-correction (zero for non-bitmap fonts).
         let y = y + bitmap_y_shift;
-        let x = if is_font1 {
-            x + crate::tuning::FONT1_X_OFFSET
+        // Font 1's mono substitute lsb rounds one pixel wider than Labelary's
+        // face. The nudge lives in LOCAL text space (pen axis) so it rotates
+        // with the field instead of shifting page-space X for R/I/B.
+        let pen_x_offset: f32 = if is_font1 {
+            crate::tuning::FONT1_X_OFFSET as f32
         } else {
-            x
+            0.0
         };
         state.update_automatic_text_position(text, pos_width);
 
@@ -301,7 +320,7 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    x as f32,
+                    x as f32 + pen_x_offset,
                     y as f32,
                     block,
                     &drawn_text,
@@ -314,7 +333,7 @@ impl Renderer {
                     &font,
                     scale,
                     color,
-                    x as f32,
+                    x as f32 + pen_x_offset,
                     y as f32,
                     &drawn_text,
                     f0,
@@ -324,10 +343,12 @@ impl Renderer {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
                 let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
-                let line_height = font_size * line_height_factor + block.line_spacing as f32;
+                // Same pitch draw_text_block uses (cap-scaled em × factor), and
+                // a full em below the last line top so descenders aren't clipped.
+                let pitch = scale.y * line_height_factor + block.line_spacing as f32;
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
-                let h = (num_lines as f32 * line_height).ceil() as u32 + 2;
+                let h = ((num_lines - 1) as f32 * pitch + scale.y).ceil() as u32 + 2;
                 (block.max_width as u32 + 2, h)
             } else {
                 let w = (text_width as f32).ceil() as u32 + 2;
@@ -349,7 +370,7 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    0.0,
+                    pen_x_offset,
                     0.0,
                     block,
                     &drawn_text,
@@ -362,7 +383,7 @@ impl Renderer {
                     &font,
                     scale,
                     color,
-                    0.0,
+                    pen_x_offset,
                     0.0,
                     &drawn_text,
                     f0,
@@ -1345,34 +1366,30 @@ fn draw_justified_line(
         draw_text_with_superscript(canvas, font, scale, color, x, y, line, f0);
         return;
     }
-    let lw = measure_text_width(line, font, scale, f0);
-    let space_w = measure_text_width(" ", font, scale, f0);
+    // Superscript-aware draw and measurement, matching every other text path:
+    // a ® inside a justified word must render at REGISTERED_MARK_SCALE and its
+    // width must not distort the distributed slack.
+    let lw = measure_text_width_with_superscript(line, font, scale, f0);
+    let space_w = measure_text_width_with_superscript(" ", font, scale, f0);
     let extra = (max_width - lw) / (words.len() - 1) as f32;
     let mut cx = x;
     for (k, word) in words.iter().enumerate() {
-        draw_text_snapped(
-            canvas,
-            color,
-            cx.round() as i32,
-            y as i32,
-            scale,
-            font,
-            word,
-            f0,
-        );
-        cx += measure_text_width(word, font, scale, f0);
+        draw_text_with_superscript(canvas, font, scale, color, cx.round(), y, word, f0);
+        cx += measure_text_width_with_superscript(word, font, scale, f0);
         if k + 1 < words.len() {
             cx += space_w + extra;
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn get_text_top_left_pos(
     text: &TextField,
     w: f64,
     h: f64,
     ascent: f64,
     state: &DrawerState,
+    line_pitch: f64,
 ) -> (f64, f64) {
     let (x, y) = state.get_text_position(text);
 
@@ -1388,18 +1405,14 @@ fn get_text_top_left_pos(
     // ^FT: position is baseline (bottom-left for Normal).
     // Convert to top-left of the rendering area.
     // Use ascent (not full height) for the baseline-to-top distance of the last line.
-    // Use full font height h for line spacing between lines.
+    // `line_pitch` is the per-line advance actually drawn (cap-scaled em ×
+    // factor + spacing), which differs from the raw height h for font 1.
     let lines = if let Some(ref block) = text.block {
         block.max_lines.max(1) as f64
     } else {
         1.0
     };
-    let spacing = if let Some(ref block) = text.block {
-        block.line_spacing as f64
-    } else {
-        0.0
-    };
-    let total_h = ascent + (lines - 1.0) * (h + spacing);
+    let total_h = ascent + (lines - 1.0) * line_pitch;
 
     // ZPL spec: ^FT coordinate is "always for the left end of the baseline regardless of rotation".
     // For rotated text, the "baseline left end" rotates with the text.

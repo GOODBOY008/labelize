@@ -456,6 +456,62 @@ fn font_a0_with_valid_orientation() {
     assert_eq!(text.font.width, 25.0);
 }
 
+// --- ^A1 (scalable font 1) sizing model ---
+// Assertions cover the ADJUSTED sizes (^FS applies with_adjusted_sizes), i.e.
+// the values the renderer draws with. See tuning::FONT1_* for the model.
+
+fn font1_size(zpl_font: &str) -> (f64, f64) {
+    let zpl = format!("^XA^FO50,50{}^FDTest^FS^XZ", zpl_font);
+    let labels = parse(&zpl);
+    let text = labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Text(t) => Some(t),
+            _ => None,
+        })
+        .expect("expected Text element");
+    assert_eq!(text.font.name, "1", "{} must stay font 1", zpl_font);
+    (text.font.height, text.font.width)
+}
+
+#[test]
+fn font1_explicit_orientation_keeps_params() {
+    // ^A1N,20,10: height and width pass through unchanged.
+    assert_eq!(font1_size("^A1N,20,10"), (20.0, 10.0));
+}
+
+#[test]
+fn font1_no_orientation_slot_behaves_like_n() {
+    // ^A1,20,10 (no orientation char, no empty slot) must NOT trigger the
+    // empty-height quirk: it is equivalent to ^A1N,20,10.
+    assert_eq!(font1_size("^A1,20,10"), (20.0, 10.0));
+}
+
+#[test]
+fn font1_empty_height_doubles_width_value() {
+    // ^A1,,h,w with an empty height slot: the width value feeds both axes with
+    // a doubled em and trailing parameters are ignored (Labelary probes:
+    // ^A1,,10,40 renders identical to ^A1,,10,10). Adjusted: height = 2*w.
+    assert_eq!(font1_size("^A1,,10,10"), (20.0, 10.0));
+    assert_eq!(font1_size("^A1,,10,40"), (20.0, 10.0));
+    assert_eq!(font1_size("^A1,,20,10"), (40.0, 20.0));
+}
+
+#[test]
+fn font1_missing_width_derives_from_height() {
+    // ^A1,20, (width omitted) mirrors the font-0 derivation rule.
+    assert_eq!(font1_size("^A1,20,"), (20.0, 20.0));
+}
+
+#[test]
+fn font1_no_params_fall_back_to_10x10() {
+    // ^A1 with neither parameter has no probed Labelary default; keep the
+    // legacy 10-dot cell instead of doubling zero.
+    assert_eq!(font1_size("^A1,,,"), (10.0, 10.0));
+    assert_eq!(font1_size("^A1"), (10.0, 10.0));
+}
+
 // --- ^FO right-justification ---
 
 #[test]
