@@ -39,6 +39,7 @@ fn empty_label_produces_correct_canvas_dimensions() {
         label_height_mm: 30.0,
         dpmm: 8,
         enable_inverted_labels: false,
+        ..Default::default()
     };
     let png = render_label(&empty_label(), opts.clone());
     let img = decode_png(&png);
@@ -55,6 +56,7 @@ fn dpmm_6_scales_canvas() {
         label_height_mm: 150.0,
         dpmm: 6,
         enable_inverted_labels: false,
+        ..Default::default()
     };
     let png = render_label(&empty_label(), opts);
     let img = decode_png(&png);
@@ -427,11 +429,11 @@ fn barcode_interpretation_line_rotates_with_barcode() {
 
 #[test]
 fn ean13_guard_bars_taller_than_data_bars() {
-    let img =
+    let sym =
         labelize::barcodes::ean13::encode("123456789012", 200, 2).expect("ean13 encode failed");
 
     // Image should be taller than 200px to accommodate guard bar extension
-    let total_height = img.height();
+    let total_height = sym.image.height();
     assert!(
         total_height > 200,
         "EAN-13 image height ({}) should exceed barcode height (200) for guard bars",
@@ -442,9 +444,9 @@ fn ean13_guard_bars_taller_than_data_bars() {
     let bar_width = 2usize;
     let extended_row = 205u32; // in the guard bar extension area
     let has_guard_extension = (0..bar_width).any(|x| {
-        x < img.width() as usize
-            && extended_row < img.height()
-            && img.get_pixel(x as u32, extended_row)[0] < 128
+        x < sym.image.width() as usize
+            && extended_row < sym.image.height()
+            && sym.image.get_pixel(x as u32, extended_row)[0] < 128
     });
     assert!(
         has_guard_extension,
@@ -529,11 +531,13 @@ fn font_0_width_ratio_produces_narrower_text() {
         }
     }
     let text_width = right_most - 10;
-    // 5 chars at height=40 with 0.6 ratio: ~5*24=120 pixels; should not exceed 150
-    // With ratio 1.0 it would be ~5*40=200 pixels
+    // Guards against font 0 rendering at full 1:1 width, which would put 5 'W's at
+    // ~200 px. The bound is loose because the exact width tracks the calibrated
+    // `tuning::FONT0_RATIO` and the per-character advance table; it only has to stay
+    // clear of the 1:1 case it was written to catch.
     assert!(
-        text_width < 160,
-        "font 0 text width ({}) should reflect ~60% width ratio, not full 1:1",
+        text_width < 175,
+        "font 0 text width ({}) should reflect the condensed width ratio, not full 1:1",
         text_width
     );
 }

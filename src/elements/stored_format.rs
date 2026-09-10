@@ -6,8 +6,11 @@ use super::barcode_39::Barcode39WithData;
 use super::barcode_aztec::BarcodeAztecWithData;
 use super::barcode_datamatrix::BarcodeDatamatrixWithData;
 use super::barcode_ean13::BarcodeEan13WithData;
+use super::barcode_ean8::BarcodeEan8WithData;
 use super::barcode_pdf417::BarcodePdf417WithData;
 use super::barcode_qr::BarcodeQrWithData;
+use super::barcode_upca::BarcodeUcaWithData;
+use super::barcode_upce::BarcodeUcpeWithData;
 use super::field_block::FieldBlock;
 use super::field_info::FieldInfo;
 use super::font::FontInfo;
@@ -173,6 +176,24 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 data: text.clone(),
             })))
         }
+        Some(LabelElement::BarcodeEan8Config(bc)) => {
+            Ok(Some(LabelElement::BarcodeEan8(BarcodeEan8WithData {
+                reverse_print: field.reverse_print.clone(),
+                barcode: bc.clone(),
+                width: field.width,
+                position: field.position.clone(),
+                data: text.clone(),
+            })))
+        }
+        Some(LabelElement::BarcodeUcaConfig(bc)) => {
+            Ok(Some(LabelElement::BarcodeUca(BarcodeUcaWithData {
+                reverse_print: field.reverse_print.clone(),
+                barcode: bc.clone(),
+                width: field.width,
+                position: field.position.clone(),
+                data: text.clone(),
+            })))
+        }
         Some(LabelElement::Barcode2of5Config(bc)) => {
             Ok(Some(LabelElement::Barcode2of5(Barcode2of5WithData {
                 reverse_print: field.reverse_print.clone(),
@@ -214,6 +235,15 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 reverse_print: field.reverse_print.clone(),
                 barcode: bc.clone(),
                 height: field.height,
+                position: field.position.clone(),
+                data: text.clone(),
+            })))
+        }
+        Some(LabelElement::BarcodeUcpeConfig(bc)) => {
+            Ok(Some(LabelElement::BarcodeUcpe(BarcodeUcpeWithData {
+                reverse_print: field.reverse_print.clone(),
+                barcode: bc.clone(),
+                width: field.width,
                 position: field.position.clone(),
                 data: text.clone(),
             })))

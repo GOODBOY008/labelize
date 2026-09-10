@@ -1,0 +1,4 @@
+[target.wasm32-unknown-unknown]
+# getrandom (0.3 via imageproc, 0.4 via rand) needs its wasm_js backend on
+# wasm32-unknown-unknown; the backend is selected by this rustc cfg.
+rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]

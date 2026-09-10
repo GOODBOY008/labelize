@@ -114,6 +114,34 @@ fn gc_produces_graphic_circle() {
 // --- Barcode commands ---
 
 #[test]
+fn bd_without_mode_defaults_to_mode_2() {
+    let labels = parse("^XA^FO50,50^BD^FD002840336091062[)>ABC^FS^XZ");
+    let maxicode = labels[0]
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            LabelElement::Maxicode(maxicode) => Some(maxicode),
+            _ => None,
+        })
+        .expect("expected MaxiCode element");
+    assert_eq!(maxicode.code.mode, 2);
+}
+
+#[test]
+fn bd_explicit_mode_overrides_default() {
+    let labels = parse("^XA^FO50,50^BD4^FDHELLO WORLD^FS^XZ");
+    let maxicode = labels[0]
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            LabelElement::Maxicode(maxicode) => Some(maxicode),
+            _ => None,
+        })
+        .expect("expected MaxiCode element");
+    assert_eq!(maxicode.code.mode, 4);
+}
+
+#[test]
 fn bc_produces_barcode128() {
     let labels = parse("^XA^FO50,50^BCN,100,Y,N,N^FD12345^FS^XZ");
     let bc = labels[0]

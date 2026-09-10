@@ -1,0 +1,37 @@
+name: Deploy Worker
+
+on:
+  push:
+    branches: [main]
+    # Only redeploy when the worker or its tooling actually changes.
+    paths:
+      - 'workers/**'
+      - 'wasm/**'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wasm
+      - name: Install wasm-bindgen-cli
+        run: |
+          WBG_VERSION="$(cargo pkgid -p wasm-bindgen --manifest-path wasm/Cargo.toml | sed 's/.*@//')"
+          cargo install wasm-bindgen-cli --version "$WBG_VERSION" --locked
+      - name: Build engine
+        run: ./build.sh
+        working-directory: wasm
+      - name: Deploy
+        run: npx --yes wrangler@4 deploy
+        working-directory: workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

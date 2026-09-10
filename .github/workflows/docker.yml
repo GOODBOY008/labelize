@@ -300,13 +300,15 @@ jobs:
           images: ${{ needs.prepare.outputs.images }}
           # `latest` is managed explicitly below so prereleases never claim it.
           flavor: latest=false
+          # Tag scheme follows mainstream OSS practice (e.g. Grafana, n8n):
+          # `latest` + full/minor semver on release, one moving `edge` on the
+          # default branch. No per-commit `sha-<commit>` (permanent, ever-growing
+          # pollution on Docker Hub) and no bare `major` tag (matches upstream).
           tags: |
             type=ref,event=branch
             type=raw,value=edge,enable={{is_default_branch}}
-            type=sha,format=long,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
             type=raw,value=latest,enable=${{ needs.prepare.outputs.stable == 'true' }}
 
       - name: Create manifest list and push

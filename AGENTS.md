@@ -43,11 +43,11 @@ Individual command docs follow the pattern:
 
 ## Supported ZPL Commands
 
-**Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^PO`, `^PW`, `^CI`, `^CF`
-**Text/Font:** `^A`, `^FO`, `^FT`, `^FW`, `^FD`, `^FS`, `^FB`, `^FV`, `^FN`, `^FR`, `^FH`
-**Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults)
-**Graphics:** `^GB`, `^GC`, `^GD`, `^GF`, `^GS`
-**Storage:** `~DG`, `^IL`, `^XG`, `^DF`, `^XF`
+**Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^LT` (label top), `^LS` (label shift), `^LL` (label length), `^PO`, `^PW`, `^CI`, `^CF`, `^PQ` (print quantity), `^FX` (comment), `^SN`/`^SF` (inert serial state)
+**Text/Font:** `^A`, `^A@` (named font), `^CW` (font identifier), `^FO`, `^FT`, `^FW`, `^FD`, `^FS`, `^FB`, `^FV`, `^FN`, `^FR`, `^FH`
+**Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B8` (EAN-8), `^B9` (UPC-E), `^BU` (UPC-A), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults)
+**Graphics:** `^GB`, `^GC`, `^GD`, `^GE`, `^GF`, `^GS`
+**Storage:** `~DG`, `^IL`, `^XG`, `^ID`, `^IM`, `^IS`, `~EG`, `^DF`, `^XF`
 
 ## Build & Test
 
@@ -136,7 +136,9 @@ This ensures PR reviewers can visually inspect the before/after rendering impact
 
 ## Known Limitations
 
-- **MaxiCode**: No compliant encoder; structural rendering only (~35% diff)
+- **MaxiCode**: Standards-oriented encoder for modes 2-4 with sets A-E,
+  shortest-path text compaction and numeric shift. Modes 5/6, ECI and
+  Structured Append remain unsupported.
 - **PDF417**: Encoding gaps vs reference (~18% diff)
 - **Font metrics**: Helvetica Bold vs Zebra built-in fonts causes 2–7% typical diff
 - **`^LL` command**: Not parsed (label length)

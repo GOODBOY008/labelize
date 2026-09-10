@@ -56,6 +56,16 @@ static FIRST_DIGIT_PATTERNS: [[u8; 6]; 10] = [
     [0, 1, 1, 0, 1, 0], // 9: LGGLGL
 ];
 
+#[derive(Clone, Debug)]
+pub struct Ean13Symbol {
+    pub image: RgbaImage,
+    /// The thirteen displayed digits (twelve data digits + check).
+    pub digits: [u8; 13],
+    pub check_digit: u8,
+    /// Height of the guard-bar extension below the data bars.
+    pub guard_height: u32,
+}
+
 fn calculate_checksum(digits: &[u8; 12]) -> u8 {
     let mut sum = 0u32;
     for (i, &d) in digits.iter().enumerate() {
@@ -68,7 +78,7 @@ fn calculate_checksum(digits: &[u8; 12]) -> u8 {
     ((10 - (sum % 10)) % 10) as u8
 }
 
-pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<RgbaImage, String> {
+pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<Ean13Symbol, String> {
     let digits: Vec<u8> = content
         .chars()
         .filter(|c| c.is_ascii_digit())
@@ -148,9 +158,9 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<RgbaImage, S
 
     let bw = bar_width.max(1) as usize;
     let h = height.max(1) as usize;
-    // Guard bars extend further down than data bars.
-    // Use 5 × module_width or at least 12% of bar height for visibility.
-    let guard_extension = (5 * bw).max((h as f32 * 0.12).ceil() as usize).max(6);
+    // Guard bars extend a fixed ~12 dots below the data bars (Labelary: 12 at
+    // h=100 and 13 at h=320 -- height-independent, unlike a 12% rule).
+    let guard_extension = 12usize;
     let total_height = h + guard_extension;
 
     // Guard bar positions in the 95-module pattern:
@@ -177,5 +187,13 @@ pub fn encode(content: &str, height: i32, bar_width: i32) -> Result<RgbaImage, S
         }
     }
 
-    Ok(img)
+    let mut d13 = [0u8; 13];
+    d13[..12].copy_from_slice(&d12);
+    d13[12] = check;
+    Ok(Ean13Symbol {
+        image: img,
+        digits: d13,
+        check_digit: check,
+        guard_height: guard_extension as u32,
+    })
 }

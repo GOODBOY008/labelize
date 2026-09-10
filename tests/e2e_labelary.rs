@@ -7,15 +7,9 @@ use common::render_helpers;
 /// Tolerance for Labelary comparison tests.
 const LABELARY_TOLERANCE: f64 = 15.0;
 
-/// Convert label dimensions from mm to inches for Labelary API.
-fn mm_to_inches(mm: f64) -> f64 {
-    mm / 25.4
-}
-
 fn compare_against_labelary(zpl: &str, name: &str) {
     let opts = render_helpers::default_options();
-    let width_in = mm_to_inches(opts.label_width_mm);
-    let height_in = mm_to_inches(opts.label_height_mm);
+    let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
 
     let labelary_png =
         match labelary_client::labelary_render(zpl, opts.dpmm as u8, width_in, height_in) {
@@ -120,8 +114,7 @@ fn labelary_gd_default_params() {
 #[ignore = "requires network access; updates unit golden PNGs in place"]
 fn update_unit_golden_pngs() {
     let opts = render_helpers::default_options();
-    let width_in = mm_to_inches(opts.label_width_mm);
-    let height_in = mm_to_inches(opts.label_height_mm);
+    let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
     let unit_dir = render_helpers::testdata_dir().join("unit");
 
     let mut paths: Vec<_> = std::fs::read_dir(&unit_dir)
@@ -203,8 +196,7 @@ fn bootstrap_golden_pngs() {
         if !cfg.dir.exists() {
             continue;
         }
-        let width_in = mm_to_inches(cfg.opts.label_width_mm);
-        let height_in = mm_to_inches(cfg.opts.label_height_mm);
+        let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
 
         let mut paths: Vec<_> = std::fs::read_dir(&cfg.dir)
             .expect("read dir")

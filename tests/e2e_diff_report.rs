@@ -44,8 +44,10 @@ fn ensure_ref_png(path: &std::path::Path, content: &str, ext: &str) {
     let opts = render_helpers::default_options();
     let name = path.file_stem().unwrap().to_string_lossy().to_string();
     let png = if ext != "epl" {
-        let w = opts.label_width_mm / 25.4;
-        let h = opts.label_height_mm / 25.4;
+        // Labelary renders this size natively at 813×1626 — the exact default_options
+        // canvas (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must
+        // not be used).
+        let (w, h) = render_helpers::LABELARY_LABEL_SIZE_IN;
         labelary_client::labelary_render(content, opts.dpmm as u8, w, h)
             .map(|fetched| {
                 let normalized = labelary_client::pad_png_to_size(&fetched, CANVAS_W, CANVAS_H);

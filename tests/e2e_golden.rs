@@ -26,8 +26,9 @@ const CANVAS_H: u32 = 1626;
 /// renderer when Labelary is unreachable (offline / CI without network).
 fn auto_bootstrap_zpl(content: &str, path: &std::path::Path, name: &str) {
     let opts = render_helpers::default_options();
-    let width_in = opts.label_width_mm / 25.4;
-    let height_in = opts.label_height_mm / 25.4;
+    // Labelary renders this size natively at 813×1626 — the exact default_options canvas
+    // (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must not be used).
+    let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
 
     let png = if let Some(fetched) =
         labelary_client::labelary_render(content, opts.dpmm as u8, width_in, height_in)
@@ -144,8 +145,13 @@ fn golden_epl(name: &str) {
 
 fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
     let dir = testdata_dir();
-    let input = dir.join(format!("{}.epl", name));
-    let expected = dir.join(format!("{}.png", name));
+    // Try labels/ first, then the testdata root
+    let input = if dir.join("labels").join(format!("{}.epl", name)).exists() {
+        dir.join("labels").join(format!("{}.epl", name))
+    } else {
+        dir.join(format!("{}.epl", name))
+    };
+    let expected = input.with_extension("png");
 
     if !input.exists() {
         eprintln!("SKIP {}: missing EPL input", name);
@@ -255,7 +261,7 @@ fn golden_dhlpaket() {
 }
 #[test]
 fn golden_dhlparceluk() {
-    golden_zpl_with_tolerance("dhlparceluk", 5.5);
+    golden_zpl_with_tolerance("dhlparceluk", 4.5);
 }
 #[test]
 fn golden_dpdpl() {
@@ -263,7 +269,7 @@ fn golden_dpdpl() {
 }
 #[test]
 fn golden_ean13() {
-    golden_zpl_with_tolerance("ean13", 3.0);
+    golden_zpl_with_tolerance("ean13", 2.0);
 }
 #[test]
 fn golden_cp850_hex_chars() {
@@ -278,6 +284,14 @@ fn golden_fedex() {
     golden_zpl_with_tolerance("fedex", 7.0);
 }
 #[test]
+fn golden_fedex_express() {
+    golden_zpl_with_tolerance("fedex_express", 7.0);
+}
+#[test]
+fn golden_fedex_ground() {
+    golden_zpl_with_tolerance("fedex_ground", 6.0);
+}
+#[test]
 fn golden_font_p() {
     golden_zpl("font_p");
 }
@@ -288,6 +302,22 @@ fn golden_font_q() {
 #[test]
 fn golden_font_s() {
     golden_zpl("font_s");
+}
+#[test]
+fn golden_font_r() {
+    golden_zpl("font_r");
+}
+#[test]
+fn golden_font_t() {
+    golden_zpl("font_t");
+}
+#[test]
+fn golden_font_u() {
+    golden_zpl("font_u");
+}
+#[test]
+fn golden_font_v() {
+    golden_zpl("font_v");
 }
 #[test]
 fn golden_gd_thin_r() {
@@ -378,6 +408,22 @@ fn golden_qr_code_ft_manual() {
     golden_zpl_with_tolerance("qr_code_ft_manual", 1.0);
 }
 #[test]
+fn golden_upce() {
+    golden_zpl_with_tolerance("upce", 2.0);
+}
+#[test]
+fn golden_lt_ls() {
+    golden_zpl_with_tolerance("lt_ls", 2.0);
+}
+#[test]
+fn golden_ge_ellipse() {
+    golden_zpl_with_tolerance("ge_ellipse", 2.0);
+}
+#[test]
+fn golden_ean8_upca() {
+    golden_zpl_with_tolerance("ean8_upca", 2.0);
+}
+#[test]
 fn golden_qr_code_offset() {
     golden_zpl_with_tolerance("qr_code_offset", 1.0);
 }
@@ -454,8 +500,20 @@ fn golden_ups() {
     golden_zpl_with_tolerance("ups", 8.0);
 }
 #[test]
+fn golden_ups_import_control() {
+    golden_zpl_with_tolerance("ups_import_control", 4.5);
+}
+#[test]
 fn golden_usps() {
     golden_zpl_with_tolerance("usps", 5.0);
+}
+#[test]
+fn golden_usps_apo() {
+    golden_zpl_with_tolerance("usps_apo", 4.0);
+}
+#[test]
+fn golden_usps_intl() {
+    golden_zpl_with_tolerance("usps_intl", 4.0);
 }
 
 // ── New Carrier Labels (March 2026) ────────────────────────────────
@@ -537,14 +595,14 @@ fn golden_pdf417_basic() {
 fn golden_dhlparcelit() {
     // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
     // Code128 barcodes, ^FH hex encoding
-    golden_zpl_with_tolerance("dhlparcelit", 7.0);
+    golden_zpl_with_tolerance("dhlparcelit", 3.5);
 }
 
 #[test]
 fn golden_brtit() {
     // BRT (Bartolini) Italy: ^POI orientation, ~DG000.GRF logo,
     // ^A0B rotated text, ^FR reverse video, Code128
-    golden_zpl_with_tolerance("brtit", 3.0);
+    golden_zpl_with_tolerance("brtit", 2.0);
 }
 
 #[test]
@@ -566,6 +624,14 @@ fn golden_amazonshipping() {
 #[test]
 fn golden_ups_maxicode() {
     golden_zpl_with_tolerance("ups_maxicode", 5.0);
+}
+#[test]
+fn golden_maxicode_mode4() {
+    golden_zpl_with_tolerance("maxicode_mode4", 1.0);
+}
+#[test]
+fn golden_maxicode_default_mode2() {
+    golden_zpl_with_tolerance("maxicode_default_mode2", 1.0);
 }
 #[test]
 fn golden_aztec_ec_1_ec23() {
@@ -629,4 +695,15 @@ fn golden_fo_lenient_coord() {
 #[test]
 fn golden_dpduk_epl() {
     golden_epl_with_tolerance("dpduk", 6.5);
+}
+
+/// Warehouse pick-ticket snippet exercising the EPL2 Table 1 bar code types
+/// (`1`/`3`/`E30`/`2`/`UA0`), the `b` 2-D command (Q/D/A/P/M), `GW` raw
+/// binary data (payload contains a newline byte), `X`/`LS`/`LW`/`LO` and the
+/// ignored printer-setup commands (Q/R/S/D/ZB/JF/O/C). Labelary does not
+/// render EPL, so the reference is the renderer baseline (0.00% at rest);
+/// the tolerance only guards against regressions in the covered paths.
+#[test]
+fn golden_epl2_showcase() {
+    golden_epl_with_tolerance("epl2_showcase", 2.0);
 }

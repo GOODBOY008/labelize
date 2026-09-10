@@ -1,0 +1,4 @@
+node_modules/
+
+# Wrangler local state
+.wrangler/

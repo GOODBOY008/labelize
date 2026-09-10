@@ -41,15 +41,18 @@ visibility* → *Public*.
 
 | Event | Tags produced |
 |-------|---------------|
-| Push to `main` | `main`, `edge`, `sha-<full-commit-sha>` |
-| Push of tag `vX.Y.Z` | `X.Y.Z`, `X.Y`, `X`, `latest` |
+| Push to `main` | `main`, `edge` |
+| Push of tag `vX.Y.Z` | `X.Y.Z`, `X.Y`, `latest` |
 | Push of tag `vX.Y.Z-rc.N` | `X.Y.Z-rc.N` only — prereleases never move `latest` |
 | Push of tag matching `v[0-9]*` but not semver (`v1.3`, `v1abc`) | nothing — the run starts, then skips publishing with a warning |
 | Push of any other tag (`vtest`, `nightly`) | nothing — the workflow does not start at all |
 | Pull request | none — builds and smoke-tests only, no publish |
 
-The `X` major tag is skipped for `v0.*` releases, where a major-only tag would be
-misleading.
+The tag scheme follows mainstream OSS practice (e.g. Grafana, n8n): `latest`
+plus full and minor semver tags on a release, and a single moving `edge` tag on
+the default branch. There is deliberately **no per-commit `sha-<full>` tag**
+(each `main` push would otherwise leave a permanent, ever-growing tag on Docker
+Hub) and no **bare `X` major-only tag**.
 
 `latest` is guarded in two layers, because a tag that produces no version tags at
 all must never be able to repoint it at an arbitrary commit:

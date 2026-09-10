@@ -5,15 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-09-08
 
 ### Added
 
+- **`^LT` (Label Top) / `^LS` (Label Shift)** — Global content offsets applied at label
+  emission (retroactive within a format, persisting across formats; `^LT` caps at ±120
+  dots per Zebra, `^LS` clamps element x at 0). Pixel-identical to Labelary.
+- **`^B9` (UPC-E)** — Full encoder: parity table verified against Labelary for all 20
+  (number system, check digit) pairs, standard zero-suppression for 11/12-digit input,
+  guard extension and interpretation line (NS digit, module-centered digits, check
+  digit toggle via parameter e) calibrated against Labelary (bars pixel-perfect).
+- **`^A@` (named font) / `^CW` (font identifier)** — Built-in font names resolve;
+  downloadable names fall back to the default font (Labelary's `^A@` is nonstandard,
+  so we follow the Zebra spec).
+- **Stored-object management** — `^ID` (delete graphic or format), `^IM` (move),
+  `^IS` (copy), `~EG` (erase graphics; blank name erases all).
+- **`^PQ` (print quantity)** — Emits quantity × copies labels (`^PQa,b,c,d`; scoped
+  to the format). `^SN`/`^SF` record serial state; `#` serial markers in `^FD` render
+  literally, matching Labelary.
+- **`^FX` (comment)** — Explicitly parsed and ignored.
+- **`^GE` (Graphic Ellipse)** — Ring or filled ellipse (`^GEw,h,t,c`), per-pixel
+  elliptical distance; thickness >= minor axis fills. Fixture diff 0.22%.
+- **`^B8` (EAN-8)** — 67-module encoder with computed check digit and
+  interpretation line; bars pixel-perfect, fixture diff 0.89% total.
+- **`^BU` (UPC-A)** — 95-module EAN-13-style symbol with Labelary's 6/5 digit
+  split (first six digits L-parity, remaining five + check R-parity), check
+  digit from the 11-digit string (verified: 01234567890 -> 5).
+- **`^LL` (Label Length)** — Parsed and recorded; no rendering effect (canvas
+  size comes from draw options), matching Labelary.
+- **EPL2 `B` bar code types** — The bar code selection parameter now follows Table 1 of the EPL Programming Guide (14245L-003 Rev A) instead of silently defaulting unknown types to Code 128: `3`/`3C` (Code 39, optional check digit), `0`/`1`/`1A`/`1B`/`1C`/`1E` (Code 128 UCC/auto/subsets/UCC-EAN), `2`/`2C`/`2D` (Interleaved 2 of 5, optional mod-10 check digit), `E30` (EAN-13), `E80` (EAN-8), `UA0` (UPC-A), and `UE0` (UPC-E). Previously valid files could render the wrong symbology (e.g. type `0` rendered Code 39 instead of Code 128 UCC, `E30` fell through to Code 128). Symbologies without an encoder (Code 93, Codabar, Postnet/Planet, Plessey/MSI, German Post, add-on variants) now fail with an explicit error naming the symbology.
+- **EPL2 2-D bar codes (`b`)** — New command with per-symbology options per the EPL Programming Guide: Aztec (`A`; `d` scaling, `e` EC%/layers), Data Matrix (`D`; `c` columns, `r` rows, `h` module size), MaxiCode (`M`; `m` mode with the documented numeric-postal auto-selection between Modes 2/3, otherwise Mode 4), PDF417 (`P`; `s` EC level, `x` module width, `y` per-row bar height, `r`/`l` row/column limits, `t` truncated, `o` rotation), and QR Code (`Q`; `s` scale, `e` EC level). Unsupported options (`f`/`m`/`r` inverse/format flags, structured append, code model 1) are ignored; unknown symbology letters fail with an explicit error.
+- **EPL2 graphics & line commands** — `GW` (Direct Graphic Write) now decodes raw binary bitmap data (width in bytes, height in lines) directly from the byte stream — binary payloads containing newline bytes are consumed correctly; `LW` (Line Draw White) draws erasing white rectangles; `LS` (Line Draw Diagonal, `LS,x1,y1,thickness,x2,y2`) draws diagonal lines between two points; `X` (Box Draw, `X,x1,y1,thickness,x2,y2`) draws bordered boxes from two corners. `LE` (exclusive-OR line) remains unsupported. Note `LO`/`LW`/`LE` are four-parameter solid rectangles per the manual — the parser previously handled `LO` correctly.
+- **Playground Redesign (v2.0)** — The playground page at `GET /` is restyled with a light/dark theme system and internationalization, plus several new tools. Still a single self-contained HTML page with no external dependencies; served unchanged by both the local HTTP service and the Cloudflare Worker
+- **Light/Dark Theme** — Follows `prefers-color-scheme` by default with a header toggle and `localStorage` persistence; applied before first paint to avoid a flash of the wrong theme
+- **i18n (English / 简体中文)** — Auto-detects the browser language, with a header selector and persistence; every string including dynamic errors, statuses, and Labelary-compare verdict notes is localized
+- **Live Auto-Render** — Optionally re-renders the label automatically ~600 ms after typing stops (toggleable, on by default); keeps the last successful preview and reports background failures only in the status line
+- **Share Permalink** — Encodes the label code and render settings into the URL hash and copies the link to the clipboard; opening the link restores everything and renders immediately. Ideal for bug reports
+- **Sample Labels** — Built-in shipping, barcodes & 2D, and shapes & graphics examples reachable from the header
+- **Preview Zoom** — Zoom in/out (25–400 %), fit-to-panel, and double-click toggle on the preview image
+- **Copy PNG to Clipboard** — One-click copy of the current render, alongside the existing PNG/PDF downloads
+- **Editor & A11y Polish** — Caret Ln/Col indicator, `Ctrl/Cmd+S` to download the PNG, toast notifications, inline SVG favicon, focus-visible outlines, `prefers-reduced-motion` support, and a stacked responsive layout for narrow screens
+- **CLI `--antialias` and playground toggle** — `labelize convert --antialias` emits 8-bit grayscale PNG output preserving the renderer's antialiased greys (default remains 1-bit, the faithful thermal-printer output); the playground gains an Antialias checkbox, persisted locally and carried in share permalinks
+
+### Fixed
+- **Resident bitmap fonts P–V calibration** — Font cell metrics now follow the Zebra Font Matrices (P 20×18 through V 80×71) with independent height/width stepping, fixing scaled `^A` output for fonts P/Q/R/T/U/V against Labelary.
+- **`^PO I` inverted label compositing** — Inverted labels are now composited via alpha-aware src-over rotation instead of a raw pixel copy, which turned semi-transparent pixels black and doubled text-stroke weight on 1-bit output.
+
+## [1.4.1] - 2026-08-23
+
+### Changed
+- **Docker publish tag scheme** — dropped per-commit `sha-<commit>` and bare-major tags; `main`/`edge` for branch pushes, `X.Y.Z`/`X.Y`/`latest` for releases.
+
+## [1.4.0] - 2026-08-20
+
+### Added
+
+- **Antialiased PNG Output (opt-in)** — `POST /convert?antialias=true` (and `DrawerOptions::antialias`) preserves the renderer's coverage-blended greys instead of thresholding to pure black and white, matching what Labelary's PNG preview produces. The default stays 1-bit, which is what a thermal printer actually prints
 - **Docker Publishing CI** — New `Docker` workflow builds `linux/amd64` and `linux/arm64` images on native runners and publishes multi-arch manifests to Docker Hub and GHCR on pushes to `main` and on semver `v[0-9]*` tags; pull requests build and smoke-test the image without publishing
 - **Image Build Provenance** — Published GHCR manifests carry a signed build provenance attestation, verifiable with `gh attestation verify`
+- **`^MU` Units of Measurement** — Support the `^MU` command to set the unit of measurement used by subsequent positioning commands (#26)
 
 ### Fixed
 
+- **Font 0 Metrics** — Recalibrated the scalable font 0 against Labelary: a 107-character per-glyph advance table, a width ratio re-fitted to 0.95 now that it only has to describe glyph shape rather than absorb spacing error, and a vertical text origin corrected by -0.02 em -0.8 px. Mean pixel difference across the 50 carrier labels in the golden suite drops from 4.47% to 3.24%, with 49 of 50 improving and none regressing
+- **`^FT` Baseline** — Lowered the proportional font ascent used for `^FT` baseline positioning from 0.78 to 0.76 of the cell height, which places `^FT` text closer to where Zebra puts it
+- **MaxiCode Encoding** — Replaced the encoder with a standards-oriented implementation for modes 2–4 with data sets A–E, shortest-path text compaction and numeric shift (#32)
+- **Code 128 Text Rendering** — Use the condensed bold font for the mode D interpretation line and stop rendering explicit FNC1 invocations in the human-readable text to match Labelary
 - **Docker Build** — Dropped the unsupported `--features` flag from `cargo chef prepare`, which caused `docker build` to fail with `error: unexpected argument '--features' found`
 
 ## [1.3.0] - 2026-07-20

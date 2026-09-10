@@ -41,6 +41,29 @@ pub struct VirtualPrinter {
     pub measurement_unit: MeasurementUnit,
     /// dpi conversion factor from `^MU`'s b (format base) and c (desired) parameters.
     pub dpi_conversion: f64,
+    /// Label top offset from `^LT` (dots). Applied to every element position when a
+    /// label is emitted, and it persists across formats like `^LH` (Labelary behavior).
+    /// Zebra/Labelary cap the magnitude at 120 dots; larger values are ignored.
+    pub label_top: i32,
+    /// Label shift from `^LS` (dots). Positive values shift content LEFT, negative
+    /// RIGHT; per-element x is clamped at 0 (Labelary behavior).
+    pub label_shift: i32,
+    /// Font identifier map from `^CW` (identifier char -> font name).
+    pub font_map: HashMap<String, String>,
+    /// Labels to print from `^PQ` (parameter a). Emitted as that many copies of the
+    /// label, since serials render literally (no auto-increment), matching Labelary.
+    pub print_quantity: i32,
+    /// Number of copies of the same label from `^PQ` (parameter c).
+    pub print_copies: i32,
+    /// Current serial number value from `^SN` (inert: serial markers in `^FD` render
+    /// literally, matching Labelary, so this only records stream state).
+    pub serial_number: String,
+    /// Serial number format from `^SF` (inert, see ^SN).
+    pub serial_format: String,
+    /// Label length from `^LL` (dots). Recorded only: the rendered canvas size
+    /// comes from the draw options, so ^LL has no visible effect (verified against
+    /// Labelary, which also keeps the requested label size).
+    pub label_length: i32,
 }
 
 impl Default for VirtualPrinter {
@@ -73,6 +96,14 @@ impl Default for VirtualPrinter {
             dpmm: 8,
             measurement_unit: MeasurementUnit::default(),
             dpi_conversion: 1.0,
+            label_top: 0,
+            label_shift: 0,
+            font_map: HashMap::new(),
+            print_quantity: 1,
+            print_copies: 1,
+            serial_number: String::new(),
+            serial_format: String::new(),
+            label_length: 0,
         }
     }
 }
@@ -156,5 +187,8 @@ impl VirtualPrinter {
     pub fn reset_label_state(&mut self) {
         self.next_download_format_name = String::new();
         self.label_inverted = false;
+        // ^PQ is scoped to the label format it appears in.
+        self.print_quantity = 1;
+        self.print_copies = 1;
     }
 }
