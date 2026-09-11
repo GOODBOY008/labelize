@@ -191,3 +191,30 @@ fn upper_shift_numeric_pairs_and_padding_survive_independent_decoding() {
         assert_eq!(&decoded.getRawBytes()[..6], &[232, 235, 1, 235, 128, 229]);
     }
 }
+
+#[test]
+fn terminal_explicit_pad_starts_randomized_padding_immediately() {
+    // Decoded text alone misses duplicate PAD: readers stop at the first 129.
+    for (size, expected) in [
+        (10, vec![66, 129, 70]),
+        (12, vec![66, 129, 70, 220, 115]),
+        (14, vec![66, 129, 70, 220, 115, 11, 161, 56]),
+    ] {
+        for (data, escape) in [(&b"A_0"[..], b'_'), (&b"A#0"[..], b'#')] {
+            let image = datamatrix::encode_zpl(data, 1, size, size, escape).unwrap();
+            let decoded = decode_image(&image, 1);
+            assert_eq!(decoded.getText(), "A");
+            assert_eq!(decoded.getRawBytes(), &expected);
+        }
+    }
+    // Explicit PAD at exact capacity must not grow the symbol.
+    let exact = datamatrix::encode_zpl(b"AB_0", 1, 10, 10, b'_').unwrap();
+    assert_eq!(exact.width(), 10);
+    assert_eq!(decode_image(&exact, 1).getRawBytes(), &[66, 67, 129]);
+    // Without an explicit PAD, the initial unrandomized PAD is still required.
+    let implicit = datamatrix::encode_zpl(b"_1A", 1, 12, 12, b'_').unwrap();
+    assert_eq!(
+        decode_image(&implicit, 1).getRawBytes(),
+        &[232, 66, 129, 220, 115]
+    );
+}

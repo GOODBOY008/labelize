@@ -115,7 +115,13 @@ pub fn encode_zpl(
         .or_else(|_| select(SymbolList::default().enforce_square()))
         .map_err(|error| format!("DataMatrix encoding failed: {error:?}"))?;
     let capacity = selected.data_codewords().len();
-    if words.len() < capacity {
+    // An explicit terminal PAD already starts the padding sequence. Inspect
+    // its token, not just the last codeword (ECI/append parameters can be 129).
+    let terminal_pad = matches!(
+        tokens.last(),
+        Some(Token::Codewords(codewords)) if codewords.as_slice() == [129]
+    );
+    if words.len() < capacity && !terminal_pad {
         words.push(129);
     }
     while words.len() < capacity {
