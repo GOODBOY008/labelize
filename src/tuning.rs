@@ -43,6 +43,20 @@ pub(crate) const TEXT_Y_OFFSET_EM: f64 = -0.02;
 /// and are unaffected.
 pub(crate) const ROTATED_ADVANCE_OFFSET: f64 = 2.0;
 
+/// Advance for characters the font-0 substitute has no glyph for (CJK text
+/// decoded via ^CI28 and similar), in em units.
+///
+/// Neither the substitute face nor Labelary's own font-0 substitution covers
+/// these characters, and Labelary renders them as blank space — no .notdef
+/// box, no ink — while still advancing the pen. Measured with the probe-run
+/// method (`^FD123` vs `^FD中123` vs `^FD中文123`: the x-shift of the
+/// trailing "123" isolates the missing-glyph advance, and n vs 2n divides the
+/// 1 px quantisation error): 12/13 px per character at a 42 dot cell across
+/// hanzi, katakana and hangul, i.e. 12.5/42 ≈ 0.2976 em, constant per
+/// character. Rendering nothing and advancing by this amount reproduces
+/// Labelary's output; drawing anything (box or fallback glyph) diverges.
+pub(crate) const FONT0_MISSING_GLYPH_ADVANCE_EM: f64 = 0.2976;
+
 /// Per-character advance correction for font 0, in em units (multiplied by the
 /// font cell height at use). Characters absent from the table need no correction.
 pub(crate) fn font0_advance_delta(ch: char) -> f64 {

@@ -675,6 +675,16 @@ fn golden_fo_lenient_coord() {
     golden_zpl_with_tolerance("fo_lenient_coord", 5.0);
 }
 
+/// Issue #51 regression: ^CI28 (UTF-8) CJK text in scalable font 0 must
+/// render exactly like Labelary — blank space (no .notdef box), with the
+/// pen still advancing by the calibrated missing-glyph width so trailing
+/// text lands at Labelary's position. Probe-calibrated; see
+/// `tuning::FONT0_MISSING_GLYPH_ADVANCE_EM` and `tests/unit_cjk_font0.rs`.
+#[test]
+fn golden_cjk_font0_ci28() {
+    golden_zpl_with_tolerance("cjk_font0_ci28", 1.0);
+}
+
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]

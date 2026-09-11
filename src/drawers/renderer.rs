@@ -1006,12 +1006,28 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
     }
 }
 
+/// Scalable font 0 only: true when the Helvetica substitute has no glyph for
+/// a character (multi-byte CJK text decoded via ^CI28 etc.). Like Labelary,
+/// these render as blank space — no .notdef box — while the pen still
+/// advances by [`crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM`].
+fn font0_missing_glyph(font: &FontRef, c: char, f0: bool) -> bool {
+    use ab_glyph::{Font as _, GlyphId};
+    f0 && font.glyph_id(c) == GlyphId(0)
+}
+
 fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f32 {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
     let mut width = 0.0f32;
     let mut prev = None;
     for ch in text.chars() {
+        if font0_missing_glyph(font, ch, f0) {
+            width += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y;
+            // Nothing is drawn, so no kerning applies on either side —
+            // matching imageproc's layout, which only kerns outlined glyphs.
+            prev = None;
+            continue;
+        }
         let glyph_id = font.glyph_id(ch);
         if let Some(prev_id) = prev {
             width += scaled.kern(prev_id, glyph_id);
@@ -1082,7 +1098,39 @@ fn draw_text_snapped(
     f0: bool,
 ) {
     use ab_glyph::{Font, GlyphId, ScaleFont};
-    use image::Pixel;
+
+    // Paint an outlined glyph at field origin (x, y) with imageproc's exact
+    // alpha-quantisation behaviour (truncating Clamp).
+    fn blit(canvas: &mut RgbaImage, color: Rgba<u8>, g: &ab_glyph::OutlinedGlyph, x: i32, y: i32) {
+        use image::Pixel;
+        let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
+        let bb = g.px_bounds();
+        let x_shift = x + bb.min.x.round() as i32;
+        let y_shift = y + bb.min.y.round() as i32;
+        g.draw(|gx, gy, gv| {
+            let px = gx as i32 + x_shift;
+            let py = gy as i32 + y_shift;
+            if (0..cw).contains(&px) && (0..ch).contains(&py) {
+                let mut pixel = *canvas.get_pixel(px as u32, py as u32);
+                let gv = gv.clamp(0.0, 1.0);
+                // imageproc's Clamp<f32> for u8 truncates rather than rounds;
+                // match it exactly so a zero offset is bit-identical to upstream.
+                let a = color[3] as f32 * gv;
+                let a = if a < 255.0 {
+                    if a > 0.0 {
+                        a as u8
+                    } else {
+                        0
+                    }
+                } else {
+                    255
+                };
+                let src = Rgba([color[0], color[1], color[2], a]);
+                pixel.blend(&src);
+                canvas.put_pixel(px as u32, py as u32, pixel);
+            }
+        });
+    }
 
     let yoff = if f0 {
         crate::tuning::TEXT_Y_OFFSET as f32
@@ -1091,12 +1139,19 @@ fn draw_text_snapped(
         0.0
     };
     let scaled = font.as_scaled(scale);
-    let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
 
     let mut w = 0.0f32;
     let mut prev: Option<GlyphId> = None;
 
     for c in text.chars() {
+        if font0_missing_glyph(font, c, f0) {
+            // Blank like Labelary: no glyph is drawn and no kerning applies on
+            // either side (imageproc only kerns outlined glyphs), but the pen
+            // still advances by the calibrated missing-glyph width.
+            w += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y;
+            prev = None;
+            continue;
+        }
         let glyph_id = font.glyph_id(c);
         let glyph =
             glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
@@ -1109,32 +1164,7 @@ fn draw_text_snapped(
                 w += scaled.kern(glyph_id, prev_id);
             }
             prev = Some(glyph_id);
-            let bb = g.px_bounds();
-            let x_shift = x + bb.min.x.round() as i32;
-            let y_shift = y + bb.min.y.round() as i32;
-            g.draw(|gx, gy, gv| {
-                let px = gx as i32 + x_shift;
-                let py = gy as i32 + y_shift;
-                if (0..cw).contains(&px) && (0..ch).contains(&py) {
-                    let mut pixel = *canvas.get_pixel(px as u32, py as u32);
-                    let gv = gv.clamp(0.0, 1.0);
-                    // imageproc's Clamp<f32> for u8 truncates rather than rounds;
-                    // match it exactly so a zero offset is bit-identical to upstream.
-                    let a = color[3] as f32 * gv;
-                    let a = if a < 255.0 {
-                        if a > 0.0 {
-                            a as u8
-                        } else {
-                            0
-                        }
-                    } else {
-                        255
-                    };
-                    let src = Rgba([color[0], color[1], color[2], a]);
-                    pixel.blend(&src);
-                    canvas.put_pixel(px as u32, py as u32, pixel);
-                }
-            });
+            blit(canvas, color, &g, x, y);
         }
     }
 }

@@ -19,6 +19,7 @@
 ║ barcode128_rotated             │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ cf_font_designator             │ zpl  │    0.13% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ cf_font_no_orientation         │ zpl  │    0.18% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ cjk_font0_ci28                 │ zpl  │    0.10% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ code128_mode_d_fnc1            │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ cp850_hex_chars                │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ dhlparceluk_dhl_text           │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -77,5 +78,5 @@
 ║ usps_priority_mail             │ zpl  │    0.32% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 73 total │ 5 perfect │ 58 good │ 8 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 74 total │ 5 perfect │ 59 good │ 8 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
