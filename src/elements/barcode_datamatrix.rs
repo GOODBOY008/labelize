@@ -16,6 +16,7 @@ pub struct BarcodeDatamatrix {
     pub columns: i32,
     pub rows: i32,
     pub format: i32,
+    /// ECC 200 field-data escape; zero disables ZPL escapes (for EPL).
     pub escape: u8,
     pub ratio: Option<DatamatrixRatio>,
 }
@@ -26,4 +27,7 @@ pub struct BarcodeDatamatrixWithData {
     pub barcode: BarcodeDatamatrix,
     pub position: LabelPosition,
     pub data: String,
+    /// Original ZPL field bytes after ^FH processing, before barcode escapes.
+    /// Legacy encoders consume these without a Unicode round trip.
+    pub data_bytes: Option<Vec<u8>>,
 }

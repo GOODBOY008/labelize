@@ -24,6 +24,7 @@ pub struct VirtualPrinter {
     pub next_element_alignment: Option<FieldAlignment>,
     pub next_element_field_element: Option<Box<LabelElement>>,
     pub next_element_field_data: String,
+    pub next_element_field_bytes: Option<Vec<u8>>,
     pub next_element_field_number: i32,
     pub next_font: Option<FontInfo>,
     pub next_download_format_name: String,
@@ -83,6 +84,7 @@ impl Default for VirtualPrinter {
             next_element_alignment: None,
             next_element_field_element: None,
             next_element_field_data: String::new(),
+            next_element_field_bytes: None,
             next_element_field_number: -1,
             next_font: None,
             next_download_format_name: String::new(),
@@ -172,6 +174,7 @@ impl VirtualPrinter {
         self.next_element_position = LabelPosition::default();
         self.next_element_field_element = None;
         self.next_element_field_data = String::new();
+        self.next_element_field_bytes = None;
         self.next_element_field_number = -1;
         self.next_element_alignment = None;
         // Save font used by the last field so ^GS can inherit it when no size specified
