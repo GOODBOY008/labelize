@@ -218,18 +218,28 @@ impl Renderer {
         // Fonts P-V (resident bitmaps): Labelary caps measure ~0.60-0.625x the base
         // cell (P: 12/20, Q: 17/28, S: 25/40), where DejaVu Mono Bold caps land at
         // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
+        // Font 1 (mono substitute): DejaVu Sans Mono regular caps land at 1493/2384
+        // ≈ 0.626 of the ab_glyph scale and must read as 0.73 of the height param.
         let is_pv = matches!(
             text.font.name.as_str(),
             "P" | "Q" | "R" | "S" | "T" | "U" | "V"
         );
+        let is_font1 = text.font.name == "1";
+        let line_height_factor: f32 = if is_font1 {
+            crate::tuning::FONT1_LINE_HEIGHT as f32
+        } else {
+            1.0
+        };
         let cap_scale: f32 = if text.font.name == "B" {
             1.59
         } else if is_pv {
             0.85
+        } else if is_font1 {
+            crate::tuning::FONT1_CAP_SCALE as f32
         } else {
             7.0 / 6.0
         };
-        let bitmap_y_shift: f64 = if is_bitmap || is_pv {
+        let bitmap_y_shift: f64 = if is_bitmap || is_pv || is_font1 {
             scale.y = font_size * cap_scale;
 
             let orig_scale = PxScale {
@@ -267,9 +277,33 @@ impl Renderer {
             text_width
         };
 
-        let (x, y) = get_text_top_left_pos(text, pos_width, font_size as f64, ascent as f64, state);
+        // Effective between-line pitch actually drawn by draw_text_block. For
+        // font 1 (fractional factor + cap-scaled em) this differs from the raw
+        // height param, and multiline ^FT anchoring must span the drawn extent.
+        let line_pitch = scale.y * line_height_factor
+            + text
+                .block
+                .as_ref()
+                .map(|b| b.line_spacing as f32)
+                .unwrap_or(0.0);
+        let (x, y) = get_text_top_left_pos(
+            text,
+            pos_width,
+            font_size as f64,
+            ascent as f64,
+            state,
+            line_pitch as f64,
+        );
         // Apply bitmap y-correction (zero for non-bitmap fonts).
         let y = y + bitmap_y_shift;
+        // Font 1's mono substitute lsb rounds one pixel wider than Labelary's
+        // face. The nudge lives in LOCAL text space (pen axis) so it rotates
+        // with the field instead of shifting page-space X for R/I/B.
+        let pen_x_offset: f32 = if is_font1 {
+            crate::tuning::FONT1_X_OFFSET as f32
+        } else {
+            0.0
+        };
         state.update_automatic_text_position(text, pos_width);
 
         let color = Rgba([0, 0, 0, 255]);
@@ -286,11 +320,12 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    x as f32,
+                    x as f32 + pen_x_offset,
                     y as f32,
                     block,
                     &drawn_text,
                     f0,
+                    line_height_factor,
                 );
             } else {
                 draw_text_with_superscript(
@@ -298,7 +333,7 @@ impl Renderer {
                     &font,
                     scale,
                     color,
-                    x as f32,
+                    x as f32 + pen_x_offset,
                     y as f32,
                     &drawn_text,
                     f0,
@@ -308,10 +343,12 @@ impl Renderer {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
                 let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
-                let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+                // Same pitch draw_text_block uses (cap-scaled em × factor), and
+                // a full em below the last line top so descenders aren't clipped.
+                let pitch = scale.y * line_height_factor + block.line_spacing as f32;
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
-                let h = (num_lines as f32 * line_height).ceil() as u32 + 2;
+                let h = ((num_lines - 1) as f32 * pitch + scale.y).ceil() as u32 + 2;
                 (block.max_width as u32 + 2, h)
             } else {
                 let w = (text_width as f32).ceil() as u32 + 2;
@@ -333,11 +370,12 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    0.0,
+                    pen_x_offset,
                     0.0,
                     block,
                     &drawn_text,
                     f0,
+                    line_height_factor,
                 );
             } else {
                 draw_text_with_superscript(
@@ -345,7 +383,7 @@ impl Renderer {
                     &font,
                     scale,
                     color,
-                    0.0,
+                    pen_x_offset,
                     0.0,
                     &drawn_text,
                     f0,
@@ -1248,18 +1286,31 @@ fn draw_text_block(
     block: &crate::elements::field_block::FieldBlock,
     text: &str,
     f0: bool,
+    line_height_factor: f32,
 ) {
     let max_width = block.max_width as f32;
     let lines = word_wrap(text, font, scale, max_width, f0);
     let font_size = scale.y;
-    let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+    let line_height = font_size * line_height_factor + block.line_spacing as f32;
 
     let mut cy = y;
     let max_lines = block.max_lines.max(1) as usize;
+    // A fractional line pitch (font 1's calibrated 0.7625 factor) accumulates
+    // sub-pixel drift on wrapped lines; round those line tops. The first line
+    // keeps the raw (truncating) pen — its anchor is already probe-calibrated
+    // via bitmap_y_shift, and rounding it shifts single-line fields by 1px.
+    let snap_y = |v: f32, first: bool| {
+        if first || line_height_factor == 1.0 {
+            v
+        } else {
+            v.round()
+        }
+    };
     for (i, line) in lines.iter().enumerate() {
         if i >= max_lines {
             break;
         }
+        let first = i == 0;
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
                 let lw = measure_text_width(line, font, scale, f0);
@@ -1269,19 +1320,76 @@ fn draw_text_block(
                 let lw = measure_text_width(line, font, scale, f0);
                 x + block.max_width as f32 - lw
             }
+            // Justified (J): every line except the block's last is stretched to
+            // the full block width by distributing the slack across the word
+            // gaps; the last line stays left-aligned (ZPL ^FB d=J semantics).
+            crate::elements::text_alignment::TextAlignment::Justified
+                if i + 1 < lines.len().min(max_lines) =>
+            {
+                draw_justified_line(
+                    canvas,
+                    font,
+                    scale,
+                    color,
+                    x,
+                    snap_y(cy, first),
+                    line,
+                    f0,
+                    max_width,
+                );
+                cy += line_height;
+                continue;
+            }
             _ => x,
         };
-        draw_text_with_superscript(canvas, font, scale, color, lx, cy, line, f0);
+        draw_text_with_superscript(canvas, font, scale, color, lx, snap_y(cy, first), line, f0);
         cy += line_height;
     }
 }
 
+/// Draw one ^FB justified line: words at their natural advances with the
+/// block's leftover width distributed evenly across the inter-word gaps.
+#[allow(clippy::too_many_arguments)]
+fn draw_justified_line(
+    canvas: &mut RgbaImage,
+    font: &FontRef,
+    scale: PxScale,
+    color: Rgba<u8>,
+    x: f32,
+    y: f32,
+    line: &str,
+    f0: bool,
+    max_width: f32,
+) {
+    let words: Vec<&str> = line.split_whitespace().collect();
+    if words.len() < 2 {
+        draw_text_with_superscript(canvas, font, scale, color, x, y, line, f0);
+        return;
+    }
+    // Superscript-aware draw and measurement, matching every other text path:
+    // a ® inside a justified word must render at REGISTERED_MARK_SCALE and its
+    // width must not distort the distributed slack.
+    let lw = measure_text_width_with_superscript(line, font, scale, f0);
+    let space_w = measure_text_width_with_superscript(" ", font, scale, f0);
+    let extra = (max_width - lw) / (words.len() - 1) as f32;
+    let mut cx = x;
+    for (k, word) in words.iter().enumerate() {
+        draw_text_with_superscript(canvas, font, scale, color, cx.round(), y, word, f0);
+        cx += measure_text_width_with_superscript(word, font, scale, f0);
+        if k + 1 < words.len() {
+            cx += space_w + extra;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn get_text_top_left_pos(
     text: &TextField,
     w: f64,
     h: f64,
     ascent: f64,
     state: &DrawerState,
+    line_pitch: f64,
 ) -> (f64, f64) {
     let (x, y) = state.get_text_position(text);
 
@@ -1297,18 +1405,14 @@ fn get_text_top_left_pos(
     // ^FT: position is baseline (bottom-left for Normal).
     // Convert to top-left of the rendering area.
     // Use ascent (not full height) for the baseline-to-top distance of the last line.
-    // Use full font height h for line spacing between lines.
+    // `line_pitch` is the per-line advance actually drawn (cap-scaled em ×
+    // factor + spacing), which differs from the raw height h for font 1.
     let lines = if let Some(ref block) = text.block {
         block.max_lines.max(1) as f64
     } else {
         1.0
     };
-    let spacing = if let Some(ref block) = text.block {
-        block.line_spacing as f64
-    } else {
-        0.0
-    };
-    let total_h = ascent + (lines - 1.0) * (h + spacing);
+    let total_h = ascent + (lines - 1.0) * line_pitch;
 
     // ZPL spec: ^FT coordinate is "always for the left end of the baseline regardless of rotation".
     // For rotated text, the "baseline left end" rotates with the text.
