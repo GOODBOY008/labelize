@@ -1,0 +1,70 @@
+{
+  "status": "prepared; not sent",
+  "settings": {
+    "dpi": 300,
+    "mediaMm": [
+      50,
+      25
+    ],
+    "upperTextMarginDots": 36,
+    "barcodeTopDots": 78,
+    "darkness": 15,
+    "speedIps": 2,
+    "ecc": 0,
+    "format": 6,
+    "symbolModules": 23,
+    "moduleDots": 5,
+    "ci": 27,
+    "cv": "Y; reset N after each label"
+  },
+  "groups": [
+    {
+      "id": "L01",
+      "title": "Legacy CRLF / FH order",
+      "fields": [
+        {
+          "caption": "A backslash-& B",
+          "data": "A\\&B",
+          "fh": false
+        },
+        {
+          "caption": "A hex 0D 0A B",
+          "data": "A#0D#0AB",
+          "fh": true
+        },
+        {
+          "caption": "A hex 5C 26 B",
+          "data": "A#5C#26B",
+          "fh": true
+        }
+      ],
+      "hypothesis": "All three matrices should agree if backslash-& becomes CR/LF and FH runs before Legacy escapes. Agreement alone is not raw-byte decoding.",
+      "file": "l01-300dpi.zpl",
+      "sha256": "a250bdc6d38ea8cd7025edb64905351cfb28229ce5b1f11acf8d9515b28c3102"
+    },
+    {
+      "id": "L02",
+      "title": "Legacy backslash / double pipe",
+      "fields": [
+        {
+          "caption": "A two backslash B",
+          "data": "A\\\\B",
+          "fh": false
+        },
+        {
+          "caption": "A hex 5C B",
+          "data": "A#5CB",
+          "fh": true
+        },
+        {
+          "caption": "A two pipes B",
+          "data": "A||B",
+          "fh": false
+        }
+      ],
+      "hypothesis": "First two matrices should agree if doubled backslash becomes one. Third is unresolved: record matrix equality/difference, blank output, or exact INVALID code without assuming a mapping.",
+      "file": "l02-300dpi.zpl",
+      "sha256": "615b2922269c584e4a89aff9eb51820171304cf60f4e0a833f5e9322211798ff"
+    }
+  ]
+}

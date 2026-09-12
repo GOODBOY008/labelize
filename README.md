@@ -215,6 +215,9 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 
 ### ZPL Commands
 
+DataMatrix ECC 200 field-data escapes and firmware defaults are described in
+[DataMatrix field data](docs/DATAMATRIX_FIELD_DATA.md).
+
 | Category | Commands |
 |----------|----------|
 | **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^A@` (named font) `^CF` `^CW` (font identifier) `^FB` `^FR` `^FH` `^FN` `^FW` `^FV` |
@@ -222,6 +225,19 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 | **Graphics** | `^GB` (box) `^GC` (circle) `^GD` (diagonal) `^GE` (ellipse) `^GF` (graphic field) `^GS` (symbol) `~DG` (download graphic) `^IL` `^XG` `^ID` `^IM` `^IS` `~EG` |
 | **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units of measurement) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
 | **Stored Formats** | `^DF` `^XF` |
+
+DataMatrix rendering supports **ECC 000, 050, 080, 100, 140 and 200**. Omitted or empty ZPL
+`^BX` quality defaults to ECC 000, as specified by Zebra; use `^BXN,4,200`
+for modern ECC 200. The Legacy path supports six encodation formats,
+CRC, convolutional protection, randomization and square symbols up to 49 modules.
+Legacy ZPL preserves raw field bytes and `^FH` bytes, including stored-format
+recalls. Backslashes and pipes remain literal, matching the recorded CI13/CI27
+printer probes; control bytes can be supplied through `^FH`.
+Numeric records above 511 remain explicitly unsupported.
+They never silently become ECC 200. The raw Legacy encoder API accepts bytes.
+EPL DataMatrix continues to use ECC 200. See [Legacy scope and evidence](docs/DATAMATRIX_LEGACY.md)
+for the norm-based implementation, printer observations, limitations and source
+attribution. No independent overall validation is claimed.
 
 ### EPL Commands
 

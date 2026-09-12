@@ -1,0 +1,77 @@
+{
+  "status": "prepared; physical outcomes not recorded",
+  "purpose": "Separate automatic size selection from fixed-size field-length rejection; then inspect any printed long records.",
+  "settings": {
+    "dpi": 300,
+    "widthDots": 600,
+    "heightDots": 300,
+    "ecc": 0,
+    "format": 1,
+    "ci": 27,
+    "moduleDots": 3,
+    "copiesPerLabel": 1
+  },
+  "payload": "ASCII digit 1 repeated exactly length times",
+  "hashEncoding": "UTF-8 with LF line endings (normalize CRLF to LF before checking)",
+  "probes": [
+    {
+      "id": "N500",
+      "length": 500,
+      "file": "n500-300dpi.zpl",
+      "sha256": "f286df8efe4ac29a8a44bc95f2ce19cdb0a3455b035b164833293825f07a276b",
+      "payloadSha256": "4ec297ba99da804fe1068f1a398d0de8c7ed84461f2efbfd59557f1f5c94ab96",
+      "automatic": null,
+      "fixed49": null
+    },
+    {
+      "id": "N501",
+      "length": 501,
+      "file": "n501-300dpi.zpl",
+      "sha256": "705f1a2c81c05d0fee45420dd308e5b7ea46bc060d1daeeccfb17790eb1936b4",
+      "payloadSha256": "889fb542a8b89509f7d092a96b41f1e54b946028b39b4f7e8f23ee81a91a966b",
+      "automatic": null,
+      "fixed49": null
+    },
+    {
+      "id": "N511",
+      "length": 511,
+      "file": "n511-300dpi.zpl",
+      "sha256": "d11c02a51919b3a2a66aefecb4653c5121bc6c99a38e7c25389a0d3cdc7be4da",
+      "payloadSha256": "cbb4b44e0395bbe796c3fed17c92b5afca85e54aee3eb3ae3ab4c0da8a54da7e",
+      "automatic": null,
+      "fixed49": null
+    },
+    {
+      "id": "N512",
+      "length": 512,
+      "file": "n512-300dpi.zpl",
+      "sha256": "28b7564ffe103afedf897bbd89cb19fd3f7daaf53a123c0c5564aa461fc00525",
+      "payloadSha256": "dabdd72895a4cb287ddfadff4412cb3a9c3ef61f0fdae70939b5a0eba4863c2a",
+      "automatic": null,
+      "fixed49": null
+    },
+    {
+      "id": "N596",
+      "length": 596,
+      "file": "n596-300dpi.zpl",
+      "sha256": "b160e3776cbe6bb914503c6480fa0982ea822819d7f68efae930acf5562821f4",
+      "payloadSha256": "562a4e1bf359827a7aa5133ce1547ad8d39beeaf0316b2842d88ac18db112c7e",
+      "automatic": null,
+      "fixed49": null
+    },
+    {
+      "id": "N597",
+      "length": 597,
+      "file": "n597-300dpi.zpl",
+      "sha256": "96950c0954503c053ff37c6a4ede9a839f1114b64364c2e7c2bc08b10d8c3775",
+      "payloadSha256": "41c3e568c9f679c4e4f5bbac3af4c46cfcceaa1946fff24365919318d17aca30",
+      "automatic": null,
+      "fixed49": null
+    }
+  ],
+  "combined": {
+    "file": "legacy-lengths-300dpi.zpl",
+    "labels": 6,
+    "sha256": "ce9828cde83f6e4972a0a79d14cb0aaa0983518b694a1b91fa0f8eff86ce4bba"
+  }
+}

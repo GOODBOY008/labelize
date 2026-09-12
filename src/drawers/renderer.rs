@@ -944,9 +944,59 @@ impl Renderer {
         canvas: &mut RgbaImage,
         bc: &crate::elements::barcode_datamatrix::BarcodeDatamatrixWithData,
     ) -> Result<(), String> {
+        // In ZPL, omitted quality is
+        // ECC 000, not permission to substitute a different symbology.
+        match bc.barcode.quality {
+            0 | 50 | 80 | 100 | 140 | 200 => {}
+            quality => {
+                return Err(crate::error::LabelizeError::Render(format!(
+                    "Invalid DataMatrix quality {quality}: expected 0, 50, 80, 100, 140, or 200."
+                ))
+                .to_string());
+            }
+        }
         let scale = bc.barcode.height.max(1);
-        let img_raw =
-            barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?;
+        let img_raw = if bc.barcode.quality != 200 {
+            // Legacy g (ECC 200 escapes) has no effect. Consume preserved field
+            // bytes instead of attempting to reverse the display text decoding.
+            let input = match bc.data_bytes.as_deref() {
+                Some(bytes) => bytes,
+                None if bc.data.is_ascii() => bc.data.as_bytes(),
+                None => {
+                    return Err(
+                        "Legacy DataMatrix: non-ASCII data requires explicit data_bytes".into(),
+                    )
+                }
+            };
+            // ZD421 CI13/CI27 probes preserve backslashes and pipes after FH.
+            // Do not apply the PDF417 substitutions suggested by the BX prose.
+            if bc.barcode.ratio
+                == Some(crate::elements::barcode_datamatrix::DatamatrixRatio::Rectangular)
+            {
+                return Err("Legacy DataMatrix: rectangular symbols are not supported".into());
+            }
+            let format = u8::try_from(bc.barcode.format)
+                .map_err(|_| "Legacy DataMatrix: format must be 1 through 6")?;
+            let size =
+                barcodes::datamatrix_legacy::zpl_symbol_size(bc.barcode.rows, bc.barcode.columns)?;
+            barcodes::datamatrix_legacy::encode_with_ecc(
+                input,
+                format,
+                bc.barcode.quality as u16,
+                size,
+            )?
+            .to_image(scale as usize, scale as usize)
+        } else if bc.barcode.escape != 0 {
+            barcodes::datamatrix::encode_zpl(
+                bc.data.as_bytes(),
+                scale,
+                bc.barcode.rows,
+                bc.barcode.columns,
+                bc.barcode.escape,
+            )?
+        } else {
+            barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?
+        };
         let pos = adjust_image_typeset_position(&img_raw, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img_raw, &pos, bc.barcode.orientation);
         Ok(())
