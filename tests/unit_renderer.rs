@@ -586,3 +586,137 @@ fn rotated90_ft_text_positions_within_expected_region() {
         dark_below
     );
 }
+
+// --- Empty 2D barcode fields: skip like Labelary, never fail the label ---
+
+/// Count dark pixels in a rectangle of the rendered (white-background) canvas.
+fn dark_pixels_in(img: &image::RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32) -> u32 {
+    let mut n = 0;
+    for y in y0..y1.min(img.height()) {
+        for x in x0..x1.min(img.width()) {
+            if img.get_pixel(x, y)[0] < 128 {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+#[test]
+fn empty_qr_field_skips_barcode_but_renders_rest_of_label() {
+    // Labelary draws nothing for a QR field with no data (`^FD^FS`); before
+    // the fix this failed the whole label with "invalid qr barcode data".
+    let zpl = "^XA^FO50,50^BQN,2,5^FD^FS^FO50,300^GB200,100,4^FS^FT300,370^A0N,30,30^FDTEXT^FS^XZ";
+    let png = render_helpers::render_zpl_to_png(zpl, default_options());
+    let img = decode_png(&png);
+
+    assert!(
+        dark_pixels_in(&img, 50, 300, 250, 400) > 0,
+        "^GB box should still render"
+    );
+    assert!(
+        dark_pixels_in(&img, 280, 330, 600, 375) > 0,
+        "^FT text should still render"
+    );
+    assert_eq!(
+        dark_pixels_in(&img, 50, 50, 300, 280),
+        0,
+        "empty QR field should draw nothing"
+    );
+}
+
+#[test]
+fn qr_prefix_only_field_data_skips_barcode() {
+    // `^FDQA,` carries the format prefix but no payload — parses to an empty
+    // QR payload, which draws nothing instead of failing the label.
+    let zpl = "^XA^FO50,50^BQN,2,5^FDQA,^FS^FO50,300^GB200,100,4^FS^XZ";
+    let png = render_helpers::render_zpl_to_png(zpl, default_options());
+    let img = decode_png(&png);
+
+    assert!(
+        dark_pixels_in(&img, 50, 300, 250, 400) > 0,
+        "^GB box should still render"
+    );
+    assert_eq!(
+        dark_pixels_in(&img, 50, 50, 300, 280),
+        0,
+        "prefix-only QR field should draw nothing"
+    );
+}
+
+#[test]
+fn empty_datamatrix_field_skips_barcode_but_renders_rest_of_label() {
+    // Labelary draws nothing for an empty ^BX field — the renderer skips it
+    // even though the encoder can encode b"" naturally.
+    let zpl = "^XA^FO50,50^BXN,5^FD^FS^FO50,300^GB200,100,4^FS^FT300,370^A0N,30,30^FDTEXT^FS^XZ";
+    let png = render_helpers::render_zpl_to_png(zpl, default_options());
+    let img = decode_png(&png);
+
+    assert!(
+        dark_pixels_in(&img, 50, 300, 250, 400) > 0,
+        "^GB box should still render"
+    );
+    assert!(
+        dark_pixels_in(&img, 280, 330, 600, 375) > 0,
+        "^FT text should still render"
+    );
+    assert_eq!(
+        dark_pixels_in(&img, 50, 50, 300, 280),
+        0,
+        "empty DataMatrix field should draw nothing"
+    );
+}
+
+#[test]
+fn empty_aztec_field_draws_labelary_core_symbol() {
+    // Labelary renders a fixed 11×11 bullseye core for an empty ^BO field,
+    // placed 2 modules inside the field origin. At mag 5 the core occupies
+    // (FO+10 .. FO+65) with 1725 dark pixels.
+    let zpl = "^XA^FO50,50^BON,5^FD^FS^FO50,300^GB200,100,4^FS^XZ";
+    let png = render_helpers::render_zpl_to_png(zpl, default_options());
+    let img = decode_png(&png);
+
+    assert!(
+        dark_pixels_in(&img, 50, 300, 250, 400) > 0,
+        "^GB box should still render"
+    );
+    // 2-module transparent margin around the core
+    assert_eq!(
+        dark_pixels_in(&img, 50, 50, 125, 60),
+        0,
+        "margin above the Aztec core should be empty"
+    );
+    assert_eq!(
+        dark_pixels_in(&img, 50, 115, 125, 125),
+        0,
+        "margin below the Aztec core should be empty"
+    );
+    // The core itself: 69 dark modules × 5² px
+    assert_eq!(
+        dark_pixels_in(&img, 60, 60, 115, 115),
+        1725,
+        "empty Aztec should draw the 11×11 core (69 modules at mag 5)"
+    );
+}
+
+#[test]
+fn empty_maxicode_field_skips_barcode_but_renders_rest_of_label() {
+    // Labelary draws nothing for an empty ^BD field.
+    let zpl = "^XA^FO50,50^BDN,4^FD^FS^FO50,300^GB200,100,4^FS^FT300,370^A0N,30,30^FDTEXT^FS^XZ";
+    let png = render_helpers::render_zpl_to_png(zpl, default_options());
+    let img = decode_png(&png);
+
+    assert!(
+        dark_pixels_in(&img, 50, 300, 250, 400) > 0,
+        "^GB box should still render"
+    );
+    assert!(
+        dark_pixels_in(&img, 280, 330, 600, 375) > 0,
+        "^FT text should still render"
+    );
+    assert_eq!(
+        dark_pixels_in(&img, 50, 50, 300, 280),
+        0,
+        "empty MaxiCode field should draw nothing"
+    );
+}
