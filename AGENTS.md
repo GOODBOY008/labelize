@@ -125,6 +125,8 @@ When you modify any rendering-related logic (parsers, elements, drawers, barcode
 
 This ensures PR reviewers can visually inspect the before/after rendering impact directly in the diff — left side is Labelary reference, right side is the current Labelize output.
 
+**CI enforces this**: the `Test` job runs the golden tests (including `e2e_diff_report`, which regenerates `testdata/diffs/*` and auto-bootstraps any missing reference PNGs), then fails with a "Golden test artifacts are stale" error if `git status` shows any uncommitted changes under `testdata/`. It also catches a new `.zpl`/`.epl` committed without its reference `.png`.
+
 ## Rendering Reference
 
 - **Unit canvas**: 812×1624 px (101.5mm × 203.0mm at 8 dpmm) — `render_helpers::unit_options()`
