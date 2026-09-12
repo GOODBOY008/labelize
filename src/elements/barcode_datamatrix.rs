@@ -16,6 +16,7 @@ pub struct BarcodeDatamatrix {
     pub columns: i32,
     pub rows: i32,
     pub format: i32,
+    /// ECC 200 field-data escape; zero disables ZPL escapes (for EPL).
     pub escape: u8,
     pub ratio: Option<DatamatrixRatio>,
 }

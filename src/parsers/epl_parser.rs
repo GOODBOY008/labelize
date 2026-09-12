@@ -765,7 +765,7 @@ fn parse_epl_2d_barcode(
                             columns,
                             rows,
                             format: 6,
-                            escape: b'~',
+                            escape: 0, // EPL field data has no ZPL escape processing.
                             ratio: Some(DatamatrixRatio::Square),
                         },
                         position: pos,
