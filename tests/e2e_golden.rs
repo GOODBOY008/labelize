@@ -1,7 +1,10 @@
 mod common;
+#[path = "common/fixture_test_dir.rs"]
+mod fixture_test_dir;
 
 use common::image_compare;
-use common::labelary_client;
+#[path = "common/golden_fixture.rs"]
+mod golden_fixture;
 use common::render_helpers;
 
 /// Maximum allowed pixel-difference percentage for carrier label tests.
@@ -13,107 +16,30 @@ fn testdata_dir() -> std::path::PathBuf {
     render_helpers::testdata_dir()
 }
 
-/// Target canvas size — matches `default_options()` renderer output (813×1626 px).
-const CANVAS_W: u32 = 813;
-const CANVAS_H: u32 = 1626;
-
-/// Auto-generate a missing golden reference PNG for a ZPL test.
-///
-/// Fetches from the Labelary API using `default_options()` dimensions (101.625 mm ×
-/// 203.25 mm). If Labelary returns a PNG at a different size (e.g. 812×1624 due to
-/// server-side floating-point rounding) it is padded to 813×1626 with white so the
-/// reference always matches the canvas our renderer produces. Falls back to the
-/// renderer when Labelary is unreachable (offline / CI without network).
-fn auto_bootstrap_zpl(content: &str, path: &std::path::Path, name: &str) {
-    let opts = render_helpers::default_options();
-    // Labelary renders this size natively at 813×1626 — the exact default_options canvas
-    // (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must not be used).
-    let (width_in, height_in) = render_helpers::LABELARY_LABEL_SIZE_IN;
-
-    let png = if let Some(fetched) =
-        labelary_client::labelary_render(content, opts.dpmm as u8, width_in, height_in)
-    {
-        let normalized = labelary_client::pad_png_to_size(&fetched, CANVAS_W, CANVAS_H);
-        eprintln!(
-            "[bootstrap] '{}': fetched from Labelary, normalized to {}×{}",
-            name, CANVAS_W, CANVAS_H
-        );
-        normalized
-    } else {
-        eprintln!(
-            "[bootstrap] '{}': Labelary unavailable — using renderer baseline ({}×{})",
-            name, CANVAS_W, CANVAS_H
-        );
-        render_helpers::render_zpl_to_png(content, opts)
-    };
-
-    std::fs::create_dir_all(path.parent().unwrap()).ok();
-    std::fs::write(path, &png).expect("write auto-generated golden PNG");
-}
-
-/// Auto-generate a missing golden reference PNG for an EPL test.
-///
-/// EPL is not supported by the Labelary API, so the renderer baseline is always used.
-fn auto_bootstrap_epl(content: &str, path: &std::path::Path, name: &str) {
-    eprintln!(
-        "[bootstrap] '{}': using renderer baseline for EPL (813×1626)",
-        name
-    );
-    let opts = render_helpers::default_options();
-    let png = render_helpers::render_epl_to_png(content, opts);
-    std::fs::create_dir_all(path.parent().unwrap()).ok();
-    std::fs::write(path, &png).expect("write auto-generated golden PNG");
-}
-
 /// Run a golden-file comparison for a ZPL test case.
 fn golden_zpl(name: &str) {
     golden_zpl_with_tolerance(name, LABEL_TOLERANCE);
 }
 
-fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
-    let dir = testdata_dir();
-    // Try labels/ first, then unit/, then root
-    let (input, is_unit) = if dir.join("labels").join(format!("{}.zpl", name)).exists() {
-        (dir.join("labels").join(format!("{}.zpl", name)), false)
-    } else if dir.join("unit").join(format!("{}.zpl", name)).exists() {
-        (dir.join("unit").join(format!("{}.zpl", name)), true)
+fn effective_zpl_tolerance(is_unit: bool, requested: f64) -> f64 {
+    if is_unit {
+        requested.min(UNIT_TOLERANCE)
     } else {
-        (dir.join(format!("{}.zpl", name)), false)
-    };
-    let expected = input.with_extension("png");
-
-    if !input.exists() {
-        eprintln!("SKIP {}: missing ZPL input", name);
-        return;
+        requested
     }
+}
 
-    // Auto-generate the reference PNG if it doesn't exist yet.
-    if !expected.exists() {
-        let content = std::fs::read_to_string(&input).expect("read input");
-        auto_bootstrap_zpl(&content, &expected, name);
-    }
+#[test]
+fn unit_golden_tolerance_honors_stricter_requested_limit() {
+    assert_eq!(effective_zpl_tolerance(true, 0.0), 0.0);
+    assert_eq!(effective_zpl_tolerance(true, 1.0), 1.0);
+    assert_eq!(effective_zpl_tolerance(true, 15.0), UNIT_TOLERANCE);
+    assert_eq!(effective_zpl_tolerance(false, 15.0), 15.0);
+}
 
-    let options = render_helpers::default_options();
-    let effective_tolerance = if is_unit { UNIT_TOLERANCE } else { tolerance };
-    let content = std::fs::read_to_string(&input).expect("read input");
-    let actual_png = render_helpers::render_zpl_to_png(&content, options);
-    let expected_png = std::fs::read(&expected).expect("read golden");
-    let result = image_compare::compare_images(&actual_png, &expected_png, effective_tolerance);
-
-    if result.diff_percent > effective_tolerance {
-        if let Some(ref diff_img) = result.diff_image {
-            image_compare::save_diff_image(name, diff_img);
-        }
-    }
-
-    // Optionally update golden file
-    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
-        std::fs::write(&expected, &actual_png).expect("update golden file");
-        return;
-    }
-
+fn assert_zpl_comparison(name: &str, result: &image_compare::CompareResult, tolerance: f64) {
     assert!(
-        result.diff_percent <= effective_tolerance,
+        result.diff_percent <= tolerance,
         "ZPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
         name,
         result.diff_percent,
@@ -123,46 +49,74 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     );
 }
 
+#[test]
+fn unit_golden_rejects_two_percent_pixel_diff_at_one_percent_limit() {
+    let expected = image::RgbaImage::from_pixel(100, 1, image::Rgba([255, 255, 255, 255]));
+    let mut actual = expected.clone();
+    actual.put_pixel(0, 0, image::Rgba([0, 0, 0, 255]));
+    actual.put_pixel(1, 0, image::Rgba([0, 0, 0, 255]));
+    let encode = |img: image::RgbaImage| {
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+        bytes.into_inner()
+    };
+    let limit = effective_zpl_tolerance(true, 1.0);
+    let result = image_compare::compare_images(&encode(actual), &encode(expected), limit);
+    assert_eq!(result.diff_percent, 2.0);
+    let failure = std::panic::catch_unwind(|| assert_zpl_comparison("two_pixels", &result, limit))
+        .expect_err("2% difference must fail a requested 1% limit");
+    let message = failure.downcast_ref::<String>().unwrap();
+    assert!(message.contains("tolerance: 1.00%"), "{message}");
+    assert_zpl_comparison("boundary", &result, effective_zpl_tolerance(true, 2.0));
+    assert_zpl_comparison("default", &result, effective_zpl_tolerance(true, 15.0));
+}
+
+fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
+    golden_zpl_in(&testdata_dir(), name, tolerance);
+}
+
+fn golden_zpl_in(dir: &std::path::Path, name: &str, tolerance: f64) {
+    let (input, is_unit) =
+        golden_fixture::resolve_input(dir, name, "zpl").unwrap_or_else(|e| panic!("{e}"));
+    let fixture = golden_fixture::load_fixture(&input).unwrap_or_else(|e| panic!("{e}"));
+    let options = render_helpers::default_options();
+    let effective_tolerance = effective_zpl_tolerance(is_unit, tolerance);
+    let content = fixture.content;
+    let actual_png = render_helpers::render_zpl_to_png(&content, options);
+    let expected_png = fixture.reference;
+    let result = image_compare::compare_images(&actual_png, &expected_png, effective_tolerance);
+
+    if result.diff_percent > effective_tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    assert_zpl_comparison(name, &result, effective_tolerance);
+}
+
 /// Run a golden-file comparison for an EPL test case.
 fn golden_epl(name: &str) {
     golden_epl_with_tolerance(name, LABEL_TOLERANCE);
 }
 
 fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
-    let dir = testdata_dir();
-    // Try labels/ first, then the testdata root
-    let input = if dir.join("labels").join(format!("{}.epl", name)).exists() {
-        dir.join("labels").join(format!("{}.epl", name))
-    } else {
-        dir.join(format!("{}.epl", name))
-    };
-    let expected = input.with_extension("png");
+    golden_epl_in(&testdata_dir(), name, tolerance);
+}
 
-    if !input.exists() {
-        eprintln!("SKIP {}: missing EPL input", name);
-        return;
-    }
-
-    // Auto-generate the reference PNG if it doesn't exist yet.
-    if !expected.exists() {
-        let content = std::fs::read_to_string(&input).expect("read input");
-        auto_bootstrap_epl(&content, &expected, name);
-    }
-
-    let content = std::fs::read_to_string(&input).expect("read input");
+fn golden_epl_in(dir: &std::path::Path, name: &str, tolerance: f64) {
+    let (input, _) =
+        golden_fixture::resolve_input(dir, name, "epl").unwrap_or_else(|e| panic!("{e}"));
+    let fixture = golden_fixture::load_fixture(&input).unwrap_or_else(|e| panic!("{e}"));
+    let content = fixture.content;
     let actual_png = render_helpers::render_epl_to_png(&content, render_helpers::default_options());
-    let expected_png = std::fs::read(&expected).expect("read golden");
+    let expected_png = fixture.reference;
     let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
 
     if result.diff_percent > tolerance {
         if let Some(ref diff_img) = result.diff_image {
             image_compare::save_diff_image(name, diff_img);
         }
-    }
-
-    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
-        std::fs::write(&expected, &actual_png).expect("update golden file");
-        return;
     }
 
     assert!(
@@ -173,6 +127,77 @@ fn golden_epl_with_tolerance(name: &str, tolerance: f64) {
         tolerance,
         result.actual_dims,
         result.expected_dims,
+    );
+}
+
+#[test]
+fn golden_contract_missing_input_or_reference_fails_for_zpl_and_epl() {
+    type Compare = fn(&std::path::Path, &str, f64);
+    for (extension, compare) in [
+        ("zpl", golden_zpl_in as Compare),
+        ("epl", golden_epl_in as Compare),
+    ] {
+        let dir = fixture_test_dir::TestDir::new();
+        assert!(std::panic::catch_unwind(|| compare(&dir.0, "missing", 8.0)).is_err());
+        let input = dir.0.join(format!("missing.{extension}"));
+        std::fs::write(&input, "input").unwrap();
+        assert!(std::panic::catch_unwind(|| compare(&dir.0, "missing", 8.0)).is_err());
+        assert!(!input.with_extension("png").exists());
+    }
+}
+
+#[test]
+fn golden_contract_update_environment_cannot_replace_references() {
+    const CHILD_ROOT: &str = "LABELIZE_GOLDEN_CONTRACT_ROOT";
+    if let Some(root) = std::env::var_os(CHILD_ROOT) {
+        let root = std::path::PathBuf::from(root);
+        type Compare = fn(&std::path::Path, &str, f64);
+        for (extension, compare) in [
+            ("zpl", golden_zpl_in as Compare),
+            ("epl", golden_epl_in as Compare),
+        ] {
+            let name = format!("readonly_{extension}");
+            let reference = root.join(format!("{name}.png"));
+            let before = std::fs::read(&reference).unwrap();
+            assert!(
+                std::panic::catch_unwind(|| compare(&root, &name, 0.0)).is_err(),
+                "mismatched reference must fail"
+            );
+            assert_eq!(std::fs::read(reference).unwrap(), before);
+        }
+        return;
+    }
+    let dir = fixture_test_dir::TestDir::new();
+    std::fs::write(
+        dir.0.join("readonly_zpl.zpl"),
+        "^XA^FO10,10^GB20,10,10^FS^XZ",
+    )
+    .unwrap();
+    std::fs::write(dir.0.join("readonly_epl.epl"), "N\nLO10,10,20,10\nP1\n").unwrap();
+    for extension in ["zpl", "epl"] {
+        std::fs::write(
+            dir.0.join(format!("readonly_{extension}.png")),
+            fixture_test_dir::png(),
+        )
+        .unwrap();
+    }
+    // A child process isolates the old update flag and any failure diff artifacts.
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "golden_contract_update_environment_cannot_replace_references",
+            "--nocapture",
+        ])
+        .env(CHILD_ROOT, &dir.0)
+        .env("LABELIZE_UPDATE_GOLDEN", "1")
+        .current_dir(&dir.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "child failed:\n{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 

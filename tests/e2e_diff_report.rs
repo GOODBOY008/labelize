@@ -3,15 +3,17 @@
 /// - `testdata/diffs/diff_report_labels.txt` — carrier/real-world labels (813×1626)
 /// - `testdata/diffs/diff_report_unit.txt` — unit/synthetic tests (813×1626)
 ///
-/// Missing reference PNGs are auto-generated: ZPL files are fetched from Labelary
-/// (813×1626 via default_options dimensions), EPL files fall back to our renderer.
+/// Inputs and reference PNGs must exist. Validation never creates references or uses the network.
 ///
 /// Run with:
 ///   cargo test --test e2e_diff_report diff_report -- --nocapture
 mod common;
+#[path = "common/fixture_test_dir.rs"]
+mod fixture_test_dir;
 
 use common::image_compare;
-use common::labelary_client;
+#[path = "common/golden_fixture.rs"]
+mod golden_fixture;
 use common::render_helpers;
 use std::fmt::Write as FmtWrite;
 use std::io::Write;
@@ -26,94 +28,18 @@ struct ReportEntry {
     status: &'static str,
 }
 
-/// Canvas size produced by `default_options()` (813×1626 px).
-const CANVAS_W: u32 = 813;
-const CANVAS_H: u32 = 1626;
-
-/// Generate a reference PNG for `path` if it does not already exist.
-///
-/// ZPL: tries Labelary first at `default_options()` dimensions. If Labelary returns a
-/// PNG at a different size (e.g. 812×1624 due to server-side rounding) it is padded to
-/// 813×1626 with white so the reference always matches our renderer canvas and
-/// size-mismatch noise is eliminated from diff results.
-/// EPL: always uses the renderer (Labelary is ZPL-only).
-fn ensure_ref_png(path: &std::path::Path, content: &str, ext: &str) {
-    if path.exists() {
-        return;
-    }
-    let opts = render_helpers::default_options();
-    let name = path.file_stem().unwrap().to_string_lossy().to_string();
-    let png = if ext != "epl" {
-        // Labelary renders this size natively at 813×1626 — the exact default_options
-        // canvas (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must
-        // not be used).
-        let (w, h) = render_helpers::LABELARY_LABEL_SIZE_IN;
-        labelary_client::labelary_render(content, opts.dpmm as u8, w, h)
-            .map(|fetched| {
-                let normalized = labelary_client::pad_png_to_size(&fetched, CANVAS_W, CANVAS_H);
-                eprintln!(
-                    "[bootstrap] {}: fetched from Labelary, normalized to {}×{}",
-                    name, CANVAS_W, CANVAS_H
-                );
-                normalized
-            })
-            .unwrap_or_else(|| {
-                eprintln!(
-                    "[bootstrap] {}: Labelary unavailable — renderer baseline",
-                    name
-                );
-                render_helpers::render_zpl_to_png(content, opts)
-            })
-    } else {
-        eprintln!("[bootstrap] {}: EPL — renderer baseline", name);
-        render_helpers::render_epl_to_png(content, opts)
-    };
-    std::fs::create_dir_all(path.parent().unwrap()).ok();
-    std::fs::write(path, &png).expect("write auto-generated ref PNG");
-}
-
 /// Scan a set of directories for ZPL/EPL files, render, and compare against reference PNGs.
-/// Always uses `default_options()` (813×1626) for both rendering and Labelary fetches so
-/// that the render canvas and the reference image are the same size.
-fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
+/// Renders with `default_options()` (813×1626); reads committed references unchanged.
+fn scan_dirs(dirs: &[std::path::PathBuf]) -> Result<Vec<ReportEntry>, String> {
     let mut entries: Vec<ReportEntry> = Vec::new();
 
-    let mut label_files: Vec<_> = dirs
-        .iter()
-        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
-        .filter(|e| {
-            let ext = e
-                .path()
-                .extension()
-                .map(|x| x.to_string_lossy().to_string());
-            matches!(ext.as_deref(), Some("zpl") | Some("epl"))
-        })
-        .map(|e| e.path())
-        .collect();
-    label_files.sort();
+    let label_files = golden_fixture::discover_inputs(dirs)?;
 
     for path in &label_files {
         let name = path.file_stem().unwrap().to_string_lossy().to_string();
         let ext = path.extension().unwrap().to_string_lossy().to_string();
-        let ref_png = path.parent().unwrap().join(format!("{}.png", name));
-
-        let content = std::fs::read_to_string(path).unwrap_or_default();
-
-        // Auto-generate the reference PNG if missing (Labelary → renderer fallback).
-        ensure_ref_png(&ref_png, &content, &ext);
-
-        if !ref_png.exists() {
-            // Should only happen if both Labelary and renderer failed unexpectedly.
-            entries.push(ReportEntry {
-                name: name.clone(),
-                ext: ext.clone(),
-                diff_percent: -1.0,
-                actual_dims: (0, 0),
-                expected_dims: (0, 0),
-                status: "SKIP(no ref)",
-            });
-            continue;
-        }
+        let fixture = golden_fixture::load_fixture(path)?;
+        let content = fixture.content;
 
         let opts = render_helpers::default_options();
 
@@ -126,22 +52,9 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             }),
         };
 
-        let actual_png = match actual_png {
-            Ok(png) => png,
-            Err(_) => {
-                entries.push(ReportEntry {
-                    name: name.clone(),
-                    ext: ext.clone(),
-                    diff_percent: -1.0,
-                    actual_dims: (0, 0),
-                    expected_dims: (0, 0),
-                    status: "ERR(render)",
-                });
-                continue;
-            }
-        };
-
-        let expected_png = std::fs::read(&ref_png).expect("read reference");
+        let actual_png =
+            actual_png.map_err(|_| format!("cannot render fixture {}", path.display()))?;
+        let expected_png = fixture.reference;
         let result = image_compare::compare_images(&actual_png, &expected_png, 0.0);
 
         if let Some(ref diff_img) = result.diff_image {
@@ -176,7 +89,7 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
         });
     }
 
-    entries
+    Ok(entries)
 }
 
 fn format_report(title: &str, entries: &[ReportEntry]) -> String {
@@ -290,7 +203,7 @@ fn check_high_diffs(entries: &[ReportEntry]) {
 fn diff_report_labels() {
     let dir = render_helpers::testdata_dir();
     let dirs = vec![dir.clone(), dir.join("labels")];
-    let entries = scan_dirs(&dirs);
+    let entries = scan_dirs(&dirs).unwrap_or_else(|e| panic!("{e}"));
     let report = format_report("Labels Diff Report (813×1626)", &entries);
 
     println!("\n{}", report);
@@ -302,10 +215,43 @@ fn diff_report_labels() {
 fn diff_report_unit() {
     let dir = render_helpers::testdata_dir();
     let dirs = vec![dir.join("unit")];
-    let entries = scan_dirs(&dirs);
+    let entries = scan_dirs(&dirs).unwrap_or_else(|e| panic!("{e}"));
     let report = format_report("Unit Diff Report (813×1626)", &entries);
 
     println!("\n{}", report);
     save_report("diff_report_unit.txt", &report);
     check_high_diffs(&entries);
+}
+
+#[test]
+fn diff_report_contract_rejects_missing_and_corrupt_references() {
+    for extension in ["zpl", "epl"] {
+        let dir = fixture_test_dir::TestDir::new();
+        let input = dir.0.join(format!("case.{extension}"));
+        std::fs::write(&input, "input").unwrap();
+        let reference = input.with_extension("png");
+        let error = scan_dirs(std::slice::from_ref(&dir.0))
+            .err()
+            .expect("missing reference must fail");
+        assert!(error.contains(&reference.display().to_string()), "{error}");
+        assert!(!reference.exists());
+        std::fs::write(&reference, "broken PNG").unwrap();
+        let error = scan_dirs(std::slice::from_ref(&dir.0))
+            .err()
+            .expect("corrupt reference must fail");
+        assert!(error.contains("invalid golden reference"), "{error}");
+        assert_eq!(std::fs::read(&reference).unwrap(), b"broken PNG");
+    }
+}
+
+#[test]
+fn diff_report_contract_render_errors_fail_instead_of_passing_with_an_error_row() {
+    let dir = fixture_test_dir::TestDir::new();
+    let input = dir.0.join("empty.zpl");
+    std::fs::write(&input, "^XA^XZ").unwrap();
+    std::fs::write(input.with_extension("png"), fixture_test_dir::png()).unwrap();
+    let error = scan_dirs(std::slice::from_ref(&dir.0))
+        .err()
+        .expect("no rendered label must fail");
+    assert!(error.contains(&input.display().to_string()), "{error}");
 }

@@ -243,27 +243,23 @@ implementation and Labelary skip it.
 
 ## Updating References
 
-To regenerate all Labelary reference images:
+Reference generation is separate from validation. See [GOLDEN_TESTS.md](GOLDEN_TESTS.md)
+for the full workflow, EPL reference policy, and historical provenance limitations.
 
 ```sh
-# ZPL labels (Labelary API)
-for f in testdata/labels/*.zpl testdata/unit/*.zpl; do
-  name=$(basename "$f" .zpl)
-  dir=$(dirname "$f")
-  curl -s -X POST http://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/ \
-    -F "file=@$f" -o "${dir}/${name}.png"
-done
-
-# EPL labels — Labelary does not support EPL.
-# Use the Go renderer or keep existing references.
+# Explicitly fetch missing ZPL references; existing PNGs are retained.
+cargo test --test e2e_labelary bootstrap_golden_pngs -- --ignored --exact --nocapture
 ```
+
+Missing or invalid references fail normal tests. Neither a failed Labelary request
+nor `LABELIZE_UPDATE_GOLDEN` can replace them with the current renderer's output.
 
 ## Running the Diff Report
 
 ```sh
-# Full report (no failure on HIGH)
-cargo test --test e2e diff_report -- --nocapture
+# Full report (fails on fixture/render errors; HIGH pixel differences are reported).
+cargo test --test e2e_diff_report -- --nocapture
 
-# Golden tests with per-label tolerances (fails on regression)
-cargo test --test e2e e2e_golden -- --test-threads=4
+# Golden tests with per-label tolerances (fails on regression).
+cargo test --test e2e_golden -- --test-threads=4
 ```
