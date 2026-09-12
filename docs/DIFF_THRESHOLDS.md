@@ -182,6 +182,7 @@ informational.
 | usps_intl | zpl | 2.83 | 4.0 | Font metrics (^POI rotated text) |
 | usps_priority_mail | zpl | 0.32 | — | Font metrics (^FB centered) |
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
+| cjk_font0_ci28 | zpl | 0.10 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Helvetica metrics on the Latin prefix |
 
 ## Known Limitations
 
