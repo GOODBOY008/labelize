@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Empty 2D barcode fields no longer fail the whole label** — an empty `^FD` on
+  `^BQ` (QR), `^BX` (DataMatrix) or `^BD` (MaxiCode) now draws nothing (matching
+  Labelary) while the rest of the label renders; previously any of them aborted
+  rendering with an error like `invalid qr barcode data`. A prefix-only QR field
+  (`^FDQA,`) that parses to an empty payload is skipped the same way. An empty
+  `^BO` (Aztec) draws the fixed 11×11 bullseye core Labelary renders (2-module
+  margin, 69 dark modules), verified pixel-identical in the new
+  `empty_barcodes` golden fixture (0.00 % diff).
+
+### Changed
+
+- **Barcode encoder empty-input contract** — `datamatrix::encode(b"")` now encodes
+  naturally to the minimal 10×10 ECC 200 symbol instead of erroring, and
+  `aztec::encode(b"")` returns the Labelary minimal symbol instead of erroring
+  (both `Ok`). `qrcode::encode` and `maxicode::encode` still reject empty input;
+  the skip-or-draw decision lives in the renderer, where Labelary's behavior
+  diverges per symbology.
+
 ## [1.5.0] - 2026-09-08
 
 ### Added

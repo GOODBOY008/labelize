@@ -3,6 +3,12 @@ use labelize::barcodes::{
 };
 use labelize::elements::barcode_qr::QrErrorCorrectionLevel;
 
+fn dark_pixels(img: &image::RgbaImage) -> u32 {
+    img.pixels()
+        .filter(|p| p.0[3] > 0 && (u32::from(p.0[0]) + u32::from(p.0[1]) + u32::from(p.0[2]) < 384))
+        .count() as u32
+}
+
 // --- Code128 ---
 
 #[test]
@@ -236,9 +242,14 @@ fn aztec_encodes_text() {
 }
 
 #[test]
-fn aztec_empty_input_returns_error() {
-    let result = aztec::encode("", 4, 0);
-    assert!(result.is_err(), "expected error for empty input");
+fn aztec_empty_input_renders_labelary_minimal_symbol() {
+    // Labelary draws a fixed 15×15-module symbol for an empty ^BO field:
+    // the 11×11 bullseye core behind a 2-module transparent margin.
+    // At mag 5: 75×75 px, 69 dark modules → 69 × 5² = 1725 dark pixels.
+    let img = aztec::encode("", 5, 0).expect("empty aztec should encode");
+    assert_eq!(img.width(), 75);
+    assert_eq!(img.height(), 75);
+    assert_eq!(dark_pixels(&img), 1725);
 }
 
 // --- DataMatrix ---
@@ -251,9 +262,14 @@ fn datamatrix_encodes_text() {
 }
 
 #[test]
-fn datamatrix_empty_input_returns_error() {
-    let result = datamatrix::encode("", 4, 0, 0);
-    assert!(result.is_err(), "expected error for empty input");
+fn datamatrix_empty_input_encodes_minimal_symbol() {
+    // The ECC 200 encoder handles b"" naturally: smallest square symbol
+    // (10×10, 54 dark modules). At mag 5: 50×50 px, 54 × 5² = 1350 dark pixels.
+    // (The renderer skips empty ^BX fields because Labelary draws nothing.)
+    let img = datamatrix::encode("", 5, 0, 0).expect("empty datamatrix should encode");
+    assert_eq!(img.width(), 50);
+    assert_eq!(img.height(), 50);
+    assert_eq!(dark_pixels(&img), 1350);
 }
 
 // --- QR code ---
