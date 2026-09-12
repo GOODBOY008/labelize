@@ -761,7 +761,7 @@ fn parse_epl_2d_barcode(
                         barcode: BarcodeDatamatrix {
                             orientation: FieldOrientation::Normal,
                             height: module,
-                            quality: 0,
+                            quality: 200, // EPL Data Matrix always uses ECC 200.
                             columns,
                             rows,
                             format: 6,

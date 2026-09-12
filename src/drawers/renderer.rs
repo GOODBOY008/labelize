@@ -944,6 +944,22 @@ impl Renderer {
         canvas: &mut RgbaImage,
         bc: &crate::elements::barcode_datamatrix::BarcodeDatamatrixWithData,
     ) -> Result<(), String> {
+        // The encoder implements ECC 200 only. In ZPL, omitted quality is
+        // ECC 000, not permission to substitute a different symbology.
+        match bc.barcode.quality {
+            200 => {}
+            quality @ (0 | 50 | 80 | 100 | 140) => {
+                return Err(crate::error::LabelizeError::Render(format!(
+                    "Unsupported DataMatrix quality {quality}: only ECC 200 is supported; legacy ECC encoding is not implemented."
+                )).to_string());
+            }
+            quality => {
+                return Err(crate::error::LabelizeError::Render(format!(
+                    "Invalid DataMatrix quality {quality}: expected 0, 50, 80, 100, 140, or 200."
+                ))
+                .to_string());
+            }
+        }
         let scale = bc.barcode.height.max(1);
         let img_raw =
             barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?;
