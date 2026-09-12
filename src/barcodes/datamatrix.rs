@@ -13,7 +13,8 @@ pub fn encode(
     columns: i32,
 ) -> Result<RgbaImage, String> {
     if content.is_empty() {
-        return Err("DataMatrix: empty content".to_string());
+        // Return an empty transparent image instead of an error
+        return Ok(RgbaImage::from_pixel(0, 0, Rgba([0, 0, 0, 0])));
     }
 
     let mag = magnification.max(1) as u32;

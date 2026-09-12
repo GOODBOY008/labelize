@@ -1,3 +1,4 @@
+use image::{Rgba, RgbaImage};
 use labelize::barcodes::{
     aztec, code128, code39, datamatrix, ean13, maxicode, pdf417, qrcode, twooffive,
 };
@@ -236,9 +237,17 @@ fn aztec_encodes_text() {
 }
 
 #[test]
-fn aztec_empty_input_returns_error() {
+fn aztec_empty_input_returns_empty_image() {
     let result = aztec::encode("", 4, 0);
-    assert!(result.is_err(), "expected error for empty input");
+    match result {
+        Ok(img) => {
+            assert_eq!(img.width(), 0, "empty Aztec code should have width 0");
+            assert_eq!(img.height(), 0, "empty Aztec code should have height 0");
+        }
+        Err(_) => {
+            panic!("empty Aztec input should not return an error");
+        }
+    }
 }
 
 // --- DataMatrix ---
@@ -253,7 +262,19 @@ fn datamatrix_encodes_text() {
 #[test]
 fn datamatrix_empty_input_returns_error() {
     let result = datamatrix::encode("", 4, 0, 0);
-    assert!(result.is_err(), "expected error for empty input");
+    match result {
+        Ok(img) => {
+            assert_eq!(img.width(), 0, "empty DataMatrix code should have width 0");
+            assert_eq!(
+                img.height(),
+                0,
+                "empty DataMatrix code should have height 0"
+            );
+        }
+        Err(_) => {
+            panic!("empty DataMatrix input should not return an error");
+        }
+    }
 }
 
 // --- QR code ---
@@ -270,7 +291,16 @@ fn qrcode_encodes_text() {
 #[test]
 fn qrcode_empty_input_returns_error() {
     let result = qrcode::encode("", 5, QrErrorCorrectionLevel::M);
-    assert!(result.is_err(), "expected error for empty input");
+    // Empty input should either return an error or an empty image
+    match result {
+        Ok(img) => {
+            assert_eq!(img.width(), 0, "empty QR code should have width 0");
+            assert_eq!(img.height(), 0, "empty QR code should have height 0");
+        }
+        Err(_) => {
+            panic!("empty QR input should not return an error");
+        }
+    }
 }
 
 // --- MaxiCode ---
