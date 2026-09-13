@@ -36,7 +36,10 @@ impl BarcodeQrWithData {
     pub fn get_input_data(
         &self,
     ) -> Result<(String, QrErrorCorrectionLevel, QrCharacterMode), String> {
-        if self.data.len() < 4 {
+        // Only the two format bytes (error-correction char + mode char) are
+        // required; a prefix-only field like `QA,` parses to an empty payload,
+        // which the renderer skips like Labelary instead of failing the label.
+        if self.data.len() < 2 {
             return Err("invalid qr barcode data".to_string());
         }
 

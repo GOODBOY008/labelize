@@ -982,6 +982,12 @@ impl Renderer {
         canvas: &mut RgbaImage,
         bc: &crate::elements::barcode_datamatrix::BarcodeDatamatrixWithData,
     ) -> Result<(), String> {
+        // Labelary draws nothing for an empty ^BX field (^FD^FS) — skip
+        // instead of drawing the encoder's natural minimal symbol (10×10)
+        // or failing the whole label.
+        if bc.data.is_empty() {
+            return Ok(());
+        }
         let scale = bc.barcode.height.max(1);
         let img_raw =
             barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?;
@@ -996,7 +1002,17 @@ impl Renderer {
         bc: &crate::elements::barcode_qr::BarcodeQrWithData,
         _options: &DrawerOptions,
     ) -> Result<(), String> {
+        // Labelary draws nothing for a QR field whose payload is empty
+        // (`^FD^FS`, or a prefix-only ^FD like `^FDQA,` that parses to no
+        // data) — skip the field instead of failing the whole label.
+        // Checked before get_input_data(), which rejects short data.
+        if bc.data.is_empty() {
+            return Ok(());
+        }
         let (input_data, ec, _) = bc.get_input_data()?;
+        if input_data.is_empty() {
+            return Ok(());
+        }
         let img = barcodes::qrcode::encode(&input_data, bc.barcode.magnification, ec)?;
 
         let quiet_zone_px = 4 * bc.barcode.magnification;
@@ -1028,6 +1044,12 @@ impl Renderer {
         canvas: &mut RgbaImage,
         mc: &crate::elements::maxicode::MaxicodeWithData,
     ) -> Result<(), String> {
+        // Labelary draws nothing for an empty MaxiCode field (^FD^FS) — skip
+        // instead of failing the whole label. The encoder keeps rejecting
+        // empty input.
+        if mc.data.is_empty() {
+            return Ok(());
+        }
         let img = barcodes::maxicode::encode(&mc.data, mc.code.mode)?;
         let pos = adjust_image_typeset_position(&img, &mc.position, FieldOrientation::Normal);
         overlay_at(canvas, &img, pos.x, pos.y);

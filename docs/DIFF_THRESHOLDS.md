@@ -71,6 +71,7 @@ informational.
 | dhlparcelit | zpl | 2.43 | 3.5 | ~DG/^XG stored graphics + font metrics |
 | dhlparceluk_dhl_text | zpl | 0.12 | 5.5 | Font metrics |
 | dhlparceluk_ver | zpl | 0.05 | 5.5 | Font metrics |
+| empty_barcodes | zpl | 0.00 | 1.0 | Empty 2D barcode fields (QR/DM/MaxiCode skip, Aztec core) — pixel-identical |
 | fo_lenient_coord | zpl | 0.02 | 5.0 | ^FO coordinate parsing leniency |
 | maxicode_default_mode2 | zpl | 0.59 | 1.0 | MaxiCode mode 2 module placement |
 | maxicode_mode4 | zpl | 0.58 | 1.0 | MaxiCode mode 4 module placement |

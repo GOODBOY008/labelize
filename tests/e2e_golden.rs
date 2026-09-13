@@ -635,6 +635,10 @@ fn golden_maxicode_default_mode2() {
     golden_zpl_with_tolerance("maxicode_default_mode2", 1.0);
 }
 #[test]
+fn golden_empty_barcodes() {
+    golden_zpl_with_tolerance("empty_barcodes", 1.0);
+}
+#[test]
 fn golden_aztec_ec_1_ec23() {
     golden_zpl_with_tolerance("aztec_ec_1_ec23", 7.5);
 }
