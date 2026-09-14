@@ -94,7 +94,15 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     }
 
     let options = render_helpers::default_options();
-    let effective_tolerance = if is_unit { UNIT_TOLERANCE } else { tolerance };
+    // Unit fixtures default to the global UNIT_TOLERANCE, but a stricter
+    // per-test value always wins: min() makes the tolerance documented in
+    // DIFF_THRESHOLDS.md and the e2e_golden entries actually binding instead
+    // of being silently replaced by the global ceiling.
+    let effective_tolerance = if is_unit {
+        UNIT_TOLERANCE.min(tolerance)
+    } else {
+        tolerance
+    };
     let content = std::fs::read_to_string(&input).expect("read input");
     let actual_png = render_helpers::render_zpl_to_png(&content, options);
     let expected_png = std::fs::read(&expected).expect("read golden");
@@ -434,7 +442,15 @@ fn golden_templating() {
 }
 #[test]
 fn golden_text_fallback_default() {
-    golden_zpl_with_tolerance("text_fallback_default", 5.0);
+    golden_zpl_with_tolerance("text_fallback_default", 2.5);
+}
+#[test]
+fn golden_dein_ticket_packliste() {
+    // Real-world German packing-list fragment: ^FB L/J blocks with the
+    // scalable font 1 (^A1,,10,10) and scaled font 0 (^A0,,50,50). The
+    // font-1 mono substitute model and ^FB justification live in
+    // tuning::FONT1_* / draw_text_block.
+    golden_zpl_with_tolerance("dein_ticket_packliste", 1.5);
 }
 #[test]
 fn golden_text_fo_b() {
@@ -619,6 +635,10 @@ fn golden_maxicode_default_mode2() {
     golden_zpl_with_tolerance("maxicode_default_mode2", 1.0);
 }
 #[test]
+fn golden_empty_barcodes() {
+    golden_zpl_with_tolerance("empty_barcodes", 1.0);
+}
+#[test]
 fn golden_aztec_ec_1_ec23() {
     golden_zpl_with_tolerance("aztec_ec_1_ec23", 7.5);
 }
@@ -673,6 +693,16 @@ fn golden_cf_font_no_orientation() {
 #[test]
 fn golden_fo_lenient_coord() {
     golden_zpl_with_tolerance("fo_lenient_coord", 5.0);
+}
+
+/// Issue #51 regression: ^CI28 (UTF-8) CJK text in scalable font 0 must
+/// render exactly like Labelary — blank space (no .notdef box), with the
+/// pen still advancing by the calibrated missing-glyph width so trailing
+/// text lands at Labelary's position. Probe-calibrated; see
+/// `tuning::FONT0_MISSING_GLYPH_ADVANCE_EM` and `tests/unit_cjk_font0.rs`.
+#[test]
+fn golden_cjk_font0_ci28() {
+    golden_zpl_with_tolerance("cjk_font0_ci28", 1.0);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────

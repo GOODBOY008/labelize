@@ -2,6 +2,54 @@ use image::{Rgba, RgbaImage};
 use rxing::aztec::AztecWriter;
 use rxing::{BarcodeFormat, EncodeHintValue, EncodeHints, Writer};
 
+/// Module map of the symbol Labelary draws for an empty ^BO field: the bare
+/// 11×11 Aztec bullseye core (`#` = dark). Measured from Labelary renders
+/// (8 dpmm, 4.005×8.01) — the pattern is fixed: it does not vary with the
+/// magnification or the `d` error-correction parameter (checked at d = 0,
+/// 101 and 201, mag 2 and 5).
+const EMPTY_CORE: [&str; 11] = [
+    "##..#####.#",
+    "###########",
+    "##.......##",
+    ".#.#####.#.",
+    ".#.#...#.##",
+    ".#.#.#.#.##",
+    "##.#...#.##",
+    ".#.#####.##",
+    ".#.......##",
+    ".##########",
+    "........#..",
+];
+
+/// Labelary places the 11×11 empty-data core centered on a 15×15 canvas,
+/// i.e. behind a 2-module transparent margin on every side.
+const EMPTY_MARGIN_MODULES: usize = 2;
+
+/// Render the empty-data symbol: a 15×15 module canvas (transparent) with
+/// the fixed 11×11 core at offset (2, 2), scaled by `mag` pixels per module.
+fn empty_core_image(mag: u32) -> RgbaImage {
+    let module = |v: usize| v as u32 * mag;
+    let size = module(EMPTY_MARGIN_MODULES * 2 + EMPTY_CORE.len());
+    let mut img = RgbaImage::from_pixel(size, size, Rgba([0, 0, 0, 0]));
+    let black = Rgba([0, 0, 0, 255]);
+    for (row, line) in EMPTY_CORE.iter().enumerate() {
+        for (col, cell) in line.bytes().enumerate() {
+            if cell == b'#' {
+                let (px, py) = (
+                    module(EMPTY_MARGIN_MODULES + col),
+                    module(EMPTY_MARGIN_MODULES + row),
+                );
+                for dy in 0..mag {
+                    for dx in 0..mag {
+                        img.put_pixel(px + dx, py + dy, black);
+                    }
+                }
+            }
+        }
+    }
+    img
+}
+
 /// Generate an Aztec barcode image using rxing's proper encoder.
 ///
 /// The `ec_symbol_size` parameter follows ZPL ^BO spec:
@@ -10,12 +58,15 @@ use rxing::{BarcodeFormat, EncodeHintValue, EncodeHints, Writer};
 ///   101-104 = compact Aztec with 1-4 layers
 ///   201-232 = full-range Aztec with 1-32 layers
 ///   300     = Aztec Rune (not yet supported, falls back to default)
+///
+/// Empty content has no rxing representation; it gets the fixed minimal
+/// symbol Labelary draws (see [`EMPTY_CORE`]) instead of an error.
 pub fn encode(content: &str, magnification: i32, ec_symbol_size: i32) -> Result<RgbaImage, String> {
-    if content.is_empty() {
-        return Err("Aztec: empty content".to_string());
-    }
-
     let mag = magnification.max(1) as u32;
+
+    if content.is_empty() {
+        return Ok(empty_core_image(mag));
+    }
 
     // Use rxing Aztec writer to get proper bit matrix
     let writer = AztecWriter;

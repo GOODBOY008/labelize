@@ -8,6 +8,10 @@ use image::{Rgba, RgbaImage};
 /// `rows` and `columns` from ^BX are used to select the symbol size when
 /// both are non-zero. Otherwise, the smallest square symbol that fits the
 /// data is chosen (ZPL ^BX defaults to square symbols per the Zebra spec).
+///
+/// Empty content encodes naturally to the smallest square symbol (10×10,
+/// 54 dark modules). The label renderer skips empty fields instead of drawing
+/// this raw encoder result.
 pub fn encode(
     content: &str,
     magnification: i32,
@@ -23,10 +27,6 @@ fn encode_bytes(
     rows: i32,
     columns: i32,
 ) -> Result<RgbaImage, String> {
-    if content.is_empty() {
-        return Err("DataMatrix: empty content".to_string());
-    }
-
     let mag = magnification.max(1) as u32;
 
     // Build a symbol list: if rows/columns are specified, try to match

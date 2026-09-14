@@ -36,6 +36,13 @@ after FH, matching the scoped CI13/CI27 printer observations below. Parameter g
 is irrelevant for Legacy. The raw encoder never interprets ZPL escapes.
 ECC200 has its own [field-data rules](DATAMATRIX_FIELD_DATA.md).
 
+The label renderer skips empty DataMatrix fields and continues rendering the
+rest of the label, including for omitted quality and all supported Legacy
+qualities. For Legacy, preserved `data_bytes` determine emptiness when present;
+otherwise the display text is used. ECC200 uses its existing text path. This
+label-level behavior is separate from the raw APIs: raw Legacy encoding rejects
+empty input, while raw ECC200 encoding produces a minimal symbol.
+
 Public API migration: `BarcodeDatamatrixWithData`, `RecalledFieldData` and
 `RecalledField` gain `data_bytes: Option<Vec<u8>>`. Struct-literal callers must
 initialize it. Parsed Legacy bytes are authoritative: callers replacing `data`

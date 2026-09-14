@@ -71,6 +71,7 @@ informational.
 | dhlparcelit | zpl | 2.43 | 3.5 | ~DG/^XG stored graphics + font metrics |
 | dhlparceluk_dhl_text | zpl | 0.12 | 5.5 | Font metrics |
 | dhlparceluk_ver | zpl | 0.05 | 5.5 | Font metrics |
+| empty_barcodes | zpl | 0.00 | 1.0 | Empty 2D barcode fields (QR/DM/MaxiCode skip, Aztec core) — pixel-identical |
 | fo_lenient_coord | zpl | 0.02 | 5.0 | ^FO coordinate parsing leniency |
 | maxicode_default_mode2 | zpl | 0.59 | 1.0 | MaxiCode mode 2 module placement |
 | maxicode_mode4 | zpl | 0.58 | 1.0 | MaxiCode mode 4 module placement |
@@ -145,7 +146,8 @@ informational.
 | reverse_qr | zpl | 0.12 | 1.5 | QR barcode |
 | swisspost | zpl | 0.98 | 2.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
-| text_fallback_default | zpl | 2.84 | 5.0 | Font metrics |
+| text_fallback_default | zpl | 2.03 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
+| dein_ticket_packliste | zpl | 1.21 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
 | text_fo_b | zpl | 0.03 | 1.0 | Sub-pixel |
 | text_fo_i | zpl | 0.07 | 1.0 | Sub-pixel |
 | text_fo_n | zpl | 0.03 | 1.0 | Sub-pixel |
@@ -182,6 +184,7 @@ informational.
 | usps_intl | zpl | 2.83 | 4.0 | Font metrics (^POI rotated text) |
 | usps_priority_mail | zpl | 0.32 | — | Font metrics (^FB centered) |
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
+| cjk_font0_ci28 | zpl | 0.10 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Helvetica metrics on the Latin prefix |
 
 ## Known Limitations
 

@@ -33,6 +33,18 @@ jobs:
       - name: Golden diff regression
         run: cargo test --test 'e2e_*' -- --test-threads=4
         timeout-minutes: 8
+      # e2e_diff_report regenerates testdata/diffs/* and auto-bootstraps missing
+      # reference PNGs; anything left dirty means the author forgot to commit
+      # regenerated golden artifacts (see AGENTS.md → Rendering Change Workflow).
+      - name: Verify golden test artifacts are committed
+        run: |
+          dirty="$(git status --porcelain -- testdata)"
+          if [ -n "$dirty" ]; then
+            echo "::error::Golden test artifacts are stale — running the e2e tests regenerated files under testdata/ that were not committed."
+            echo "Regenerate locally with 'cargo test --test e2e_diff_report -- --nocapture' and commit the changed files (AGENTS.md → Rendering Change Workflow). Changed paths:"
+            printf '%s\n' "$dirty"
+            exit 1
+          fi
 
   test-windows:
     name: Test (Windows)

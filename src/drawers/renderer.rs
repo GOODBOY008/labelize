@@ -218,18 +218,28 @@ impl Renderer {
         // Fonts P-V (resident bitmaps): Labelary caps measure ~0.60-0.625x the base
         // cell (P: 12/20, Q: 17/28, S: 25/40), where DejaVu Mono Bold caps land at
         // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
+        // Font 1 (mono substitute): DejaVu Sans Mono regular caps land at 1493/2384
+        // ≈ 0.626 of the ab_glyph scale and must read as 0.73 of the height param.
         let is_pv = matches!(
             text.font.name.as_str(),
             "P" | "Q" | "R" | "S" | "T" | "U" | "V"
         );
+        let is_font1 = text.font.name == "1";
+        let line_height_factor: f32 = if is_font1 {
+            crate::tuning::FONT1_LINE_HEIGHT as f32
+        } else {
+            1.0
+        };
         let cap_scale: f32 = if text.font.name == "B" {
             1.59
         } else if is_pv {
             0.85
+        } else if is_font1 {
+            crate::tuning::FONT1_CAP_SCALE as f32
         } else {
             7.0 / 6.0
         };
-        let bitmap_y_shift: f64 = if is_bitmap || is_pv {
+        let bitmap_y_shift: f64 = if is_bitmap || is_pv || is_font1 {
             scale.y = font_size * cap_scale;
 
             let orig_scale = PxScale {
@@ -267,9 +277,33 @@ impl Renderer {
             text_width
         };
 
-        let (x, y) = get_text_top_left_pos(text, pos_width, font_size as f64, ascent as f64, state);
+        // Effective between-line pitch actually drawn by draw_text_block. For
+        // font 1 (fractional factor + cap-scaled em) this differs from the raw
+        // height param, and multiline ^FT anchoring must span the drawn extent.
+        let line_pitch = scale.y * line_height_factor
+            + text
+                .block
+                .as_ref()
+                .map(|b| b.line_spacing as f32)
+                .unwrap_or(0.0);
+        let (x, y) = get_text_top_left_pos(
+            text,
+            pos_width,
+            font_size as f64,
+            ascent as f64,
+            state,
+            line_pitch as f64,
+        );
         // Apply bitmap y-correction (zero for non-bitmap fonts).
         let y = y + bitmap_y_shift;
+        // Font 1's mono substitute lsb rounds one pixel wider than Labelary's
+        // face. The nudge lives in LOCAL text space (pen axis) so it rotates
+        // with the field instead of shifting page-space X for R/I/B.
+        let pen_x_offset: f32 = if is_font1 {
+            crate::tuning::FONT1_X_OFFSET as f32
+        } else {
+            0.0
+        };
         state.update_automatic_text_position(text, pos_width);
 
         let color = Rgba([0, 0, 0, 255]);
@@ -286,11 +320,12 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    x as f32,
+                    x as f32 + pen_x_offset,
                     y as f32,
                     block,
                     &drawn_text,
                     f0,
+                    line_height_factor,
                 );
             } else {
                 draw_text_with_superscript(
@@ -298,7 +333,7 @@ impl Renderer {
                     &font,
                     scale,
                     color,
-                    x as f32,
+                    x as f32 + pen_x_offset,
                     y as f32,
                     &drawn_text,
                     f0,
@@ -308,10 +343,12 @@ impl Renderer {
             // Non-normal: render to transparent buffer, rotate, then overlay
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
                 let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
-                let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+                // Same pitch draw_text_block uses (cap-scaled em × factor), and
+                // a full em below the last line top so descenders aren't clipped.
+                let pitch = scale.y * line_height_factor + block.line_spacing as f32;
                 let max_lines = block.max_lines.max(1) as usize;
                 let num_lines = lines.len().min(max_lines);
-                let h = (num_lines as f32 * line_height).ceil() as u32 + 2;
+                let h = ((num_lines - 1) as f32 * pitch + scale.y).ceil() as u32 + 2;
                 (block.max_width as u32 + 2, h)
             } else {
                 let w = (text_width as f32).ceil() as u32 + 2;
@@ -333,11 +370,12 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    0.0,
+                    pen_x_offset,
                     0.0,
                     block,
                     &drawn_text,
                     f0,
+                    line_height_factor,
                 );
             } else {
                 draw_text_with_superscript(
@@ -345,7 +383,7 @@ impl Renderer {
                     &font,
                     scale,
                     color,
-                    0.0,
+                    pen_x_offset,
                     0.0,
                     &drawn_text,
                     f0,
@@ -955,6 +993,19 @@ impl Renderer {
                 .to_string());
             }
         }
+        // Skip empty fields, preserving upstream's label-level behavior.
+        // Legacy bytes are authoritative even when the display text differs.
+        let is_empty = if bc.barcode.quality == 200 {
+            bc.data.is_empty()
+        } else {
+            bc.data_bytes
+                .as_deref()
+                .unwrap_or(bc.data.as_bytes())
+                .is_empty()
+        };
+        if is_empty {
+            return Ok(());
+        }
         let scale = bc.barcode.height.max(1);
         let img_raw = if bc.barcode.quality != 200 {
             // Legacy g (ECC 200 escapes) has no effect. Consume preserved field
@@ -1008,7 +1059,17 @@ impl Renderer {
         bc: &crate::elements::barcode_qr::BarcodeQrWithData,
         _options: &DrawerOptions,
     ) -> Result<(), String> {
+        // Labelary draws nothing for a QR field whose payload is empty
+        // (`^FD^FS`, or a prefix-only ^FD like `^FDQA,` that parses to no
+        // data) — skip the field instead of failing the whole label.
+        // Checked before get_input_data(), which rejects short data.
+        if bc.data.is_empty() {
+            return Ok(());
+        }
         let (input_data, ec, _) = bc.get_input_data()?;
+        if input_data.is_empty() {
+            return Ok(());
+        }
         let img = barcodes::qrcode::encode(&input_data, bc.barcode.magnification, ec)?;
 
         let quiet_zone_px = 4 * bc.barcode.magnification;
@@ -1040,6 +1101,12 @@ impl Renderer {
         canvas: &mut RgbaImage,
         mc: &crate::elements::maxicode::MaxicodeWithData,
     ) -> Result<(), String> {
+        // Labelary draws nothing for an empty MaxiCode field (^FD^FS) — skip
+        // instead of failing the whole label. The encoder keeps rejecting
+        // empty input.
+        if mc.data.is_empty() {
+            return Ok(());
+        }
         let img = barcodes::maxicode::encode(&mc.data, mc.code.mode)?;
         let pos = adjust_image_typeset_position(&img, &mc.position, FieldOrientation::Normal);
         overlay_at(canvas, &img, pos.x, pos.y);
@@ -1056,12 +1123,28 @@ fn get_ttf_font_data(name: &str) -> &'static [u8] {
     }
 }
 
+/// Scalable font 0 only: true when the Helvetica substitute has no glyph for
+/// a character (multi-byte CJK text decoded via ^CI28 etc.). Like Labelary,
+/// these render as blank space — no .notdef box — while the pen still
+/// advances by [`crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM`].
+fn font0_missing_glyph(font: &FontRef, c: char, f0: bool) -> bool {
+    use ab_glyph::{Font as _, GlyphId};
+    f0 && font.glyph_id(c) == GlyphId(0)
+}
+
 fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f32 {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
     let mut width = 0.0f32;
     let mut prev = None;
     for ch in text.chars() {
+        if font0_missing_glyph(font, ch, f0) {
+            width += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y;
+            // Nothing is drawn, so no kerning applies on either side —
+            // matching imageproc's layout, which only kerns outlined glyphs.
+            prev = None;
+            continue;
+        }
         let glyph_id = font.glyph_id(ch);
         if let Some(prev_id) = prev {
             width += scaled.kern(prev_id, glyph_id);
@@ -1132,7 +1215,39 @@ fn draw_text_snapped(
     f0: bool,
 ) {
     use ab_glyph::{Font, GlyphId, ScaleFont};
-    use image::Pixel;
+
+    // Paint an outlined glyph at field origin (x, y) with imageproc's exact
+    // alpha-quantisation behaviour (truncating Clamp).
+    fn blit(canvas: &mut RgbaImage, color: Rgba<u8>, g: &ab_glyph::OutlinedGlyph, x: i32, y: i32) {
+        use image::Pixel;
+        let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
+        let bb = g.px_bounds();
+        let x_shift = x + bb.min.x.round() as i32;
+        let y_shift = y + bb.min.y.round() as i32;
+        g.draw(|gx, gy, gv| {
+            let px = gx as i32 + x_shift;
+            let py = gy as i32 + y_shift;
+            if (0..cw).contains(&px) && (0..ch).contains(&py) {
+                let mut pixel = *canvas.get_pixel(px as u32, py as u32);
+                let gv = gv.clamp(0.0, 1.0);
+                // imageproc's Clamp<f32> for u8 truncates rather than rounds;
+                // match it exactly so a zero offset is bit-identical to upstream.
+                let a = color[3] as f32 * gv;
+                let a = if a < 255.0 {
+                    if a > 0.0 {
+                        a as u8
+                    } else {
+                        0
+                    }
+                } else {
+                    255
+                };
+                let src = Rgba([color[0], color[1], color[2], a]);
+                pixel.blend(&src);
+                canvas.put_pixel(px as u32, py as u32, pixel);
+            }
+        });
+    }
 
     let yoff = if f0 {
         crate::tuning::TEXT_Y_OFFSET as f32
@@ -1141,12 +1256,19 @@ fn draw_text_snapped(
         0.0
     };
     let scaled = font.as_scaled(scale);
-    let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
 
     let mut w = 0.0f32;
     let mut prev: Option<GlyphId> = None;
 
     for c in text.chars() {
+        if font0_missing_glyph(font, c, f0) {
+            // Blank like Labelary: no glyph is drawn and no kerning applies on
+            // either side (imageproc only kerns outlined glyphs), but the pen
+            // still advances by the calibrated missing-glyph width.
+            w += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y;
+            prev = None;
+            continue;
+        }
         let glyph_id = font.glyph_id(c);
         let glyph =
             glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
@@ -1159,32 +1281,7 @@ fn draw_text_snapped(
                 w += scaled.kern(glyph_id, prev_id);
             }
             prev = Some(glyph_id);
-            let bb = g.px_bounds();
-            let x_shift = x + bb.min.x.round() as i32;
-            let y_shift = y + bb.min.y.round() as i32;
-            g.draw(|gx, gy, gv| {
-                let px = gx as i32 + x_shift;
-                let py = gy as i32 + y_shift;
-                if (0..cw).contains(&px) && (0..ch).contains(&py) {
-                    let mut pixel = *canvas.get_pixel(px as u32, py as u32);
-                    let gv = gv.clamp(0.0, 1.0);
-                    // imageproc's Clamp<f32> for u8 truncates rather than rounds;
-                    // match it exactly so a zero offset is bit-identical to upstream.
-                    let a = color[3] as f32 * gv;
-                    let a = if a < 255.0 {
-                        if a > 0.0 {
-                            a as u8
-                        } else {
-                            0
-                        }
-                    } else {
-                        255
-                    };
-                    let src = Rgba([color[0], color[1], color[2], a]);
-                    pixel.blend(&src);
-                    canvas.put_pixel(px as u32, py as u32, pixel);
-                }
-            });
+            blit(canvas, color, &g, x, y);
         }
     }
 }
@@ -1268,18 +1365,31 @@ fn draw_text_block(
     block: &crate::elements::field_block::FieldBlock,
     text: &str,
     f0: bool,
+    line_height_factor: f32,
 ) {
     let max_width = block.max_width as f32;
     let lines = word_wrap(text, font, scale, max_width, f0);
     let font_size = scale.y;
-    let line_height = font_size * (1.0 + block.line_spacing as f32 / font_size);
+    let line_height = font_size * line_height_factor + block.line_spacing as f32;
 
     let mut cy = y;
     let max_lines = block.max_lines.max(1) as usize;
+    // A fractional line pitch (font 1's calibrated 0.7625 factor) accumulates
+    // sub-pixel drift on wrapped lines; round those line tops. The first line
+    // keeps the raw (truncating) pen — its anchor is already probe-calibrated
+    // via bitmap_y_shift, and rounding it shifts single-line fields by 1px.
+    let snap_y = |v: f32, first: bool| {
+        if first || line_height_factor == 1.0 {
+            v
+        } else {
+            v.round()
+        }
+    };
     for (i, line) in lines.iter().enumerate() {
         if i >= max_lines {
             break;
         }
+        let first = i == 0;
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
                 let lw = measure_text_width(line, font, scale, f0);
@@ -1289,19 +1399,76 @@ fn draw_text_block(
                 let lw = measure_text_width(line, font, scale, f0);
                 x + block.max_width as f32 - lw
             }
+            // Justified (J): every line except the block's last is stretched to
+            // the full block width by distributing the slack across the word
+            // gaps; the last line stays left-aligned (ZPL ^FB d=J semantics).
+            crate::elements::text_alignment::TextAlignment::Justified
+                if i + 1 < lines.len().min(max_lines) =>
+            {
+                draw_justified_line(
+                    canvas,
+                    font,
+                    scale,
+                    color,
+                    x,
+                    snap_y(cy, first),
+                    line,
+                    f0,
+                    max_width,
+                );
+                cy += line_height;
+                continue;
+            }
             _ => x,
         };
-        draw_text_with_superscript(canvas, font, scale, color, lx, cy, line, f0);
+        draw_text_with_superscript(canvas, font, scale, color, lx, snap_y(cy, first), line, f0);
         cy += line_height;
     }
 }
 
+/// Draw one ^FB justified line: words at their natural advances with the
+/// block's leftover width distributed evenly across the inter-word gaps.
+#[allow(clippy::too_many_arguments)]
+fn draw_justified_line(
+    canvas: &mut RgbaImage,
+    font: &FontRef,
+    scale: PxScale,
+    color: Rgba<u8>,
+    x: f32,
+    y: f32,
+    line: &str,
+    f0: bool,
+    max_width: f32,
+) {
+    let words: Vec<&str> = line.split_whitespace().collect();
+    if words.len() < 2 {
+        draw_text_with_superscript(canvas, font, scale, color, x, y, line, f0);
+        return;
+    }
+    // Superscript-aware draw and measurement, matching every other text path:
+    // a ® inside a justified word must render at REGISTERED_MARK_SCALE and its
+    // width must not distort the distributed slack.
+    let lw = measure_text_width_with_superscript(line, font, scale, f0);
+    let space_w = measure_text_width_with_superscript(" ", font, scale, f0);
+    let extra = (max_width - lw) / (words.len() - 1) as f32;
+    let mut cx = x;
+    for (k, word) in words.iter().enumerate() {
+        draw_text_with_superscript(canvas, font, scale, color, cx.round(), y, word, f0);
+        cx += measure_text_width_with_superscript(word, font, scale, f0);
+        if k + 1 < words.len() {
+            cx += space_w + extra;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn get_text_top_left_pos(
     text: &TextField,
     w: f64,
     h: f64,
     ascent: f64,
     state: &DrawerState,
+    line_pitch: f64,
 ) -> (f64, f64) {
     let (x, y) = state.get_text_position(text);
 
@@ -1317,18 +1484,14 @@ fn get_text_top_left_pos(
     // ^FT: position is baseline (bottom-left for Normal).
     // Convert to top-left of the rendering area.
     // Use ascent (not full height) for the baseline-to-top distance of the last line.
-    // Use full font height h for line spacing between lines.
+    // `line_pitch` is the per-line advance actually drawn (cap-scaled em ×
+    // factor + spacing), which differs from the raw height h for font 1.
     let lines = if let Some(ref block) = text.block {
         block.max_lines.max(1) as f64
     } else {
         1.0
     };
-    let spacing = if let Some(ref block) = text.block {
-        block.line_spacing as f64
-    } else {
-        0.0
-    };
-    let total_h = ascent + (lines - 1.0) * (h + spacing);
+    let total_h = ascent + (lines - 1.0) * line_pitch;
 
     // ZPL spec: ^FT coordinate is "always for the left end of the baseline regardless of rotation".
     // For rotated text, the "baseline left end" rotates with the text.
