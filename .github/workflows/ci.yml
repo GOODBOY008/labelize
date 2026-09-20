@@ -146,3 +146,34 @@ jobs:
         with:
           name: labelize-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/${{ matrix.binary }}
+
+  android:
+    name: Android (AAR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      # GitHub runners ship an NDK preinstalled under $ANDROID_HOME/ndk.
+      - name: Cross-compile JNI libraries
+        run: android/build.sh
+        env:
+          ANDROID_ABIS: arm64-v8a,x86_64
+      - name: Assemble AAR
+        working-directory: android
+        run: ./gradlew :lib:assembleRelease
+      - name: Binding unit tests (host)
+        run: cargo test --manifest-path android/Cargo.toml
+      - uses: actions/upload-artifact@v6
+        with:
+          name: labelize-android-aar
+          path: android/lib/build/outputs/aar/lib-release.aar
