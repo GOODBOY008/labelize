@@ -32,7 +32,7 @@
 ║ encodings_013                  │ zpl  │    1.56% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fo_lenient_coord               │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_p                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ font_q                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font_q                         │ zpl  │    0.18% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_r                         │ zpl  │    0.44% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_s                         │ zpl  │    0.36% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_t                         │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -75,10 +75,11 @@
 ║ text_ft_n                      │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_r                      │ zpl  │    0.06% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ thick_rotated_fb_text          │ zpl  │    0.16% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ upce                           │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ ups_maxicode                   │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_priority_mail             │ zpl  │    0.32% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 76 total │ 6 perfect │ 59 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 77 total │ 6 perfect │ 60 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
