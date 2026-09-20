@@ -1,0 +1,23 @@
+[package]
+name = "labelize-android"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "JNI bindings for labelize — render ZPL & EPL labels to PNG/PDF on Android"
+
+[lib]
+name = "labelize_android"
+# cdylib: the .so Android loads via System.loadLibrary
+# rlib:   lets `cargo test` run the host-side unit tests on the desktop
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+labelize = { path = ".." }
+image = "0.25"
+jni = "0.21"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = "symbols"

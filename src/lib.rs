@@ -1,3 +1,6 @@
+/// Crate version, exposed for the wasm/Android bindings' diagnostics.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub mod assets;
 pub mod barcodes;
 pub mod drawers;
