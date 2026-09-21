@@ -45,8 +45,8 @@ object Labelize {
     /** Render ZPL label data to a PNG image. */
     fun renderZplToPng(
         zpl: ByteArray,
-        widthMm: Double = 101.625,
-        heightMm: Double = 203.25,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
         dpmm: Int = 8,
         antialias: Boolean = false,
     ): ByteArray = render(zpl, widthMm, heightMm, dpmm, antialias, pdf = false, epl = false)
@@ -54,8 +54,8 @@ object Labelize {
     /** Render EPL label data to a PNG image. */
     fun renderEplToPng(
         epl: ByteArray,
-        widthMm: Double = 101.625,
-        heightMm: Double = 203.25,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
         dpmm: Int = 8,
         antialias: Boolean = false,
     ): ByteArray = render(epl, widthMm, heightMm, dpmm, antialias, pdf = false, epl = true)
@@ -63,8 +63,8 @@ object Labelize {
     /** Render ZPL label data to a one-page PDF. */
     fun renderZplToPdf(
         zpl: ByteArray,
-        widthMm: Double = 101.625,
-        heightMm: Double = 203.25,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
         dpmm: Int = 8,
         antialias: Boolean = false,
     ): ByteArray = render(zpl, widthMm, heightMm, dpmm, antialias, pdf = true, epl = false)
@@ -72,8 +72,8 @@ object Labelize {
     /** Render EPL label data to a one-page PDF. */
     fun renderEplToPdf(
         epl: ByteArray,
-        widthMm: Double = 101.625,
-        heightMm: Double = 203.25,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
         dpmm: Int = 8,
         antialias: Boolean = false,
     ): ByteArray = render(epl, widthMm, heightMm, dpmm, antialias, pdf = true, epl = true)
