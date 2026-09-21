@@ -128,18 +128,23 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_render<'local>(
         }
     };
 
-    let write = |env: &mut JNIEnv| -> jni::errors::Result<jbyteArray> {
-        let arr = env.new_byte_array(out.len().try_into().expect("png larger than jsize::MAX"))?;
+    // Errors as plain strings: every failure funnels into throw_labelize as a
+    // render-stage exception, and no panic may cross the JNI boundary.
+    let write = |env: &mut JNIEnv| -> Result<jbyteArray, String> {
+        let len = jint::try_from(out.len())
+            .map_err(|_| "rendered label exceeds 2 GiB (jsize::MAX)".to_string())?;
+        let arr = env.new_byte_array(len).map_err(|e| format!("jni: {e}"))?;
         // JNI's byte arrays are signed; reinterpret without copying (u8 and
         // i8 have identical layout, so this is sound).
         let signed = unsafe { std::slice::from_raw_parts(out.as_ptr().cast::<i8>(), out.len()) };
-        env.set_byte_array_region(&arr, 0, signed)?;
+        env.set_byte_array_region(&arr, 0, signed)
+            .map_err(|e| format!("jni: {e}"))?;
         Ok(arr.into_raw())
     };
     match write(&mut env) {
         Ok(arr) => arr,
-        Err(e) => {
-            throw_labelize(&mut env, STAGE_RENDER, &format!("jni: {e}"));
+        Err(msg) => {
+            throw_labelize(&mut env, STAGE_RENDER, &msg);
             std::ptr::null_mut()
         }
     }
@@ -151,7 +156,12 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_version<'local>(
     env: JNIEnv<'local>,
     _this: JClass<'local>,
 ) -> jstring {
-    match env.new_string(format!("labelize-android {}", env!("CARGO_PKG_VERSION"))) {
+    let version = format!(
+        "labelize-android {} (labelize {})",
+        env!("CARGO_PKG_VERSION"),
+        labelize::VERSION
+    );
+    match env.new_string(version) {
         Ok(s) => s.into_raw(),
         Err(_) => std::ptr::null_mut(),
     }
