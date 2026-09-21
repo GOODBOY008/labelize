@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Android support** — new `android/` module: a JNI binding crate
+  (`labelize-android`, mirroring the wasm API) plus a Gradle library module
+  that packages the Kotlin API (`com.goodboy008.labelize.Labelize`,
+  `renderZplToPng` / `renderZplToPdf` / `renderEplToPng` / `renderEplToPdf`)
+  and native libraries for `arm64-v8a`, `armeabi-v7a`, `x86_64` and `x86`
+  (minSdk 24) into a single AAR. Output is byte-for-byte identical to the
+  desktop builds — verified on an API 36 arm64 emulator where the demo app's
+  PNG and PDF matched a desktop render exactly. A prebuilt
+  `labelize-android-aar.zip` is attached to every GitHub Release; CI builds
+  the AAR on every push.
+
 ### Fixed
 
 - **Empty 2D barcode fields no longer fail the whole label** — an empty `^FD` on
