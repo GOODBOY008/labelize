@@ -120,7 +120,7 @@ jobs:
       - name: Package AAR bundle (zip)
         run: |
           mkdir -p /tmp/aar-bundle
-          cp android/lib/build/outputs/aar/lib-release.aar /tmp/aar-bundle/
+          cp android/lib/build/outputs/aar/lib-release.aar /tmp/aar-bundle/labelize-android-release.aar
           cp android/README.md /tmp/aar-bundle/
           cd /tmp/aar-bundle
           zip -r labelize-android-aar.zip .
