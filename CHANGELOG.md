@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.0] - 2026-09-21
 
 ### Added
 
@@ -30,6 +30,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `^BO` (Aztec) draws the fixed 11×11 bullseye core Labelary renders (2-module
   margin, 69 dark modules), verified pixel-identical in the new
   `empty_barcodes` golden fixture (0.00 % diff).
+- **Rotated text: pen-origin anchoring and stroke weight** — rotated `I`/`B`
+  font 0 text anchors at the pen origin like Labelary (#45), and rotated
+  overlays composite through alpha blending instead of a raw copy, so rotated
+  text no longer renders with double-weight strokes under the default 1-bit
+  output.
+- **Scalable font 1 (`^A1`) and `^FB` justification (#46)** — font 1 is modeled
+  on Labelary's monospaced substitute (including its empty-height → doubled-em
+  width quirk, 0.73·h caps and 1.17·w advance), and `^FB` with `J`
+  justification spreads words across the full block width.
+- **Malformed QR data fails cleanly (#47)** — non-UTF-8 bytes in a `^BQ` field
+  now surface a parse error instead of panicking.
+- **`^CI28` font 0 missing glyphs (#56)** — characters missing from font 0
+  render as blank space using Labelary's 0.2976 em advance instead of
+  missing-glyph boxes.
 
 ### Changed
 

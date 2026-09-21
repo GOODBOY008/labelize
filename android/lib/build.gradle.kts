@@ -6,7 +6,7 @@ plugins {
 
 // Keep in sync with the engine version in the root Cargo.toml.
 // (The Rust binding crate labelize-android stays 0.1.0, like wasm/.)
-version = "1.5.0"
+version = "1.6.0"
 
 android {
     namespace = "com.goodboy008.labelize"
