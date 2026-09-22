@@ -49,6 +49,7 @@ Benchmarked against the Labelary API on the same set of labels:
 - **HTTP Microservice** — RESTful API for label conversion with format detection via `Content-Type` header; deploy anywhere with Docker, bare metal, or Cloudflare Workers
 - **Web Playground** — Built-in browser UI at `GET /` — paste or open a `.zpl`/`.epl` file, choose a label size (4×6, 4×4, etc.), render PNG inline, download PNG or PDF with one click, and compare your render side-by-side against the Labelary reference with a diff score. A free public instance is hosted at <https://labelize.764629910.workers.dev>
 - **WebAssembly Package** — `@goodboy008/labelize-wasm` renders ZPL/EPL to PNG/PDF directly in browsers, Node.js, and bundlers — no server required
+- **Android Library** — JNI-based AAR (`com.goodboy008.labelize`) renders ZPL/EPL to PNG/PDF in any Android app; bit-identical output to the desktop builds
 - **Embedded Fonts** — Zero runtime font dependencies; bundles Helvetica Bold Condensed, DejaVu Sans Mono, and ZPL GS fonts
 - **Rust Library** — Integrate label rendering directly into your Rust application via the public API
 
@@ -102,6 +103,39 @@ import { lz_render } from "@goodboy008/labelize-wasm";
 `lz_render(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl)` returns PNG (or PDF) bytes.
 Errors throw `1:`/`2:`-prefixed strings (parse vs. render failure). The same raw glue + wasm files
 are attached to every GitHub Release as `labelize-wasm-wasm32.zip`.
+
+### Use from Android (Kotlin / Java)
+
+The engine ships as a self-contained Android library (AAR) with native libraries for
+`arm64-v8a`, `armeabi-v7a`, `x86_64` and `x86` (minSdk 24). Download
+`labelize-android-aar.zip` from the [latest release](https://github.com/GOODBOY008/labelize/releases),
+unzip into your app module, and register it:
+
+```kotlin
+// app/build.gradle.kts
+repositories {
+    flatDir { dirs("libs") }
+}
+dependencies {
+    implementation(name = "labelize-android-release", ext = "aar")
+}
+```
+
+Then render from Kotlin (Java works the same):
+
+```kotlin
+import com.goodboy008.labelize.Labelize
+import com.goodboy008.labelize.LabelizeException
+
+val zpl = "^XA^FO50,50^A0N,40,40^FDHello Android^FS^XZ".toByteArray()
+val png: ByteArray = Labelize.renderZplToPng(zpl, widthMm = 102.0, heightMm = 152.0)
+// also available: renderZplToPdf, renderEplToPng, renderEplToPdf,
+// and the raw render(src, widthMm, heightMm, dpmm, antialias, pdf, epl)
+```
+
+Failures throw `LabelizeException` with `stage` = `STAGE_PARSE` (bad input) or
+`STAGE_RENDER` (engine error). To build the AAR from source, see
+[`android/README.md`](android/README.md).
 
 ### Convert a ZPL label to PNG
 

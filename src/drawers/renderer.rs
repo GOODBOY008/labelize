@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use ab_glyph::{Font as _, FontRef, PxScale, ScaleFont as _};
-use image::{Rgba, RgbaImage};
+use image::{Pixel, Rgba, RgbaImage};
 use imageproc::drawing;
 
 use crate::barcodes;
@@ -1623,7 +1623,13 @@ fn overlay_at(canvas: &mut RgbaImage, img: &RgbaImage, x: i32, y: i32) {
             if px >= 0 && py >= 0 && (px as u32) < canvas.width() && (py as u32) < canvas.height() {
                 let pixel = *img.get_pixel(ix, iy);
                 if pixel[3] > 0 {
-                    canvas.put_pixel(px as u32, py as u32, pixel);
+                    let mut dst = *canvas.get_pixel(px as u32, py as u32);
+                    // Source-over, not raw copy: rotated text buffers carry real
+                    // anti-aliasing coverage in alpha. Stamping (0,0,0,α) here would
+                    // leave a near-transparent black pixel that the 1-bit encode
+                    // reads as solid black, fattening every rotated glyph stroke.
+                    dst.blend(&pixel);
+                    canvas.put_pixel(px as u32, py as u32, dst);
                 }
             }
         }

@@ -78,7 +78,7 @@ informational.
 | mu_dpi_conversion | zpl | 0.06 | 2.0 | ^MU dpi conversion + font metrics |
 | mu_millimeters | zpl | 3.18 | 8.0 | ^MU millimeter units + font metrics |
 | pdf417_basic | zpl | 0.29 | 1.0 | PDF417 compaction mode selection |
-| posteit | zpl | 3.26 | 7.5 | ^GFA Z64 logo + DataMatrix + font metrics |
+| posteit | zpl | 3.25 | 7.5 | ^GFA Z64 logo + DataMatrix + font metrics |
 | postnl_qr | zpl | 0.00 | 5.0 | Perfect |
 | qr_ft_600 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
 | qr_ft_by100 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
@@ -101,11 +101,11 @@ informational.
 | barcode128_rotated | zpl | 0.24 | 2.0 | Sub-pixel |
 | bstc | zpl | 0.00 | 1.0 | Perfect |
 | dbs | zpl | 1.87 | 5.0 | Font metrics |
-| dhlecommercetr | zpl | 2.51 | 4.5 | Font metrics |
+| dhlecommercetr | zpl | 2.42 | 4.5 | Font metrics |
 | dhlpaket | zpl | 1.48 | 3.5 | Font metrics |
 | dhlparceluk | zpl | 3.63 | 4.5 | Font metrics (rotated I/B pen-anchor offset fixed) |
-| dpdpl | zpl | 5.60 | 7.5 | Font metrics |
-| dpduk | epl | 5.79 | 6.5 | EPL reference from Go renderer |
+| dpdpl | zpl | 5.57 | 7.5 | Font metrics |
+| dpduk | epl | 3.95 | 6.5 | EPL reference from Go renderer |
 | epl2_showcase | epl | 0.00 | 2.0 | Renderer baseline reference (Labelary has no EPL) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.03 | 2.0 | Sub-pixel |
@@ -114,7 +114,7 @@ informational.
 | fedex_express | zpl | 6.24 | 7.0 | PDF417 encoding + font |
 | fedex_ground | zpl | 5.45 | 6.0 | PDF417 encoding + font |
 | font_p | zpl | 0.17 | 1.0 | Bitmap font P (20x18 base, DejaVu Mono Bold substitute) |
-| font_q | zpl | 0.17 | 1.0 | Bitmap font Q (28x24 base, DejaVu Mono Bold substitute) |
+| font_q | zpl | 0.18 | 1.0 | Bitmap font Q (28x24 base, DejaVu Mono Bold substitute) |
 | font_r | zpl | 0.44 | 1.0 | Bitmap font R (35x31 base, DejaVu Mono Bold substitute) |
 | font_s | zpl | 0.36 | 1.0 | Bitmap font S (40x35 base, DejaVu Mono Bold substitute) |
 | font_t | zpl | 0.73 | 1.0 | Bitmap font T (48x42 base, DejaVu Mono Bold substitute) |
@@ -129,22 +129,22 @@ informational.
 | gd_thin_l | zpl | 0.03 | 1.0 | Sub-pixel |
 | gd_thin_r | zpl | 0.03 | 1.0 | Sub-pixel |
 | glscz | zpl | 1.91 | 3.5 | Font metrics |
-| glsdk_return | zpl | 2.84 | 5.5 | DataMatrix + font metrics |
+| glsdk_return | zpl | 2.82 | 5.5 | DataMatrix + font metrics |
 | gs | zpl | 1.14 | 2.0 | Graphic symbol font |
 | icapaket | zpl | 3.06 | 5.5 | Font metrics |
 | jcpenney | zpl | 2.84 | 6.0 | Font metrics |
 | kmart | zpl | 3.95 | 8.0 | Font metrics |
 | labelary | zpl | 1.84 | 4.5 | Font metrics + Code128 |
-| pnldpd | zpl | 7.57 | 11.5 | Aztec + font metrics |
-| pocztex | zpl | 2.31 | 4.5 | Font metrics |
+| pnldpd | zpl | 7.52 | 11.5 | Aztec + font metrics |
+| pocztex | zpl | 2.29 | 4.5 | Font metrics |
 | porterbuddy | zpl | 5.64 | 7.0 | QR code + font metrics |
-| posten | zpl | 1.17 | 3.0 | Font metrics |
+| posten | zpl | 1.16 | 3.0 | Font metrics |
 | qr_code_ft_manual | zpl | 0.29 | 1.0 | Perfect |
 | qr_code_offset | zpl | 0.00 | 1.0 | Perfect |
 | return_qrcode | zpl | 1.96 | 4.0 | QR + font |
 | reverse | zpl | 0.25 | 1.5 | Sub-pixel |
 | reverse_qr | zpl | 0.12 | 1.5 | QR barcode |
-| swisspost | zpl | 0.98 | 2.5 | Font metrics |
+| swisspost | zpl | 0.93 | 2.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
 | text_fallback_default | zpl | 2.03 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
 | dein_ticket_packliste | zpl | 1.21 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
@@ -158,6 +158,7 @@ informational.
 | text_ft_n | zpl | 0.05 | 1.0 | Sub-pixel |
 | text_ft_r | zpl | 0.06 | 1.0 | Sub-pixel |
 | text_multiline | zpl | 0.24 | 1.5 | Word-wrap boundaries |
+| thick_rotated_fb_text | zpl | 0.16 | 1.0 | Rotated ^FB font-0 text (overlay now blends alpha; was stamped full-black AA skirt) |
 | ups | zpl | 2.98 | 8.0 | MaxiCode + font metrics |
 | ups_import_control | zpl | 3.59 | 4.5 | MaxiCode + font metrics |
 | ups_surepost | zpl | 3.74 | 10.0 | MaxiCode + font metrics |

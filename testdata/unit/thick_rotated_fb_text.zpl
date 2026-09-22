@@ -1,0 +1,4 @@
+^XA
+
+^FT620,710^A0B,28,28^FB1600,1,0,L^FH\^FD{ToSection.GivenName}^FS
+^XZ
