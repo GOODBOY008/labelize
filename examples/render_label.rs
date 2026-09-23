@@ -36,10 +36,10 @@ fn main() {
         }
     }
 
-    let input = input.unwrap_or_else(|| panic!("usage: render_label <input.zpl|input.epl> [output]"));
-    let is_epl = epl_override.unwrap_or_else(|| {
-        input.extension().map(|e| e == "epl").unwrap_or(false)
-    });
+    let input =
+        input.unwrap_or_else(|| panic!("usage: render_label <input.zpl|input.epl> [output]"));
+    let is_epl =
+        epl_override.unwrap_or_else(|| input.extension().map(|e| e == "epl").unwrap_or(false));
     let output = output.unwrap_or_else(|| {
         let ext = if pdf { "pdf" } else { "png" };
         input.with_extension(ext)
@@ -62,15 +62,24 @@ fn main() {
     }
 }
 
-fn render(renderer: &Renderer, label: &labelize::LabelInfo, options: &DrawerOptions, pdf: bool) -> Vec<u8> {
+fn render(
+    renderer: &Renderer,
+    label: &labelize::LabelInfo,
+    options: &DrawerOptions,
+    pdf: bool,
+) -> Vec<u8> {
     // PNG output comes straight from the renderer.
     let mut png = Cursor::new(Vec::new());
-    renderer.draw_label_as_png(label, &mut png, options.clone()).unwrap();
+    renderer
+        .draw_label_as_png(label, &mut png, options.clone())
+        .unwrap();
     if !pdf {
         return png.into_inner();
     }
     // PDF wraps the rendered pixels in a single-page document.
-    let img = image::load_from_memory(&png.into_inner()).unwrap().to_rgba8();
+    let img = image::load_from_memory(&png.into_inner())
+        .unwrap()
+        .to_rgba8();
     let mut pdf = Cursor::new(Vec::new());
     labelize::encode_pdf(&img, options, &mut pdf).unwrap();
     pdf.into_inner()
@@ -80,7 +89,10 @@ fn output_path(base: &Path, index: usize, total: usize) -> PathBuf {
     if total == 1 {
         return base.to_path_buf();
     }
-    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+    let stem = base
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
     let ext = base.extension().and_then(|e| e.to_str()).unwrap_or("png");
     base.with_file_name(format!("{stem}_{}.{ext}", index + 1))
 }
