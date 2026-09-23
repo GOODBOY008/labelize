@@ -64,7 +64,8 @@ impl ZplParser {
         let mut current_recalled_format: Option<crate::elements::stored_format::RecalledFormat> =
             None;
 
-        for command in &commands {
+        for raw_command in &commands {
+            let command = &raw_command.text;
             let upper = command.to_uppercase();
 
             if upper.starts_with("^XA") {
@@ -117,6 +118,13 @@ impl ZplParser {
 
                 result_elements.clear();
                 continue;
+            }
+
+            if upper.starts_with("^FD") || upper.starts_with("^FV") {
+                self.printer.next_element_field_bytes = Some(hex::decode_escaped_bytes(
+                    &raw_command.bytes[3..],
+                    self.printer.next_hex_escape_char,
+                ));
             }
 
             // Try each command parser
@@ -800,6 +808,7 @@ impl ZplParser {
                     field: self.printer.get_field_info(),
                 },
                 data: self.printer.next_element_field_data.clone(),
+                data_bytes: self.printer.next_element_field_bytes.clone(),
             };
             // Resolve immediately
             resolve_recalled_field(&rf)?
@@ -807,6 +816,7 @@ impl ZplParser {
             Some(LabelElement::RecalledFieldData(RecalledFieldData {
                 number: self.printer.next_element_field_number,
                 data: self.printer.next_element_field_data.clone(),
+                data_bytes: self.printer.next_element_field_bytes.clone(),
             }))
         } else {
             Some(LabelElement::StoredField(StoredField {
@@ -1102,7 +1112,7 @@ impl ZplParser {
             columns: 0,
             rows: 0,
             format: 6,
-            escape: b'~',
+            escape: b'_', // ECC 200 default on modern Zebra firmware.
             ratio: Some(DatamatrixRatio::Square),
         };
         if let Some(s) = parts.first() {
@@ -1717,32 +1727,38 @@ fn resolve_recalled_field(
     Ok(resolved.into_iter().next())
 }
 
-fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<String>, String> {
-    let data_str = String::from_utf8_lossy(zpl_data);
-    let data = data_str.replace(['\n', '\r', '\t'], "");
+struct ZplCommand {
+    text: String,
+    bytes: Vec<u8>,
+}
 
-    let mut caret = '^';
-    let mut tilde = '~';
-
-    let mut buff = String::new();
+fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<ZplCommand>, String> {
+    let mut caret = b'^';
+    let mut tilde = b'~';
+    let mut buff = Vec::new();
     let mut results = Vec::new();
-
-    for ch in data.chars() {
+    // Preserve input bytes before the text view is decoded. As before, literal
+    // transport CR/LF/TAB are ignored; ^FH can insert them into field data.
+    for ch in zpl_data
+        .iter()
+        .copied()
+        .filter(|b| !matches!(b, b'\n' | b'\r' | b'\t'))
+    {
         let mut is_ct = false;
         let mut is_cc = false;
         if buff.len() == 4 {
-            is_ct = buff.contains("CT") && buff.starts_with(caret);
-            is_cc = buff.contains("CC") && buff.starts_with(caret);
+            is_ct = buff[0] == caret && &buff[1..3] == b"CT";
+            is_cc = buff[0] == caret && &buff[1..3] == b"CC";
         }
 
         if ch == caret || ch == tilde || is_ct || is_cc {
             let normalized = normalize_command(&buff, tilde, caret);
 
-            if is_ct && normalized.len() >= 4 {
-                tilde = normalized.chars().nth(3).unwrap_or('~');
-            } else if is_cc && normalized.len() >= 4 {
-                caret = normalized.chars().nth(3).unwrap_or('^');
-            } else if !normalized.is_empty() {
+            if is_ct && normalized.bytes.len() >= 4 {
+                tilde = normalized.bytes[3];
+            } else if is_cc && normalized.bytes.len() >= 4 {
+                caret = normalized.bytes[3];
+            } else if !normalized.text.is_empty() {
                 results.push(normalized);
             }
 
@@ -1754,7 +1770,7 @@ fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<String>, String> {
 
     if !buff.is_empty() {
         let normalized = normalize_command(&buff, tilde, caret);
-        if !normalized.is_empty() {
+        if !normalized.text.is_empty() {
             results.push(normalized);
         }
     }
@@ -1762,17 +1778,17 @@ fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<String>, String> {
     Ok(results)
 }
 
-fn normalize_command(command: &str, tilde: char, caret: char) -> String {
-    if command.is_empty() {
-        return String::new();
+fn normalize_command(command: &[u8], tilde: u8, caret: u8) -> ZplCommand {
+    let mut bytes = command.to_vec();
+    if let Some(first) = bytes.first_mut() {
+        let original = *first;
+        if caret != b'^' && original == caret {
+            *first = b'^';
+        }
+        if tilde != b'~' && original == tilde {
+            *first = b'~';
+        }
     }
-    let mut cmd = command.to_string();
-    let first = cmd.chars().next().unwrap();
-    if caret != '^' && first == caret {
-        cmd = format!("^{}", &cmd[first.len_utf8()..]);
-    }
-    if tilde != '~' && first == tilde {
-        cmd = format!("~{}", &cmd[first.len_utf8()..]);
-    }
-    cmd.trim_start().to_string()
+    let text = String::from_utf8_lossy(&bytes).trim_start().to_string();
+    ZplCommand { text, bytes }
 }

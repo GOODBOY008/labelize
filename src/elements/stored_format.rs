@@ -51,12 +51,14 @@ pub struct StoredField {
 pub struct RecalledFieldData {
     pub number: i32,
     pub data: String,
+    pub data_bytes: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct RecalledField {
     pub stored: StoredField,
     pub data: String,
+    pub data_bytes: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug)]
@@ -75,6 +77,7 @@ impl RecalledFormat {
                     .push(LabelElement::RecalledField(RecalledField {
                         stored: sf.clone(),
                         data: String::new(),
+                        data_bytes: None,
                     }));
                 self.field_refs.entry(sf.number).or_default().push(idx);
                 true
@@ -84,6 +87,7 @@ impl RecalledFormat {
                     for idx in indices {
                         if let LabelElement::RecalledField(ref mut rf) = self.elements[idx] {
                             rf.data = rfd.data.clone();
+                            rf.data_bytes = rfd.data_bytes.clone();
                         }
                     }
                 } else {
@@ -104,6 +108,7 @@ impl RecalledFormat {
                                 },
                             },
                             data: rfd.data,
+                            data_bytes: rfd.data_bytes,
                         }));
                 }
                 true
@@ -228,6 +233,7 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 barcode: bc.clone(),
                 position: field.position.clone(),
                 data: text.clone(),
+                data_bytes: f.data_bytes.clone(),
             }),
         )),
         Some(LabelElement::BarcodeQrConfig(bc)) => {

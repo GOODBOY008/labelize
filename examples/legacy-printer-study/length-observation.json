@@ -1,0 +1,55 @@
+{
+  "date": "2026-09-11",
+  "status": "physical comparison completed; extended record semantics unresolved",
+  "printerContext": "ZD421, V93.21.17Z from preceding experiment; not re-queried for this report",
+  "photo": {
+    "sha256": "fba76afc38b65c6ccee8c88f646589c73e31704864a971efaf68f0c603021e73",
+    "visibleLabelIds": [
+      "N500",
+      "N501"
+    ],
+    "decodedPayloads": null,
+    "recoveredModuleDimensions": null
+  },
+  "results": [
+    {
+      "length": 500,
+      "auto": "symbol",
+      "fixed49": "symbol",
+      "evidence": "photo and user report"
+    },
+    {
+      "length": 501,
+      "auto": "INVALID-L",
+      "fixed49": "INVALID-L",
+      "evidence": "photo and user report"
+    },
+    {
+      "length": 511,
+      "auto": "INVALID-L",
+      "fixed49": "INVALID-L",
+      "evidence": "user report: all tested lengths above 500 fail"
+    },
+    {
+      "length": 512,
+      "auto": "INVALID-L",
+      "fixed49": "INVALID-L",
+      "evidence": "user report: all tested lengths above 500 fail"
+    },
+    {
+      "length": 596,
+      "auto": "INVALID-L",
+      "fixed49": "INVALID-L",
+      "evidence": "user report: all tested lengths above 500 fail"
+    },
+    {
+      "length": 597,
+      "auto": "INVALID-L",
+      "fixed49": "INVALID-L",
+      "evidence": "user report: all tested lengths above 500 fail"
+    }
+  ],
+  "conclusion": "Explicitly requesting 49x49 does not bypass this device/settings' observed 500-digit limit. The N500 matrices differ visibly; exact module counts remain unverified.",
+  "limits": "No >511 record was produced, no payload was independently decoded, and no universal 500-digit cap or extended-length wrapping convention is inferred. No further bisection needed for this scoped printer boundary.",
+  "validationClarification": "User additionally confirmed: rejected fields print no DataMatrix; with CV enabled INVALID-L is printed. This is a device observation, not implemented CV rendering in Labelize."
+}

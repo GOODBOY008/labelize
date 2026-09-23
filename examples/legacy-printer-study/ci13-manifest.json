@@ -1,0 +1,20 @@
+{
+  "status": "prepared; physical result pending",
+  "ci": 13,
+  "resetCi": 27,
+  "source": "manifest.json",
+  "groups": [
+    {
+      "id": "L03",
+      "source": "l01-300dpi.zpl",
+      "file": "l03-ci13-300dpi.zpl",
+      "sha256": "d9506728d1df9930c78235aedaec4f8d065f6f09354f9661663ff0da1f0b379b"
+    },
+    {
+      "id": "L04",
+      "source": "l02-300dpi.zpl",
+      "file": "l04-ci13-300dpi.zpl",
+      "sha256": "48203feb6e2a0f07d94bf7b6d2f29df4e84ffb848ef0ff71b1bc8f2172058b44"
+    }
+  ]
+}
