@@ -179,7 +179,7 @@ docker run -p 8080:8080 goodboy008/labelize:latest
 docker run -p 8080:8080 ghcr.io/goodboy008/labelize:latest
 ```
 
-Available tags: `latest` (newest stable release), `1.3.0` / `1.3` / `1` (pinned
+Available tags: `latest` (newest stable release), `1.6.0` / `1.6` / `1` (pinned
 versions), and `edge` (current `main`).
 
 Or build and run it from source with Compose:
@@ -188,6 +188,19 @@ Or build and run it from source with Compose:
 docker compose up -d --build
 ```
 
+
+## Tutorials & Documentation
+
+Step-by-step guides for each platform live in [`docs/tutorials/`](docs/tutorials/):
+
+- [Command Line](docs/tutorials/cli.md) — install on macOS/Linux/Windows, convert files, pick sizes
+- [Docker](docs/tutorials/docker.md) — run the service in a container
+- [HTTP Service](docs/tutorials/http-service.md) — REST API, playground, error semantics
+- [JavaScript / WebAssembly](docs/tutorials/javascript-wasm.md) — Node.js, bundlers, browsers
+- [Android](docs/tutorials/android.md) — AAR integration, threading, building from source
+- [Rust Library](docs/tutorials/rust-library.md) — parse → render → encode in Rust
+
+Other docs: [Usage reference](docs/USAGE.md) · [ZPL command support matrix](docs/ZPL_COMMANDS_REFERENCE.md) · [Diff thresholds](docs/DIFF_THRESHOLDS.md)
 
 ## CLI Reference
 
@@ -205,7 +218,8 @@ Convert Options:
   -t, --type <TYPE>     Output type: png | pdf [default: png]
   --width <MM>          Label width in mm [default: 102]
   --height <MM>         Label height in mm [default: 152]
-  --dpmm <N>            Dots per mm [default: 8]
+  --dpmm <N>            Dots per mm: 6, 8, 12, or 24 [default: 8]
+  --antialias           8-bit grayscale output (default: 1-bit)
 
 Serve Options:
   --host <HOST>         Bind address [default: 0.0.0.0]
@@ -249,6 +263,10 @@ renderer.draw_label_as_png(&labels[0], &mut buf, DrawerOptions::default()).unwra
 std::fs::write("output.png", buf.into_inner()).unwrap();
 ```
 
+A complete runnable version lives at [`examples/render_label.rs`](examples/render_label.rs)
+(`cargo run --example render_label -- label.zpl`), and a step-by-step guide at
+[`docs/tutorials/rust-library.md`](docs/tutorials/rust-library.md).
+
 ## Supported ZPL & EPL Commands
 
 ### ZPL Commands
@@ -263,7 +281,7 @@ std::fs::write("output.png", buf.into_inner()).unwrap();
 
 ### EPL Commands
 
-`N` (new label) · `A` (text) · `B` (barcode) · `LO` (line draw) · `R` (reference point) · `P` (print)
+`N` (new label) · `A` (text) · `B` (1D barcodes — Code 128, Code 39, EAN-13/8, UPC-A/E, 2-of-5, Codabar, …) · `b` (2D: QR, DataMatrix, Aztec, PDF417, MaxiCode) · `LO`/`LW` (black/white line) · `LS` (diagonal) · `X` (box) · `GW` (graphic write) · `R` (reference point) · `P` (print)
 
 ## Architecture
 
@@ -290,16 +308,17 @@ All diff images are in [`testdata/diffs/`](testdata/diffs/) — browse them to r
 
 | Label | Diff | Preview |
 |-------|------|---------|
-| amazon | 2.26% | <img src="testdata/diffs/amazon.png" height="150"> |
-| fedex | 5.77% | <img src="testdata/diffs/fedex.png" height="150"> |
-| ups | 5.74% | <img src="testdata/diffs/ups.png" height="150"> |
-| dhlpaket | 2.17% | <img src="testdata/diffs/dhlpaket.png" height="150"> |
-| usps | 4.05% | <img src="testdata/diffs/usps.png" height="150"> |
-| swisspost | 1.49% | <img src="testdata/diffs/swisspost.png" height="150"> |
+| amazon | 1.08% | <img src="testdata/diffs/amazon.png" height="150"> |
+| fedex | 4.85% | <img src="testdata/diffs/fedex.png" height="150"> |
+| ups | 2.98% | <img src="testdata/diffs/ups.png" height="150"> |
+| dhlpaket | 1.48% | <img src="testdata/diffs/dhlpaket.png" height="150"> |
+| usps | 2.72% | <img src="testdata/diffs/usps.png" height="150"> |
+| swisspost | 0.93% | <img src="testdata/diffs/swisspost.png" height="150"> |
 
-**83 labels tested** — 6 perfect · 27 good (<1%) · 39 minor (<5%) · 11 moderate (<15%) · 0 high
+**128 labels tested** — 8 perfect · 61 good (<1%) · 52 minor (<5%) · 7 moderate (<15%) · 0 high
 
-> Full report: [`testdata/diffs/diff_report.txt`](testdata/diffs/diff_report.txt)
+> Full reports: [`testdata/diffs/diff_report_labels.txt`](testdata/diffs/diff_report_labels.txt) ·
+[`testdata/diffs/diff_report_unit.txt`](testdata/diffs/diff_report_unit.txt)
 
 ## Testing
 
@@ -313,7 +332,7 @@ PATH="$PATH:target/debug" bash e2e/http/test_http.sh   # HTTP microservice tests
 PATH="$PATH:target/debug" bash e2e/cli/test_cli.sh     # CLI tests
 ```
 
-82 golden-file E2E tests compare rendered output pixel-by-pixel against reference PNGs from the Labelary reference renderer.
+124 golden-file E2E tests compare rendered output pixel-by-pixel against reference PNGs from the Labelary reference renderer.
 
 ## Building from Source
 

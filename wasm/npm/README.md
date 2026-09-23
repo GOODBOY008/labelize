@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/logo.svg" width="180" alt="Labelize logo" /></p>
+
 # @goodboy008/labelize-wasm
 
 The [Labelize](https://github.com/GOODBOY008/labelize) ZPL/EPL label engine compiled to WebAssembly.
