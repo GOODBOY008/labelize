@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="docs/logo.svg" alt="Labelize logo" width="220" />
+</div>
+
 # Labelize — ZPL / EPL Label Renderer
 
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
