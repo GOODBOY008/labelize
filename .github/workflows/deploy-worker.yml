@@ -7,6 +7,9 @@ on:
     paths:
       - 'workers/**'
       - 'wasm/**'
+      # The playground page ships inside the wasm binary (lz_playground_html),
+      # so changes to it must redeploy the worker too.
+      - 'src/playground.rs'
       - '.github/workflows/deploy-worker.yml'
   workflow_dispatch:
 
