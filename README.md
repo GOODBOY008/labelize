@@ -260,10 +260,6 @@ DataMatrix ECC 200 field-data escapes and firmware defaults are described in
 | **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
 | **Stored Formats** | `^DF` `^XF` |
 
-Manual QR Numeric, Alphanumeric, and Byte modes are honored explicitly; unsupported
-Kanji mode returns an error. See [QR character modes](docs/QR_CHARACTER_MODES.md)
-for the API, compatibility details, and the observed Labelary optimization difference.
-
 DataMatrix rendering supports **ECC 000, 050, 080, 100, 140 and 200**. Omitted or empty ZPL
 `^BX` quality defaults to ECC 000, as specified by Zebra; use `^BXN,4,200`
 for modern ECC 200. The Legacy path supports six encodation formats,
