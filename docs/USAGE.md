@@ -1,5 +1,10 @@
 # Usage Guide
 
+> Looking for a step-by-step intro for one specific platform (CLI, Docker,
+> HTTP, JavaScript/WASM, Android, Rust)? See the
+> [platform tutorials](tutorials/README.md). This page is the compact
+> reference they build on.
+
 ## Installation
 
 ### From Source
