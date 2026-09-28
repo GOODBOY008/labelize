@@ -116,6 +116,12 @@ impl Renderer {
             canvas = final_canvas;
         }
 
+        // ^PM mirrors the complete output after print-width centering and ^PO.
+        // Flipping only the narrower ^PW canvas misplaces odd margins by a dot.
+        if label.mirrored {
+            image::imageops::flip_horizontal_in_place(&mut canvas);
+        }
+
         let mut buf = Vec::new();
         images::monochrome::encode_png_with(&canvas, &mut buf, options.antialias)
             .map_err(|e| format!("failed to encode png: {}", e))?;

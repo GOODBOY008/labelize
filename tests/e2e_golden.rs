@@ -699,6 +699,23 @@ fn golden_fo_lenient_coord() {
     golden_zpl_with_tolerance("fo_lenient_coord", 5.0);
 }
 
+// ── Print mirror (also checked pixel-for-pixel in unit_print_mirror) ──
+
+#[test]
+fn golden_print_mirror() {
+    golden_zpl_with_tolerance("print_mirror", 0.0);
+}
+
+#[test]
+fn golden_print_mirror_width() {
+    golden_zpl_with_tolerance("print_mirror_width", 0.0);
+}
+
+#[test]
+fn golden_print_mirror_inverted() {
+    golden_zpl_with_tolerance("print_mirror_inverted", 0.0);
+}
+
 /// Issue #51 regression: ^CI28 (UTF-8) CJK text in scalable font 0 must
 /// render exactly like Labelary — blank space (no .notdef box), with the
 /// pen still advancing by the calibrated missing-glyph width so trailing
