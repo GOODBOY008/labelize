@@ -3,6 +3,8 @@ pub mod bit_matrix;
 pub mod code128;
 pub mod code39;
 pub mod datamatrix;
+mod datamatrix_field;
+pub mod datamatrix_legacy;
 pub mod ean13;
 pub mod ean8;
 pub mod maxicode;

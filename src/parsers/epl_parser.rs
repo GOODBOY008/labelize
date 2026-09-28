@@ -761,15 +761,16 @@ fn parse_epl_2d_barcode(
                         barcode: BarcodeDatamatrix {
                             orientation: FieldOrientation::Normal,
                             height: module,
-                            quality: 0,
+                            quality: 200, // EPL Data Matrix always uses ECC 200.
                             columns,
                             rows,
                             format: 6,
-                            escape: b'~',
+                            escape: 0, // EPL field data has no ZPL escape processing.
                             ratio: Some(DatamatrixRatio::Square),
                         },
                         position: pos,
                         data: content.to_string(),
+                        data_bytes: None,
                     })
                 }
                 "M" => {
