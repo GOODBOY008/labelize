@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-21
+
+### Added
+
+- **Android support** — new `android/` module: a JNI binding crate
+  (`labelize-android`, mirroring the wasm API) plus a Gradle library module
+  that packages the Kotlin API (`com.goodboy008.labelize.Labelize`,
+  `renderZplToPng` / `renderZplToPdf` / `renderEplToPng` / `renderEplToPdf`)
+  and native libraries for `arm64-v8a`, `armeabi-v7a`, `x86_64` and `x86`
+  (minSdk 24) into a single AAR. Output is byte-for-byte identical to the
+  desktop builds — verified on an API 36 arm64 emulator where the demo app's
+  PNG and PDF matched a desktop render exactly. A prebuilt
+  `labelize-android-aar.zip` is attached to every GitHub Release; CI builds
+  the AAR on every push.
+
+### Fixed
+
+- **Empty 2D barcode fields no longer fail the whole label** — an empty `^FD` on
+  `^BQ` (QR), `^BX` (DataMatrix) or `^BD` (MaxiCode) now draws nothing (matching
+  Labelary) while the rest of the label renders; previously any of them aborted
+  rendering with an error like `invalid qr barcode data`. A prefix-only QR field
+  (`^FDQA,`) that parses to an empty payload is skipped the same way. An empty
+  `^BO` (Aztec) draws the fixed 11×11 bullseye core Labelary renders (2-module
+  margin, 69 dark modules), verified pixel-identical in the new
+  `empty_barcodes` golden fixture (0.00 % diff).
+- **Rotated text: pen-origin anchoring and stroke weight** — rotated `I`/`B`
+  font 0 text anchors at the pen origin like Labelary (#45), and rotated
+  overlays composite through alpha blending instead of a raw copy, so rotated
+  text no longer renders with double-weight strokes under the default 1-bit
+  output.
+- **Scalable font 1 (`^A1`) and `^FB` justification (#46)** — font 1 is modeled
+  on Labelary's monospaced substitute (including its empty-height → doubled-em
+  width quirk, 0.73·h caps and 1.17·w advance), and `^FB` with `J`
+  justification spreads words across the full block width.
+- **Malformed QR data fails cleanly (#47)** — non-UTF-8 bytes in a `^BQ` field
+  now surface a parse error instead of panicking.
+- **`^CI28` font 0 missing glyphs (#56)** — characters missing from font 0
+  render as blank space using Labelary's 0.2976 em advance instead of
+  missing-glyph boxes.
+
+### Changed
+
+- **Barcode encoder empty-input contract** — `datamatrix::encode(b"")` now encodes
+  naturally to the minimal 10×10 ECC 200 symbol instead of erroring, and
+  `aztec::encode(b"")` returns the Labelary minimal symbol instead of erroring
+  (both `Ok`). `qrcode::encode` and `maxicode::encode` still reject empty input;
+  the skip-or-draw decision lives in the renderer, where Labelary's behavior
+  diverges per symbology.
+
 ## [1.5.0] - 2026-09-08
 
 ### Added

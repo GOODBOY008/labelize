@@ -96,9 +96,43 @@ jobs:
           name: labelize-wasm-wasm32.zip
           path: labelize-wasm-wasm32.zip
 
+  android-build:
+    name: Build (android AAR)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      # GitHub runners ship an NDK preinstalled under $ANDROID_HOME/ndk.
+      - name: Cross-compile JNI libraries
+        run: android/build.sh
+      - name: Assemble release AAR
+        working-directory: android
+        run: ./gradlew :lib:assembleRelease
+      - name: Package AAR bundle (zip)
+        run: |
+          mkdir -p /tmp/aar-bundle
+          cp android/lib/build/outputs/aar/lib-release.aar /tmp/aar-bundle/labelize-android-release.aar
+          cp android/README.md /tmp/aar-bundle/
+          cd /tmp/aar-bundle
+          zip -r labelize-android-aar.zip .
+          mv labelize-android-aar.zip "$GITHUB_WORKSPACE/"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: labelize-android-aar.zip
+          path: labelize-android-aar.zip
+
   release:
     name: Create Release
-    needs: [build, wasm-build]
+    needs: [build, wasm-build, android-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
