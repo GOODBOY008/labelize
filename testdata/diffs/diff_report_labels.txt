@@ -49,8 +49,8 @@
 ║ tnt_express                    │ zpl  │    2.71% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups                            │ zpl  │    2.98% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups_import_control             │ zpl  │    3.59% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ ups_surepost                   │ zpl  │    3.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ usps                           │ zpl  │    2.72% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ ups_surepost                   │ zpl  │    3.59% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ usps                           │ zpl  │    2.40% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ usps_apo                       │ zpl  │    3.46% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ usps_intl                      │ zpl  │    2.83% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    1.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║

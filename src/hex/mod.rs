@@ -3,6 +3,33 @@ use std::io::Read;
 const B_IN_MB: usize = 1024 * 1024;
 const MAX_EMBEDDED_IMAGE_SIZE_MB: usize = 3 * B_IN_MB;
 
+/// Decode ^FH directly to bytes. Invalid/incomplete escapes remain literal,
+/// matching the text decoder, but valid byte sequences are never UTF-8 decoded.
+pub fn decode_escaped_bytes(value: &[u8], escape_char: u8) -> Vec<u8> {
+    fn digit(byte: u8) -> Option<u8> {
+        match byte {
+            b'0'..=b'9' => Some(byte - b'0'),
+            b'a'..=b'f' => Some(byte - b'a' + 10),
+            b'A'..=b'F' => Some(byte - b'A' + 10),
+            _ => None,
+        }
+    }
+    let mut result = Vec::with_capacity(value.len());
+    let mut index = 0;
+    while index < value.len() {
+        if escape_char != 0 && value[index] == escape_char && index + 2 < value.len() {
+            if let (Some(high), Some(low)) = (digit(value[index + 1]), digit(value[index + 2])) {
+                result.push(high * 16 + low);
+                index += 3;
+                continue;
+            }
+        }
+        result.push(value[index]);
+        index += 1;
+    }
+    result
+}
+
 pub fn decode_escaped_string(value: &str, escape_char: u8) -> Result<String, String> {
     let esc = escape_char as char;
     let mut result = String::new();
