@@ -1,7 +1,7 @@
 use image::{Rgba, RgbaImage};
 use qrcode::bits::Bits;
 use qrcode::types::{EcLevel, QrError, Version};
-use qrcode::QrCode;
+use qrcode::{canvas::Canvas, ec::construct_codewords};
 
 use crate::elements::barcode_qr::{QrCharacterMode, QrErrorCorrectionLevel};
 
@@ -35,10 +35,15 @@ pub fn encode_with_mode(
         QrErrorCorrectionLevel::H => EcLevel::H,
     };
 
-    let code = encode_segments(content.as_bytes(), ec, mode)?;
-
-    let modules = code.to_colors();
-    let side = code.width() as u32;
+    let bits = encode_segments(content.as_bytes(), ec, mode)?;
+    let version = bits.version();
+    let side = version.width() as u32;
+    let (data, ecc) = construct_codewords(&bits.into_bytes(), version, ec)
+        .map_err(|e| format!("QR code encoding failed: {e}"))?;
+    let mut canvas = Canvas::new(version, ec);
+    canvas.draw_all_functional_patterns();
+    canvas.draw_data(&data, &ecc);
+    let modules = super::qr_mask::select(&canvas, side as usize);
 
     // Render to image with quiet zone — ZPL ^BQ includes a 4-module quiet zone
     let quiet_zone = 4u32;
@@ -65,10 +70,10 @@ pub fn encode_with_mode(
     Ok(img)
 }
 
-fn encode_segments(data: &[u8], ec: EcLevel, mode: QrCharacterMode) -> Result<QrCode, String> {
+fn encode_segments(data: &[u8], ec: EcLevel, mode: QrCharacterMode) -> Result<Bits, String> {
     match mode {
         QrCharacterMode::Automatic => {
-            return QrCode::with_error_correction_level(data, ec)
+            return qrcode::bits::encode_auto(data, ec)
                 .map_err(|e| format!("QR code encoding failed: {e}"));
         }
         QrCharacterMode::Numeric if !data.iter().all(u8::is_ascii_digit) => {
@@ -102,10 +107,7 @@ fn encode_segments(data: &[u8], ec: EcLevel, mode: QrCharacterMode) -> Result<Qr
         }
         .and_then(|()| bits.push_terminator(ec));
         match result {
-            Ok(()) => {
-                return QrCode::with_bits(bits, ec)
-                    .map_err(|e| format!("QR code encoding failed: {e}"))
-            }
+            Ok(()) => return Ok(bits),
             Err(QrError::DataTooLong) => continue,
             Err(e) => return Err(format!("QR code encoding failed: {e}")),
         }

@@ -78,8 +78,9 @@ it; the accompanying diff reports show the effect.
 checks the mode nibble in recovered data codewords, decoded text, and Byte
 segments. It covers explicit digit payloads, all error correction levels, UTF-8
 bytes, allowed characters, invalid inputs, oversized data, version >= 10 count
-fields, and the EPL path. Automatic output is compared module-for-module against
-the existing automatic encoder, including magnification and quiet zones.
+fields, and the EPL path. Automatic codewords and correction levels are compared against the existing
+automatic encoder; magnification and quiet zones are checked separately so the
+subsequent N4 mask correction can change the selected matrix.
 
 These segment checks are the functional regression tests. Golden pixel comparisons
 are supplemental: valid QR masks and optimization choices can produce different
@@ -125,3 +126,7 @@ the 84x84 QR square, 26.30% of pixels differ. The manual Byte fixture has larger
 so its 36,872 changed label pixels produce 2.7892%. That whole-image number also
 includes the pre-existing one-dot horizontal positioning difference. Neither
 percentage measures decoded-data correctness or scanner reliability.
+
+A subsequent [N4 mask-selection fix](QR_MASK_SELECTION.md) preserves these
+encoding modes and codewords, but may choose a different mask. The observations
+above describe the original character-mode PR before that follow-up.
