@@ -49,7 +49,6 @@ fn valid_inputs_keep_content_level_and_mode() {
         ("QM,B0003A|B", "A|B", Q, Binary),
         ("QA,A|B", "AB", Q, Automatic),
         ("XA,HELLO", "HELLO", H, Automatic),
-        ("QM,XHELLO", "HELLO", Q, Automatic),
     ] {
         assert_eq!(
             qr(input).get_input_data().unwrap(),

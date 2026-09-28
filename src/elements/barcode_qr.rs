@@ -64,7 +64,7 @@ impl BarcodeQrWithData {
                 b'N' => QrCharacterMode::Numeric,
                 b'A' => QrCharacterMode::Alphanumeric,
                 b'K' => QrCharacterMode::Kanji,
-                _ => QrCharacterMode::Automatic,
+                _ => return Err("invalid qr barcode manual character mode".to_string()),
             };
             data = data
                 .get(1..)
