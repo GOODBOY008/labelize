@@ -346,7 +346,10 @@ impl Renderer {
                 );
             }
         } else {
-            // Non-normal: render to transparent buffer, rotate, then overlay
+            // Non-normal: render to transparent buffer, rotate, then overlay.
+            // Headroom above the ascent keeps marks that rise above it (Ä, É) from
+            // being clipped at the buffer's top edge.
+            let headroom = scale.y.ceil() as u32;
             let (buf_w, buf_h) = if let Some(ref block) = text.block {
                 let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
                 // Same pitch draw_text_block uses (cap-scaled em × factor), and
@@ -367,7 +370,7 @@ impl Renderer {
                 return Ok(());
             }
 
-            let mut buf = RgbaImage::from_pixel(buf_w, buf_h, Rgba([0, 0, 0, 0]));
+            let mut buf = RgbaImage::from_pixel(buf_w, buf_h + headroom, Rgba([0, 0, 0, 0]));
 
             if let Some(ref block) = text.block {
                 draw_text_block(
@@ -377,7 +380,7 @@ impl Renderer {
                     scale_x,
                     color,
                     pen_x_offset,
-                    0.0,
+                    headroom as f32,
                     block,
                     &drawn_text,
                     f0,
@@ -390,7 +393,7 @@ impl Renderer {
                     scale,
                     color,
                     pen_x_offset,
-                    0.0,
+                    headroom as f32,
                     &drawn_text,
                     f0,
                 );
@@ -430,6 +433,12 @@ impl Renderer {
                 }
             } else {
                 (x, y)
+            };
+            // Only 270° turns the headroom rows into leading columns.
+            let ox = if orientation == FieldOrientation::Rotated270 {
+                ox - headroom as f64
+            } else {
+                ox
             };
 
             overlay_at(canvas, &rotated, ox as i32, oy as i32);
