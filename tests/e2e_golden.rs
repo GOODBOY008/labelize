@@ -246,7 +246,7 @@ fn golden_dbs() {
 }
 #[test]
 fn golden_dhlecommercetr() {
-    golden_zpl_with_tolerance("dhlecommercetr", 4.5);
+    golden_zpl_with_tolerance("dhlecommercetr", 2.5);
 }
 #[test]
 fn golden_dhlpaket() {
@@ -434,7 +434,7 @@ fn golden_reverse() {
 }
 #[test]
 fn golden_swisspost() {
-    golden_zpl_with_tolerance("swisspost", 2.5);
+    golden_zpl_with_tolerance("swisspost", 1.5);
 }
 #[test]
 fn golden_templating() {
@@ -514,7 +514,7 @@ fn golden_usps() {
 }
 #[test]
 fn golden_usps_apo() {
-    golden_zpl_with_tolerance("usps_apo", 4.5);
+    golden_zpl_with_tolerance("usps_apo", 3.5);
 }
 #[test]
 fn golden_usps_intl() {
@@ -600,7 +600,7 @@ fn golden_pdf417_basic() {
 fn golden_dhlparcelit() {
     // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
     // Code128 barcodes, ^FH hex encoding
-    golden_zpl_with_tolerance("dhlparcelit", 3.5);
+    golden_zpl_with_tolerance("dhlparcelit", 2.5);
 }
 
 #[test]

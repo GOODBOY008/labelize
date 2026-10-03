@@ -64,21 +64,21 @@ informational.
 | aztec_ec_2_ec45 | zpl | 0.53 | 7.5 | Aztec encoder pattern differences, EC 45% |
 | aztec_ec_3_ec70 | zpl | 0.87 | 7.5 | Aztec encoder pattern differences, EC 70% |
 | aztec_ec_4_ec95 | zpl | 5.06 | 7.5 | Aztec encoder pattern differences, EC 95% |
-| brtit | zpl | 1.39 | 2.0 | ^POI orientation + ~DG logo + font metrics |
+| brtit | zpl | 1.35 | 2.0 | ^POI orientation + ~DG logo + font metrics |
 | cf_font_designator | zpl | 0.13 | 5.0 | ^CF default font metrics |
 | cf_font_no_orientation | zpl | 0.18 | 5.0 | ^CF default font metrics |
 | code128_mode_d_fnc1 | zpl | 0.50 | 1.0 | Code128 mode D FNC1 display |
-| dhlparcelit | zpl | 2.43 | 3.5 | ~DG/^XG stored graphics + font metrics |
+| dhlparcelit | zpl | 1.93 | 2.5 | ~DG/^XG stored graphics + font metrics |
 | dhlparceluk_dhl_text | zpl | 0.12 | 5.5 | Font metrics |
 | dhlparceluk_ver | zpl | 0.05 | 5.5 | Font metrics |
 | empty_barcodes | zpl | 0.00 | 1.0 | Empty 2D barcode fields (QR/DM/MaxiCode skip, Aztec core) — pixel-identical |
 | fo_lenient_coord | zpl | 0.02 | 5.0 | ^FO coordinate parsing leniency |
 | maxicode_default_mode2 | zpl | 0.59 | 1.0 | MaxiCode mode 2 module placement |
 | maxicode_mode4 | zpl | 0.58 | 1.0 | MaxiCode mode 4 module placement |
-| mu_dpi_conversion | zpl | 0.06 | 2.0 | ^MU dpi conversion + font metrics |
+| mu_dpi_conversion | zpl | 0.05 | 2.0 | ^MU dpi conversion + font metrics |
 | mu_millimeters | zpl | 3.30 | 8.0 | ^MU millimeter units + font metrics |
 | pdf417_basic | zpl | 0.29 | 1.0 | PDF417 compaction mode selection |
-| posteit | zpl | 2.70 | 7.5 | ^GFA Z64 logo + DataMatrix + font metrics |
+| posteit | zpl | 2.68 | 7.5 | ^GFA Z64 logo + DataMatrix + font metrics |
 | postnl_qr | zpl | 0.00 | 5.0 | Perfect |
 | qr_ft_600 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
 | qr_ft_by100 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
@@ -92,7 +92,7 @@ informational.
 | aztec_ec | zpl | 6.82 | 7.5 | Aztec barcode encoding (correct symbol size, different internal patterns from rxing) |
 | barcode128_default_width | zpl | 0.25 | 2.0 | Sub-pixel barcode bars |
 | barcode128_line | zpl | 0.23 | 2.0 | Sub-pixel |
-| barcode128_line_above | zpl | 0.27 | 2.0 | Sub-pixel |
+| barcode128_line_above | zpl | 0.28 | 2.0 | Sub-pixel |
 | barcode128_mode_a | zpl | 0.25 | 2.0 | Sub-pixel |
 | barcode128_mode_d | zpl | 0.25 | 2.0 | Sub-pixel barcode bars |
 | barcode128_mode_n | zpl | 0.25 | 2.0 | Sub-pixel |
@@ -100,18 +100,18 @@ informational.
 | barcode128_mode_u | zpl | 0.25 | 2.0 | Font metrics |
 | barcode128_rotated | zpl | 0.24 | 2.0 | Sub-pixel |
 | bstc | zpl | 0.00 | 1.0 | Perfect |
-| dbs | zpl | 1.87 | 5.0 | Font metrics |
-| dhlecommercetr | zpl | 2.53 | 4.5 | Font metrics |
+| dbs | zpl | 1.88 | 5.0 | Font metrics |
+| dhlecommercetr | zpl | 1.91 | 2.5 | Font metrics |
 | dhlpaket | zpl | 1.15 | 3.5 | Font metrics |
-| dhlparceluk | zpl | 3.27 | 4.5 | Font metrics (rotated I/B pen-anchor offset fixed) |
-| dpdpl | zpl | 5.13 | 7.5 | Font metrics |
-| dpduk | epl | 4.20 | 6.5 | EPL reference from Go renderer |
+| dhlparceluk | zpl | 3.28 | 4.5 | Font metrics (rotated I/B pen-anchor offset fixed) |
+| dpdpl | zpl | 4.99 | 7.5 | Font metrics |
+| dpduk | epl | 4.11 | 6.5 | EPL reference from Go renderer |
 | epl2_showcase | epl | 0.45 | 2.0 | Renderer baseline reference (Labelary has no EPL) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
-| edi_triangle | zpl | 0.03 | 2.0 | Sub-pixel |
+| edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.42 | 2.5 | Character encoding |
 | fedex | zpl | 4.48 | 7.0 | PDF417 encoding + font |
-| fedex_express | zpl | 6.24 | 7.0 | PDF417 encoding + font |
+| fedex_express | zpl | 6.29 | 7.0 | PDF417 encoding + font |
 | fedex_ground | zpl | 4.93 | 6.0 | PDF417 encoding + font |
 | font_p | zpl | 0.17 | 1.0 | Bitmap font P (20x18 base, DejaVu Mono Bold substitute) |
 | font_q | zpl | 0.18 | 1.0 | Bitmap font Q (28x24 base, DejaVu Mono Bold substitute) |
@@ -128,41 +128,41 @@ informational.
 | gd_thick | zpl | 0.08 | 1.0 | Diagonal rendering |
 | gd_thin_l | zpl | 0.03 | 1.0 | Sub-pixel |
 | gd_thin_r | zpl | 0.03 | 1.0 | Sub-pixel |
-| glscz | zpl | 1.62 | 3.5 | Font metrics |
-| glsdk_return | zpl | 2.82 | 5.5 | DataMatrix + font metrics |
+| glscz | zpl | 1.58 | 3.5 | Font metrics |
+| glsdk_return | zpl | 2.64 | 5.5 | DataMatrix + font metrics |
 | gs | zpl | 1.14 | 2.0 | Graphic symbol font |
-| icapaket | zpl | 3.06 | 5.5 | Font metrics |
+| icapaket | zpl | 3.10 | 5.5 | Font metrics |
 | jcpenney | zpl | 2.64 | 6.0 | Font metrics |
 | kmart | zpl | 3.82 | 8.0 | Font metrics |
-| labelary | zpl | 1.84 | 4.5 | Font metrics + Code128 |
-| pnldpd | zpl | 7.38 | 11.5 | Aztec + font metrics |
-| pocztex | zpl | 2.19 | 4.5 | Font metrics |
-| porterbuddy | zpl | 5.64 | 7.0 | QR code + font metrics |
-| posten | zpl | 0.79 | 3.0 | Font metrics |
+| labelary | zpl | 1.86 | 4.5 | Font metrics + Code128 |
+| pnldpd | zpl | 7.15 | 11.5 | Aztec + font metrics |
+| pocztex | zpl | 2.18 | 4.5 | Font metrics |
+| porterbuddy | zpl | 5.65 | 7.0 | QR code + font metrics |
+| posten | zpl | 0.80 | 3.0 | Font metrics |
 | qr_code_ft_manual | zpl | 0.29 | 1.0 | Perfect |
 | qr_code_offset | zpl | 0.00 | 1.0 | Perfect |
-| return_qrcode | zpl | 1.96 | 4.0 | QR + font |
-| reverse | zpl | 0.25 | 1.5 | Sub-pixel |
+| return_qrcode | zpl | 2.01 | 4.0 | QR + font |
+| reverse | zpl | 0.30 | 1.5 | Sub-pixel |
 | reverse_qr | zpl | 0.12 | 1.5 | QR barcode |
-| swisspost | zpl | 1.01 | 2.5 | Font metrics |
+| swisspost | zpl | 0.71 | 1.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
-| text_fallback_default | zpl | 2.03 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
-| dein_ticket_packliste | zpl | 1.21 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
-| text_fo_b | zpl | 0.03 | 1.0 | Sub-pixel |
-| text_fo_i | zpl | 0.07 | 1.0 | Sub-pixel |
-| text_fo_n | zpl | 0.03 | 1.0 | Sub-pixel |
-| text_fo_r | zpl | 0.06 | 1.0 | Sub-pixel |
+| text_fallback_default | zpl | 2.05 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
+| dein_ticket_packliste | zpl | 1.23 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
+| text_fo_b | zpl | 0.05 | 1.0 | Sub-pixel |
+| text_fo_i | zpl | 0.05 | 1.0 | Sub-pixel |
+| text_fo_n | zpl | 0.02 | 1.0 | Sub-pixel |
+| text_fo_r | zpl | 0.02 | 1.0 | Sub-pixel |
 | text_ft_auto_pos | zpl | 0.39 | 2.5 | Auto-position cursor |
 | text_ft_b | zpl | 0.01 | 1.0 | Sub-pixel |
 | text_ft_i | zpl | 0.01 | 1.0 | Sub-pixel |
-| text_ft_n | zpl | 0.05 | 1.0 | Sub-pixel |
-| text_ft_r | zpl | 0.06 | 1.0 | Sub-pixel |
+| text_ft_n | zpl | 0.02 | 1.0 | Sub-pixel |
+| text_ft_r | zpl | 0.02 | 1.0 | Sub-pixel |
 | text_multiline | zpl | 0.24 | 1.5 | Word-wrap boundaries |
-| thick_rotated_fb_text | zpl | 0.16 | 1.0 | Rotated ^FB font-0 text (overlay now blends alpha; was stamped full-black AA skirt) |
+| thick_rotated_fb_text | zpl | 0.12 | 1.0 | Rotated ^FB font-0 text (overlay now blends alpha; was stamped full-black AA skirt) |
 | ups | zpl | 3.16 | 8.0 | MaxiCode + font metrics |
 | ups_import_control | zpl | 3.89 | 4.5 | MaxiCode + font metrics |
 | ups_surepost | zpl | 4.00 | 10.0 | MaxiCode + font metrics |
-| usps | zpl | 2.72 | 5.0 | Font metrics + ® superscript glyph |
+| usps | zpl | 2.71 | 5.0 | Font metrics + ® superscript glyph |
 | tnt_express | zpl | 2.87 | 5.0 | Font metrics + PDF417 |
 | royalmail | zpl | 1.72 | 4.5 | QR code + font metrics |
 | canadapost | zpl | 2.39 | 5.0 | QR code + PDF417 + font |
@@ -181,11 +181,11 @@ informational.
 | yodel | zpl | 1.95 | 4.5 | QR code + font metrics |
 | dhl_express | zpl | 1.26 | — | Font metrics (A0 font) |
 | dhl_home_delivery | zpl | 1.84 | — | ^GFA logo + font metrics |
-| usps_apo | zpl | 4.37 | 4.5 | Font metrics (rotated I/B pen-anchor fixed; residual = glyph weight + 1-bit AA fringe + #64 cap-top unclipping across the ~70 ^A0B fields) |
+| usps_apo | zpl | 2.85 | 3.5 | Font metrics (rotated I/B pen-anchor fixed; glyph-top re-anchored to Labelary after #64 unclipping; residual = glyph weight + 1-bit AA fringe) |
 | usps_intl | zpl | 2.46 | 4.0 | Font metrics (^POI rotated text) |
 | usps_priority_mail | zpl | 0.32 | — | Font metrics (^FB centered) |
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
-| cjk_font0_ci28 | zpl | 0.10 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Roboto Condensed metrics on the Latin prefix |
+| cjk_font0_ci28 | zpl | 0.11 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Roboto Condensed metrics on the Latin prefix |
 | font0_latin_ext_a | zpl | 0.21 | 1.0 | Issue #65: font-0 Latin Extended-A glyphs Labelary renders (Ă ă Đ đ Ţ ţ) drawn with the Roboto Condensed subset; Ș ș Ț ț Ħ ħ stay blank with calibrated advance on both sides |
 
 ## Known Limitations
