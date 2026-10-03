@@ -464,6 +464,21 @@ impl Renderer {
             } else {
                 ox
             };
+            // #64's unclipping exposed (and probe-measured against Labelary at
+            // 12–90 pt confirmed) a glyph-top anchor debt on rotated font-0
+            // plain text: the glyph sits 1–4 px toward its cap side depending
+            // on orientation — R +3..4 px along +x, I 3 px along +y, B 1..2 px
+            // along −x. Shift each orientation back along its top axis.
+            let (ox, oy) = if f0 && text.block.is_none() {
+                match orientation {
+                    FieldOrientation::Rotated90 => (ox - 3.0, oy),
+                    FieldOrientation::Rotated180 => (ox, oy - 3.0),
+                    FieldOrientation::Rotated270 => (ox + 2.0, oy),
+                    _ => (ox, oy),
+                }
+            } else {
+                (ox, oy)
+            };
 
             overlay_at(canvas, &rotated, ox as i32, oy as i32);
         }

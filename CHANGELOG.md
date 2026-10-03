@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rotated orientations. Uncovering the previously clipped cap tops also reveals
   a pre-existing 1–2 px vertical offset of rotated fields vs Labelary; golden
   diffs worsen by at most 0.14 pp per label and stay within tolerance.
+- **Rotated font-0 glyphs re-anchored to Labelary** — probe renders at 12–90 pt
+  measured rotated font-0 plain text sitting 1–4 px toward its cap side
+  (`^A0R` +3..4 px along +x, `^A0I` 3 px along +y, `^A0B` 1..2 px along −x);
+  the debt predates the headroom fix but its cost was masked by the clipping.
+  A per-orientation overlay correction on plain text removes it: usps_apo
+  4.37 → 2.85 %, dhlparcelit 3.18 → 1.93 %, dhlecommercetr 2.91 → 1.91 %,
+  swisspost 1.21 → 0.71 %, and nine further labels improve with no label
+  regressing beyond 0.05 pp.
 
 ## [1.6.0] - 2026-09-21
 
