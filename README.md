@@ -44,7 +44,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 🖨️ **38+ ZPL commands** — text & fonts, 12 barcode symbologies (Code 128, EAN-13/8, UPC-A/E, Code 39, Interleaved 2-of-5, PDF417, Aztec, DataMatrix, QR, MaxiCode), boxes/circles/diagonals/ellipses, graphic fields, stored formats (`^DF`/`^XF`), label rotation & inversion
 - 🏷️ **EPL2 support** — text, the full 1D/2D barcode command set (`B`/`b`), lines, diagonals, boxes, binary graphics (`GW`)
 - 🖼️ **PNG & PDF output** — thermal-faithful 1-bit monochrome by default, optional antialiased greyscale
-- 🔤 **Embedded fonts** — zero runtime font dependencies (Helvetica Bold Condensed, DejaVu Sans Mono, ZPL GS)
+- 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
 - 🧪 **124 golden-file E2E tests** against Labelary reference renders on every push
 

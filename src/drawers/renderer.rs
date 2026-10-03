@@ -18,7 +18,7 @@ use crate::images;
 
 use super::drawer_state::DrawerState;
 
-static FONT_HELVETICA: &[u8] = crate::assets::FONT_HELVETICA_BOLD;
+static FONT_ZERO: &[u8] = crate::assets::FONT_ZERO_SUBSTITUTE;
 static FONT_DEJAVU_MONO: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO;
 static FONT_DEJAVU_BOLD: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO_BOLD;
 static FONT_GS: &[u8] = crate::assets::FONT_ZPL_GS;
@@ -233,9 +233,19 @@ impl Renderer {
         let is_font1 = text.font.name == "1";
         let line_height_factor: f32 = if is_font1 {
             crate::tuning::FONT1_LINE_HEIGHT as f32
+        } else if f0 {
+            crate::tuning::FONT0_LINE_HEIGHT as f32
         } else {
             1.0
         };
+        // Font 0's substitute needs a cap-height correction like the bitmap
+        // fonts (see tuning::FONT0_CAP_SCALE): inflate the em so caps land at
+        // 0.75 of the cell, matching Labelary. The font-0 constants expressed
+        // in scaled-em units (advance deltas, missing-glyph advance, the
+        // size-proportional pen offset) already account for this factor.
+        if f0 {
+            scale.y = font_size * crate::tuning::FONT0_CAP_SCALE as f32;
+        }
         let cap_scale: f32 = if text.font.name == "B" {
             1.59
         } else if is_pv {
@@ -362,7 +372,10 @@ impl Renderer {
             } else {
                 let w = (text_width as f32).ceil() as u32 + 2;
                 // Use scale.y (may be larger than font_size for bitmap fonts) for buffer height.
-                let h = scale.y.ceil() as u32 + 2;
+                // Rotated font 0 keeps the cell-height buffer the rotated anchors were
+                // calibrated with — the cap-scaled em would shift the ink 0.37 em after
+                // the flip (see the pen bias below).
+                let h = if f0 { font_size } else { scale.y }.ceil() as u32 + 2;
                 (w, h)
             };
 
@@ -387,13 +400,24 @@ impl Renderer {
                     line_height_factor,
                 );
             } else {
+                // Rotated font 0: place the ink where the previous substitute's
+                // calibration put it (ink top at −0.8 − 0.02·cell), undoing the
+                // cap-scale gap so the rotation anchors reproduce the old geometry.
+                // The headroom offset keeps that above-origin ink — and any
+                // diacritics rising above it — inside the buffer instead of
+                // clipping it at the top edge.
+                let pen_y = if f0 {
+                    headroom as f32 - 1.0 - 0.0253 * font_size
+                } else {
+                    headroom as f32
+                };
                 draw_text_with_superscript(
                     &mut buf,
                     &font,
                     scale,
                     color,
                     pen_x_offset,
-                    headroom as f32,
+                    pen_y,
                     &drawn_text,
                     f0,
                 );
@@ -1131,14 +1155,14 @@ impl Renderer {
 
 fn get_ttf_font_data(name: &str) -> &'static [u8] {
     match name {
-        "0" => FONT_HELVETICA,
+        "0" => FONT_ZERO,
         "B" | "D" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" => FONT_DEJAVU_BOLD,
         "GS" => FONT_GS,
         _ => FONT_DEJAVU_MONO,
     }
 }
 
-/// Scalable font 0 only: true when the Helvetica substitute has no glyph for
+/// Scalable font 0 only: true when the font-0 substitute has no glyph for
 /// a character (multi-byte CJK text decoded via ^CI28 etc.). Like Labelary,
 /// these render as blank space — no .notdef box — while the pen still
 /// advances by [`crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM`].
@@ -1803,12 +1827,16 @@ fn draw_barcode_interpretation_line(
     ucc_ean_font: bool,
 ) {
     // Code 128 mode D (UCC/EAN) uses a larger condensed bold interpretation font,
-    // matching Labelary (~14×module ink height, ~7×module per-char advance).
-    // Other modes use the standard monospace font that scales with module width.
+    // matching Labelary. Reference probe (code128_mode_d_fnc1 at module 2):
+    // paren-inclusive ink band ~29px tall, digit pitch ~15.7px. The Roboto
+    // substitute renders the paren band at 0.7055 em (hhea-normalized), giving
+    // the 20.55×module size; its digit pitch lands within ~13% of Labelary's,
+    // absorbed by the centered layout. Other modes use the standard monospace
+    // font that scales with module width.
     let (font_data, font_size) = if ucc_ean_font {
         (
-            FONT_HELVETICA,
-            (module_width.max(1) as f32 * 14.3).clamp(14.0, 96.0),
+            FONT_ZERO,
+            (module_width.max(1) as f32 * 20.55).clamp(21.0, 140.0),
         )
     } else {
         (
@@ -1826,9 +1854,17 @@ fn draw_barcode_interpretation_line(
         x: font_size,
         y: font_size,
     };
-    // Helvetica's ink starts at the buffer top, unlike DejaVu which has ~3px
-    // top padding — push the UCC/EAN text down to match Labelary's line position.
-    let text_y_off: i32 = if ucc_ean_font { 4 } else { 0 };
+    // Where the ink top sits inside the draw buffer, relative to the pen origin
+    // ab_glyph uses: the old Helvetica substitute's cap equaled its ascent, so ink
+    // started at the
+    // buffer top (plus the 4px Labelary line gap); Roboto's cap sits 0.243 em
+    // below its ascent, so the offset compensates to keep the same 4px gap.
+    let ink_top_off: f32 = if ucc_ean_font {
+        4.0 - 0.2429 * font_size
+    } else {
+        0.0
+    };
+    let text_y_off: i32 = ink_top_off.round() as i32;
 
     // Strip control characters (like FNC1 escape) from display text
     let display: String = text
@@ -1888,19 +1924,30 @@ fn draw_barcode_interpretation_line(
         FieldOrientation::Normal => {
             let cx = pos.x + (bw - text_width as i32) / 2;
             let ty = if line_above {
-                pos.y - font_size as i32 - 2 - text_y_off
+                // ink bottom (4 + 0.706 em of parens/digits) must sit ~2px above
+                // the barcode top, mirroring the 4px gap of the below case
+                pos.y - (4.0 + 0.706 * font_size) as i32 - 4
             } else {
                 pos.y + bh + 2
             };
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
-            let buf_h = font_size.ceil() as u32 + 2 + text_y_off as u32;
+            let buf_h = if ucc_ean_font {
+                // ink spans 4px gap + 0.706 em of paren extent
+                (4.0 + 0.72 * font_size).ceil() as u32 + 2
+            } else {
+                font_size.ceil() as u32 + 2
+            };
             let buf = render_text_crisp(buf_w, buf_h);
             overlay_at(canvas, &buf, cx, ty);
         }
         _ => {
             // Render text to buffer, rotate to match barcode orientation, then overlay
             let buf_w = (text_width.ceil() as u32).max(1) + 2;
-            let buf_h = font_size.ceil() as u32 + 2 + text_y_off as u32;
+            let buf_h = if ucc_ean_font {
+                (4.0 + 0.72 * font_size).ceil() as u32 + 2
+            } else {
+                font_size.ceil() as u32 + 2
+            };
             let buf = render_text_crisp(buf_w, buf_h);
 
             let rotated = match orientation {

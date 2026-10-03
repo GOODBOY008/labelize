@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Unlicensed font-0 substitute replaced with open-source Roboto Condensed (#65)** —
+  the embedded Helvetica Bold Condensed traced back to Adobe's proprietary face
+  (ADBE vendor ID, byte-identical glyph metrics after a FontForge rename), so
+  every distributed package carried an unlicensed font. Font 0 is now a 40 KB
+  Apache-2.0 Roboto Condensed Bold subset, re-calibrated to Labelary
+  (`FONT0_CAP_SCALE` 1.3913, advance table refit) and extended with the six
+  Latin Extended-A glyphs Labelary renders (`Ă ă Đ đ Ţ ţ`) — fixing the blank
+  gaps in Croatian/Serbian/Romanian surnames (#65).
 - **Diacritics no longer clipped in rotated text fields (#63)** — marks that rise
   above the font ascent (the dots on `Ä`/`Ö`/`Ü`) now render in `^A0R`/`^A0I`/
   `^A0B` fields just as they do in `^A0N`. The off-screen buffer used for

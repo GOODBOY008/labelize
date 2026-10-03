@@ -200,9 +200,9 @@ impl FontInfo {
             // scale.x and scale.x = ratio × w, so ratio ≈ 1.17/0.518.
             crate::tuning::FONT1_RATIO
         } else if self.name == "0" {
-            // Zebra font 0 (smooth scalable) width-to-height ratio. Our Helvetica Bold
-            // substitute runs narrower than Zebra's CG Triumvirate, so glyph shapes need
-            // widening; per-character spacing is corrected separately by
+            // Zebra font 0 (smooth scalable) width-to-height ratio. The Roboto Condensed
+            // Bold substitute's outline widths are fitted to Labelary's font-0 ink via
+            // this ratio; per-character spacing is corrected separately by
             // `tuning::font0_advance_delta`. See `tuning::FONT0_RATIO` for the calibration.
             crate::tuning::FONT0_RATIO
         } else if self.name == "D" {

@@ -32,3 +32,16 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 SPDX-License-Identifier: BSD-3-Clause
+
+## Roboto Condensed (font 0 substitute)
+
+`src/assets/fonts/RobotoCondensedBoldFont0.ttf` is Roboto Condensed Bold,
+Copyright 2015 Google Inc. All Rights Reserved., licensed under the Apache
+License 2.0 (full text in `licenses/Roboto-Condensed-Apache2.txt`). The file
+was subset with fontTools to the font-0 character set plus the Latin
+Extended-A glyphs Labelary renders (issue #65) and is embedded via
+`include_bytes!`.
+
+It replaces the previous `HelveticaBoldCondensedCustom.ttf`, which traced back
+to Adobe's proprietary Helvetica Condensed Bold (vendor `ADBE` copyright
+string preserved in its name table) and had no redistributable license.
