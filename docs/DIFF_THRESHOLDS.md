@@ -77,7 +77,7 @@ informational.
 | maxicode_mode4 | zpl | 0.58 | 1.0 | MaxiCode mode 4 module placement |
 | mu_dpi_conversion | zpl | 0.05 | 2.0 | ^MU dpi conversion + font metrics |
 | mu_millimeters | zpl | 3.20 | 8.0 | ^MU millimeter units + font metrics |
-| pdf417_basic | zpl | 0.29 | 1.0 | PDF417 compaction mode selection |
+| pdf417_basic | zpl | 0.00 | 0.5 | Byte-identical to Labelary after compaction match |
 | posteit | zpl | 2.62 | 7.5 | ^GFA Z64 logo + DataMatrix + font metrics |
 | postnl_qr | zpl | 0.00 | 5.0 | Perfect |
 | qr_ft_600 | zpl | 0.47 | 1.0 | QR render with ^FT positioning |
@@ -106,13 +106,13 @@ informational.
 | dhlparceluk | zpl | 3.28 | 4.5 | Font metrics (rotated I/B pen-anchor offset fixed) |
 | dpdpl | zpl | 4.07 | 5.5 | Font metrics |
 | dpduk | epl | 3.79 | 6.5 | EPL reference from Go renderer |
-| epl2_showcase | epl | 0.45 | 2.0 | Renderer baseline reference (Labelary has no EPL) |
+| epl2_showcase | epl | 0.00 | 1.5 | Renderer baseline reference (Labelary has no EPL); ECC auto table per EPL2 manual |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.42 | 2.5 | Character encoding |
-| fedex | zpl | 4.49 | 7.0 | PDF417 encoding + font |
-| fedex_express | zpl | 6.07 | 7.0 | PDF417 encoding + font |
-| fedex_ground | zpl | 4.94 | 6.0 | PDF417 encoding + font |
+| fedex | zpl | 2.06 | 4.0 | PDF417 compaction now matches reference; font floor |
+| fedex_express | zpl | 3.31 | 5.0 | PDF417 compaction now matches reference; font floor |
+| fedex_ground | zpl | 2.53 | 4.5 | PDF417 compaction now matches reference; font floor |
 | font_p | zpl | 0.17 | 1.0 | Bitmap font P (20x18 base, DejaVu Mono Bold substitute) |
 | font_q | zpl | 0.18 | 1.0 | Bitmap font Q (28x24 base, DejaVu Mono Bold substitute) |
 | font_r | zpl | 0.44 | 1.0 | Bitmap font R (35x31 base, DejaVu Mono Bold substitute) |
@@ -163,19 +163,19 @@ informational.
 | ups_import_control | zpl | 3.44 | 4.5 | MaxiCode + font metrics |
 | ups_surepost | zpl | 3.60 | 10.0 | MaxiCode + font metrics |
 | usps | zpl | 2.59 | 5.0 | Font metrics + ® superscript glyph |
-| tnt_express | zpl | 2.74 | 5.0 | Font metrics + PDF417 |
+| tnt_express | zpl | 1.82 | 3.5 | Font metrics (PDF417 now matches reference) |
 | royalmail | zpl | 1.64 | 4.5 | QR code + font metrics |
-| canadapost | zpl | 2.29 | 5.0 | QR code + PDF417 + font |
+| canadapost | zpl | 1.98 | 3.5 | QR code + font (PDF417 now matches reference) |
 | auspost | zpl | 2.04 | 5.0 | QR code + font metrics |
 | colissimo | zpl | 2.20 | 4.5 | DataMatrix + font metrics |
 | postnl | zpl | 1.91 | 5.0 | QR code + font metrics |
 | bpost | zpl | 1.94 | 4.5 | QR code + font metrics |
 | correos | zpl | 2.00 | 5.0 | QR code + font metrics |
-| dbschenker | zpl | 2.83 | 5.5 | PDF417 + font metrics |
+| dbschenker | zpl | 2.21 | 4.0 | Font metrics (PDF417 now matches reference) |
 | evri | zpl | 1.52 | 4.5 | QR code + font metrics |
-| dpdde | zpl | 2.61 | 4.5 | PDF417 + font metrics |
+| dpdde | zpl | 2.00 | 3.5 | Font metrics (PDF417 now matches reference) |
 | ontrac | zpl | 1.97 | 4.5 | QR code + font metrics |
-| seur | zpl | 2.48 | 4.5 | PDF417 + font metrics |
+| seur | zpl | 1.94 | 3.5 | Font metrics (PDF417 now matches reference) |
 | purolator | zpl | 2.08 | 4.0 | DataMatrix + font metrics |
 | inpost | zpl | 3.11 | 5.5 | QR code + font metrics |
 | yodel | zpl | 1.86 | 4.5 | QR code + font metrics |
@@ -201,13 +201,14 @@ with Labelary's secondary-message Set-switching heuristic diverging from our
 greedy Set-A-first one on the same (spec-valid) input.
 
 ### PDF417 (fedex, fedex_express, fedex_ground, dbschenker, dpdde, seur, tnt_express)
-The `pdf417` crate produces **valid, scannable** barcodes, but the specific
-codeword arrangement differs from Labelary's encoder. Both are correct per the
-ISO 15438 specification; different encoders may choose different text/byte/numeric
-compaction modes resulting in visually different (but equivalent) barcodes.
-`fedex_express`/`fedex_ground` use identical `^B7` parameters to `fedex` — their
-slightly higher diff (~5.5-6.2% vs ~4.9%) is because their secondary message is
-longer, so a larger fraction of the label is barcode area exposed to this mismatch.
+The PDF417 pipeline (`src/barcodes/pdf417_encoding.rs`) reproduces the reference
+renderer's compaction segment-for-segment: ISO/IEC 15438 text sub-mode switching,
+numeric compaction for medium digit runs, byte-run absorption of short blocks, and
+the exact descriptor/padding/RS-ECC assembly (verified codeword-identical on the
+fedex secondary-message symbol and byte-identical on `pdf417_basic`). Residual
+diff on these labels is the font-metrics floor, not the barcode. The automatic
+column count for `^B7` without a `columns` parameter is the classic near-cubic
+sqrt rule and can still differ from the reference on auto-sized symbols.
 
 ### Aztec (aztec_ec, pnldpd)
 The `rxing` crate's Aztec writer produces proper Aztec codes. Minor differences
