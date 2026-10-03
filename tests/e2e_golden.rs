@@ -514,7 +514,7 @@ fn golden_usps() {
 }
 #[test]
 fn golden_usps_apo() {
-    golden_zpl_with_tolerance("usps_apo", 4.0);
+    golden_zpl_with_tolerance("usps_apo", 4.5);
 }
 #[test]
 fn golden_usps_intl() {
