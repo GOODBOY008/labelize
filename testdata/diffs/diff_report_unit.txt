@@ -31,6 +31,7 @@
 ║ empty_barcodes                 │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ encodings_013                  │ zpl  │    1.42% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fo_lenient_coord               │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font0_latin_ext_a              │ zpl  │    0.21% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_p                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_q                         │ zpl  │    0.18% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_r                         │ zpl  │    0.44% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -84,5 +85,5 @@
 ║ usps_priority_mail             │ zpl  │    0.45% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 80 total │ 9 perfect │ 60 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 81 total │ 9 perfect │ 61 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

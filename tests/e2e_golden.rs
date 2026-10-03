@@ -726,6 +726,15 @@ fn golden_cjk_font0_ci28() {
     golden_zpl_with_tolerance("cjk_font0_ci28", 1.0);
 }
 
+/// Issue #65 regression: font 0 must render the Latin Extended-A glyphs
+/// Labelary's substitute has (Ă ă Đ đ Ţ ţ — Croatian/Serbian/Bosnian/
+/// Romanian surnames), while glyphs Labelary also lacks (Ș ș Ț ț Ħ ħ)
+/// stay blank with the calibrated advance on both sides.
+#[test]
+fn golden_font0_latin_ext_a() {
+    golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
+}
+
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]
