@@ -33,6 +33,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   4.37 → 2.85 %, dhlparcelit 3.18 → 1.93 %, dhlecommercetr 2.91 → 1.91 %,
   swisspost 1.21 → 0.71 %, and nine further labels improve with no label
   regressing beyond 0.05 pp.
+- **Font-0 advance deltas now scale with the cell width ratio** — the additive
+  per-character deltas (and the missing-glyph advance) were calibrated in
+  y-scaled em at cells where `^A0` height equals width, but were applied
+  unscaled on the horizontal axis while the glyph's own hmtx advance scales
+  with `scale.x ∝ w/h`. On cells whose width differs from height
+  (`^A0,60,35` …) every character then drifted against Labelary by a
+  fraction of the delta, accumulating over long lines. Scaling the deltas by
+  `w/h` (a no-op when width == height) fixes the drift: dpdpl 4.99 → 4.07 %,
+  kmart 3.82 → 3.40 %, ups_import_control 3.89 → 3.44 %, ups_surepost
+  4.00 → 3.60 %, jcpenney −0.27 pp and 20 further labels improve; no label
+  regresses beyond +0.05 pp.
 
 ## [1.6.0] - 2026-09-21
 
