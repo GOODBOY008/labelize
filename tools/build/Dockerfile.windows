@@ -1,0 +1,30 @@
+# Docker-Image zum Cross-Kompilieren von labelize für Windows (x86_64-pc-windows-gnu)
+FROM rust:1.89-bookworm
+
+# Installiere Windows-Cross-Compiler und nötige Build-Tools
+RUN apt-get update && apt-get install -y \
+    mingw-w64 \
+    cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# Füge das Windows-Target hinzu
+RUN rustup target add x86_64-pc-windows-gnu
+
+# Cargo-Konfiguration für den Windows-Linker
+RUN printf '[target.x86_64-pc-windows-gnu]\nlinker = "x86_64-w64-mingw32-gcc"\n' > /usr/local/cargo/config.toml
+
+# Arbeitsverzeichnis
+WORKDIR /app
+
+# Cache-Layer für Cargo-Abhängigkeiten
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && echo 'fn main() {}' > src/main.rs
+RUN cargo build --release --target x86_64-pc-windows-gnu --features cli || true
+
+# Quellcode kopieren und bauen
+COPY . .
+RUN cargo build --release --target x86_64-pc-windows-gnu --features cli
+
+# Ausgabe-Ordner vorbereiten
+RUN mkdir -p /output && \
+    cp /app/target/x86_64-pc-windows-gnu/release/labelize.exe /output/labelize.exe
