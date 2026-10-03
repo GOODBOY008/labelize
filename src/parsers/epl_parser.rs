@@ -794,7 +794,9 @@ fn parse_epl_2d_barcode(
                     })
                 }
                 "P" => {
-                    let mut security = 0i32;
+                    // -1 = "s" omitted: the encoder auto-selects the EC level
+                    // from the codeword count (EPL2 manual, "b" PDF417 options)
+                    let mut security = -1i32;
                     let mut module_width = 6i32; // manual: auto selects 6
                     let mut row_height = 0i32;
                     let mut rows = 0i32;

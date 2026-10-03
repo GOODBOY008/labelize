@@ -9,25 +9,25 @@
 ║ bpost                          │ zpl  │    1.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ brtit                          │ zpl  │    1.31% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ bstc                           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
-║ canadapost                     │ zpl  │    2.29% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ canadapost                     │ zpl  │    1.98% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ colissimo                      │ zpl  │    2.20% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ correos                        │ zpl  │    2.00% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dbs                            │ zpl  │    1.88% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dbschenker                     │ zpl  │    2.83% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dbschenker                     │ zpl  │    2.21% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhl_express                    │ zpl  │    1.43% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhl_home_delivery              │ zpl  │    1.97% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlecommercetr                 │ zpl  │    1.89% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlpaket                       │ zpl  │    1.15% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparcelit                    │ zpl  │    1.85% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparceluk                    │ zpl  │    3.28% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dpdde                          │ zpl  │    2.61% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dpdde                          │ zpl  │    2.00% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdpl                          │ zpl  │    4.07% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpduk                          │ epl  │    3.79% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ epl2_showcase                  │ epl  │    0.45% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ epl2_showcase                  │ epl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ evri                           │ zpl  │    1.52% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ fedex                          │ zpl  │    4.49% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ fedex_express                  │ zpl  │    6.07% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
-║ fedex_ground                   │ zpl  │    4.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ fedex                          │ zpl  │    2.06% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ fedex_express                  │ zpl  │    3.31% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ fedex_ground                   │ zpl  │    2.53% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ glscz                          │ zpl  │    1.52% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ glsdk_return                   │ zpl  │    2.51% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ icapaket                       │ zpl  │    3.10% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -44,9 +44,9 @@
 ║ postnl                         │ zpl  │    1.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ purolator                      │ zpl  │    2.08% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ royalmail                      │ zpl  │    1.64% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ seur                           │ zpl  │    2.48% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ seur                           │ zpl  │    1.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ swisspost                      │ zpl  │    0.71% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ tnt_express                    │ zpl  │    2.74% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ tnt_express                    │ zpl  │    1.82% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups                            │ zpl  │    2.90% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups_import_control             │ zpl  │    3.44% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups_surepost                   │ zpl  │    3.60% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -55,5 +55,5 @@
 ║ usps_intl                      │ zpl  │    2.46% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    1.86% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 51 total │ 1 perfect │ 3 good │ 44 minor │ 3 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 51 total │ 2 perfect │ 2 good │ 45 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
