@@ -26,15 +26,20 @@ exclude = [
 
 [dependencies]
 image = "0.25"
-imageproc = "0.26"
+imageproc = "0.27"
 ab_glyph = "0.2"
 thiserror = "2"
-lopdf = "0.40"
+lopdf = "0.45"
 flate2 = "1"
-base64 = "0.22"
+base64 = "0.23"
 datamatrix = "0.3"
 qrcode = "0.14"
-rxing = { version = "0.8", default-features = false, features = ["encoding_rs"] }
+rxing = { version = "0.9", default-features = false, features = [
+    "encoding_rs",
+    "encoders",
+    "aztec",
+    "pdf417",
+] }
 
 # Optional — CLI
 clap = { version = "4", features = ["derive"], optional = true }
@@ -58,4 +63,7 @@ required-features = ["cli"]
 [dev-dependencies]
 proptest = "1"
 reqwest = { version = "0.13", features = ["blocking"] }
-sha2 = "0.10"
+sha2 = "0.11"
+# Decoder stack is test-only (DataMatrix escape tests); kept out of the
+# production dependency so Android/WASM consumers don't compile it.
+rxing = { version = "0.9", default-features = false, features = ["decoders", "datamatrix"] }

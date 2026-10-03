@@ -22,7 +22,11 @@ fn cache_key(zpl: &str, dpmm: u8, width_inches: f64, height_inches: f64) -> Stri
     hasher.update(dpmm.to_le_bytes());
     hasher.update(width_inches.to_le_bytes());
     hasher.update(height_inches.to_le_bytes());
-    format!("{:x}", hasher.finalize())
+    hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect()
 }
 
 fn rate_limit() {
