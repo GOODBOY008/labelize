@@ -67,7 +67,3 @@ sha2 = "0.11"
 # Decoder stack is test-only (DataMatrix escape tests); kept out of the
 # production dependency so Android/WASM consumers don't compile it.
 rxing = { version = "0.9", default-features = false, features = ["decoders", "datamatrix"] }
-
-[[example]]
-name = "analyze_diff"
-required-features = ["skill"]
