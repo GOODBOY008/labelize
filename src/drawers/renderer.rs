@@ -1189,11 +1189,21 @@ fn font0_missing_glyph(font: &FontRef, c: char, f0: bool) -> bool {
 fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f32 {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
+    // The advance deltas (and the missing-glyph advance) are calibrated in
+    // y-scaled em at cells where the width parameter equals the height. The
+    // glyph's own hmtx advance scales with scale.x (∝ w/h); the additive
+    // deltas must scale with the same width ratio or narrow/wide cells
+    // (^A0,60,35 ...) drift per character against Labelary.
+    let width_ratio = if f0 {
+        (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
+    } else {
+        1.0
+    };
     let mut width = 0.0f32;
     let mut prev = None;
     for ch in text.chars() {
         if font0_missing_glyph(font, ch, f0) {
-            width += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y;
+            width += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y * width_ratio;
             // Nothing is drawn, so no kerning applies on either side —
             // matching imageproc's layout, which only kerns outlined glyphs.
             prev = None;
@@ -1205,7 +1215,7 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f
         }
         width += scaled.h_advance(glyph_id);
         if f0 {
-            width += crate::tuning::font0_advance_delta(ch) as f32 * scale.y;
+            width += crate::tuning::font0_advance_delta(ch) as f32 * scale.y * width_ratio;
         }
         prev = Some(glyph_id);
     }
@@ -1310,6 +1320,14 @@ fn draw_text_snapped(
         0.0
     };
     let scaled = font.as_scaled(scale);
+    // Same width-ratio scaling as measure_text_width: the additive font-0
+    // deltas are calibrated at width == height and must track the hmtx
+    // component's ∝(w/h) scaling on cells where the two parameters differ.
+    let width_ratio = if f0 {
+        (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
+    } else {
+        1.0
+    };
 
     let mut w = 0.0f32;
     let mut prev: Option<GlyphId> = None;
@@ -1319,7 +1337,7 @@ fn draw_text_snapped(
             // Blank like Labelary: no glyph is drawn and no kerning applies on
             // either side (imageproc only kerns outlined glyphs), but the pen
             // still advances by the calibrated missing-glyph width.
-            w += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y;
+            w += crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y * width_ratio;
             prev = None;
             continue;
         }
@@ -1328,7 +1346,7 @@ fn draw_text_snapped(
             glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
         w += scaled.h_advance(glyph_id);
         if f0 {
-            w += crate::tuning::font0_advance_delta(c) as f32 * scale.y;
+            w += crate::tuning::font0_advance_delta(c) as f32 * scale.y * width_ratio;
         }
         if let Some(g) = font.outline_glyph(glyph) {
             if let Some(prev_id) = prev {

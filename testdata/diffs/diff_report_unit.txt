@@ -53,7 +53,7 @@
 ║ maxicode_default_mode2         │ zpl  │    0.59% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ maxicode_mode4                 │ zpl  │    0.58% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ mu_dpi_conversion              │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ mu_millimeters                 │ zpl  │    3.30% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ mu_millimeters                 │ zpl  │    3.20% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ pdf417_basic                   │ zpl  │    0.29% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ postnl_qr                      │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ print_mirror                   │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
@@ -65,7 +65,7 @@
 ║ qr_ft_by100                    │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_test                     │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ return_qrcode                  │ zpl  │    2.01% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ reverse                        │ zpl  │    0.30% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ reverse                        │ zpl  │    0.25% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ reverse_qr                     │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ templating                     │ zpl  │    1.17% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ text_fallback_default          │ zpl  │    2.05% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -73,7 +73,7 @@
 ║ text_fo_i                      │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_fo_n                      │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_fo_r                      │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ text_ft_auto_pos               │ zpl  │    0.39% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ text_ft_auto_pos               │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_b                      │ zpl  │    0.01% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_i                      │ zpl  │    0.01% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_ft_n                      │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -82,7 +82,7 @@
 ║ thick_rotated_fb_text          │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ upce                           │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ ups_maxicode                   │ zpl  │    0.62% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ usps_priority_mail             │ zpl  │    0.45% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Summary: 81 total │ 9 perfect │ 61 good │ 9 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err

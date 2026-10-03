@@ -258,7 +258,7 @@ fn golden_dhlparceluk() {
 }
 #[test]
 fn golden_dpdpl() {
-    golden_zpl_with_tolerance("dpdpl", 7.5);
+    golden_zpl_with_tolerance("dpdpl", 5.5);
 }
 #[test]
 fn golden_ean13() {
@@ -366,7 +366,7 @@ fn golden_jcpenney() {
 }
 #[test]
 fn golden_kmart() {
-    golden_zpl_with_tolerance("kmart", 8.0);
+    golden_zpl_with_tolerance("kmart", 5.0);
 }
 #[test]
 fn golden_labelary() {
