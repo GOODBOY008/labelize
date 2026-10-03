@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Diacritics no longer clipped in rotated text fields (#63)** — marks that rise
+  above the font ascent (the dots on `Ä`/`Ö`/`Ü`) now render in `^A0R`/`^A0I`/
+  `^A0B` fields just as they do in `^A0N`. The off-screen buffer used for
+  rotated text gains one em of headroom above the ascent (with the overlay
+  shifted back for 270° fields), so `HÄM+ÖÜ` no longer renders as `HAM+OU` in
+  rotated orientations. Uncovering the previously clipped cap tops also reveals
+  a pre-existing 1–2 px vertical offset of rotated fields vs Labelary; golden
+  diffs worsen by at most 0.14 pp per label and stay within tolerance.
+
 ## [1.6.0] - 2026-09-21
 
 ### Added
