@@ -361,7 +361,7 @@ The following commands are currently implemented in this project:
 
 - **MaxiCode** (`^BD`): No compliant encoder; structural rendering only (~35% diff)
 - **PDF417** (`^B7`): Encoding gaps vs reference (~18% diff)
-- **Font metrics**: Helvetica Bold vs Zebra built-in fonts causes 2-7% typical diff
+- **Font metrics**: open-source font substitutes (Roboto Condensed / DejaVu) vs Zebra built-in fonts cause 2-7% typical diff
 - **`^LL` command**: Not parsed (label length)
 - **`^B9` with >7-digit data**: follows the UPC-E standard; Labelary's own
   zero-suppression of 11/12-digit input diverges from the standard

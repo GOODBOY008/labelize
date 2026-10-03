@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Unlicensed font-0 substitute replaced with open-source Roboto Condensed (#65)** —
+  the embedded Helvetica Bold Condensed traced back to Adobe's proprietary face
+  (ADBE vendor ID, byte-identical glyph metrics after a FontForge rename), so
+  every distributed package carried an unlicensed font. Font 0 is now a 40 KB
+  Apache-2.0 Roboto Condensed Bold subset, re-calibrated to Labelary
+  (`FONT0_CAP_SCALE` 1.3913, advance table refit) and extended with the six
+  Latin Extended-A glyphs Labelary renders (`Ă ă Đ đ Ţ ţ`) — fixing the blank
+  gaps in Croatian/Serbian/Romanian surnames (#65).
 - **Diacritics no longer clipped in rotated text fields (#63)** — marks that rise
   above the font ascent (the dots on `Ä`/`Ö`/`Ü`) now render in `^A0R`/`^A0I`/
   `^A0B` fields just as they do in `^A0N`. The off-screen buffer used for
@@ -17,6 +25,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rotated orientations. Uncovering the previously clipped cap tops also reveals
   a pre-existing 1–2 px vertical offset of rotated fields vs Labelary; golden
   diffs worsen by at most 0.14 pp per label and stay within tolerance.
+- **Rotated font-0 glyphs re-anchored to Labelary** — probe renders at 12–90 pt
+  measured rotated font-0 plain text sitting 1–4 px toward its cap side
+  (`^A0R` +3..4 px along +x, `^A0I` 3 px along +y, `^A0B` 1..2 px along −x);
+  the debt predates the headroom fix but its cost was masked by the clipping.
+  A per-orientation overlay correction on plain text removes it: usps_apo
+  4.37 → 2.85 %, dhlparcelit 3.18 → 1.93 %, dhlecommercetr 2.91 → 1.91 %,
+  swisspost 1.21 → 0.71 %, and nine further labels improve with no label
+  regressing beyond 0.05 pp.
+- **Font-0 advance deltas now scale with the cell width ratio** — the additive
+  per-character deltas (and the missing-glyph advance) were calibrated in
+  y-scaled em at cells where `^A0` height equals width, but were applied
+  unscaled on the horizontal axis while the glyph's own hmtx advance scales
+  with `scale.x ∝ w/h`. On cells whose width differs from height
+  (`^A0,60,35` …) every character then drifted against Labelary by a
+  fraction of the delta, accumulating over long lines. Scaling the deltas by
+  `w/h` (a no-op when width == height) fixes the drift: dpdpl 4.99 → 4.07 %,
+  kmart 3.82 → 3.40 %, ups_import_control 3.89 → 3.44 %, ups_surepost
+  4.00 → 3.60 %, jcpenney −0.27 pp and 20 further labels improve; no label
+  regresses beyond +0.05 pp.
 
 ## [1.6.0] - 2026-09-21
 

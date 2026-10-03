@@ -246,7 +246,7 @@ fn golden_dbs() {
 }
 #[test]
 fn golden_dhlecommercetr() {
-    golden_zpl_with_tolerance("dhlecommercetr", 4.5);
+    golden_zpl_with_tolerance("dhlecommercetr", 2.5);
 }
 #[test]
 fn golden_dhlpaket() {
@@ -258,7 +258,7 @@ fn golden_dhlparceluk() {
 }
 #[test]
 fn golden_dpdpl() {
-    golden_zpl_with_tolerance("dpdpl", 7.5);
+    golden_zpl_with_tolerance("dpdpl", 5.5);
 }
 #[test]
 fn golden_ean13() {
@@ -366,7 +366,7 @@ fn golden_jcpenney() {
 }
 #[test]
 fn golden_kmart() {
-    golden_zpl_with_tolerance("kmart", 8.0);
+    golden_zpl_with_tolerance("kmart", 5.0);
 }
 #[test]
 fn golden_labelary() {
@@ -434,7 +434,7 @@ fn golden_reverse() {
 }
 #[test]
 fn golden_swisspost() {
-    golden_zpl_with_tolerance("swisspost", 2.5);
+    golden_zpl_with_tolerance("swisspost", 1.5);
 }
 #[test]
 fn golden_templating() {
@@ -514,7 +514,7 @@ fn golden_usps() {
 }
 #[test]
 fn golden_usps_apo() {
-    golden_zpl_with_tolerance("usps_apo", 4.0);
+    golden_zpl_with_tolerance("usps_apo", 3.5);
 }
 #[test]
 fn golden_usps_intl() {
@@ -600,7 +600,7 @@ fn golden_pdf417_basic() {
 fn golden_dhlparcelit() {
     // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
     // Code128 barcodes, ^FH hex encoding
-    golden_zpl_with_tolerance("dhlparcelit", 3.5);
+    golden_zpl_with_tolerance("dhlparcelit", 2.5);
 }
 
 #[test]
@@ -724,6 +724,15 @@ fn golden_print_mirror_inverted() {
 #[test]
 fn golden_cjk_font0_ci28() {
     golden_zpl_with_tolerance("cjk_font0_ci28", 1.0);
+}
+
+/// Issue #65 regression: font 0 must render the Latin Extended-A glyphs
+/// Labelary's substitute has (Ă ă Đ đ Ţ ţ — Croatian/Serbian/Bosnian/
+/// Romanian surnames), while glyphs Labelary also lacks (Ș ș Ț ț Ħ ħ)
+/// stay blank with the calibrated advance on both sides.
+#[test]
+fn golden_font0_latin_ext_a() {
+    golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────
