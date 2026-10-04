@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.7.0] - 2026-10-04
+
+### Added
+
+- **`^PM` persistent label mirroring (#49)** — the mirror-image print mode now
+  persists across `^XA…^XZ` boundaries like Zebra firmware, with
+  `print_mirror` / `print_mirror_inverted` / `print_mirror_width` golden
+  fixtures rendering at 0.00 % diff.
+- **DataMatrix ECC 000-140 (Legacy) encoding (#57)** — all five Legacy
+  qualities, six formats, CRC, convolutional protection, randomization and
+  generated/cached placement for the 21 supported sizes; an omitted quality
+  remains ECC 000, explicit ECC 200 and EPL keep their own encoder paths.
+  Original and `^FH` field bytes are preserved through parsing, resets and
+  stored-format recalls; Legacy backslashes and pipes stay literal. Ported
+  from QR Atelier (MIT, attribution in `licenses/`), with fixed norm examples
+  and printer-grid test evidence.
 
 ### Fixed
 
@@ -17,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`FONT0_CAP_SCALE` 1.3913, advance table refit) and extended with the six
   Latin Extended-A glyphs Labelary renders (`Ă ă Đ đ Ţ ţ`) — fixing the blank
   gaps in Croatian/Serbian/Romanian surnames (#65).
+- **PDF417 compaction now matches the reference renderer** — the high-level
+  encoder is rewritten (`src/barcodes/pdf417_encoding.rs`) from the ZXing
+  heuristic to an ISO/IEC 15438 pipeline that reproduces the reference
+  segment-for-segment: block-smoothing Text/Byte/Numeric segmentation (numeric
+  compaction for medium digit runs, byte absorption of short blocks, leading
+  text blocks never demoted), text sub-mode latching, 901/913/924 byte rules,
+  base-900 numeric groups, and the descriptor/padding/row-indicator/cluster
+  assembly. `^B7` security level 0 is used verbatim; EPL `b … P` without `s`
+  auto-selects the EC level per the EPL2 manual. The isolated fedex
+  secondary-message symbol went from 36,500 diff px to 0 and `pdf417_basic`
+  is byte-identical to Labelary; fedex_express 6.24 → 3.31 %,
+  fedex_ground 5.45 → 2.53 %, fedex 4.85 → 2.06 %, dpdpl 5.60 → 4.07 % and
+  nine further labels improve with no tolerance regressions.
 - **Diacritics no longer clipped in rotated text fields (#63)** — marks that rise
   above the font ascent (the dots on `Ä`/`Ö`/`Ü`) now render in `^A0R`/`^A0I`/
   `^A0B` fields just as they do in `^A0N`. The off-screen buffer used for
@@ -44,6 +72,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kmart 3.82 → 3.40 %, ups_import_control 3.89 → 3.44 %, ups_surepost
   4.00 → 3.60 %, jcpenney −0.27 pp and 20 further labels improve; no label
   regresses beyond +0.05 pp.
+- **Cloudflare Worker after wasm-bindgen 0.2.129** — the glue rename
+  (`__wbindgen_cast_*` → `__wbindgen_generic_*`) is tracked in the worker's
+  hand-written shim list so deployments stay green across the dependency bump.
+
+### Changed
+
+- **Dependencies bumped (#62)** — imageproc 0.26 → 0.27, lopdf 0.40 → 0.45,
+  base64 0.23, rxing 0.9 (barcode decoders are now a feature-gated dev
+  dependency; adding new symbologies requires explicit features), sha2 0.11.
+  Rendered testdata is byte-identical.
+- **Font license attribution completed** — `THIRD_PARTY_LICENSES.md` now covers
+  DejaVu Sans Mono (full Bitstream Vera permission text reproduced in
+  `licenses/DejaVu-BitstreamVera.txt` from the embedded name table) and the
+  provenance of the FontForge-generated ZPL GS font; all four embedded fonts
+  are fsType-0 installable-embedding faces with redistributable licenses.
 
 ## [1.6.0] - 2026-09-21
 
