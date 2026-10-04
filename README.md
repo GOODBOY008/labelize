@@ -314,6 +314,12 @@ After any rendering change, regenerate and commit the diff artifacts
 (`cargo test --test e2e_diff_report -- --nocapture`) — CI enforces this via the
 golden-staleness check. See [AGENTS.md](AGENTS.md) for the full workflow.
 
+Building a Windows binary without a Windows toolchain:
+
+```bash
+tools/build/build-windows.sh   # → target/windows-release/labelize.exe (via Docker + mingw-w64)
+```
+
 ## 💡 Use Cases
 
 - **Shipping label preview** — see exactly what prints before it hits the printer
