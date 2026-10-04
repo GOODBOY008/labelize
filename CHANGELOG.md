@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with mingw-w64, runnable from any machine with Docker; the binary lands in
   `target/windows-release/`. Complements the official MSVC binaries attached to
   each GitHub release.
+- **Unmapped ZPL font warning (#20)** — font names with no built-in mapping
+  (e.g. user-installed numeric fonts or `^CW`-mapped names) now log a one-time
+  notice on stderr instead of silently substituting DejaVu Sans Mono;
+  rendering output is unchanged.
 
 ## [1.7.0] - 2026-10-04
 
