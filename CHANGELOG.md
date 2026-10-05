@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rotated text fields no longer clip characters to the advance box** —
+  rotated fields (^A…R/I/B, ^FW) are rasterised into a buffer whose width now
+  covers the laid-out ink, with a left margin for marks that overhang the pen
+  origin and a descent pad for glyphs extending below the buffer. Previously
+  178 (font, character) combinations lost ink when rotated — catastrophically
+  for font-0 characters whose calibrated advance deltas undercut their glyph
+  (Ā, Ŝ, ƀ, ℀ rendered as a few-px sliver), by 5–12 % for the DejaVu Greek
+  tonos capitals and Vietnamese horn glyphs, and 1–3 px on the DejaVu mono
+  trailing edge. Per-orientation anchor rebasing keeps every previously
+  rendered pixel in place: golden output is byte-identical (128/128 pass,
+  zero testdata changes) — only previously clipped ink appears.
+- **Characters outside a substitute font's coverage render blank everywhere**
+  — the DejaVu faces (fonts 1, A–Z) used to draw .notdef boxes for uncovered
+  characters (CJK, Latin Ext-B digraphs, parts of Latin Extended Additional);
+  Labelary renders these blank while the pen still advances one cell, and the
+  renderer now matches (font 0 already did).
+
 ### Added
 
 - **Windows cross-compilation build script (#15)** — `tools/build/build-windows.sh`
@@ -18,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g. user-installed numeric fonts or `^CW`-mapped names) now log a one-time
   notice on stderr instead of silently substituting DejaVu Sans Mono;
   rendering output is unchanged.
+=======
+- **Comprehensive character-display test suite** —
+  `tests/unit_text_character_display.rs` sweeps ~960 characters (ASCII,
+  Latin-1/Extended-A/B/Additional, Greek, Cyrillic, punctuation, CJK) across
+  all 14 substitute-font calibration classes and all four field orientations,
+  asserting that covered characters produce ink, that rotation preserves ink
+  pixel-exactly, and that uncovered characters render blank (Labelary parity),
+  plus the same invariants for multiline ^FB blocks.
 
 ## [1.7.0] - 2026-10-04
 
