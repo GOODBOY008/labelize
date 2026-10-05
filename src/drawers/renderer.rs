@@ -604,12 +604,31 @@ impl Renderer {
             //       the other axis; rows map to columns directly, so both the
             //       left margin and the bottom pad extend away from the anchor
             //       (the top headroom is already rebased above).
-            let (ox, oy) = match orientation {
+            let (mut ox, oy) = match orientation {
                 FieldOrientation::Rotated90 => (ox - bottom_pad as f64, oy - left_pad as f64),
                 FieldOrientation::Rotated180 => (ox - delta_r as f64, oy - bottom_pad as f64),
                 FieldOrientation::Rotated270 => (ox, oy - delta_r as f64),
                 _ => (ox, oy),
             };
+            // Labelary reserves the full ^FB box (max_lines × pitch) for
+            // rotated blocks and stacks lines from its top edge: for 90°
+            // fields the box top is the rightmost column, so line k sits at
+            // the plain-R position plus (max_lines − k)·pitch — probed with
+            // FB,1/FB,2/FB,4 × 1- and 2-line content, the offset tracks
+            // max_lines regardless of how many lines actually render
+            // (FB,1 == plain; FB,3 == plain + 2·pitch). Our buffer stacks
+            // lines from the field origin instead, so re-anchor line 1 onto
+            // the plain-R column (the calibrated x − 3 debt, font-size buffer,
+            // f0 pen bias) plus the reserved (max_lines − 1)·pitch tail; the
+            // buffer's own (k−1)·pitch stacking then places every line k.
+            if f0 && orientation == FieldOrientation::Rotated90 {
+                if let Some(ref block) = text.block {
+                    let pitch = scale.y * line_height_factor + block.line_spacing as f32;
+                    let reserved = (block.max_lines.max(1) - 1) as f32 * pitch;
+                    ox +=
+                        font_size as f64 - f0_rot_pen_bias as f64 + reserved as f64 - buf_h as f64;
+                }
+            }
 
             overlay_at(canvas, &rotated, ox as i32, oy as i32);
         }

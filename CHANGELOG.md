@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trailing edge. Per-orientation anchor rebasing keeps every previously
   rendered pixel in place: golden output is byte-identical (128/128 pass,
   zero testdata changes) — only previously clipped ink appears.
+- **Rotated ^FB blocks anchor like Labelary** — Labelary reserves the full
+  block box (max_lines × line pitch) for rotated blocks and stacks lines from
+  its top edge; for 90° fields that places line k at the plain-rotated
+  position plus (max_lines − k)·pitch regardless of how many lines render
+  (probed across FB,1/FB,2/FB,4 with 1- and 2-line content). The renderer now
+  matches, fixing a 40–56 px column offset on 90° font-0 blocks (e.g. the
+  bottom-right rotated block of the `rotated_char_display` fixture) and
+  improving `dpdpl` 4.07 % → 3.91 %.
 - **Characters outside a substitute font's coverage render blank everywhere**
   — the DejaVu faces (fonts 1, A–Z) used to draw .notdef boxes for uncovered
   characters (CJK, Latin Ext-B digraphs, parts of Latin Extended Additional);
