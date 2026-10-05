@@ -21,7 +21,7 @@
 ║ dhlparcelit                    │ zpl  │    1.85% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparceluk                    │ zpl  │    3.28% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdde                          │ zpl  │    2.00% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dpdpl                          │ zpl  │    4.07% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dpdpl                          │ zpl  │    3.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpduk                          │ epl  │    3.79% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ epl2_showcase                  │ epl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ evri                           │ zpl  │    1.52% │      813x1626 │      813x1626 │ MINOR(<5%)   ║

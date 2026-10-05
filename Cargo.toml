@@ -62,6 +62,9 @@ required-features = ["cli"]
 
 [dev-dependencies]
 proptest = "1"
+# Character-display sweep tests read the embedded fonts' cmaps directly to
+# know which characters must render (mirrors get_ttf_font_data in the renderer).
+ab_glyph = "0.2"
 reqwest = { version = "0.13", features = ["blocking"] }
 sha2 = "0.11"
 # Decoder stack is test-only (DataMatrix escape tests); kept out of the

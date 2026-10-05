@@ -104,7 +104,7 @@ informational.
 | dhlecommercetr | zpl | 1.89 | 2.5 | Font metrics |
 | dhlpaket | zpl | 1.15 | 3.5 | Font metrics |
 | dhlparceluk | zpl | 3.28 | 4.5 | Font metrics (rotated I/B pen-anchor offset fixed) |
-| dpdpl | zpl | 4.07 | 5.5 | Font metrics |
+| dpdpl | zpl | 3.91 | 5.5 | Font metrics (R-block ^FB anchor now reserves the max_lines box like Labelary) |
 | dpduk | epl | 3.79 | 6.5 | EPL reference from Go renderer |
 | epl2_showcase | epl | 0.00 | 1.5 | Renderer baseline reference (Labelary has no EPL); ECC auto table per EPL2 manual |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
@@ -144,6 +144,7 @@ informational.
 | return_qrcode | zpl | 2.01 | 4.0 | QR + font |
 | reverse | zpl | 0.25 | 1.5 | Sub-pixel |
 | reverse_qr | zpl | 0.12 | 1.5 | QR barcode |
+| rotated_char_display | zpl | 1.64 | 3.0 | Rotated single/multi-char fields across font classes + f1 CJK blank parity + f0 superset line (ĀŜƀ blank on Labelary) + rotated ^FB blocks; ink-extent buffer fix removed the f1 CJK .notdef box, R-block anchor now reserves the ^FB max_lines box like Labelary |
 | swisspost | zpl | 0.71 | 1.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
 | text_fallback_default | zpl | 2.05 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
