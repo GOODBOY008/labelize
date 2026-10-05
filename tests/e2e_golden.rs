@@ -433,6 +433,10 @@ fn golden_reverse() {
     golden_zpl_with_tolerance("reverse", 1.5);
 }
 #[test]
+fn golden_rotated_char_display() {
+    golden_zpl_with_tolerance("rotated_char_display", 3.0);
+}
+#[test]
 fn golden_swisspost() {
     golden_zpl_with_tolerance("swisspost", 1.5);
 }

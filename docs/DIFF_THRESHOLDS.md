@@ -144,6 +144,7 @@ informational.
 | return_qrcode | zpl | 2.01 | 4.0 | QR + font |
 | reverse | zpl | 0.25 | 1.5 | Sub-pixel |
 | reverse_qr | zpl | 0.12 | 1.5 | QR barcode |
+| rotated_char_display | zpl | 1.90 | 3.0 | Rotated single/multi-char fields across font classes + f1 CJK blank parity + f0 superset line (ĀŜƀ blank on Labelary) + rotated ^FB blocks; the ink-extent buffer fix removed the f1 CJK .notdef box (−323 px vs main) |
 | swisspost | zpl | 0.71 | 1.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
 | text_fallback_default | zpl | 2.05 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
