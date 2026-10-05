@@ -753,3 +753,195 @@ fn dejavu_missing_glyph_advances_one_mono_cell() {
         "uncovered 中 advanced {shift} px but a mono cell is {cell} px"
     );
 }
+
+// ---------------------------------------------------------------------------
+// ^FB negative line spacing and padded-pen snapping (review round 2).
+// ---------------------------------------------------------------------------
+
+/// ^FB accepts a negative line-spacing parameter and the parser preserves it:
+/// later lines then sit ABOVE the pen top, and the deepest line need not be
+/// the last. The rotated buffer must grow a top margin for the raised lines
+/// and size its bottom margin from the deepest line — regression case:
+/// `^A1R,36,32^FB20,2,-80,L^FDj j` used to lose one whole line (414 → 207 px).
+#[test]
+fn fb_negative_line_spacing_survives_rotation() {
+    let zpl = |o: char| format!("^XA\n^CI28\n^FO240,200^A1{o},36,32^FB20,2,-80,L^FDj j^FS\n^XZ\n");
+    let opts = labelize::DrawerOptions {
+        label_width_mm: 101.625,
+        label_height_mm: 203.25,
+        dpmm: 8,
+        ..Default::default()
+    };
+    let render = |o: char| {
+        let png = render_helpers::render_zpl_to_png(&zpl(o), opts.clone());
+        image::load_from_memory(&png)
+            .expect("decode png")
+            .to_rgba8()
+    };
+    let normal = render('N');
+    let n_ink = ink_count(&normal);
+    assert!(
+        n_ink > 200,
+        "negative-spacing block rendered only {n_ink} ink px"
+    );
+    for &o in &['R', 'I', 'B'] {
+        let rotated = render(o);
+        assert_eq!(
+            ink_count(&rotated),
+            n_ink,
+            "^A1{o} negative-spacing block lost ink vs N"
+        );
+        assert_rotation_mask_matches(&normal, &rotated, o);
+    }
+}
+
+/// Right-aligned ^FB lines wider than max_width get negative alignment
+/// offsets. The rotated buffer's left margin must be added AFTER the per-line
+/// pen snapping, or `as i32` truncation of a pen that crosses zero inside the
+/// padded value shifts that line 1 px relative to the others. Regression
+/// case: two unbreakable Ŝ words (64 and 60 chars) — assert the inter-line
+/// offset measured along the rotated stacking axis equals the normal
+/// render's, and the inverse-rotated mask matches within a small edge-noise
+/// tolerance (sub-pixel glyph phases differ between orientations).
+#[test]
+fn fb_right_aligned_relative_line_positions_survive_rotation() {
+    let sh: char = '\u{15C}';
+    let w1: String = std::iter::repeat(sh).take(64).collect();
+    let w2: String = std::iter::repeat(sh).take(60).collect();
+    let zpl =
+        |o: char| format!("^XA\n^CI28\n^FO240,200^A0{o},36,32^FB20,2,0,R^FD{w1} {w2}^FS\n^XZ\n");
+    let opts = labelize::DrawerOptions {
+        label_width_mm: 101.625,
+        label_height_mm: 203.25,
+        dpmm: 8,
+        ..Default::default()
+    };
+    let render = |o: char| {
+        let png = render_helpers::render_zpl_to_png(&zpl(o), opts.clone());
+        image::load_from_memory(&png)
+            .expect("decode png")
+            .to_rgba8()
+    };
+    let normal = render('N');
+    let rotated = render('R');
+
+    /// ink bands along an axis (start, end) within a window
+    fn bands(
+        img: &image::RgbaImage,
+        along_x: bool,
+        lo: u32,
+        hi: u32,
+        fixed: (u32, u32),
+    ) -> Vec<(u32, u32)> {
+        let mut prof = vec![0u32; (hi - lo) as usize];
+        for i in lo..hi {
+            for j in fixed.0..fixed.1 {
+                let p = if along_x {
+                    img.get_pixel(i, j)
+                } else {
+                    img.get_pixel(j, i)
+                };
+                if p[0] < 128 {
+                    prof[(i - lo) as usize] += 1;
+                }
+            }
+        }
+        let mut out = Vec::new();
+        let mut in_band = false;
+        let mut start = lo;
+        for (i, &c) in prof.iter().enumerate() {
+            if c > 0 && !in_band {
+                start = lo + i as u32;
+                in_band = true;
+            } else if c == 0 && in_band {
+                out.push((start, lo + i as u32));
+                in_band = false;
+            }
+        }
+        if in_band {
+            out.push((start, hi));
+        }
+        out
+    }
+
+    // The two lines touch (pitch == glyph height), so split the ink at the
+    // known pitch: each half holds one word length. The rotated stacking axis
+    // reverses line order (line 1 is the rightmost column), so the rotated
+    // halves pair with the normal halves in reverse — a relative line shift
+    // or clipped line spills tens of pixels across the split.
+    fn half_inks(
+        img: &image::RgbaImage,
+        along_x: bool,
+        lo: u32,
+        hi: u32,
+        fixed: (u32, u32),
+    ) -> (u32, u32) {
+        let first = (lo..hi)
+            .find(|&i| {
+                (lo..hi).any(|j| {
+                    let p = if along_x {
+                        img.get_pixel(i, j)
+                    } else {
+                        img.get_pixel(j, i)
+                    };
+                    p[0] < 128
+                })
+            })
+            .expect("block ink present");
+        let pitch = 36u32;
+        let mut a = 0u32;
+        let mut b = 0u32;
+        for i in first..hi.min(first + 2 * pitch) {
+            let mut c = 0u32;
+            for j in fixed.0..fixed.1 {
+                let p = if along_x {
+                    img.get_pixel(i, j)
+                } else {
+                    img.get_pixel(j, i)
+                };
+                if p[0] < 128 {
+                    c += 1;
+                }
+            }
+            if i < first + pitch {
+                a += c;
+            } else {
+                b += c;
+            }
+        }
+        (a, b)
+    }
+
+    let (n1, n2) = half_inks(&normal, false, 150, 400, (200, 700));
+    let (r1, r2) = half_inks(&rotated, true, 150, 500, (150, 700));
+    assert!(
+        n1 > 1000 && n2 > 1000 && r1 > 1000 && r2 > 1000,
+        "unexpected half inks N=({n1},{n2}) R=({r1},{r2})"
+    );
+    for (label, rotated_half, normal_half) in [("line2", r1, n2), ("line1", r2, n1)] {
+        let diff = rotated_half.abs_diff(normal_half);
+        assert!(
+            diff * 100 <= normal_half,
+            "{label}: rotated half ink {rotated_half} vs normal {normal_half}              (off by {diff}) — a relative line shift or clipped ink"
+        );
+    }
+
+    // And the full inverse-rotated mask matches within edge-noise tolerance
+    // (sub-pixel glyph phases differ between orientations; a real defect —
+    // clipped ink or a shifted line — costs hundreds of pixels).
+    let unrotated = image::imageops::rotate270(&rotated);
+    let a = crop_ink(&normal).expect("normal ink");
+    let b = crop_ink(&unrotated).expect("rotated ink");
+    assert_eq!(a.dimensions(), b.dimensions(), "inverse-rotated mask size");
+    let diff = a
+        .pixels()
+        .zip(b.pixels())
+        .filter(|(pa, pb)| (pa[0] < 128) != (pb[0] < 128))
+        .count();
+    let ink = ink_count(&normal);
+    assert!(
+        diff * 200 <= ink,
+        "inverse-rotated right-aligned block mask differs in {diff} px \
+         ({ink} ink) — clipped ink or a shifted line"
+    );
+}

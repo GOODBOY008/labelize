@@ -342,6 +342,7 @@ impl Renderer {
                     &drawn_text,
                     f0,
                     line_height_factor,
+                    0,
                 );
             } else {
                 draw_text_with_superscript(
@@ -397,102 +398,115 @@ impl Renderer {
                 let needed = pen_top + ascent + ink_max_y + 1.0;
                 (needed.ceil() as i64 - (headroom + content_h) as i64).max(0) as u32
             };
-            let (buf_w, buf_h, left_pad, delta_r, bottom_pad) = if let Some(ref block) = text.block
-            {
-                let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
-                // Same pitch draw_text_block uses (cap-scaled em × factor), and
-                // a full em below the last line top so descenders aren't clipped.
-                let pitch = scale.y * line_height_factor + block.line_spacing as f32;
-                let max_lines = block.max_lines.max(1) as usize;
-                let num_lines = lines.len().min(max_lines);
-                let h = ((num_lines - 1) as f32 * pitch + scale.y).ceil() as u32 + 2;
-                // Per-line ink extents at the block origin cover unbreakable
-                // words wider than max_width (word_wrap keeps them whole) and
-                // per-character overhangs past the advance edge. Centered and
-                // right-aligned lines get draw_text_block's alignment offset —
-                // negative for lines wider than max_width, which is exactly
-                // the unbreakable-word case that must reach left of the
-                // origin. Justified lines stay within [0, max_width].
-                let mut ink_min = f32::MAX;
-                let mut ink_max = f32::MIN;
-                let mut ink_max_y = f32::MIN;
-                for line in lines.iter().take(num_lines) {
-                    let (a, b, y) =
-                        measure_text_ink_bounds_with_superscript(line, &font, scale, f0);
-                    if a <= b {
-                        let lw = measure_text_width(line, &font, scale, f0);
-                        let lx_offset = match block.alignment {
-                            crate::elements::text_alignment::TextAlignment::Center => {
-                                (block.max_width as f32 - lw) / 2.0
-                            }
-                            crate::elements::text_alignment::TextAlignment::Right => {
-                                block.max_width as f32 - lw
-                            }
-                            _ => 0.0,
-                        };
-                        ink_min = ink_min.min(lx_offset + a);
-                        ink_max = ink_max.max(lx_offset + b);
-                        ink_max_y = ink_max_y.max(y);
+            let (buf_w, buf_h, left_pad, delta_r, bottom_pad, top_pad) =
+                if let Some(ref block) = text.block {
+                    let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
+                    // Same pitch draw_text_block uses (cap-scaled em × factor).
+                    // ^FB line spacing may be negative: line tops are
+                    // (k−1)·pitch, so later lines then sit ABOVE the pen top and
+                    // the deepest line need not be the last — size both vertical
+                    // margins from the actual line-top extents.
+                    let pitch = scale.y * line_height_factor + block.line_spacing as f32;
+                    let max_lines = block.max_lines.max(1) as usize;
+                    let num_lines = lines.len().min(max_lines);
+                    let spread = (num_lines - 1) as f32 * pitch;
+                    let (min_top, max_top) = (spread.min(0.0), spread.max(0.0));
+                    let top_pad = (-min_top).ceil().max(0.0) as u32;
+                    let h = (max_top - min_top + scale.y).ceil() as u32 + 2;
+                    // Per-line ink extents at the block origin cover unbreakable
+                    // words wider than max_width (word_wrap keeps them whole) and
+                    // per-character overhangs past the advance edge. Centered and
+                    // right-aligned lines get draw_text_block's alignment offset —
+                    // negative for lines wider than max_width, which is exactly
+                    // the unbreakable-word case that must reach left of the
+                    // origin. Justified lines stay within [0, max_width].
+                    let mut ink_min = f32::MAX;
+                    let mut ink_max = f32::MIN;
+                    let mut ink_max_y = f32::MIN;
+                    for line in lines.iter().take(num_lines) {
+                        let (a, b, y) =
+                            measure_text_ink_bounds_with_superscript(line, &font, scale, f0);
+                        if a <= b {
+                            let lw = measure_text_width(line, &font, scale, f0);
+                            let lx_offset = match block.alignment {
+                                crate::elements::text_alignment::TextAlignment::Center => {
+                                    (block.max_width as f32 - lw) / 2.0
+                                }
+                                crate::elements::text_alignment::TextAlignment::Right => {
+                                    block.max_width as f32 - lw
+                                }
+                                _ => 0.0,
+                            };
+                            ink_min = ink_min.min(lx_offset + a);
+                            ink_max = ink_max.max(lx_offset + b);
+                            ink_max_y = ink_max_y.max(y);
+                        }
                     }
-                }
-                let (over_l, over_r) = block_ink_overhangs(&drawn_text, &font, scale, f0);
-                let left_pad = if ink_min <= ink_max {
-                    (-(pen_x_offset + ink_min.min(over_l))).round().max(0.0) as u32
+                    let (over_l, over_r) = block_ink_overhangs(&drawn_text, &font, scale, f0);
+                    let left_pad = if ink_min <= ink_max {
+                        (-(pen_x_offset + ink_min.min(over_l))).round().max(0.0) as u32
+                    } else {
+                        (-(pen_x_offset + over_l)).round().max(0.0) as u32
+                    };
+                    let old_w = block.max_width as u32 + 2;
+                    let content_w = old_w.max(
+                        (ink_max.max(block.max_width as f32 + pen_x_offset + over_r) + 2.0)
+                            .ceil()
+                            .max(0.0) as u32,
+                    );
+                    // The deepest line's top: lines extend (k−1)·pitch from the
+                    // pen, so with negative spacing it is line 1, not the last
+                    // (draw_text_block accumulates `pitch` per line, snapping
+                    // later line tops — sub-pixel vs this unrounded value,
+                    // absorbed by the pad's ceil and +1).
+                    let deepest_top = headroom as f32 + top_pad as f32 + max_top;
+                    (
+                        content_w + left_pad,
+                        h,
+                        left_pad,
+                        content_w - old_w,
+                        bottom_pad_for(deepest_top, h, ink_max_y),
+                        top_pad,
+                    )
                 } else {
-                    (-(pen_x_offset + over_l)).round().max(0.0) as u32
+                    let old_w = (text_width as f32).ceil() as u32 + 2;
+                    let (ink_min, ink_max, ink_max_y) =
+                        measure_text_ink_bounds_with_superscript(&drawn_text, &font, scale, f0);
+                    let (left_pad, content_w) = if ink_min <= ink_max {
+                        let left_pad = (-(pen_x_offset + ink_min)).round().max(0.0) as u32;
+                        // +1 for the exclusive pixel edge, +1 to absorb the blit's
+                        // independent rounding of the glyph bounds.
+                        let content_w =
+                            old_w.max((pen_x_offset + ink_max + 2.0).ceil().max(0.0) as u32);
+                        (left_pad, content_w)
+                    } else {
+                        // Nothing outlines (blank/missing glyphs only).
+                        (0, old_w)
+                    };
+                    // Use scale.y (may be larger than font_size for bitmap fonts) for buffer height.
+                    // Rotated font 0 keeps the cell-height buffer the rotated anchors were
+                    // calibrated with — the cap-scaled em would shift the ink 0.37 em after
+                    // the flip (see the pen bias below).
+                    let h = if f0 { font_size } else { scale.y }.ceil() as u32 + 2;
+                    (
+                        content_w + left_pad,
+                        h,
+                        left_pad,
+                        content_w - old_w,
+                        bottom_pad_for(headroom as f32 + f0_rot_pen_bias, h, ink_max_y),
+                        0,
+                    )
                 };
-                let old_w = block.max_width as u32 + 2;
-                let content_w = old_w.max(
-                    (ink_max.max(block.max_width as f32 + pen_x_offset + over_r) + 2.0)
-                        .ceil()
-                        .max(0.0) as u32,
-                );
-                // The last line's top (draw_text_block accumulates `pitch`
-                // per line, snapping later line tops — sub-pixel vs this
-                // unrounded value, absorbed by the pad's ceil and +1).
-                let last_line_top = headroom as f32 + (num_lines as f32 - 1.0) * pitch;
-                (
-                    content_w + left_pad,
-                    h,
-                    left_pad,
-                    content_w - old_w,
-                    bottom_pad_for(last_line_top, h, ink_max_y),
-                )
-            } else {
-                let old_w = (text_width as f32).ceil() as u32 + 2;
-                let (ink_min, ink_max, ink_max_y) =
-                    measure_text_ink_bounds_with_superscript(&drawn_text, &font, scale, f0);
-                let (left_pad, content_w) = if ink_min <= ink_max {
-                    let left_pad = (-(pen_x_offset + ink_min)).round().max(0.0) as u32;
-                    // +1 for the exclusive pixel edge, +1 to absorb the blit's
-                    // independent rounding of the glyph bounds.
-                    let content_w =
-                        old_w.max((pen_x_offset + ink_max + 2.0).ceil().max(0.0) as u32);
-                    (left_pad, content_w)
-                } else {
-                    // Nothing outlines (blank/missing glyphs only).
-                    (0, old_w)
-                };
-                // Use scale.y (may be larger than font_size for bitmap fonts) for buffer height.
-                // Rotated font 0 keeps the cell-height buffer the rotated anchors were
-                // calibrated with — the cap-scaled em would shift the ink 0.37 em after
-                // the flip (see the pen bias below).
-                let h = if f0 { font_size } else { scale.y }.ceil() as u32 + 2;
-                (
-                    content_w + left_pad,
-                    h,
-                    left_pad,
-                    content_w - old_w,
-                    bottom_pad_for(headroom as f32 + f0_rot_pen_bias, h, ink_max_y),
-                )
-            };
 
             if buf_w == 0 || buf_h == 0 {
                 return Ok(());
             }
 
-            let mut buf =
-                RgbaImage::from_pixel(buf_w, buf_h + headroom + bottom_pad, Rgba([0, 0, 0, 0]));
+            let mut buf = RgbaImage::from_pixel(
+                buf_w,
+                buf_h + headroom + bottom_pad + top_pad,
+                Rgba([0, 0, 0, 0]),
+            );
 
             if let Some(ref block) = text.block {
                 draw_text_block(
@@ -501,12 +515,13 @@ impl Renderer {
                     scale,
                     scale_x,
                     color,
-                    pen_x_offset + left_pad as f32,
-                    headroom as f32,
+                    pen_x_offset,
+                    headroom as f32 + top_pad as f32,
                     block,
                     &drawn_text,
                     f0,
                     line_height_factor,
+                    left_pad as i32,
                 );
             } else {
                 // Rotated font 0: place the ink where the previous substitute's
@@ -607,26 +622,23 @@ impl Renderer {
             let (mut ox, oy) = match orientation {
                 FieldOrientation::Rotated90 => (ox - bottom_pad as f64, oy - left_pad as f64),
                 FieldOrientation::Rotated180 => (ox - delta_r as f64, oy - bottom_pad as f64),
-                FieldOrientation::Rotated270 => (ox, oy - delta_r as f64),
+                FieldOrientation::Rotated270 => (ox - top_pad as f64, oy - delta_r as f64),
                 _ => (ox, oy),
             };
-            // Labelary reserves the full ^FB box (max_lines × pitch) for
-            // rotated blocks and stacks lines from its top edge: for 90°
-            // fields the box top is the rightmost column, so line k sits at
-            // the plain-R position plus (max_lines − k)·pitch — probed with
-            // FB,1/FB,2/FB,4 × 1- and 2-line content, the offset tracks
-            // max_lines regardless of how many lines actually render
-            // (FB,1 == plain; FB,3 == plain + 2·pitch). Our buffer stacks
-            // lines from the field origin instead, so re-anchor line 1 onto
-            // the plain-R column (the calibrated x − 3 debt, font-size buffer,
-            // f0 pen bias) plus the reserved (max_lines − 1)·pitch tail; the
-            // buffer's own (k−1)·pitch stacking then places every line k.
+            // Labelary reserves the full ^FB box (max_lines × pitch, signed —
+            // negative line spacing flips the stacking direction) for rotated
+            // blocks: line k renders at field_x + (max_lines − k + 1)·pitch
+            // along the box's stacking axis. Probed with FB,1/FB,2/FB,3/FB,4 ×
+            // 1- and 2-line content at positive and negative pitch — the
+            // offset tracks max_lines regardless of how many lines wrap. Our
+            // buffer stacks lines from the pen, so re-anchor line 1 onto
+            // field_x + max_lines·pitch; the buffer's own (k−1)·pitch stacking
+            // (flipped by the rotation) then places every line k.
             if f0 && orientation == FieldOrientation::Rotated90 {
                 if let Some(ref block) = text.block {
                     let pitch = scale.y * line_height_factor + block.line_spacing as f32;
-                    let reserved = (block.max_lines.max(1) - 1) as f32 * pitch;
-                    ox +=
-                        font_size as f64 - f0_rot_pen_bias as f64 + reserved as f64 - buf_h as f64;
+                    let reserved = block.max_lines.max(1) as f32 * pitch;
+                    ox += reserved as f64 - buf_h as f64 - f0_rot_pen_bias as f64;
                 }
             }
 
@@ -1758,6 +1770,7 @@ fn draw_text_block(
     text: &str,
     f0: bool,
     line_height_factor: f32,
+    pen_x_pad: i32,
 ) {
     let max_width = block.max_width as f32;
     let lines = word_wrap(text, font, scale, max_width, f0);
@@ -1807,13 +1820,33 @@ fn draw_text_block(
                     line,
                     f0,
                     max_width,
+                    pen_x_pad,
                 );
                 cy += line_height;
                 continue;
             }
             _ => x,
         };
-        draw_text_with_superscript(canvas, font, scale, color, lx, snap_y(cy, first), line, f0);
+        // The rotated-buffer caller passes its left margin as `pen_x_pad`
+        // rather than in `x`: the per-line pen must be SNAPPED first and the
+        // integer pad added afterwards, or `as i32` truncation of a
+        // negative pen that crosses zero inside the padded value shifts one
+        // line relative to the others instead of translating them all.
+        let pen_x = if pen_x_pad == 0 {
+            lx
+        } else {
+            lx.trunc() + pen_x_pad as f32
+        };
+        draw_text_with_superscript(
+            canvas,
+            font,
+            scale,
+            color,
+            pen_x,
+            snap_y(cy, first),
+            line,
+            f0,
+        );
         cy += line_height;
     }
 }
@@ -1831,10 +1864,20 @@ fn draw_justified_line(
     line: &str,
     f0: bool,
     max_width: f32,
+    pen_x_pad: i32,
 ) {
     let words: Vec<&str> = line.split_whitespace().collect();
     if words.len() < 2 {
-        draw_text_with_superscript(canvas, font, scale, color, x, y, line, f0);
+        draw_text_with_superscript(
+            canvas,
+            font,
+            scale,
+            color,
+            x.round() + pen_x_pad as f32,
+            y,
+            line,
+            f0,
+        );
         return;
     }
     // Superscript-aware draw and measurement, matching every other text path:
@@ -1845,7 +1888,19 @@ fn draw_justified_line(
     let extra = (max_width - lw) / (words.len() - 1) as f32;
     let mut cx = x;
     for (k, word) in words.iter().enumerate() {
-        draw_text_with_superscript(canvas, font, scale, color, cx.round(), y, word, f0);
+        // round() commutes with integer shifts, so adding the rotated
+        // buffer's pad here stays a pure translation (and matches the
+        // normal-path word snapping).
+        draw_text_with_superscript(
+            canvas,
+            font,
+            scale,
+            color,
+            cx.round() + pen_x_pad as f32,
+            y,
+            word,
+            f0,
+        );
         cx += measure_text_width_with_superscript(word, font, scale, f0);
         if k + 1 < words.len() {
             cx += space_w + extra;
