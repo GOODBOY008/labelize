@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matches, fixing a 40–56 px column offset on 90° font-0 blocks (e.g. the
   bottom-right rotated block of the `rotated_char_display` fixture) and
   improving `dpdpl` 4.07 % → 3.91 %.
+- **Negative `^FB` line spacing and padded-pen snapping in rotated blocks** —
+  `^FB`'s add-spacing parameter may be negative (later lines then sit above
+  the first, and the deepest line need not be the last): the rotated buffer
+  now grows a top margin for raised lines and sizes its bottom margin from
+  the deepest line, instead of clipping raised lines whole
+  (`^A1R ^FB20,2,-80 "j j"` lost one of two lines). The buffer's left margin
+  is applied after the per-line pen snap, so padding is always a pure
+  translation. The 90° block anchor generalises to the sign-aware rule
+  `line k = field_x + (max_lines − k + 1) × pitch`, verified against
+  Labelary to ≤1 px at +40/−80 dot spacing with single- and two-line content.
 - **Characters outside a substitute font's coverage render blank everywhere**
   — the DejaVu faces (fonts 1, A–Z) used to draw .notdef boxes for uncovered
   characters (CJK, Latin Ext-B digraphs, parts of Latin Extended Additional);

@@ -825,45 +825,6 @@ fn fb_right_aligned_relative_line_positions_survive_rotation() {
     let normal = render('N');
     let rotated = render('R');
 
-    /// ink bands along an axis (start, end) within a window
-    fn bands(
-        img: &image::RgbaImage,
-        along_x: bool,
-        lo: u32,
-        hi: u32,
-        fixed: (u32, u32),
-    ) -> Vec<(u32, u32)> {
-        let mut prof = vec![0u32; (hi - lo) as usize];
-        for i in lo..hi {
-            for j in fixed.0..fixed.1 {
-                let p = if along_x {
-                    img.get_pixel(i, j)
-                } else {
-                    img.get_pixel(j, i)
-                };
-                if p[0] < 128 {
-                    prof[(i - lo) as usize] += 1;
-                }
-            }
-        }
-        let mut out = Vec::new();
-        let mut in_band = false;
-        let mut start = lo;
-        for (i, &c) in prof.iter().enumerate() {
-            if c > 0 && !in_band {
-                start = lo + i as u32;
-                in_band = true;
-            } else if c == 0 && in_band {
-                out.push((start, lo + i as u32));
-                in_band = false;
-            }
-        }
-        if in_band {
-            out.push((start, hi));
-        }
-        out
-    }
-
     // The two lines touch (pitch == glyph height), so split the ink at the
     // known pitch: each half holds one word length. The rotated stacking axis
     // reverses line order (line 1 is the rightmost column), so the rotated

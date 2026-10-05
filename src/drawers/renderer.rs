@@ -391,8 +391,9 @@ impl Renderer {
                 if ink_max_y == f32::MIN {
                     return 0;
                 }
-                // The deepest glyph hangs from the LAST line's baseline, so the
-                // caller passes that line's top as `pen_top`; +1 for the
+                // The deepest glyph hangs from the DEEPEST line's baseline
+                // (the last one with positive pitch, line 1 with negative), so
+                // the caller passes that line's top as `pen_top`; +1 for the
                 // exclusive pixel edge, the ceil absorbs sub-pixel pitch and
                 // the blit's independent rounding.
                 let needed = pen_top + ascent + ink_max_y + 1.0;
