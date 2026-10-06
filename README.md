@@ -44,7 +44,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 🖨️ **38+ ZPL commands** — text & fonts, 12 barcode symbologies (Code 128, EAN-13/8, UPC-A/E, Code 39, Interleaved 2-of-5, PDF417, Aztec, DataMatrix, QR, MaxiCode), boxes/circles/diagonals/ellipses, graphic fields, stored formats (`^DF`/`^XF`), label rotation & inversion
 - 🏷️ **EPL2 support** — text, the full 1D/2D barcode command set (`B`/`b`), lines, diagonals, boxes, binary graphics (`GW`)
 - 🖼️ **PNG & PDF output** — thermal-faithful 1-bit monochrome by default, optional antialiased greyscale
-- 🔤 **Embedded fonts** — zero runtime font dependencies (Helvetica Bold Condensed, DejaVu Sans Mono, ZPL GS)
+- 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
 - 🧪 **124 golden-file E2E tests** against Labelary reference renders on every push
 
@@ -257,12 +257,8 @@ DataMatrix ECC 200 field-data escapes and firmware defaults are described in
 | **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^A@` (named font) `^CF` `^CW` (font identifier) `^FB` `^FR` `^FH` `^FN` `^FW` `^FV` |
 | **Barcodes** | `^BC` (Code 128) `^BE` (EAN-13) `^B8` (EAN-8) `^B9` (UPC-E) `^BU` (UPC-A) `^B2` (Interleaved 2-of-5) `^B3` (Code 39) `^B7` (PDF417) `^BO` (Aztec) `^BX` (DataMatrix) `^BQ` (QR Code) `^BD` (MaxiCode) `^BY` (defaults) |
 | **Graphics** | `^GB` (box) `^GC` (circle) `^GD` (diagonal) `^GE` (ellipse) `^GF` (graphic field) `^GS` (symbol) `~DG` (download graphic) `^IL` `^XG` `^ID` `^IM` `^IS` `~EG` |
-| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
+| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^PM` (persistent mirror image) `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
 | **Stored Formats** | `^DF` `^XF` |
-
-Manual QR Numeric, Alphanumeric, and Byte modes are honored explicitly; unsupported
-Kanji mode returns an error. See [QR character modes](docs/QR_CHARACTER_MODES.md)
-for the API, compatibility details, and the observed Labelary optimization difference.
 
 DataMatrix rendering supports **ECC 000, 050, 080, 100, 140 and 200**. Omitted or empty ZPL
 `^BX` quality defaults to ECC 000, as specified by Zebra; use `^BXN,4,200`
@@ -317,6 +313,12 @@ PATH="$PATH:target/debug" bash e2e/cli/test_cli.sh     # CLI integration
 After any rendering change, regenerate and commit the diff artifacts
 (`cargo test --test e2e_diff_report -- --nocapture`) — CI enforces this via the
 golden-staleness check. See [AGENTS.md](AGENTS.md) for the full workflow.
+
+Building a Windows binary without a Windows toolchain:
+
+```bash
+tools/build/build-windows.sh   # → target/windows-release/labelize.exe (via Docker + mingw-w64)
+```
 
 ## 💡 Use Cases
 

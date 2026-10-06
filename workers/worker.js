@@ -9,7 +9,7 @@ import {
   lz_render,
   lz_playground_html,
   __wbindgen_init_externref_table,
-  __wbindgen_cast_0000000000000001,
+  __wbindgen_generic_0000000000000001,
 } from "../wasm/npm/labelize_wasm_bg.js";
 import wasmBytes from "../wasm/npm/labelize_wasm_bg.wasm";
 
@@ -21,7 +21,7 @@ function ensureEngine() {
     ready = WebAssembly.instantiate(wasmBytes, {
       "./labelize_wasm_bg.js": {
         __wbindgen_init_externref_table,
-        __wbindgen_cast_0000000000000001,
+        __wbindgen_generic_0000000000000001,
       },
     }).then((result) => {
       // Wrangler resolves the .wasm import to a WebAssembly.Module, so

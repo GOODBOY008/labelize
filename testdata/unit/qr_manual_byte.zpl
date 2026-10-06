@@ -1,1 +1,0 @@
-^XA^FO30,50^BQN,2,4^FDQM,B0009lowercase^FS^XZ

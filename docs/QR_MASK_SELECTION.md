@@ -9,9 +9,10 @@ codewords are identical.
 ## Reproduced counterexamples
 
 The following inputs use one Byte segment and no ECI. The H case requires
-version 2; the other four fit version 1. Both the automatic
-and explicit Byte Labelize APIs are tested, since these lowercase payloads are
-also encoded as Byte by the existing optimizer. Mask numbers are zero-based.
+version 2; the other four fit version 1. The automatic Labelize API is tested;
+these lowercase payloads are encoded as Byte by the existing optimizer.
+Mask numbers are zero-based. This PR now retains main's automatic segmentation
+and has no dependency on the reverted explicit-character-mode PR #52.
 
 | Payload | EC | Previous mask | Corrected mask | Standard score, previous -> corrected |
 |---|---|---|---|---|
@@ -59,25 +60,65 @@ the winning matrix. No Rust renderer output was used to generate these reference
 The toolkit itself is unchanged.
 
 Tests compare all 40 Rust candidate scores to the recorded independent scores,
-then compare complete output matrices for automatic and manual Byte input.
+then compare complete output matrices for automatic input.
 The independent rxing decoder checks Byte mode and payload bytes. Additional
 tests cover N4 boundaries, symmetry and large scores. Existing automatic-mode
 regressions preserve decoded data codewords, correction level, dimensions,
 quiet zones and magnification while allowing the intended mask changes.
 
 Existing Labelary PNGs remain unchanged. Pixel agreement with Labelary is a
-separate measurement: a standards-correct mask can increase or decrease image
-differences. Different error correction levels or character modes must not be
-mistaken for a mask-scoring defect (see [QR character modes](QR_CHARACTER_MODES.md)).
+separate measurement: a changed mask can increase or decrease image differences.
+Different error correction levels or character modes must not be mistaken for
+a mask-scoring defect. N3 deliberately retains the dependency's interpretation;
+this change does not claim to resolve every ambiguity in ISO mask evaluation.
 
 Sources:
 - [ISO/IEC 18004:2015, section 7.8.3.1, Table 11](https://nuintun.github.io/qrcode/spec/ISO-IEC-18004-2015.pdf)
 - [qrcode-rust canvas implementation](https://docs.rs/qrcode/0.14.1/src/qrcode/canvas.rs.html)
 - Toolkit: `src/barcodes/qr-core.js`, `src/barcodes/qr-mask-penalty.js`
-## Effect on the existing Labelary corpus
+## Original corpus check (2026-09-10)
 
 Both complete diff reports were regenerated after the fix: 51 label cases and
 76 unit cases, with no skipped/error cases. All 127 comparison images and both
 reports are byte-for-byte unchanged from the character-mode branch. Thus this
 fix neither reduces nor increases the current corpus's Labelary differences.
-The five new independent counterexamples exercise inputs absent from that corpus.
+The five original independent counterexamples exercise inputs absent from that corpus.
+
+## Labelary and printer study, 2026-10-06
+
+Five new lowercase, seven-byte EC-H inputs isolate mask selection: their version,
+Byte segment, error correction, and unmasked data codewords are identical across
+the before/after encoders and independently decoded Labelary references.
+
+| Payload | Previous mask | Corrected / Labelary mask | Matrix difference before -> after |
+| --- | ---: | ---: | --- |
+| `abcabaa` | 5 | 1 | 20.4082% -> 0% |
+| `abcucaa` | 3 | 5 | 30.8390% -> 0% |
+| `abccdaa` | 3 | 2 | 24.0363% -> 0% |
+| `abcndaa` | 6 | 4 | 26.3039% -> 0% |
+| `abcaeaa` | 5 | 6 | 13.1519% -> 0% |
+
+These are barcode-module differences, not percentages diluted by white label
+space. `testdata/unit/qr_mask_selection.zpl` includes all five fields and uses
+an independently fetched Labelary PNG with a strict 0.0% golden tolerance.
+Reference endpoint: `https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/`.
+Original PNG SHA-256:
+`865fff0a526ead419ef512e7b8afeea69699a1441c87003795011a81717169ab`.
+
+A physical native `^BQ` print of `abcabaa` on a ZD421 (300 dpi, V93.21.17Z)
+uses mask 2, whereas Labelary and this correction use mask 1. The native photo
+was independently decoded with the same payload and data codewords. This is
+evidence of a separate firmware-mask-selection difference; the correction
+improves Labelary compatibility on the five verified cases and does not claim
+universal Zebra matrix identity.
+
+The branch is updated against main `6465f51`, preserving the PR52 revert. Only
+automatic mask selection changes; QR parser, character-mode interpretation,
+segmentation and error correction selection remain main's behavior. The
+explicit-mode work can be considered separately for a future Zebra profile.
+
+Current validation against main `6465f51`: 127 library/QR/barcode/property
+regressions passed, as did 130 goldens and both diff reports (134 fixtures,
+no HIGH/SKIP/ERR). The new five-symbol golden is pixel-identical to Labelary;
+all existing comparison images and scores remain unchanged relative to main.
+Formatting and all-feature Clippy with warnings denied also passed.
