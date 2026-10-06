@@ -94,7 +94,15 @@ fn golden_zpl_with_tolerance(name: &str, tolerance: f64) {
     }
 
     let options = render_helpers::default_options();
-    let effective_tolerance = if is_unit { UNIT_TOLERANCE } else { tolerance };
+    // Unit fixtures default to the global UNIT_TOLERANCE, but a stricter
+    // per-test value always wins: min() makes the tolerance documented in
+    // DIFF_THRESHOLDS.md and the e2e_golden entries actually binding instead
+    // of being silently replaced by the global ceiling.
+    let effective_tolerance = if is_unit {
+        UNIT_TOLERANCE.min(tolerance)
+    } else {
+        tolerance
+    };
     let content = std::fs::read_to_string(&input).expect("read input");
     let actual_png = render_helpers::render_zpl_to_png(&content, options);
     let expected_png = std::fs::read(&expected).expect("read golden");
@@ -238,7 +246,7 @@ fn golden_dbs() {
 }
 #[test]
 fn golden_dhlecommercetr() {
-    golden_zpl_with_tolerance("dhlecommercetr", 4.5);
+    golden_zpl_with_tolerance("dhlecommercetr", 2.5);
 }
 #[test]
 fn golden_dhlpaket() {
@@ -250,7 +258,7 @@ fn golden_dhlparceluk() {
 }
 #[test]
 fn golden_dpdpl() {
-    golden_zpl_with_tolerance("dpdpl", 7.5);
+    golden_zpl_with_tolerance("dpdpl", 5.5);
 }
 #[test]
 fn golden_ean13() {
@@ -358,7 +366,7 @@ fn golden_jcpenney() {
 }
 #[test]
 fn golden_kmart() {
-    golden_zpl_with_tolerance("kmart", 8.0);
+    golden_zpl_with_tolerance("kmart", 5.0);
 }
 #[test]
 fn golden_labelary() {
@@ -425,8 +433,12 @@ fn golden_reverse() {
     golden_zpl_with_tolerance("reverse", 1.5);
 }
 #[test]
+fn golden_rotated_char_display() {
+    golden_zpl_with_tolerance("rotated_char_display", 3.0);
+}
+#[test]
 fn golden_swisspost() {
-    golden_zpl_with_tolerance("swisspost", 2.5);
+    golden_zpl_with_tolerance("swisspost", 1.5);
 }
 #[test]
 fn golden_templating() {
@@ -434,7 +446,15 @@ fn golden_templating() {
 }
 #[test]
 fn golden_text_fallback_default() {
-    golden_zpl_with_tolerance("text_fallback_default", 5.0);
+    golden_zpl_with_tolerance("text_fallback_default", 2.5);
+}
+#[test]
+fn golden_dein_ticket_packliste() {
+    // Real-world German packing-list fragment: ^FB L/J blocks with the
+    // scalable font 1 (^A1,,10,10) and scaled font 0 (^A0,,50,50). The
+    // font-1 mono substitute model and ^FB justification live in
+    // tuning::FONT1_* / draw_text_block.
+    golden_zpl_with_tolerance("dein_ticket_packliste", 1.5);
 }
 #[test]
 fn golden_text_fo_b() {
@@ -477,6 +497,10 @@ fn golden_text_multiline() {
     golden_zpl_with_tolerance("text_multiline", 1.5);
 }
 #[test]
+fn golden_thick_rotated_fb_text() {
+    golden_zpl_with_tolerance("thick_rotated_fb_text", 1.0);
+}
+#[test]
 fn golden_ups_surepost() {
     golden_zpl_with_tolerance("ups_surepost", 10.0);
 }
@@ -494,7 +518,7 @@ fn golden_usps() {
 }
 #[test]
 fn golden_usps_apo() {
-    golden_zpl_with_tolerance("usps_apo", 4.0);
+    golden_zpl_with_tolerance("usps_apo", 3.5);
 }
 #[test]
 fn golden_usps_intl() {
@@ -580,7 +604,7 @@ fn golden_pdf417_basic() {
 fn golden_dhlparcelit() {
     // DHL Parcel Italy: ^A0I dominant, ~DG/^XG stored graphics (DHL logo),
     // Code128 barcodes, ^FH hex encoding
-    golden_zpl_with_tolerance("dhlparcelit", 3.5);
+    golden_zpl_with_tolerance("dhlparcelit", 2.5);
 }
 
 #[test]
@@ -617,6 +641,10 @@ fn golden_maxicode_mode4() {
 #[test]
 fn golden_maxicode_default_mode2() {
     golden_zpl_with_tolerance("maxicode_default_mode2", 1.0);
+}
+#[test]
+fn golden_empty_barcodes() {
+    golden_zpl_with_tolerance("empty_barcodes", 1.0);
 }
 #[test]
 fn golden_aztec_ec_1_ec23() {
@@ -673,6 +701,47 @@ fn golden_cf_font_no_orientation() {
 #[test]
 fn golden_fo_lenient_coord() {
     golden_zpl_with_tolerance("fo_lenient_coord", 5.0);
+}
+
+// ── Print mirror (also checked pixel-for-pixel in unit_print_mirror) ──
+
+#[test]
+fn golden_print_mirror() {
+    golden_zpl_with_tolerance("print_mirror", 0.0);
+}
+
+#[test]
+fn golden_datamatrix_dimensions() {
+    golden_zpl_with_tolerance("datamatrix_dimensions", 0.0);
+}
+
+#[test]
+fn golden_print_mirror_width() {
+    golden_zpl_with_tolerance("print_mirror_width", 0.0);
+}
+
+#[test]
+fn golden_print_mirror_inverted() {
+    golden_zpl_with_tolerance("print_mirror_inverted", 0.0);
+}
+
+/// Issue #51 regression: ^CI28 (UTF-8) CJK text in scalable font 0 must
+/// render exactly like Labelary — blank space (no .notdef box), with the
+/// pen still advancing by the calibrated missing-glyph width so trailing
+/// text lands at Labelary's position. Probe-calibrated; see
+/// `tuning::FONT0_MISSING_GLYPH_ADVANCE_EM` and `tests/unit_cjk_font0.rs`.
+#[test]
+fn golden_cjk_font0_ci28() {
+    golden_zpl_with_tolerance("cjk_font0_ci28", 1.0);
+}
+
+/// Issue #65 regression: font 0 must render the Latin Extended-A glyphs
+/// Labelary's substitute has (Ă ă Đ đ Ţ ţ — Croatian/Serbian/Bosnian/
+/// Romanian surnames), while glyphs Labelary also lacks (Ș ș Ț ț Ħ ħ)
+/// stay blank with the calibrated advance on both sides.
+#[test]
+fn golden_font0_latin_ext_a() {
+    golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────

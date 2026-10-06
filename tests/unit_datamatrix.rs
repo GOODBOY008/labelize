@@ -19,10 +19,40 @@ fn fixed_size_too_small_returns_error() {
 }
 
 #[test]
-fn partial_rectangle_accepts_content_that_fits_after_compression() {
-    let img = datamatrix::encode_with_ratio(PAYLOAD, 1, 12, 0, Some(DatamatrixRatio::Rectangular))
-        .unwrap();
-    assert_eq!(img.dimensions(), (36, 12));
+fn automatic_columns_do_not_widen_a_fixed_row_symbol_to_fit_the_payload() {
+    use DatamatrixRatio::Rectangular;
+    // ZD421 D04/P16: short c0/r12 matches c26/r12; the long input prints
+    // only with explicit c36/r12. Labelary independently gives the same result.
+    assert_eq!(
+        datamatrix::encode_with_ratio("ABC", 1, 12, 0, Some(Rectangular)).unwrap(),
+        datamatrix::encode_with_ratio("ABC", 1, 12, 26, Some(Rectangular)).unwrap()
+    );
+    assert!(datamatrix::encode_with_ratio(PAYLOAD, 1, 12, 0, Some(Rectangular)).is_err());
+    assert_eq!(
+        datamatrix::encode_with_ratio(PAYLOAD, 1, 12, 36, Some(Rectangular))
+            .unwrap()
+            .dimensions(),
+        (36, 12)
+    );
+    // Labelary controls: the same fixed-row selection also occurs at r8.
+    assert!(datamatrix::encode_with_ratio("aB!cD?eF", 1, 8, 0, Some(Rectangular)).is_err());
+    assert_eq!(
+        datamatrix::encode_with_ratio("aB!cD?eF", 1, 8, 32, Some(Rectangular))
+            .unwrap()
+            .dimensions(),
+        (32, 8)
+    );
+    // Same observation at r16: c0 does not widen from 36 to 48 columns.
+    let long16 = "aB!cD?eF#gH%iJ&kLaB!cD?eF#gH%iJ&kL";
+    for columns in [0, 36] {
+        assert!(datamatrix::encode_with_ratio(long16, 1, 16, columns, Some(Rectangular)).is_err());
+    }
+    assert_eq!(
+        datamatrix::encode_with_ratio(long16, 1, 16, 48, Some(Rectangular))
+            .unwrap()
+            .dimensions(),
+        (48, 16)
+    );
 }
 
 #[test]
@@ -48,6 +78,37 @@ fn automatic_and_partial_dimensions_respect_shape() {
             "{rows}, {columns}, {ratio:?}"
         );
     }
+}
+
+#[test]
+fn fixed_row_capacity_boundary_matches_labelary() {
+    use DatamatrixRatio::Rectangular;
+    // 8 letters + 16 digits = 16 ASCII data codewords, exactly 26x12 capacity.
+    // Adding one digit needs a 17th word; c0/r12 must not silently widen.
+    let fits = "ABCD1234567890123490efgh";
+    let over = "ABCD12345678901234901efgh";
+    let expected = datamatrix::encode_with_ratio(fits, 1, 12, 26, Some(Rectangular)).unwrap();
+    assert_eq!(expected.dimensions(), (26, 12));
+    assert_eq!(
+        datamatrix::encode_with_ratio(fits, 1, 12, 0, Some(Rectangular)).unwrap(),
+        expected
+    );
+    for columns in [0, 26] {
+        assert!(datamatrix::encode_with_ratio(over, 1, 12, columns, Some(Rectangular)).is_err());
+    }
+    assert_eq!(
+        datamatrix::encode_with_ratio(over, 1, 12, 36, Some(Rectangular))
+            .unwrap()
+            .dimensions(),
+        (36, 12)
+    );
+    // Exercise the omitted escape argument exactly as in the user/Labelary probe.
+    assert_eq!(
+        ink_bounds(&render_bx("N,4,200,0,12,6,,2", fits).unwrap()),
+        (10, 20, 104, 48)
+    );
+    let omitted = render_bx("N,4,200,0,12,6,,2", over).unwrap();
+    assert!(omitted.pixels().all(|p| p[3] == 0 || p[0] >= 128));
 }
 
 #[test]
@@ -127,11 +188,67 @@ fn zpl_renderer_honors_dimensions_ratio_and_magnification() {
         ("N,1,200,0,0,,_,1", "A", 10, 10),
         ("N,1,200", "A", 10, 10),
         ("N,1,200,36,0,,_,2", PAYLOAD, 36, 12),
-        ("N,1,200,0,12,,_,2", PAYLOAD, 36, 12),
+        ("N,1,200,0,12,,_,2", "ABC", 26, 12),
     ] {
         let image = render_bx(parameters, content).unwrap_or_else(|e| panic!("{parameters}: {e}"));
         assert_eq!(ink_bounds(&image), (10, 20, width, height), "{parameters}");
     }
+}
+
+#[test]
+fn zpl_row_only_capacity_failure_skips_only_that_field() {
+    // Compare against the exact same label with the rejected field absent;
+    // include fields before/after and a subsequent label to catch state leakage.
+    let rejected = format!("^FO40,80^BXN,4,200,0,12,6,_,2^FD{PAYLOAD}^FS");
+    let source = format!("^XA^FO10,10^GB30,20,3^FS{rejected}^FO10,220^GB40,20,4^FS^FO180,80^BXN,2,200,0,12,6,_,2^FDABC^FS^XZ^XA^FO20,20^BXN,2,200,36,12,6,_,2^FD{PAYLOAD}^FS^XZ");
+    let expected = source.replace(&rejected, "");
+    let draw = |source: &str| {
+        ZplParser::new()
+            .parse(source.as_bytes())
+            .unwrap()
+            .iter()
+            .map(|label| {
+                let mut bytes = Vec::new();
+                Renderer::new()
+                    .draw_label_as_png(label, &mut bytes, DrawerOptions::default())
+                    .unwrap();
+                bytes
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(draw(&source), draw(&expected));
+    assert!(
+        render_bx("N,1,200,0,12,6,_,2", "_d999").is_err(),
+        "invalid escapes must not be hidden as capacity failures"
+    );
+}
+
+#[test]
+fn special_codewords_obey_width_shape_and_partial_size_without_fallback() {
+    use DatamatrixRatio::{Rectangular, Square};
+    for data in [b"_1ABC".as_slice(), b"_5009ABC", b"_2001001001ABC"] {
+        let img =
+            datamatrix::encode_zpl_with_ratio(data, 1, 12, 36, b'_', Some(Rectangular)).unwrap();
+        assert_eq!(img.dimensions(), (36, 12));
+        // ^BX renderer must send ratio and width into the function-codeword path too.
+        let field = render_bx("N,2,200,36,12,6,_,2", std::str::from_utf8(data).unwrap()).unwrap();
+        assert_eq!(ink_bounds(&field), (10, 20, 72, 24));
+        assert!(datamatrix::encode_zpl_with_ratio(data, 1, 12, 36, b'_', Some(Square)).is_err());
+        let short =
+            datamatrix::encode_zpl_with_ratio(data, 1, 12, 0, b'_', Some(Rectangular)).unwrap();
+        assert_eq!(short.dimensions(), (26, 12));
+    }
+    let long = b"_1aB!cD?eF#gH%iJ&kL";
+    assert!(datamatrix::encode_zpl_with_ratio(long, 1, 12, 0, b'_', Some(Rectangular)).is_err());
+    assert_eq!(
+        datamatrix::encode_zpl_with_ratio(long, 1, 12, 36, b'_', Some(Rectangular))
+            .unwrap()
+            .dimensions(),
+        (36, 12)
+    );
+    let omitted = render_bx("N,1,200,0,12,6,_,2", std::str::from_utf8(long).unwrap()).unwrap();
+    assert!(omitted.pixels().all(|p| p[3] == 0 || p[0] >= 128));
+    assert!(datamatrix::encode_zpl_with_ratio(b"_1ABC", 1, 10, 10, b'_', Some(Square)).is_err());
 }
 
 #[test]

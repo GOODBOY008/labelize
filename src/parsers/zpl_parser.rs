@@ -59,15 +59,18 @@ impl ZplParser {
     pub fn parse(&mut self, zpl_data: &[u8]) -> Result<Vec<LabelInfo>, String> {
         let mut results = Vec::new();
         let mut result_elements: Vec<LabelElement> = Vec::new();
+        let mut mirror_at_format_start = self.printer.label_mirrored;
 
         let commands = split_zpl_commands(zpl_data)?;
         let mut current_recalled_format: Option<crate::elements::stored_format::RecalledFormat> =
             None;
 
-        for command in &commands {
+        for raw_command in &commands {
+            let command = &raw_command.text;
             let upper = command.to_uppercase();
 
             if upper.starts_with("^XA") {
+                mirror_at_format_start = self.printer.label_mirrored;
                 self.printer.reset_label_state();
                 current_recalled_format = None;
                 continue;
@@ -80,7 +83,7 @@ impl ZplParser {
                     result_elements.extend(resolved);
                 }
 
-                if result_elements.is_empty() {
+                if result_elements.is_empty() && self.printer.next_download_format_name.is_empty() {
                     continue;
                 }
 
@@ -102,6 +105,7 @@ impl ZplParser {
                         results.push(LabelInfo {
                             print_width: self.printer.print_width,
                             inverted: self.printer.label_inverted,
+                            mirrored: self.printer.label_mirrored,
                             elements: shifted.clone(),
                         });
                     }
@@ -110,13 +114,23 @@ impl ZplParser {
                         self.printer.next_download_format_name.clone(),
                         StoredFormat {
                             inverted: self.printer.label_inverted,
+                            mirrored: self.printer.format_mirrored,
                             elements: result_elements.clone(),
                         },
                     );
+                    // This also handles ^PM before ^DF in the stored format.
+                    self.printer.label_mirrored = mirror_at_format_start;
                 }
 
                 result_elements.clear();
                 continue;
+            }
+
+            if upper.starts_with("^FD") || upper.starts_with("^FV") {
+                self.printer.next_element_field_bytes = Some(hex::decode_escaped_bytes(
+                    &raw_command.bytes[3..],
+                    self.printer.next_hex_escape_char,
+                ));
             }
 
             // Try each command parser
@@ -128,6 +142,9 @@ impl ZplParser {
                         result_elements.extend(resolved);
                     }
                     self.printer.label_inverted = rf.inverted;
+                    if let Some(mirrored) = rf.mirrored {
+                        self.printer.set_print_mirror(mirrored);
+                    }
                     current_recalled_format = Some(rf);
                     continue;
                 }
@@ -184,6 +201,16 @@ impl ZplParser {
         if upper.starts_with("^LR") {
             let text = command_text(command, "^LR");
             self.printer.label_reverse = text == "Y";
+            return Ok(None);
+        }
+        // Print mirror is persistent printer state. Missing/invalid parameters
+        // are ignored rather than replacing the current setting with a default.
+        if upper.starts_with("^PM") {
+            match command_text(&upper, "^PM").trim() {
+                "Y" => self.printer.set_print_mirror(true),
+                "N" => self.printer.set_print_mirror(false),
+                _ => {}
+            }
             return Ok(None);
         }
         // Print orientation
@@ -800,6 +827,7 @@ impl ZplParser {
                     field: self.printer.get_field_info(),
                 },
                 data: self.printer.next_element_field_data.clone(),
+                data_bytes: self.printer.next_element_field_bytes.clone(),
             };
             // Resolve immediately
             resolve_recalled_field(&rf)?
@@ -807,6 +835,7 @@ impl ZplParser {
             Some(LabelElement::RecalledFieldData(RecalledFieldData {
                 number: self.printer.next_element_field_number,
                 data: self.printer.next_element_field_data.clone(),
+                data_bytes: self.printer.next_element_field_bytes.clone(),
             }))
         } else {
             Some(LabelElement::StoredField(StoredField {
@@ -1102,7 +1131,7 @@ impl ZplParser {
             columns: 0,
             rows: 0,
             format: 6,
-            escape: b'~',
+            escape: b'_', // ECC 200 default on modern Zebra firmware.
             ratio: Some(DatamatrixRatio::Square),
         };
         if let Some(s) = parts.first() {
@@ -1709,6 +1738,7 @@ fn resolve_recalled_field(
     // Build a temporary RecalledFormat with a single field and resolve it
     let rf = RecalledFormat {
         inverted: false,
+        mirrored: None,
         elements: vec![LabelElement::RecalledField(f.clone())],
         field_refs: std::collections::HashMap::new(),
     };
@@ -1717,32 +1747,38 @@ fn resolve_recalled_field(
     Ok(resolved.into_iter().next())
 }
 
-fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<String>, String> {
-    let data_str = String::from_utf8_lossy(zpl_data);
-    let data = data_str.replace(['\n', '\r', '\t'], "");
+struct ZplCommand {
+    text: String,
+    bytes: Vec<u8>,
+}
 
-    let mut caret = '^';
-    let mut tilde = '~';
-
-    let mut buff = String::new();
+fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<ZplCommand>, String> {
+    let mut caret = b'^';
+    let mut tilde = b'~';
+    let mut buff = Vec::new();
     let mut results = Vec::new();
-
-    for ch in data.chars() {
+    // Preserve input bytes before the text view is decoded. As before, literal
+    // transport CR/LF/TAB are ignored; ^FH can insert them into field data.
+    for ch in zpl_data
+        .iter()
+        .copied()
+        .filter(|b| !matches!(b, b'\n' | b'\r' | b'\t'))
+    {
         let mut is_ct = false;
         let mut is_cc = false;
         if buff.len() == 4 {
-            is_ct = buff.contains("CT") && buff.starts_with(caret);
-            is_cc = buff.contains("CC") && buff.starts_with(caret);
+            is_ct = buff[0] == caret && &buff[1..3] == b"CT";
+            is_cc = buff[0] == caret && &buff[1..3] == b"CC";
         }
 
         if ch == caret || ch == tilde || is_ct || is_cc {
             let normalized = normalize_command(&buff, tilde, caret);
 
-            if is_ct && normalized.len() >= 4 {
-                tilde = normalized.chars().nth(3).unwrap_or('~');
-            } else if is_cc && normalized.len() >= 4 {
-                caret = normalized.chars().nth(3).unwrap_or('^');
-            } else if !normalized.is_empty() {
+            if is_ct && normalized.bytes.len() >= 4 {
+                tilde = normalized.bytes[3];
+            } else if is_cc && normalized.bytes.len() >= 4 {
+                caret = normalized.bytes[3];
+            } else if !normalized.text.is_empty() {
                 results.push(normalized);
             }
 
@@ -1754,7 +1790,7 @@ fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<String>, String> {
 
     if !buff.is_empty() {
         let normalized = normalize_command(&buff, tilde, caret);
-        if !normalized.is_empty() {
+        if !normalized.text.is_empty() {
             results.push(normalized);
         }
     }
@@ -1762,17 +1798,17 @@ fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<String>, String> {
     Ok(results)
 }
 
-fn normalize_command(command: &str, tilde: char, caret: char) -> String {
-    if command.is_empty() {
-        return String::new();
+fn normalize_command(command: &[u8], tilde: u8, caret: u8) -> ZplCommand {
+    let mut bytes = command.to_vec();
+    if let Some(first) = bytes.first_mut() {
+        let original = *first;
+        if caret != b'^' && original == caret {
+            *first = b'^';
+        }
+        if tilde != b'~' && original == tilde {
+            *first = b'~';
+        }
     }
-    let mut cmd = command.to_string();
-    let first = cmd.chars().next().unwrap();
-    if caret != '^' && first == caret {
-        cmd = format!("^{}", &cmd[first.len_utf8()..]);
-    }
-    if tilde != '~' && first == tilde {
-        cmd = format!("~{}", &cmd[first.len_utf8()..]);
-    }
-    cmd.trim_start().to_string()
+    let text = String::from_utf8_lossy(&bytes).trim_start().to_string();
+    ZplCommand { text, bytes }
 }

@@ -161,6 +161,7 @@ impl EplParser {
                     results.push(LabelInfo {
                         print_width: 0,
                         inverted: false,
+                        mirrored: false,
                         elements: current_elements.clone(),
                     });
                 }
@@ -175,6 +176,7 @@ impl EplParser {
             results.push(LabelInfo {
                 print_width: 0,
                 inverted: false,
+                mirrored: false,
                 elements: current_elements,
             });
         }
@@ -761,15 +763,16 @@ fn parse_epl_2d_barcode(
                         barcode: BarcodeDatamatrix {
                             orientation: FieldOrientation::Normal,
                             height: module,
-                            quality: 0,
+                            quality: 200, // EPL Data Matrix always uses ECC 200.
                             columns,
                             rows,
                             format: 6,
-                            escape: b'~',
+                            escape: 0, // EPL field data has no ZPL escape processing.
                             ratio: Some(DatamatrixRatio::Square),
                         },
                         position: pos,
                         data: content.to_string(),
+                        data_bytes: None,
                     })
                 }
                 "M" => {
@@ -791,7 +794,9 @@ fn parse_epl_2d_barcode(
                     })
                 }
                 "P" => {
-                    let mut security = 0i32;
+                    // -1 = "s" omitted: the encoder auto-selects the EC level
+                    // from the codeword count (EPL2 manual, "b" PDF417 options)
+                    let mut security = -1i32;
                     let mut module_width = 6i32; // manual: auto selects 6
                     let mut row_height = 0i32;
                     let mut rows = 0i32;

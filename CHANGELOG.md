@@ -5,6 +5,197 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Rotated text fields no longer clip characters to the advance box** —
+  rotated fields (^A…R/I/B, ^FW) are rasterised into a buffer whose width now
+  covers the laid-out ink, with a left margin for marks that overhang the pen
+  origin and a descent pad for glyphs extending below the buffer. Previously
+  178 (font, character) combinations lost ink when rotated — catastrophically
+  for font-0 characters whose calibrated advance deltas undercut their glyph
+  (Ā, Ŝ, ƀ, ℀ rendered as a few-px sliver), by 5–12 % for the DejaVu Greek
+  tonos capitals and Vietnamese horn glyphs, and 1–3 px on the DejaVu mono
+  trailing edge. Per-orientation anchor rebasing keeps every previously
+  rendered pixel in place: golden output is byte-identical (128/128 pass,
+  zero testdata changes) — only previously clipped ink appears.
+- **Rotated ^FB blocks anchor like Labelary** — Labelary reserves the full
+  block box (max_lines × line pitch) for rotated blocks and stacks lines from
+  its top edge; for 90° fields that places line k at the plain-rotated
+  position plus (max_lines − k)·pitch regardless of how many lines render
+  (probed across FB,1/FB,2/FB,4 with 1- and 2-line content). The renderer now
+  matches, fixing a 40–56 px column offset on 90° font-0 blocks (e.g. the
+  bottom-right rotated block of the `rotated_char_display` fixture) and
+  improving `dpdpl` 4.07 % → 3.91 %.
+- **Negative `^FB` line spacing and padded-pen snapping in rotated blocks** —
+  `^FB`'s add-spacing parameter may be negative (later lines then sit above
+  the first, and the deepest line need not be the last): the rotated buffer
+  now grows a top margin for raised lines and sizes its bottom margin from
+  the deepest line, instead of clipping raised lines whole
+  (`^A1R ^FB20,2,-80 "j j"` lost one of two lines). The buffer's left margin
+  is applied after the per-line pen snap, so padding is always a pure
+  translation. The 90° block anchor generalises to the sign-aware rule
+  `line k = field_x + (max_lines − k + 1) × pitch`, verified against
+  Labelary to ≤1 px at +40/−80 dot spacing with single- and two-line content.
+- **Characters outside a substitute font's coverage render blank everywhere**
+  — the DejaVu faces (fonts 1, A–Z) used to draw .notdef boxes for uncovered
+  characters (CJK, Latin Ext-B digraphs, parts of Latin Extended Additional);
+  Labelary renders these blank while the pen still advances one cell, and the
+  renderer now matches (font 0 already did).
+
+### Added
+
+- **Windows cross-compilation build script (#15)** — `tools/build/build-windows.sh`
+  cross-compiles a Windows `labelize.exe` (x86_64-pc-windows-gnu) inside Docker
+  with mingw-w64, runnable from any machine with Docker; the binary lands in
+  `target/windows-release/`. Complements the official MSVC binaries attached to
+  each GitHub release.
+- **Unmapped ZPL font warning (#20)** — font names with no built-in mapping
+  (e.g. user-installed numeric fonts or `^CW`-mapped names) now log a one-time
+  notice on stderr instead of silently substituting DejaVu Sans Mono;
+  rendering output is unchanged.
+=======
+- **Comprehensive character-display test suite** —
+  `tests/unit_text_character_display.rs` sweeps ~960 characters (ASCII,
+  Latin-1/Extended-A/B/Additional, Greek, Cyrillic, punctuation, CJK) across
+  all 14 substitute-font calibration classes and all four field orientations,
+  asserting that covered characters produce ink, that rotation preserves ink
+  pixel-exactly, and that uncovered characters render blank (Labelary parity),
+  plus the same invariants for multiline ^FB blocks.
+
+## [1.7.0] - 2026-10-04
+
+### Added
+
+- **`^PM` persistent label mirroring (#49)** — the mirror-image print mode now
+  persists across `^XA…^XZ` boundaries like Zebra firmware, with
+  `print_mirror` / `print_mirror_inverted` / `print_mirror_width` golden
+  fixtures rendering at 0.00 % diff.
+- **DataMatrix ECC 000-140 (Legacy) encoding (#57)** — all five Legacy
+  qualities, six formats, CRC, convolutional protection, randomization and
+  generated/cached placement for the 21 supported sizes; an omitted quality
+  remains ECC 000, explicit ECC 200 and EPL keep their own encoder paths.
+  Original and `^FH` field bytes are preserved through parsing, resets and
+  stored-format recalls; Legacy backslashes and pipes stay literal. Ported
+  from QR Atelier (MIT, attribution in `licenses/`), with fixed norm examples
+  and printer-grid test evidence.
+
+### Fixed
+
+- **Unlicensed font-0 substitute replaced with open-source Roboto Condensed (#65)** —
+  the embedded Helvetica Bold Condensed traced back to Adobe's proprietary face
+  (ADBE vendor ID, byte-identical glyph metrics after a FontForge rename), so
+  every distributed package carried an unlicensed font. Font 0 is now a 40 KB
+  Apache-2.0 Roboto Condensed Bold subset, re-calibrated to Labelary
+  (`FONT0_CAP_SCALE` 1.3913, advance table refit) and extended with the six
+  Latin Extended-A glyphs Labelary renders (`Ă ă Đ đ Ţ ţ`) — fixing the blank
+  gaps in Croatian/Serbian/Romanian surnames (#65).
+- **PDF417 compaction now matches the reference renderer** — the high-level
+  encoder is rewritten (`src/barcodes/pdf417_encoding.rs`) from the ZXing
+  heuristic to an ISO/IEC 15438 pipeline that reproduces the reference
+  segment-for-segment: block-smoothing Text/Byte/Numeric segmentation (numeric
+  compaction for medium digit runs, byte absorption of short blocks, leading
+  text blocks never demoted), text sub-mode latching, 901/913/924 byte rules,
+  base-900 numeric groups, and the descriptor/padding/row-indicator/cluster
+  assembly. `^B7` security level 0 is used verbatim; EPL `b … P` without `s`
+  auto-selects the EC level per the EPL2 manual. The isolated fedex
+  secondary-message symbol went from 36,500 diff px to 0 and `pdf417_basic`
+  is byte-identical to Labelary; fedex_express 6.24 → 3.31 %,
+  fedex_ground 5.45 → 2.53 %, fedex 4.85 → 2.06 %, dpdpl 5.60 → 4.07 % and
+  nine further labels improve with no tolerance regressions.
+- **Diacritics no longer clipped in rotated text fields (#63)** — marks that rise
+  above the font ascent (the dots on `Ä`/`Ö`/`Ü`) now render in `^A0R`/`^A0I`/
+  `^A0B` fields just as they do in `^A0N`. The off-screen buffer used for
+  rotated text gains one em of headroom above the ascent (with the overlay
+  shifted back for 270° fields), so `HÄM+ÖÜ` no longer renders as `HAM+OU` in
+  rotated orientations. Uncovering the previously clipped cap tops also reveals
+  a pre-existing 1–2 px vertical offset of rotated fields vs Labelary; golden
+  diffs worsen by at most 0.14 pp per label and stay within tolerance.
+- **Rotated font-0 glyphs re-anchored to Labelary** — probe renders at 12–90 pt
+  measured rotated font-0 plain text sitting 1–4 px toward its cap side
+  (`^A0R` +3..4 px along +x, `^A0I` 3 px along +y, `^A0B` 1..2 px along −x);
+  the debt predates the headroom fix but its cost was masked by the clipping.
+  A per-orientation overlay correction on plain text removes it: usps_apo
+  4.37 → 2.85 %, dhlparcelit 3.18 → 1.93 %, dhlecommercetr 2.91 → 1.91 %,
+  swisspost 1.21 → 0.71 %, and nine further labels improve with no label
+  regressing beyond 0.05 pp.
+- **Font-0 advance deltas now scale with the cell width ratio** — the additive
+  per-character deltas (and the missing-glyph advance) were calibrated in
+  y-scaled em at cells where `^A0` height equals width, but were applied
+  unscaled on the horizontal axis while the glyph's own hmtx advance scales
+  with `scale.x ∝ w/h`. On cells whose width differs from height
+  (`^A0,60,35` …) every character then drifted against Labelary by a
+  fraction of the delta, accumulating over long lines. Scaling the deltas by
+  `w/h` (a no-op when width == height) fixes the drift: dpdpl 4.99 → 4.07 %,
+  kmart 3.82 → 3.40 %, ups_import_control 3.89 → 3.44 %, ups_surepost
+  4.00 → 3.60 %, jcpenney −0.27 pp and 20 further labels improve; no label
+  regresses beyond +0.05 pp.
+- **Cloudflare Worker after wasm-bindgen 0.2.129** — the glue rename
+  (`__wbindgen_cast_*` → `__wbindgen_generic_*`) is tracked in the worker's
+  hand-written shim list so deployments stay green across the dependency bump.
+
+### Changed
+
+- **Dependencies bumped (#62)** — imageproc 0.26 → 0.27, lopdf 0.40 → 0.45,
+  base64 0.23, rxing 0.9 (barcode decoders are now a feature-gated dev
+  dependency; adding new symbologies requires explicit features), sha2 0.11.
+  Rendered testdata is byte-identical.
+- **Font license attribution completed** — `THIRD_PARTY_LICENSES.md` now covers
+  DejaVu Sans Mono (full Bitstream Vera permission text reproduced in
+  `licenses/DejaVu-BitstreamVera.txt` from the embedded name table) and the
+  provenance of the FontForge-generated ZPL GS font; all four embedded fonts
+  are fsType-0 installable-embedding faces with redistributable licenses.
+
+## [1.6.0] - 2026-09-21
+
+### Added
+
+- **Android support** — new `android/` module: a JNI binding crate
+  (`labelize-android`, mirroring the wasm API) plus a Gradle library module
+  that packages the Kotlin API (`com.goodboy008.labelize.Labelize`,
+  `renderZplToPng` / `renderZplToPdf` / `renderEplToPng` / `renderEplToPdf`)
+  and native libraries for `arm64-v8a`, `armeabi-v7a`, `x86_64` and `x86`
+  (minSdk 24) into a single AAR. Output is byte-for-byte identical to the
+  desktop builds — verified on an API 36 arm64 emulator where the demo app's
+  PNG and PDF matched a desktop render exactly. A prebuilt
+  `labelize-android-aar.zip` is attached to every GitHub Release; CI builds
+  the AAR on every push.
+
+### Fixed
+
+- **Empty 2D barcode fields no longer fail the whole label** — an empty `^FD` on
+  `^BQ` (QR), `^BX` (DataMatrix) or `^BD` (MaxiCode) now draws nothing (matching
+  Labelary) while the rest of the label renders; previously any of them aborted
+  rendering with an error like `invalid qr barcode data`. A prefix-only QR field
+  (`^FDQA,`) that parses to an empty payload is skipped the same way. An empty
+  `^BO` (Aztec) draws the fixed 11×11 bullseye core Labelary renders (2-module
+  margin, 69 dark modules), verified pixel-identical in the new
+  `empty_barcodes` golden fixture (0.00 % diff).
+- **Rotated text: pen-origin anchoring and stroke weight** — rotated `I`/`B`
+  font 0 text anchors at the pen origin like Labelary (#45), and rotated
+  overlays composite through alpha blending instead of a raw copy, so rotated
+  text no longer renders with double-weight strokes under the default 1-bit
+  output.
+- **Scalable font 1 (`^A1`) and `^FB` justification (#46)** — font 1 is modeled
+  on Labelary's monospaced substitute (including its empty-height → doubled-em
+  width quirk, 0.73·h caps and 1.17·w advance), and `^FB` with `J`
+  justification spreads words across the full block width.
+- **Malformed QR data fails cleanly (#47)** — non-UTF-8 bytes in a `^BQ` field
+  now surface a parse error instead of panicking.
+- **`^CI28` font 0 missing glyphs (#56)** — characters missing from font 0
+  render as blank space using Labelary's 0.2976 em advance instead of
+  missing-glyph boxes.
+
+### Changed
+
+- **Barcode encoder empty-input contract** — `datamatrix::encode(b"")` now encodes
+  naturally to the minimal 10×10 ECC 200 symbol instead of erroring, and
+  `aztec::encode(b"")` returns the Labelary minimal symbol instead of erroring
+  (both `Ok`). `qrcode::encode` and `maxicode::encode` still reject empty input;
+  the skip-or-draw decision lives in the renderer, where Labelary's behavior
+  diverges per symbology.
+
 ## [1.5.0] - 2026-09-08
 
 ### Added

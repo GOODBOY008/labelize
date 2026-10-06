@@ -24,6 +24,7 @@ pub struct VirtualPrinter {
     pub next_element_alignment: Option<FieldAlignment>,
     pub next_element_field_element: Option<Box<LabelElement>>,
     pub next_element_field_data: String,
+    pub next_element_field_bytes: Option<Vec<u8>>,
     pub next_element_field_number: i32,
     pub next_font: Option<FontInfo>,
     pub next_download_format_name: String,
@@ -34,6 +35,11 @@ pub struct VirtualPrinter {
     pub current_charset: i32,
     pub print_width: i32,
     pub label_inverted: bool,
+    /// `^PM` is printer state: it survives ^XA/^XZ until explicitly changed.
+    pub label_mirrored: bool,
+    /// Explicit ^PM in this format, retained for replay by ^XF. None means
+    /// inherit the printer's setting at recall time, not at definition time.
+    pub format_mirrored: Option<bool>,
     /// Printer resolution; must match the resolution the label is rendered at, since
     /// `^MU I`/`^MU M` need it to turn physical units into dots.
     pub dpmm: i32,
@@ -83,6 +89,7 @@ impl Default for VirtualPrinter {
             next_element_alignment: None,
             next_element_field_element: None,
             next_element_field_data: String::new(),
+            next_element_field_bytes: None,
             next_element_field_number: -1,
             next_font: None,
             next_download_format_name: String::new(),
@@ -93,6 +100,8 @@ impl Default for VirtualPrinter {
             current_charset: 0,
             print_width: 0,
             label_inverted: false,
+            label_mirrored: false,
+            format_mirrored: None,
             dpmm: 8,
             measurement_unit: MeasurementUnit::default(),
             dpi_conversion: 1.0,
@@ -172,6 +181,7 @@ impl VirtualPrinter {
         self.next_element_position = LabelPosition::default();
         self.next_element_field_element = None;
         self.next_element_field_data = String::new();
+        self.next_element_field_bytes = None;
         self.next_element_field_number = -1;
         self.next_element_alignment = None;
         // Save font used by the last field so ^GS can inherit it when no size specified
@@ -184,9 +194,19 @@ impl VirtualPrinter {
         self.next_hex_escape_char = 0;
     }
 
+    pub fn set_print_mirror(&mut self, mirrored: bool) {
+        self.format_mirrored = Some(mirrored);
+        // A downloaded format records the command without changing the printer.
+        if self.next_download_format_name.is_empty() {
+            self.label_mirrored = mirrored;
+        }
+    }
+
     pub fn reset_label_state(&mut self) {
         self.next_download_format_name = String::new();
         self.label_inverted = false;
+        self.format_mirrored = None;
+        // Do not reset label_mirrored: ^PM persists across label formats.
         // ^PQ is scoped to the label format it appears in.
         self.print_quantity = 1;
         self.print_copies = 1;
