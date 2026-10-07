@@ -88,5 +88,5 @@
 ║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 83 total │ 11 perfect │ 60 good │ 10 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 84 total │ 12 perfect │ 60 good │ 10 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
