@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **DataMatrix honors `^BX` column/row constraints and aspect ratio** — the
+  encoder no longer falls back to an unrestricted square symbol when a
+  requested ECC200 size cannot fit: both dimensions pin the symbol shape, a
+  fixed-row rectangular request selects the smallest matching standard symbol
+  without widening, and an over-capacity field is skipped in exactly that
+  row-only rectangular mode (ZD421- and Labelary-verified at r8/r12/r16,
+  golden at 0.0% tolerance, #48).
 - **QR mask selection follows the standard's five-percentage-point steps** —
   the QR dependency's linear N4 balance approximation could pick a
   non-minimal mask; Labelize now evaluates all eight candidate matrices with
