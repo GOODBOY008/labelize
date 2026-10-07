@@ -252,6 +252,9 @@ implementation and Labelary skip it.
 
 ## Updating References
 
+`qr_mask_selection` has a **0.0%** tolerance against an independent Labelary
+reference for five isolated EC-H Byte cases. See [QR_MASK_SELECTION.md](QR_MASK_SELECTION.md).
+
 The `print_mirror`, `print_mirror_width`, and `print_mirror_inverted` fixtures
 have a strict pixel-for-pixel check in `tests/unit_print_mirror.rs` in addition
 to the golden suite. Their independent Labelary references and measured

@@ -1,6 +1,6 @@
 use image::{Rgba, RgbaImage};
 use qrcode::types::EcLevel;
-use qrcode::QrCode;
+use qrcode::{bits::encode_auto, canvas::Canvas, ec::construct_codewords};
 
 use crate::elements::barcode_qr::QrErrorCorrectionLevel;
 
@@ -23,11 +23,16 @@ pub fn encode(
         QrErrorCorrectionLevel::H => EcLevel::H,
     };
 
-    let code = QrCode::with_error_correction_level(content.as_bytes(), ec)
+    let bits = encode_auto(content.as_bytes(), ec)
         .map_err(|e| format!("QR code encoding failed: {}", e))?;
-
-    let modules = code.to_colors();
-    let side = code.width() as u32;
+    let version = bits.version();
+    let side = version.width() as u32;
+    let (data, ecc) = construct_codewords(&bits.into_bytes(), version, ec)
+        .map_err(|e| format!("QR code encoding failed: {e}"))?;
+    let mut canvas = Canvas::new(version, ec);
+    canvas.draw_all_functional_patterns();
+    canvas.draw_data(&data, &ecc);
+    let modules = super::qr_mask::select(&canvas, side as usize);
 
     // Render to image with quiet zone — ZPL ^BQ includes a 4-module quiet zone
     let quiet_zone = 4u32;
