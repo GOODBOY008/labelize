@@ -184,8 +184,14 @@ fn only_the_configured_escape_is_active() {
 
 #[test]
 fn upper_shift_numeric_pairs_and_padding_survive_independent_decoding() {
-    for size in [0, 12, 16, 22, 32] {
+    // Six codewords cannot fit a fixed 12x12 symbol (five data codewords).
+    // The old encoder silently widened it; dimensions are now binding.
+    assert!(datamatrix::encode_zpl(b"_1_d128_d25599", 1, 12, 12, b'_').is_err());
+    for size in [0, 14, 16, 22, 32] {
         let image = datamatrix::encode_zpl(b"_1_d128_d25599", 1, size, size, b'_').unwrap();
+        if size != 0 {
+            assert_eq!(image.dimensions(), (size as u32, size as u32));
+        }
         let decoded = decode_image(&image, 1);
         assert_eq!(decoded.getSymbologyModifier(), 2);
         assert_eq!(&decoded.getRawBytes()[..6], &[232, 235, 1, 235, 128, 229]);

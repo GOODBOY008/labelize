@@ -711,6 +711,11 @@ fn golden_print_mirror() {
 }
 
 #[test]
+fn golden_datamatrix_dimensions() {
+    golden_zpl_with_tolerance("datamatrix_dimensions", 0.0);
+}
+
+#[test]
 fn golden_qr_mask_selection() {
     golden_zpl_with_tolerance("qr_mask_selection", 0.0);
 }

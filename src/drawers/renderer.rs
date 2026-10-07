@@ -1254,17 +1254,21 @@ impl Renderer {
                 size,
             )?
             .to_image(scale as usize, scale as usize)
-        } else if bc.barcode.escape != 0 {
-            barcodes::datamatrix::encode_zpl(
+        } else {
+            let image = barcodes::datamatrix::render_zpl_field(
                 bc.data.as_bytes(),
                 scale,
                 bc.barcode.rows,
                 bc.barcode.columns,
                 bc.barcode.escape,
-            )?
-        } else {
-            barcodes::datamatrix::encode(&bc.data, scale, bc.barcode.rows, bc.barcode.columns)?
+                bc.barcode.ratio,
+            )?;
+            let Some(image) = image else {
+                return Ok(());
+            };
+            image
         };
+
         let pos = adjust_image_typeset_position(&img_raw, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img_raw, &pos, bc.barcode.orientation);
         Ok(())

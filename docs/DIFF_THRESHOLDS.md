@@ -252,6 +252,10 @@ implementation and Labelary skip it.
 
 ## Updating References
 
+`datamatrix_dimensions` uses a **0.0%** tolerance against its independent
+Labelary reference. It covers ECC200 rectangular size constraints and the
+row-only capacity boundary; see [DATAMATRIX_DIMENSIONS.md](DATAMATRIX_DIMENSIONS.md).
+
 `qr_mask_selection` has a **0.0%** tolerance against an independent Labelary
 reference for five isolated EC-H Byte cases. See [QR_MASK_SELECTION.md](QR_MASK_SELECTION.md).
 
