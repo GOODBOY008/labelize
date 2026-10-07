@@ -723,3 +723,54 @@ fn empty_maxicode_field_skips_barcode_but_renders_rest_of_label() {
         "empty MaxiCode field should draw nothing"
     );
 }
+
+// --- ^FB line pitch for bitmap fonts ---
+
+/// Bottom-most dark row of the canvas, or None when blank.
+fn last_ink_row(img: &image::RgbaImage) -> Option<u32> {
+    (0..img.height())
+        .rev()
+        .find(|&y| (0..img.width()).any(|x| img.get_pixel(x, y)[0] < 128))
+}
+
+/// A multi-line ^FB block in a bitmap font advances by the font cell height
+/// plus the ^FB line spacing (Zebra printers and Labelary). The cap-scaled em
+/// used to draw the glyphs must not leak into the pitch, or long blocks run
+/// past their box into the following fields.
+#[test]
+fn fb_bitmap_font_line_pitch_is_cell_height_plus_spacing() {
+    // (font, cell height in dots, ^FB line spacing, line count)
+    let cases = [
+        ("A", 9, 0, 30),
+        ("C", 18, 2, 40),
+        ("D", 18, 4, 20),
+        ("E", 28, 2, 8),
+        ("F", 26, 0, 10),
+    ];
+    let top = 40;
+    for (font, cell, spacing, lines) in cases {
+        let fd = (1..=lines)
+            .map(|i| format!("{font} {i:02}"))
+            .collect::<Vec<_>>()
+            .join("\\&");
+        let zpl = format!(
+            "^XA^CI28^A{font}N^FO20,{top}^FB400,{lines},{spacing},L,0^FD{fd}^FS^XZ"
+        );
+        let img = decode_png(&render_helpers::render_zpl_to_png(
+            &zpl,
+            render_helpers::unit_options(),
+        ));
+        let pitch = cell + spacing;
+        let block_end = top + lines * pitch;
+        let last = last_ink_row(&img).expect("block rendered no ink") as i32;
+        assert!(
+            last < block_end,
+            "^A{font} ^FB block ink reaches y={last}, past its box end y={block_end} (pitch {pitch})"
+        );
+        assert!(
+            last >= block_end - pitch,
+            "^A{font} ^FB last line ends at y={last}, above its last line slot starting at y={}",
+            block_end - pitch
+        );
+    }
+}

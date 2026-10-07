@@ -255,6 +255,15 @@ impl Renderer {
         } else {
             7.0 / 6.0
         };
+        // Bitmap fonts (A-H, P-V) enlarge the em by cap_scale only to match glyph
+        // size; the ^FB line pitch on the printer is still the font cell height
+        // (+ line spacing). Without this, an 18-dot font C block advances 21 dots
+        // per line instead of 18 and long blocks overflow into following fields.
+        let line_height_factor: f32 = if (is_bitmap || is_pv) && !is_font1 && !f0 {
+            line_height_factor / cap_scale
+        } else {
+            line_height_factor
+        };
         let bitmap_y_shift: f64 = if is_bitmap || is_pv || is_font1 {
             scale.y = font_size * cap_scale;
 
@@ -1780,7 +1789,15 @@ fn draw_text_block(
     let max_width = block.max_width as f32;
     let lines = word_wrap(text, font, scale, max_width, f0);
     let font_size = scale.y;
-    let line_height = font_size * line_height_factor + block.line_spacing as f32;
+    let raw_line_height = font_size * line_height_factor + block.line_spacing as f32;
+    // Bitmap fonts divide the cap-scaled em back down to the cell height, which
+    // lands a float epsilon off an integer pitch; treat that as integral.
+    let integral_pitch = (raw_line_height - raw_line_height.round()).abs() < 1e-3;
+    let line_height = if integral_pitch {
+        raw_line_height.round()
+    } else {
+        raw_line_height
+    };
 
     let mut cy = y;
     let max_lines = block.max_lines.max(1) as usize;
@@ -1789,7 +1806,7 @@ fn draw_text_block(
     // keeps the raw (truncating) pen — its anchor is already probe-calibrated
     // via bitmap_y_shift, and rounding it shifts single-line fields by 1px.
     let snap_y = |v: f32, first: bool| {
-        if first || line_height_factor == 1.0 {
+        if first || line_height_factor == 1.0 || integral_pitch {
             v
         } else {
             v.round()
