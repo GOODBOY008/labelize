@@ -1,3 +1,4 @@
+use super::field_alignment::FieldAlignment;
 use super::field_orientation::FieldOrientation;
 use super::label_position::LabelPosition;
 use super::reverse_print::ReversePrint;
@@ -17,6 +18,7 @@ pub struct Barcode128 {
     pub height: i32,
     pub line: bool,
     pub line_above: bool,
+    pub line_alignment: FieldAlignment,
     pub check_digit: bool,
     pub mode: BarcodeMode,
 }

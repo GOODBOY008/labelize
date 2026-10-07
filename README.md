@@ -4,7 +4,7 @@
 
 # Labelize
 
-**Parse and render ZPL / EPL labels to PNG & PDF — fast, offline, open source.**
+**Parse and render ZPL / EPL / TSPL labels to PNG & PDF — fast, offline, open source.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/ci.yml?branch=main&label=CI)](https://github.com/GOODBOY008/labelize/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
@@ -67,6 +67,7 @@ cargo install labelize --features cli
 ```bash
 labelize convert label.zpl                    # → label.png (format auto-detected)
 labelize convert label.epl -t pdf             # EPL in, PDF out
+labelize convert label.tspl                   # TSPL — SIZE sets the canvas
 labelize convert label.zpl --width 100 --height 62 --dpmm 12
 ```
 
@@ -148,7 +149,7 @@ A complete runnable example lives at [`examples/render_label.rs`](examples/rende
 Every Labelize server serves an interactive UI at `GET /` — the same page running
 at the public instance:
 
-- Paste ZPL/EPL or open a `.zpl` / `.epl` file, pick a label size (4×6, 4×4, …)
+- Paste ZPL/EPL/TSPL or open a `.zpl` / `.epl` / `.tspl` file, pick a label size (4×6, 4×4, …)
 - **Live preview** with debounced auto-render, zoom fit / percent, dark & light themes, English / 简体中文
 - One-click **PNG / PDF download**, copy-PNG to clipboard, `Ctrl+S`
 - **Compare with Labelary** (ZPL) — fetches the reference render and scores the diff on the same scale as CI
@@ -201,16 +202,16 @@ Reference docs: [Usage](docs/USAGE.md) · [ZPL command matrix](docs/ZPL_COMMANDS
 Usage: labelize <COMMAND>
 
 Commands:
-  convert  Convert a ZPL/EPL file to PNG or PDF
+  convert  Convert a ZPL/EPL/TSPL file to PNG or PDF
   serve    Start HTTP server for label conversion
 
 Convert Options:
-  <INPUT>               Input file path (.zpl or .epl)
+  <INPUT>               Input file path (.zpl, .epl, or .tspl)
   -o, --output <PATH>   Output file path (default: input stem + .png/.pdf)
-  -f, --format <FMT>    Input format override: zpl | epl
+  -f, --format <FMT>    Input format override: zpl | epl | tspl
   -t, --type <TYPE>     Output type: png | pdf [default: png]
-  --width <MM>          Label width in mm [default: 102]
-  --height <MM>         Label height in mm [default: 152]
+  --width <MM>          Label width in mm; TSPL: optional SIZE override [default: 102]
+  --height <MM>         Label height in mm; TSPL: optional SIZE override [default: 152]
   --dpmm <N>            Dots per mm: 6, 8, 12, or 24 [default: 8]
   --antialias           8-bit grayscale output (default: 1-bit)
 
@@ -230,7 +231,7 @@ Serve Options:
 | `/health` | GET  | Health check → `{"status":"ok"}` |
 | `/convert` | POST | Convert label data → PNG or PDF |
 
-**POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl`):
+**POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl` / `application/tspl`); for TSPL, the `SIZE` command supplies the canvas unless `width`/`height` is sent:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -277,13 +278,21 @@ attribution. No independent overall validation is claimed.
 
 `N` (new label) · `A` (text) · `B` (1D barcodes — Code 128, Code 39, EAN-13/8, UPC-A/E, 2-of-5, Codabar, …) · `b` (2D: QR, DataMatrix, Aztec, PDF417, MaxiCode) · `LO`/`LW` (black/white line) · `LS` (diagonal) · `X` (box) · `GW` (graphic write) · `R` (reference point) · `P` (print)
 
+### TSPL
+
+`SIZE` · `GAP` · `DIRECTION` · `REFERENCE` · `SHIFT` · `CLS` · `PRINT` · `TEXT` · `BLOCK` · `BAR` · `BOX` (with `RADIUS`) · `CIRCLE` · `ELLIPSE` · `ERASE` · `REVERSE` · `BITMAP` · `BARCODE` (Code 128, Code 39, EAN-13, UPC-A, 2-of-5, …) · `QRCODE` · `PDF417` · `DMATRIX` · `AZTEC` · `MAXICODE`
+
+Command reference: [docs/TSPL_COMMANDS_REFERENCE.md](docs/TSPL_COMMANDS_REFERENCE.md). TSPL has no
+independent reference renderer, so output follows the TSC TSPL/TSPL2 manual; CJK bitmap fonts
+(`TSS16.BF2`-class names) render through the bundled WenQuanYi Bitmap Song substitutes.
+
 </details>
 
 <details>
 <summary><b>Architecture</b></summary>
 
 ```
-  ZPL/EPL input
+  ZPL/EPL/TSPL input
        │
        ▼
   ┌─────────┐     ┌──────────┐     ┌─────────┐
@@ -330,7 +339,7 @@ tools/build/build-windows.sh   # → target/windows-release/labelize.exe (via Do
 
 ## 🤝 Contributing
 
-Contributions are welcome! Bug reports, new ZPL/EPL commands, rendering
+Contributions are welcome! Bug reports, new ZPL/EPL/TSPL commands, rendering
 improvements, and docs fixes all count — see [AGENTS.md](AGENTS.md) for the
 development workflow, then open an issue or submit a pull request.
 

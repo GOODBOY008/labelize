@@ -11,11 +11,12 @@ use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData};
 use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
+use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
-use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
+use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
@@ -337,6 +338,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         height,
                         line: show_line,
                         line_above: false,
+                        line_alignment: FieldAlignment::Center,
                         check_digit: bc_type == "3C",
                     },
                     width: narrow_bar,
@@ -352,6 +354,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                             height,
                             line: show_line,
                             line_above: false,
+                            line_alignment: FieldAlignment::Center,
                             check_digit: false,
                             mode: match bc_type {
                                 "0" => BarcodeMode::Ucc,
@@ -374,6 +377,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         height,
                         line: show_line,
                         line_above: false,
+                        line_alignment: FieldAlignment::Center,
                         check_digit: bc_type != "2",
                     },
                     width: narrow_bar,
@@ -388,6 +392,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         height,
                         line: show_line,
                         line_above: false,
+                        line_alignment: FieldAlignment::Center,
                     },
                     width: narrow_bar,
                     position: pos,
@@ -504,6 +509,7 @@ fn parse_epl_line(
         height,
         border_thickness: width.min(height),
         corner_rounding: 0,
+        corner_radius_dots: None,
         line_color,
         reverse_print: ReversePrint::default(),
     })))
@@ -573,6 +579,7 @@ fn parse_epl_box(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelEleme
         height: (y2 - y1).abs(),
         border_thickness: thickness,
         corner_rounding: 0,
+        corner_radius_dots: None,
         line_color: LineColor::Black,
         reverse_print: ReversePrint::default(),
     })))
@@ -652,6 +659,7 @@ fn parse_epl_graphic_write(
             ..Default::default()
         },
         format: GraphicFieldFormat::Raw,
+        mode: GraphicFieldMode::Or,
         data_bytes: total as i32,
         total_bytes: total as i32,
         row_bytes: width_bytes,
@@ -887,7 +895,10 @@ fn parse_epl_2d_barcode(
                     let data = format!("{ecc}M,B{:04}{content}", content.len());
                     LabelElement::BarcodeQr(BarcodeQrWithData {
                         reverse_print: ReversePrint::default(),
-                        barcode: BarcodeQr { magnification },
+                        barcode: BarcodeQr {
+                            magnification,
+                            orientation: FieldOrientation::Normal,
+                        },
                         height: 0,
                         position: pos,
                         data,

@@ -1,0 +1,7 @@
+SIZE 4,1
+GAP 0,0
+DIRECTION 1
+CLS
+TEXT 10,10, "2",0,1,1, "Code 128, switch code subset manually"
+BARCODE 10,50, "128M",100,1,0,2,2, "!104! 096ABCD!101EFGH"
+PRINT 1

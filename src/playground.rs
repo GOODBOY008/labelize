@@ -547,6 +547,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
         <select id="fmt">
           <option value="zpl" selected>ZPL</option>
           <option value="epl">EPL</option>
+          <option value="tspl">TSPL</option>
         </select>
       </div>
 
@@ -575,14 +576,14 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       <div class="sg">
         <label for="dpmm">dpmm</label>
         <select id="dpmm">
-          <option value="6">6</option>
-          <option value="8" selected>8</option>
-          <option value="12">12</option>
-          <option value="24">24</option>
+          <option value="6">6 (152DPI)</option>
+          <option value="8" selected>8 (203DPI)</option>
+          <option value="12">12 (300DPI)</option>
+          <option value="24">24 (600DPI)</option>
         </select>
       </div>
 
-      <input id="file-input" type="file" accept=".zpl,.epl">
+      <input id="file-input" type="file" accept=".zpl,.epl,.tspl">
       <button id="open-file-btn" class="ghost-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -1106,14 +1107,17 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   }
 
   function buildUrl(p, output) {
-    var u = "/convert?width=" + p.w_mm + "&height=" + p.h_mm + "&dpmm=" + p.dpmm;
+    var u = "/convert?dpmm=" + p.dpmm;
+    if (p.fmt !== "tspl") u += "&width=" + p.w_mm + "&height=" + p.h_mm;
     if (p.aa) u += "&antialias=true";
     if (output) u += "&output=" + output;
     return u;
   }
 
   function ctFor(fmt) {
-    return fmt === "epl" ? "application/epl" : "application/zpl";
+    if (fmt === "epl") return "application/epl";
+    if (fmt === "tspl") return "application/tspl";
+    return "application/zpl";
   }
 
   function clearPreview() {
@@ -1571,7 +1575,8 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     if (!file) return;
     var ext = file.name.split(".").pop().toLowerCase();
     if (ext === "epl") fmtSel.value = "epl";
-    else               fmtSel.value = "zpl";
+    else if (ext === "tspl") fmtSel.value = "tspl";
+    else fmtSel.value = "zpl";
     var reader = new FileReader();
     reader.onload = function (e) {
       input.value = e.target.result;

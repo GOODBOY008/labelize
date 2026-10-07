@@ -1,0 +1,9 @@
+SIZE 4,1
+GAP 0,0
+DIRECTION 1
+CLS
+TEXT 10,10, "2",0,1,1, "Human readable alignment"
+BARCODE 10,50, "128",100,1,0,2,2,"left"
+BARCODE 310,50,"128",100,2,0,2,2,"center"
+BARCODE 610,50,"128",100,3,0,2,2,"right"
+PRINT 1
