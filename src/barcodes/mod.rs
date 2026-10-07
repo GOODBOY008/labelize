@@ -10,6 +10,7 @@ pub mod ean8;
 pub mod maxicode;
 pub mod pdf417;
 pub mod pdf417_encoding;
+mod qr_mask;
 pub mod qrcode;
 pub mod twooffive;
 pub mod upca;

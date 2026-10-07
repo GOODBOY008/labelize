@@ -716,6 +716,11 @@ fn golden_datamatrix_dimensions() {
 }
 
 #[test]
+fn golden_qr_mask_selection() {
+    golden_zpl_with_tolerance("qr_mask_selection", 0.0);
+}
+
+#[test]
 fn golden_print_mirror_width() {
     golden_zpl_with_tolerance("print_mirror_width", 0.0);
 }

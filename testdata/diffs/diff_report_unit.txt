@@ -65,6 +65,7 @@
 ║ qr_ft_600                      │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_by100                    │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_test                     │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_mask_selection              │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ return_qrcode                  │ zpl  │    2.01% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ reverse                        │ zpl  │    0.25% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ reverse_qr                     │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║

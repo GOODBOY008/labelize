@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **QR mask selection follows the standard's five-percentage-point steps** —
+  the QR dependency's linear N4 balance approximation could pick a
+  non-minimal mask; Labelize now evaluates all eight candidate matrices with
+  the exact ISO/IEC 18004 penalties and ties to the lowest mask index. Five
+  verified ECC-H cases now render pixel-identical to Labelary (#53).
 - **Rotated text fields no longer clip characters to the advance box** —
   rotated fields (^A…R/I/B, ^FW) are rasterised into a buffer whose width now
   covers the laid-out ink, with a left margin for marks that overhang the pen
