@@ -413,3 +413,34 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('ﬁ', -0.02222),
     ('ﬂ', -0.02498),
 ];
+
+/// Per-character advance multiplier for the resident bitmap fonts A–H, applied
+/// on top of the DejaVu Sans Mono substitute's cell advance (which equals the
+/// `width` parameter). Zebra's real bitmap cells advance wider than the coded
+/// cell width; measured start-to-start over 9-gap `HHHHHHHHHH` runs against
+/// Labelary at 1x and 2x (2x confirms linear scaling):
+///
+/// | Font | cell advance (coded) | Labelary advance | multiplier |
+/// |------|----------------------|------------------|------------|
+/// | A    | 6                    | 6                | 1.0        |
+/// | B    | 9                    | 9                | 1.0        |
+/// | C    | 10                   | 12               | 1.2        |
+/// | D    | 12 (ratio 2.317)     | 12               | 1.0        |
+/// | E    | 15                   | 20               | 4/3        |
+/// | F    | 13                   | 16               | 16/13      |
+/// | G    | 40                   | 48               | 1.2        |
+/// | H    | 13                   | 19               | 19/13      |
+///
+/// The multiplier decouples ONLY the pen advance: glyph ink is still laid out
+/// with the substitute's own shape width (`scale.x` unchanged), so glyph
+/// rasterization and the vertical model are untouched. Fonts 0, 1 and P–V have
+/// their own calibrated advance models and return 1.0 here.
+pub(crate) fn bitmap_advance_mult(name: &str) -> f64 {
+    match name {
+        "C" | "G" => 1.2,
+        "E" => 4.0 / 3.0,
+        "F" => 16.0 / 13.0,
+        "H" => 19.0 / 13.0,
+        _ => 1.0,
+    }
+}

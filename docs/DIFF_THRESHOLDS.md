@@ -149,7 +149,8 @@ informational.
 | templating | zpl | 1.17 | 2.5 | Font metrics |
 | text_fallback_default | zpl | 2.05 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
 | dein_ticket_packliste | zpl | 1.23 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
-| fb_bitmap_line_pitch | zpl | 2.73 | 3.0 | Multi-line ^FB in bitmap fonts A/C/D/E/F; line positions match Labelary, residual is bitmap-font glyph metrics (pitch pinned by a unit test) |
+| fb_bitmap_line_pitch | zpl | 2.11 | 2.4 | Multi-line ^FB in bitmap fonts A/C/D/E/F; line positions and per-font cell advances match Labelary, residual is substitute-face glyph shapes/ink width (pitch pinned by a unit test; was 2.73 before advance calibration + zero de-dotting) |
+| bitmap_font_advance | zpl | 1.70 | 2.2 | A-H + GS `HHHHHHHHHH 0000000000` rows at 1x: pins the per-font cell advance (C=12, E=20, F=16, G=48, H=19 dots) and the clean (dotless) zero; residual is substitute glyph shape |
 | text_fo_b | zpl | 0.05 | 1.0 | Sub-pixel |
 | text_fo_i | zpl | 0.05 | 1.0 | Sub-pixel |
 | text_fo_n | zpl | 0.02 | 1.0 | Sub-pixel |

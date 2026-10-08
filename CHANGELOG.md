@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Resident bitmap fonts (A-H) advance by their real Labelary cell step** —
+  the DejaVu substitute advanced by the coded cell width (C 10, E 15, F 13,
+  G 40, H 13 dots), while Labelary measures C 12, E 20, F 16, G 48 and
+  H 19 dots per character at 1x. The shortfall accumulated leftward drift
+  inside every bitmap-font field and made word gaps inconsistent between
+  fonts (e.g. `C2 01` vs `F0 01` vs `E2 01`). A per-font advance multiplier
+  now rescales the pen walk only — glyph rasterization is unchanged
+  (`bitmap_font_advance` golden + unit test pin each font's step).
+- **Bitmap-font `0` renders without the substitute's center dot** — DejaVu
+  Sans Mono draws a distinguishing dotted zero, so A-H fields showed stray
+  dots inside every `0` (clearest at font E). The rasterizer now drops ink
+  islands not connected to the glyph border for bitmap-font zeros, matching
+  Zebra's clean oval zero at every size and orientation (`bitmap_font_advance`
+  golden + unit test).
 - **`^FB` blocks in bitmap fonts advance by the font cell height** — fonts
   A-H and P-V scale their em by a cap-height correction so glyphs match
   Labelary, but that enlarged em was also used as the ^FB line pitch. An
