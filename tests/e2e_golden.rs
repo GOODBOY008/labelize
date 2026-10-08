@@ -538,7 +538,7 @@ fn golden_usps_intl() {
 
 #[test]
 fn golden_tnt_express() {
-    golden_zpl_with_tolerance("tnt_express", 5.0);
+    golden_zpl_with_tolerance("tnt_express", 8.0);
 }
 #[test]
 fn golden_royalmail() {
@@ -756,6 +756,32 @@ fn golden_cjk_font0_ci28() {
 #[test]
 fn golden_font0_latin_ext_a() {
     golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
+}
+
+// ── Real-provenance carrier labels ────────────────────────────────
+// Sourced from real production captures (see docs/CARRIER_LABELS.md
+// for per-label provenance). cjlogistics/correiosbr are real
+// production templates adapted; the rest are anonymized real captures.
+
+#[test]
+fn golden_cjlogistics() {
+    golden_zpl_with_tolerance("cjlogistics", 3.0);
+}
+#[test]
+fn golden_correiosbr() {
+    golden_zpl_with_tolerance("correiosbr", 5.0);
+}
+#[test]
+fn golden_kuehnenagel_intl() {
+    golden_zpl_with_tolerance("kuehnenagel_intl", 7.0);
+}
+#[test]
+fn golden_kuehnenagel_eselect() {
+    golden_zpl_with_tolerance("kuehnenagel_eselect", 10.5);
+}
+#[test]
+fn golden_bring() {
+    golden_zpl_with_tolerance("bring", 3.5);
 }
 
 // ── EPL golden tests ──────────────────────────────────────────────

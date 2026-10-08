@@ -163,9 +163,14 @@ informational.
 | thick_rotated_fb_text | zpl | 0.12 | 1.0 | Rotated ^FB font-0 text (overlay now blends alpha; was stamped full-black AA skirt) |
 | ups | zpl | 2.90 | 8.0 | MaxiCode + font metrics |
 | ups_import_control | zpl | 3.44 | 4.5 | MaxiCode + font metrics |
+| cjlogistics | zpl | 1.54 | 3.0 | Real CJ Logistics production template (adapted fonts): rotated PDF417 + Code128 + CJK blank parity |
+| correiosbr | zpl | 3.67 | 5.0 | Real Correios postagem template (adapted): DataMatrix + Z64 SEDEX logo + font metrics |
+| kuehnenagel_intl | zpl | 4.83 | 7.0 | Real Kuehne+Nagel capture: ^GFA logos + font metrics |
+| kuehnenagel_eselect | zpl | 8.22 | 10.5 | Real Kuehne+Nagel Economy Select capture: dense ^GFA graphics + font metrics |
+| bring | zpl | 2.02 | 3.5 | Real Bring capture: ~DG graphic + font metrics |
 | ups_surepost | zpl | 3.60 | 10.0 | MaxiCode + font metrics |
 | usps | zpl | 2.59 | 5.0 | Font metrics + ® superscript glyph |
-| tnt_express | zpl | 1.82 | 3.5 | Font metrics (PDF417 now matches reference) |
+| tnt_express | zpl | 5.76 | 8.0 | Real TNT capture (Centiro): ^GFA logo + font metrics |
 | royalmail | zpl | 1.64 | 4.5 | QR code + font metrics |
 | canadapost | zpl | 1.98 | 3.5 | QR code + font (PDF417 now matches reference) |
 | auspost | zpl | 2.04 | 5.0 | QR code + font metrics |
@@ -181,7 +186,7 @@ informational.
 | purolator | zpl | 2.08 | 4.0 | DataMatrix + font metrics |
 | inpost | zpl | 3.11 | 5.5 | QR code + font metrics |
 | yodel | zpl | 1.86 | 4.5 | QR code + font metrics |
-| dhl_express | zpl | 1.26 | — | Font metrics (A0 font) |
+| dhl_express | zpl | 5.29 | 7.5 | Real DHL Express capture (Centiro): ^GFA logo + font metrics |
 | dhl_home_delivery | zpl | 1.84 | — | ^GFA logo + font metrics |
 | usps_apo | zpl | 2.85 | 3.5 | Font metrics (rotated I/B pen-anchor fixed; glyph-top re-anchored to Labelary after #64 unclipping; residual = glyph weight + 1-bit AA fringe) |
 | usps_intl | zpl | 2.46 | 4.0 | Font metrics (^POI rotated text) |
