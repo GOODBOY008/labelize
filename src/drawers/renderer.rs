@@ -23,6 +23,32 @@ static FONT_DEJAVU_MONO: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO;
 static FONT_DEJAVU_BOLD: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO_BOLD;
 static FONT_GS: &[u8] = crate::assets::FONT_ZPL_GS;
 
+/// Substitute-face layout knobs for one text field, derived from the ZPL font
+/// name and threaded through the pen walks (this supersedes the bare `f0`
+/// flag those walks used to take). `f0` selects the font-0 corrections;
+/// `adv_mult` rescales the substitute's cell advance for the resident bitmap
+/// fonts whose real cells advance wider than the coded width (see
+/// `tuning::bitmap_advance_mult`); `dedot_zero` marks faces standing in for
+/// Zebra bitmap fonts, whose zeros are clean ovals — the DejaVu substitute's
+/// dotted zero gets its interior island removed at raster time.
+#[derive(Clone, Copy)]
+struct SubstMetrics {
+    f0: bool,
+    adv_mult: f32,
+    dedot_zero: bool,
+}
+
+impl SubstMetrics {
+    /// Neutral metrics for the separately calibrated barcode interpretation
+    /// lines: the plain substitute cell advance, no font-0 corrections, no
+    /// bitmap zero de-dotting.
+    const PLAIN: Self = SubstMetrics {
+        f0: false,
+        adv_mult: 1.0,
+        dedot_zero: false,
+    };
+}
+
 pub struct Renderer;
 
 impl Default for Renderer {
@@ -218,6 +244,11 @@ impl Renderer {
         // The shift is computed from the actual 'H' glyph bounds at the ORIGINAL scale so that
         // it remains correct for any font size or magnification.
         let is_bitmap = text.font.is_bitmap_font();
+        let subst = SubstMetrics {
+            f0,
+            adv_mult: crate::tuning::bitmap_advance_mult(&text.font.name) as f32,
+            dedot_zero: is_bitmap,
+        };
         // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
         // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
         // the ab_glyph scale -- hence 11.5/11/0.657 = 1.59 vs the generic 7/6 font-A correction.
@@ -293,7 +324,8 @@ impl Renderer {
 
         // Measure text width approximately (scale already includes scale_x).
         // Use superscript-aware measurement so that ® is counted at its rendered size.
-        let text_width = measure_text_width_with_superscript(&drawn_text, &font, scale, f0) as f64;
+        let text_width =
+            measure_text_width_with_superscript(&drawn_text, &font, scale, subst) as f64;
 
         // For field blocks, use block width for positioning instead of measured text width
         let pos_width = if let Some(ref block) = text.block {
@@ -349,7 +381,7 @@ impl Renderer {
                     y as f32,
                     block,
                     &drawn_text,
-                    f0,
+                    subst,
                     line_height_factor,
                     0,
                 );
@@ -362,7 +394,7 @@ impl Renderer {
                     x as f32 + pen_x_offset,
                     y as f32,
                     &drawn_text,
-                    f0,
+                    subst,
                 );
             }
         } else {
@@ -410,7 +442,7 @@ impl Renderer {
             };
             let (buf_w, buf_h, left_pad, delta_r, bottom_pad, top_pad) =
                 if let Some(ref block) = text.block {
-                    let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, f0);
+                    let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, subst);
                     // Same pitch draw_text_block uses (cap-scaled em × factor).
                     // ^FB line spacing may be negative: line tops are
                     // (k−1)·pitch, so later lines then sit ABOVE the pen top and
@@ -435,9 +467,9 @@ impl Renderer {
                     let mut ink_max_y = f32::MIN;
                     for line in lines.iter().take(num_lines) {
                         let (a, b, y) =
-                            measure_text_ink_bounds_with_superscript(line, &font, scale, f0);
+                            measure_text_ink_bounds_with_superscript(line, &font, scale, subst);
                         if a <= b {
-                            let lw = measure_text_width(line, &font, scale, f0);
+                            let lw = measure_text_width(line, &font, scale, subst);
                             let lx_offset = match block.alignment {
                                 crate::elements::text_alignment::TextAlignment::Center => {
                                     (block.max_width as f32 - lw) / 2.0
@@ -452,7 +484,7 @@ impl Renderer {
                             ink_max_y = ink_max_y.max(y);
                         }
                     }
-                    let (over_l, over_r) = block_ink_overhangs(&drawn_text, &font, scale, f0);
+                    let (over_l, over_r) = block_ink_overhangs(&drawn_text, &font, scale, subst);
                     let left_pad = if ink_min <= ink_max {
                         (-(pen_x_offset + ink_min.min(over_l))).round().max(0.0) as u32
                     } else {
@@ -481,7 +513,7 @@ impl Renderer {
                 } else {
                     let old_w = (text_width as f32).ceil() as u32 + 2;
                     let (ink_min, ink_max, ink_max_y) =
-                        measure_text_ink_bounds_with_superscript(&drawn_text, &font, scale, f0);
+                        measure_text_ink_bounds_with_superscript(&drawn_text, &font, scale, subst);
                     let (left_pad, content_w) = if ink_min <= ink_max {
                         let left_pad = (-(pen_x_offset + ink_min)).round().max(0.0) as u32;
                         // +1 for the exclusive pixel edge, +1 to absorb the blit's
@@ -529,7 +561,7 @@ impl Renderer {
                     headroom as f32 + top_pad as f32,
                     block,
                     &drawn_text,
-                    f0,
+                    subst,
                     line_height_factor,
                     left_pad as i32,
                 );
@@ -553,7 +585,7 @@ impl Renderer {
                     pen_x_offset + left_pad as f32,
                     pen_y,
                     &drawn_text,
-                    f0,
+                    subst,
                 );
             }
 
@@ -1385,16 +1417,16 @@ fn warn_unmapped_font(name: &str) {
 /// advances: by the calibrated missing-glyph advance for font 0, and by
 /// .notdef's own cell advance for the DejaVu faces, which matches Labelary's
 /// one-cell blank to ±1 px.
-fn missing_glyph_advance(font: &FontRef, f0: bool, scale: PxScale, width_ratio: f32) -> f32 {
+fn missing_glyph_advance(font: &FontRef, m: SubstMetrics, scale: PxScale, width_ratio: f32) -> f32 {
     use ab_glyph::{Font as _, ScaleFont};
-    if f0 {
+    if m.f0 {
         crate::tuning::FONT0_MISSING_GLYPH_ADVANCE_EM as f32 * scale.y * width_ratio
     } else {
-        font.as_scaled(scale).h_advance(ab_glyph::GlyphId(0))
+        font.as_scaled(scale).h_advance(ab_glyph::GlyphId(0)) * m.adv_mult
     }
 }
 
-fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f32 {
+fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, m: SubstMetrics) -> f32 {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
     // The advance deltas (and the missing-glyph advance) are calibrated in
@@ -1402,7 +1434,7 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f
     // glyph's own hmtx advance scales with scale.x (∝ w/h); the additive
     // deltas must scale with the same width ratio or narrow/wide cells
     // (^A0,60,35 ...) drift per character against Labelary.
-    let width_ratio = if f0 {
+    let width_ratio = if m.f0 {
         (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
     } else {
         1.0
@@ -1412,7 +1444,7 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f
     for ch in text.chars() {
         let glyph_id = font.glyph_id(ch);
         if glyph_id == ab_glyph::GlyphId(0) {
-            width += missing_glyph_advance(font, f0, scale, width_ratio);
+            width += missing_glyph_advance(font, m, scale, width_ratio);
             // Nothing is drawn, so no kerning applies on either side —
             // matching imageproc's layout, which only kerns outlined glyphs.
             prev = None;
@@ -1421,8 +1453,8 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f
         if let Some(prev_id) = prev {
             width += scaled.kern(prev_id, glyph_id);
         }
-        width += scaled.h_advance(glyph_id);
-        if f0 {
+        width += scaled.h_advance(glyph_id) * m.adv_mult;
+        if m.f0 {
             width += crate::tuning::font0_advance_delta(ch) as f32 * scale.y * width_ratio;
         }
         prev = Some(glyph_id);
@@ -1441,10 +1473,10 @@ fn measure_text_width_with_superscript(
     text: &str,
     font: &FontRef,
     scale: PxScale,
-    f0: bool,
+    m: SubstMetrics,
 ) -> f32 {
     if !text.contains(REGISTERED_MARK) {
-        return measure_text_width(text, font, scale, f0);
+        return measure_text_width(text, font, scale, m);
     }
     let super_scale = PxScale {
         x: scale.x * REGISTERED_MARK_SCALE,
@@ -1454,10 +1486,10 @@ fn measure_text_width_with_superscript(
     let mut width = 0.0f32;
     for (i, part) in text.split(REGISTERED_MARK).enumerate() {
         if i > 0 {
-            width += measure_text_width(&reg_str, font, super_scale, f0);
+            width += measure_text_width(&reg_str, font, super_scale, m);
         }
         if !part.is_empty() {
-            width += measure_text_width(part, font, scale, f0);
+            width += measure_text_width(part, font, scale, m);
         }
     }
     width
@@ -1476,11 +1508,11 @@ fn measure_text_ink_bounds(
     text: &str,
     font: &FontRef,
     scale: PxScale,
-    f0: bool,
+    m: SubstMetrics,
 ) -> (f32, f32, f32) {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
-    let width_ratio = if f0 {
+    let width_ratio = if m.f0 {
         (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
     } else {
         1.0
@@ -1493,15 +1525,15 @@ fn measure_text_ink_bounds(
     for c in text.chars() {
         let glyph_id = font.glyph_id(c);
         if glyph_id == ab_glyph::GlyphId(0) {
-            w += missing_glyph_advance(font, f0, scale, width_ratio);
+            w += missing_glyph_advance(font, m, scale, width_ratio);
             prev = None;
             continue;
         }
         // The glyph is positioned at the pen BEFORE its own advance and kern
         // are added — mirror `draw_text_snapped` exactly.
         let glyph = glyph_id.with_scale_and_position(scale, ab_glyph::point(w, 0.0));
-        w += scaled.h_advance(glyph_id);
-        if f0 {
+        w += scaled.h_advance(glyph_id) * m.adv_mult;
+        if m.f0 {
             w += crate::tuning::font0_advance_delta(c) as f32 * scale.y * width_ratio;
         }
         if let Some(g) = font.outline_glyph(glyph) {
@@ -1525,10 +1557,10 @@ fn measure_text_ink_bounds_with_superscript(
     text: &str,
     font: &FontRef,
     scale: PxScale,
-    f0: bool,
+    m: SubstMetrics,
 ) -> (f32, f32, f32) {
     if !text.contains(REGISTERED_MARK) {
-        return measure_text_ink_bounds(text, font, scale, f0);
+        return measure_text_ink_bounds(text, font, scale, m);
     }
     let super_scale = PxScale {
         x: scale.x * REGISTERED_MARK_SCALE,
@@ -1541,22 +1573,22 @@ fn measure_text_ink_bounds_with_superscript(
     let mut max_y = f32::MIN;
     for (i, part) in text.split(REGISTERED_MARK).enumerate() {
         if i > 0 {
-            let (a, b, y) = measure_text_ink_bounds(&reg_str, font, super_scale, f0);
+            let (a, b, y) = measure_text_ink_bounds(&reg_str, font, super_scale, m);
             if a <= b {
                 min_x = min_x.min(cx + a);
                 max_x = max_x.max(cx + b);
                 max_y = max_y.max(y);
             }
-            cx += measure_text_width(&reg_str, font, super_scale, f0);
+            cx += measure_text_width(&reg_str, font, super_scale, m);
         }
         if !part.is_empty() {
-            let (a, b, y) = measure_text_ink_bounds(part, font, scale, f0);
+            let (a, b, y) = measure_text_ink_bounds(part, font, scale, m);
             if a <= b {
                 min_x = min_x.min(cx + a);
                 max_x = max_x.max(cx + b);
                 max_y = max_y.max(y);
             }
-            cx += measure_text_width(part, font, scale, f0);
+            cx += measure_text_width(part, font, scale, m);
         }
     }
     (min_x, max_x, max_y)
@@ -1567,10 +1599,10 @@ fn measure_text_ink_bounds_with_superscript(
 /// present in `text`. Line alignment only moves pens right of the block
 /// origin, so these bound how far block ink may reach past the origin (left)
 /// and past `max_width` (right, via a line-final glyph's overhang).
-fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> (f32, f32) {
+fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, m: SubstMetrics) -> (f32, f32) {
     use ab_glyph::{Font, ScaleFont};
     let scaled = font.as_scaled(scale);
-    let width_ratio = if f0 {
+    let width_ratio = if m.f0 {
         (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
     } else {
         1.0
@@ -1592,8 +1624,8 @@ fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> 
         };
         let bb = g.px_bounds();
         min_lsb = min_lsb.min(bb.min.x);
-        let mut adv = scaled.h_advance(glyph_id);
-        if f0 {
+        let mut adv = scaled.h_advance(glyph_id) * m.adv_mult;
+        if m.f0 {
             adv += crate::tuning::font0_advance_delta(c) as f32 * scale.y * width_ratio;
         }
         max_over = max_over.max(bb.max.x - adv);
@@ -1602,17 +1634,18 @@ fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> 
 }
 
 /// Draw `text` replicating imageproc's `draw_text_mut` layout, with the calibrated
-/// vertical offset applied to the pen before glyphs snap to the pixel grid, and the
-/// font-0 per-character advance corrections folded into the pen advance.
+/// vertical offset applied to the pen before glyphs snap to the pixel grid, the
+/// font-0 per-character advance corrections folded into the pen advance, and the
+/// bitmap-font advance multiplier applied to the substitute's cell advance.
 ///
-/// Both corrections are calibrated for the scalable font 0 and applied only when
-/// `f0` is set. The bitmap fonts already land where Labelary puts them — several of
-/// their golden cases render pixel-identical — so shifting them would only add error.
+/// The font-0 corrections are calibrated for the scalable font 0 and applied only
+/// when `m.f0` is set; the bitmap advance multiplier only rescales the pen (glyph
+/// rasterization keeps the substitute's own shape width).
 ///
 /// The layout quirks here are deliberate copies of imageproc's `layout_glyphs`
 /// (advance added before kerning, kern arguments in `(current, prev)` order, kerning
-/// only applied for glyphs that outline), so for `f0 == false` this renders exactly
-/// what the upstream helper renders.
+/// only applied for glyphs that outline), so for a plain `SubstMetrics` this renders
+/// exactly what the upstream helper renders.
 #[allow(clippy::too_many_arguments)]
 fn draw_text_snapped(
     canvas: &mut RgbaImage,
@@ -1622,19 +1655,40 @@ fn draw_text_snapped(
     scale: PxScale,
     font: &FontRef,
     text: &str,
-    f0: bool,
+    m: SubstMetrics,
 ) {
     use ab_glyph::{Font, GlyphId, ScaleFont};
 
     // Paint an outlined glyph at field origin (x, y) with imageproc's exact
     // alpha-quantisation behaviour (truncating Clamp).
-    fn blit(canvas: &mut RgbaImage, color: Rgba<u8>, g: &ab_glyph::OutlinedGlyph, x: i32, y: i32) {
+    fn blit(
+        canvas: &mut RgbaImage,
+        color: Rgba<u8>,
+        g: &ab_glyph::OutlinedGlyph,
+        x: i32,
+        y: i32,
+        dedot: bool,
+    ) {
         use image::Pixel;
         let (cw, ch) = (canvas.width() as i32, canvas.height() as i32);
         let bb = g.px_bounds();
         let x_shift = x + bb.min.x.round() as i32;
         let y_shift = y + bb.min.y.round() as i32;
+        // Which pixels to drop: when de-dotting a bitmap-font zero, ink not
+        // connected to the raster border is skipped entirely (see
+        // `dedotted_pixels`). Computed once as a coverage grid.
+        let dropped = if dedot {
+            Some(dedotted_pixels(g))
+        } else {
+            None
+        };
+        let raster_w = dropped_w(&bb);
         g.draw(|gx, gy, gv| {
+            if let Some(dropped) = &dropped {
+                if dropped[(gy as usize) * raster_w + gx as usize] {
+                    return;
+                }
+            }
             let px = gx as i32 + x_shift;
             let py = gy as i32 + y_shift;
             if (0..cw).contains(&px) && (0..ch).contains(&py) {
@@ -1659,7 +1713,7 @@ fn draw_text_snapped(
         });
     }
 
-    let yoff = if f0 {
+    let yoff = if m.f0 {
         crate::tuning::TEXT_Y_OFFSET as f32
             + (crate::tuning::TEXT_Y_OFFSET_EM * scale.y as f64) as f32
     } else {
@@ -1669,7 +1723,7 @@ fn draw_text_snapped(
     // Same width-ratio scaling as measure_text_width: the additive font-0
     // deltas are calibrated at width == height and must track the hmtx
     // component's ∝(w/h) scaling on cells where the two parameters differ.
-    let width_ratio = if f0 {
+    let width_ratio = if m.f0 {
         (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
     } else {
         1.0
@@ -1684,14 +1738,14 @@ fn draw_text_snapped(
             // Blank like Labelary: no glyph is drawn and no kerning applies on
             // either side (imageproc only kerns outlined glyphs), but the pen
             // still advances — see `missing_glyph_advance`.
-            w += missing_glyph_advance(font, f0, scale, width_ratio);
+            w += missing_glyph_advance(font, m, scale, width_ratio);
             prev = None;
             continue;
         }
         let glyph =
             glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
-        w += scaled.h_advance(glyph_id);
-        if f0 {
+        w += scaled.h_advance(glyph_id) * m.adv_mult;
+        if m.f0 {
             w += crate::tuning::font0_advance_delta(c) as f32 * scale.y * width_ratio;
         }
         if let Some(g) = font.outline_glyph(glyph) {
@@ -1699,9 +1753,74 @@ fn draw_text_snapped(
                 w += scaled.kern(glyph_id, prev_id);
             }
             prev = Some(glyph_id);
-            blit(canvas, color, &g, x, y);
+            blit(canvas, color, &g, x, y, m.dedot_zero && c == '0');
         }
     }
+}
+
+/// Raster width of an outlined glyph's pixel grid (matches `OutlinedGlyph::draw`
+/// coordinates, which run `0..ceil(width)`).
+fn dropped_w(bb: &ab_glyph::Rect) -> usize {
+    (bb.width().ceil() as usize).max(1)
+}
+
+/// Ink mask of the glyph raster with interior islands cleared: a flood fill
+/// from the raster border marks every ink pixel (coverage above the 1-bit
+/// threshold) reachable via 8-connectivity; unreachable ink — the DejaVu
+/// substitute's dotted zero's center dot, an island surrounded by the ring's
+/// counter — is dropped. Ring strokes always touch the raster border, so a
+/// clean zero is returned untouched and small sizes whose dot merges with the
+/// ring lose nothing.
+fn dedotted_pixels(g: &ab_glyph::OutlinedGlyph) -> Vec<bool> {
+    let bb = g.px_bounds();
+    let w = dropped_w(&bb);
+    let h = (bb.height().ceil() as usize).max(1);
+    let mut ink = vec![false; w * h];
+    g.draw(|gx, gy, gv| {
+        if gv.clamp(0.0, 1.0) > 0.5 {
+            ink[gy as usize * w + gx as usize] = true;
+        }
+    });
+    let mut keep = vec![false; w * h];
+    let mut queue = std::collections::VecDeque::new();
+    let border = (0..w).chain((w * (h - 1))..(w * h));
+    for i in border {
+        if ink[i] && !keep[i] {
+            keep[i] = true;
+            queue.push_back(i);
+        }
+    }
+    for r in 0..h {
+        for c in [0, w - 1] {
+            let i = r * w + c;
+            if ink[i] && !keep[i] {
+                keep[i] = true;
+                queue.push_back(i);
+            }
+        }
+    }
+    while let Some(i) = queue.pop_front() {
+        let (r, c) = (i / w, i % w);
+        for dr in [-1i64, 0, 1] {
+            for dc in [-1i64, 0, 1] {
+                if (dr == 0 && dc == 0) || !(0..h as i64).contains(&(r as i64 + dr)) {
+                    continue;
+                }
+                let nc = c as i64 + dc;
+                if !(0..w as i64).contains(&nc) {
+                    continue;
+                }
+                let n = (r as i64 + dr) as usize * w + nc as usize;
+                if ink[n] && !keep[n] {
+                    keep[n] = true;
+                    queue.push_back(n);
+                }
+            }
+        }
+    }
+    // The caller skips what this returns: inked but never reached by the
+    // border flood — the zero's interior island.
+    ink.iter().zip(&keep).map(|(&i, &k)| i && !k).collect()
 }
 
 /// Draw text onto `canvas`, rendering ® as a top-aligned superscript at REGISTERED_MARK_SCALE.
@@ -1714,10 +1833,10 @@ fn draw_text_with_superscript(
     x: f32,
     y: f32,
     text: &str,
-    f0: bool,
+    m: SubstMetrics,
 ) {
     if !text.contains(REGISTERED_MARK) {
-        draw_text_snapped(canvas, color, x as i32, y as i32, scale, font, text, f0);
+        draw_text_snapped(canvas, color, x as i32, y as i32, scale, font, text, m);
         return;
     }
     let super_scale = PxScale {
@@ -1736,18 +1855,24 @@ fn draw_text_with_superscript(
                 super_scale,
                 font,
                 &reg_str,
-                f0,
+                m,
             );
-            cx += measure_text_width(&reg_str, font, super_scale, f0);
+            cx += measure_text_width(&reg_str, font, super_scale, m);
         }
         if !part.is_empty() {
-            draw_text_snapped(canvas, color, cx as i32, y as i32, scale, font, part, f0);
-            cx += measure_text_width(part, font, scale, f0);
+            draw_text_snapped(canvas, color, cx as i32, y as i32, scale, font, part, m);
+            cx += measure_text_width(part, font, scale, m);
         }
     }
 }
 
-fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32, f0: bool) -> Vec<String> {
+fn word_wrap(
+    text: &str,
+    font: &FontRef,
+    scale: PxScale,
+    max_width: f32,
+    m: SubstMetrics,
+) -> Vec<String> {
     let mut lines = Vec::new();
     for line in text.split('\n') {
         let words: Vec<&str> = line.split_whitespace().collect();
@@ -1758,7 +1883,7 @@ fn word_wrap(text: &str, font: &FontRef, scale: PxScale, max_width: f32, f0: boo
         let mut current_line = words[0].to_string();
         for word in &words[1..] {
             let test = format!("{} {}", current_line, word);
-            let w = measure_text_width(&test, font, scale, f0);
+            let w = measure_text_width(&test, font, scale, m);
             if w > max_width {
                 lines.push(current_line);
                 current_line = word.to_string();
@@ -1782,12 +1907,12 @@ fn draw_text_block(
     y: f32,
     block: &crate::elements::field_block::FieldBlock,
     text: &str,
-    f0: bool,
+    m: SubstMetrics,
     line_height_factor: f32,
     pen_x_pad: i32,
 ) {
     let max_width = block.max_width as f32;
-    let lines = word_wrap(text, font, scale, max_width, f0);
+    let lines = word_wrap(text, font, scale, max_width, m);
     let font_size = scale.y;
     let raw_line_height = font_size * line_height_factor + block.line_spacing as f32;
     // Bitmap fonts divide the cap-scaled em back down to the cell height, which
@@ -1819,11 +1944,11 @@ fn draw_text_block(
         let first = i == 0;
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
-                let lw = measure_text_width(line, font, scale, f0);
+                let lw = measure_text_width(line, font, scale, m);
                 x + (block.max_width as f32 - lw) / 2.0
             }
             crate::elements::text_alignment::TextAlignment::Right => {
-                let lw = measure_text_width(line, font, scale, f0);
+                let lw = measure_text_width(line, font, scale, m);
                 x + block.max_width as f32 - lw
             }
             // Justified (J): every line except the block's last is stretched to
@@ -1840,7 +1965,7 @@ fn draw_text_block(
                     x,
                     snap_y(cy, first),
                     line,
-                    f0,
+                    m,
                     max_width,
                     pen_x_pad,
                 );
@@ -1867,7 +1992,7 @@ fn draw_text_block(
             pen_x,
             snap_y(cy, first),
             line,
-            f0,
+            m,
         );
         cy += line_height;
     }
@@ -1884,7 +2009,7 @@ fn draw_justified_line(
     x: f32,
     y: f32,
     line: &str,
-    f0: bool,
+    m: SubstMetrics,
     max_width: f32,
     pen_x_pad: i32,
 ) {
@@ -1898,15 +2023,15 @@ fn draw_justified_line(
             x.round() + pen_x_pad as f32,
             y,
             line,
-            f0,
+            m,
         );
         return;
     }
     // Superscript-aware draw and measurement, matching every other text path:
     // a ® inside a justified word must render at REGISTERED_MARK_SCALE and its
     // width must not distort the distributed slack.
-    let lw = measure_text_width_with_superscript(line, font, scale, f0);
-    let space_w = measure_text_width_with_superscript(" ", font, scale, f0);
+    let lw = measure_text_width_with_superscript(line, font, scale, m);
+    let space_w = measure_text_width_with_superscript(" ", font, scale, m);
     let extra = (max_width - lw) / (words.len() - 1) as f32;
     let mut cx = x;
     for (k, word) in words.iter().enumerate() {
@@ -1921,9 +2046,9 @@ fn draw_justified_line(
             cx.round() + pen_x_pad as f32,
             y,
             word,
-            f0,
+            m,
         );
-        cx += measure_text_width_with_superscript(word, font, scale, f0);
+        cx += measure_text_width_with_superscript(word, font, scale, m);
         if k + 1 < words.len() {
             cx += space_w + extra;
         }
@@ -2302,7 +2427,7 @@ fn draw_barcode_interpretation_line(
         .filter(|c| !c.is_control() && *c != '\u{00F1}')
         .collect();
 
-    let text_width = measure_text_width(&display, &font, scale, false);
+    let text_width = measure_text_width(&display, &font, scale, SubstMetrics::PLAIN);
     let bw = barcode_img.width() as i32;
     let bh = barcode_img.height() as i32;
 
@@ -2497,7 +2622,7 @@ fn draw_module_centered_interpretation_line(
     let mut max_x = f32::MIN;
     for (ch, cx) in chars.iter().zip(centers.iter()) {
         // Measure the glyph's ink width to center it on the module group.
-        let tw = measure_text_width(&ch.to_string(), &font, scale, false);
+        let tw = measure_text_width(&ch.to_string(), &font, scale, SubstMetrics::PLAIN);
         let w = (tw.ceil() as i32).max(2) as u32;
         let gbuf = render_glyph(*ch, w, buf_h);
         let left = cx - tw / 2.0;

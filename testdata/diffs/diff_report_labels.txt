@@ -7,7 +7,7 @@
 ║ amazonshipping                 │ zpl  │    2.20% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ auspost                        │ zpl  │    2.04% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ bpost                          │ zpl  │    1.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ brtit                          │ zpl  │    1.31% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ brtit                          │ zpl  │    1.23% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ bstc                           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ canadapost                     │ zpl  │    1.98% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ colissimo                      │ zpl  │    2.20% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -19,9 +19,9 @@
 ║ dhlecommercetr                 │ zpl  │    1.89% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlpaket                       │ zpl  │    1.15% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparcelit                    │ zpl  │    1.85% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dhlparceluk                    │ zpl  │    3.28% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dhlparceluk                    │ zpl  │    3.25% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpdde                          │ zpl  │    2.00% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dpdpl                          │ zpl  │    3.91% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ dpdpl                          │ zpl  │    3.83% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dpduk                          │ epl  │    3.79% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ epl2_showcase                  │ epl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ evri                           │ zpl  │    1.52% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
