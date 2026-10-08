@@ -753,9 +753,7 @@ fn fb_bitmap_font_line_pitch_is_cell_height_plus_spacing() {
             .map(|i| format!("{font} {i:02}"))
             .collect::<Vec<_>>()
             .join("\\&");
-        let zpl = format!(
-            "^XA^CI28^A{font}N^FO20,{top}^FB400,{lines},{spacing},L,0^FD{fd}^FS^XZ"
-        );
+        let zpl = format!("^XA^CI28^A{font}N^FO20,{top}^FB400,{lines},{spacing},L,0^FD{fd}^FS^XZ");
         let img = decode_png(&render_helpers::render_zpl_to_png(
             &zpl,
             render_helpers::unit_options(),
