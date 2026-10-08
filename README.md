@@ -85,6 +85,24 @@ curl -X POST http://localhost:8080/convert \
 
 Open `http://localhost:8080/` for the interactive playground. Tags: `latest`, `1.6.0` / `1.6` / `1`, `edge` (current `main`).
 
+#### Environment variables
+
+`serve` mode reads two optional flags; both default to `true`:
+
+| Variable | Effect when `false` |
+|----------|---------------------|
+| `LABELIZE_PLAYGROUND_ENABLED` | API-only container — `/` returns an endpoint listing instead of the web UI |
+| `LABELIZE_PLAYGROUND_LABELARY_COMPARE` | Hides the playground's "Compare with Labelary" button, which POSTs the current ZPL to the external `api.labelary.com` service |
+
+```bash
+# Privacy-sensitive deployment: keep label data in-house
+docker run -p 8080:8080 \
+  -e LABELIZE_PLAYGROUND_LABELARY_COMPARE=false \
+  goodboy008/labelize:latest
+```
+
+Rendering itself (`/convert`, the CLI, the library) never makes outbound requests.
+
 ### JavaScript / TypeScript
 
 The engine compiled to WebAssembly — renders in browsers, Node.js, and bundlers with **no server**:

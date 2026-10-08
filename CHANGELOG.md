@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Playground opt-out env vars for self-hosted deployments** —
+  `LABELIZE_PLAYGROUND_LABELARY_COMPARE=false` removes the "Compare with
+  Labelary" button (the only feature that sends ZPL to the external
+  api.labelary.com service), and `LABELIZE_PLAYGROUND_ENABLED=false` turns
+  `serve`/Docker into an API-only container whose `/` answers with an
+  endpoint listing. Both default to `true`; unparseable values warn on
+  stderr and fall back to the default (#72).
+
 ### Fixed
 
 - **`^FB` blocks in bitmap fonts advance by the font cell height** — fonts
