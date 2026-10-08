@@ -457,6 +457,15 @@ fn golden_dein_ticket_packliste() {
     golden_zpl_with_tolerance("dein_ticket_packliste", 1.5);
 }
 #[test]
+fn golden_fb_bitmap_line_pitch() {
+    // Multi-line ^FB blocks in bitmap fonts A/C/D/E/F: the line pitch is the
+    // font cell height + line spacing, not the cap-scaled em. Each block has a
+    // rule where it must end; with the old pitch the text ran over the rule.
+    // Residual diff is bitmap-font glyph metrics; the pitch itself is pinned
+    // by unit_renderer::fb_bitmap_font_line_pitch_is_cell_height_plus_spacing.
+    golden_zpl_with_tolerance("fb_bitmap_line_pitch", 3.0);
+}
+#[test]
 fn golden_text_fo_b() {
     golden_zpl_with_tolerance("text_fo_b", 1.0);
 }

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`^FB` blocks in bitmap fonts advance by the font cell height** — fonts
+  A-H and P-V scale their em by a cap-height correction so glyphs match
+  Labelary, but that enlarged em was also used as the ^FB line pitch. An
+  18-dot font C block advanced 21 dots per line instead of 18, so long
+  blocks (e.g. delivery-note item tables) overflowed into the fields below.
+  The pitch is now cell height + ^FB line spacing, matching Labelary and
+  Zebra printers (new unit test + `fb_bitmap_line_pitch` golden).
 - **DataMatrix honors `^BX` column/row constraints and aspect ratio** — the
   encoder no longer falls back to an unrestricted square symbol when a
   requested ECC200 size cannot fit: both dimensions pin the symbol shape, a
