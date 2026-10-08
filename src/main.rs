@@ -260,16 +260,43 @@ async fn serve(host: String, port: u16) {
         Router,
     };
 
-    async fn playground_page() -> impl IntoResponse {
-        (
-            StatusCode::OK,
-            [
-                (header::CONTENT_TYPE, "text/html; charset=utf-8"),
-                (header::CACHE_CONTROL, "no-cache"),
-            ],
-            labelize::playground::PLAYGROUND_HTML,
-        )
-    }
+    // Playground deployment config (LABELIZE_* env vars; see README).
+    let config = labelize::playground::PlaygroundConfig::from_env();
+    // Resolve the page once at startup; Box::leak hands the router a
+    // &'static str without copying the default (borrowed) page.
+    let page: &'static str = match labelize::playground::page_html(&config) {
+        std::borrow::Cow::Borrowed(html) => html,
+        std::borrow::Cow::Owned(html) => Box::leak(html.into_boxed_str()),
+    };
+    let playground_html: Option<&'static str> = config.enabled.then_some(page);
+
+    let root = move || async move {
+        match playground_html {
+            Some(html) => (
+                StatusCode::OK,
+                [
+                    (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                    (header::CACHE_CONTROL, "no-cache"),
+                ],
+                html,
+            )
+                .into_response(),
+            // API-only mode: no web UI, just a self-describing endpoint list.
+            None => (
+                StatusCode::OK,
+                [
+                    (header::CONTENT_TYPE, "application/json"),
+                    (header::CACHE_CONTROL, "no-cache"),
+                ],
+                format!(
+                    "{{\"service\":\"labelize\",\"version\":\"{}\",\"playground\":false,\
+                     \"endpoints\":{{\"health\":\"GET /health\",\"convert\":\"POST /convert\"}}}}",
+                    env!("CARGO_PKG_VERSION")
+                ),
+            )
+                .into_response(),
+        }
+    };
 
     async fn health() -> impl IntoResponse {
         (
@@ -385,12 +412,24 @@ async fn serve(host: String, port: u16) {
     }
 
     let app = Router::new()
-        .route("/", get(playground_page))
+        .route("/", get(root))
         .route("/health", get(health))
         .route("/convert", post(convert_handler));
 
     let addr = format!("{}:{}", host, port);
     println!("Starting server on {}", addr);
+    if config.enabled {
+        println!(
+            "Playground: enabled (Labelary compare: {})",
+            if config.labelary_compare {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        );
+    } else {
+        println!("Playground: disabled — API-only mode (GET /health, POST /convert)");
+    }
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .expect("Failed to bind");

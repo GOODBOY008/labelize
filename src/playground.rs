@@ -31,6 +31,14 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   document.documentElement.setAttribute("data-theme", t);
 })();
 </script>
+<script>
+/* Deployment config. The HTTP server substitutes a JSON object for the
+   placeholder between the braces below (from LABELIZE_* env vars).
+   Consumers that serve the page verbatim (npm `lz_playground_html`,
+   workers) leave the placeholder, which parses as an empty config and
+   keeps every feature enabled. */
+window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -722,6 +730,10 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
 
+  /* ── Deployment config (server-injected; see window.__LABELIZE_CONFIG__) ── */
+  var CFG = window.__LABELIZE_CONFIG__ || {};
+  var labelaryCompare = CFG.labelaryCompare !== false;
+
   /* ── i18n ──
      Static text is tagged with data-i18n / data-i18n-html / data-i18n-title /
      data-i18n-aria / data-i18n-alt and swapped by applyI18n(); dynamic strings
@@ -1339,6 +1351,9 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
   }
 
   function compareWithLabelary() {
+    // Disabled via LABELIZE_PLAYGROUND_LABELARY_COMPARE=false — the guard
+    // holds even if the button is re-shown with devtools.
+    if (!labelaryCompare) return;
     // NB: keep the name `fmtVal` — a local `var fmt` would shadow the i18n
     // `fmt()` helper inside every closure below.
     var fmtVal = fmtSel.value;
@@ -1600,6 +1615,13 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 
   compareBtn.addEventListener("click", compareWithLabelary);
 
+  // Deployment toggle: LABELIZE_PLAYGROUND_LABELARY_COMPARE=false removes the
+  // button (and compareWithLabelary no-ops above) so the external POST to
+  // api.labelary.com is never offered.
+  if (!labelaryCompare) {
+    compareBtn.style.display = "none";
+  }
+
   // Labelary does not support EPL (404), so the compare tool is ZPL-only.
   function updateCompareState() {
     var isEpl = fmtSel.value === "epl";
@@ -1640,3 +1662,147 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 </body>
 </html>
 "##;
+
+/// Deployment configuration for the playground page.
+///
+/// Read from `LABELIZE_*` environment variables by the HTTP server so Docker
+/// deployments can pass them with `-e`. Every flag defaults to `true` (the
+/// historical behaviour); an unset variable falls back to the default, and an
+/// unparseable value warns on stderr before falling back — a typo'd flag
+/// should be visible, not silently ignored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlaygroundConfig {
+    /// `LABELIZE_PLAYGROUND_ENABLED=false` makes the server API-only: `/`
+    /// answers with a small endpoint listing instead of the playground page.
+    /// The page itself never sees this flag — when it is set, the page is
+    /// simply not served.
+    pub enabled: bool,
+    /// `LABELIZE_PLAYGROUND_LABELARY_COMPARE=false` removes the
+    /// "Compare with Labelary" button, which otherwise POSTs the current
+    /// ZPL to the external api.labelary.com service.
+    pub labelary_compare: bool,
+}
+
+impl Default for PlaygroundConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            labelary_compare: true,
+        }
+    }
+}
+
+impl PlaygroundConfig {
+    /// Reads `LABELIZE_PLAYGROUND_ENABLED` and
+    /// `LABELIZE_PLAYGROUND_LABELARY_COMPARE` from the environment.
+    pub fn from_env() -> Self {
+        Self {
+            enabled: env_flag("LABELIZE_PLAYGROUND_ENABLED", true),
+            labelary_compare: env_flag("LABELIZE_PLAYGROUND_LABELARY_COMPARE", true),
+        }
+    }
+}
+
+fn env_flag(name: &str, default: bool) -> bool {
+    match std::env::var(name) {
+        Ok(raw) => match parse_bool(&raw) {
+            Some(v) => v,
+            None => {
+                eprintln!(
+                    "labelize: ignoring invalid {}={:?} (expected true/false/1/0)",
+                    name, raw
+                );
+                default
+            }
+        },
+        Err(_) => default,
+    }
+}
+
+/// Liberal boolean parsing for operator-supplied env values.
+fn parse_bool(raw: &str) -> Option<bool> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Some(true),
+        "false" | "0" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+/// Placeholder inside `window.__LABELIZE_CONFIG__ = {…}` that [`page_html`]
+/// replaces. When the page is served verbatim (npm `lz_playground_html`,
+/// workers) the placeholder stays and the braces parse as an empty object,
+/// leaving every feature enabled.
+const CONFIG_MARKER: &str = "/*__CONFIG__*/";
+
+/// Renders the playground page with `config` applied.
+///
+/// Returns the static [`PLAYGROUND_HTML`] unchanged (borrowed) unless the
+/// Labelary compare is disabled, so default deployments pay nothing.
+pub fn page_html(config: &PlaygroundConfig) -> std::borrow::Cow<'static, str> {
+    // `enabled` never reaches the page: the server declines to serve it.
+    // The injected payload is boolean-only; if a string-valued option is
+    // ever added, escape `<` as \u003c so the value cannot close the
+    // script element.
+    if config.labelary_compare {
+        return std::borrow::Cow::Borrowed(PLAYGROUND_HTML);
+    }
+    // NB: the marker sits *inside* the braces (`= {/*__CONFIG__*/};`), so the
+    // replacement is the object body only — unreplaced it parses as `{}`.
+    std::borrow::Cow::Owned(PLAYGROUND_HTML.replacen(
+        CONFIG_MARKER,
+        r#""labelaryCompare":false"#,
+        1,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::borrow::Cow;
+
+    #[test]
+    fn marker_parses_as_empty_config_when_unreplaced() {
+        // Served verbatim (npm lz_playground_html, workers), the page must
+        // remain valid JS with every feature enabled by default.
+        assert!(PLAYGROUND_HTML.contains("window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};"));
+        assert_eq!(PLAYGROUND_HTML.matches(CONFIG_MARKER).count(), 1);
+    }
+
+    #[test]
+    fn default_and_api_only_serve_the_static_page() {
+        assert!(matches!(
+            page_html(&PlaygroundConfig::default()),
+            Cow::Borrowed(_)
+        ));
+        // `enabled` is server-side only; the page HTML is untouched.
+        let api_only = PlaygroundConfig {
+            enabled: false,
+            ..Default::default()
+        };
+        assert!(matches!(page_html(&api_only), Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn disabled_compare_injects_the_flag_and_consumes_the_marker() {
+        let html = page_html(&PlaygroundConfig {
+            labelary_compare: false,
+            ..Default::default()
+        });
+        assert!(html.contains(r#"window.__LABELIZE_CONFIG__ = {"labelaryCompare":false};"#));
+        assert!(!html.contains(CONFIG_MARKER));
+    }
+
+    #[test]
+    fn parse_bool_is_liberal() {
+        assert_eq!(parse_bool("true"), Some(true));
+        assert_eq!(parse_bool("1"), Some(true));
+        assert_eq!(parse_bool(" YES "), Some(true));
+        assert_eq!(parse_bool("on"), Some(true));
+        assert_eq!(parse_bool("false"), Some(false));
+        assert_eq!(parse_bool("0"), Some(false));
+        assert_eq!(parse_bool("Off"), Some(false));
+        assert_eq!(parse_bool("no"), Some(false));
+        assert_eq!(parse_bool(""), None);
+        assert_eq!(parse_bool("maybe"), None);
+    }
+}
