@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **TSPL command support (#13)** — a third parser for TSC-style label printers
+  (TSC, Xprinter, Gprinter and other cost-effective devices): `SIZE`, `GAP`,
+  `DIRECTION`, `REFERENCE`, `SHIFT`, `CLS`, `PRINT`, `TEXT`, `BLOCK`, `BAR`,
+  `BOX` (with `RADIUS`), `CIRCLE`, `ELLIPSE`, `ERASE`, `REVERSE`, `BITMAP`,
+  `BARCODE`, `QRCODE` and `PDF417` (including the `L<len>` raw-expression
+  form). The `SIZE` command supplies the render canvas per label; CLI/HTTP
+  `width`/`height` become optional overrides. CJK bitmap font names
+  (`TSS24.BF2`-class) render through bundled WenQuanYi Bitmap Song
+  substitutes; the playground accepts `.tspl` input. TSPL has no independent
+  reference renderer, so output follows the TSC TSPL/TSPL2 manual and the
+  contributor's printer observations.
+
 ### Fixed
 
 - **`^FB` blocks in bitmap fonts advance by the font cell height** — fonts

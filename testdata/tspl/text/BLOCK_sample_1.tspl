@@ -1,0 +1,17 @@
+SIZE 4,0.5
+GAP 0,0
+DIRECTION 1
+CLS
+BOX 10,10,800,100,2
+BLOCK 15,15,790,90, "0",0,8,8,"We stand
+behind our products with one of the most
+comprehensive support programs in the
+Auto-ID industry."
+PRINT 1
+CLS
+BOX 10,10,800,100,2
+BLOCK 15,15,790,90,"0",0,8,8,20,2,"We stand
+behind our products with one of the most
+comprehensive support programs in the
+Auto-ID industry."
+PRINT 1

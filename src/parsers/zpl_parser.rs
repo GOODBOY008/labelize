@@ -9,12 +9,13 @@ use crate::elements::barcode_pdf417::BarcodePdf417;
 use crate::elements::barcode_qr::BarcodeQr;
 use crate::elements::barcode_upca::BarcodeUca;
 use crate::elements::barcode_upce::BarcodeUcpe;
+use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_block::FieldBlock;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
 use crate::elements::graphic_ellipse::GraphicEllipse;
-use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
+use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
 use crate::elements::graphic_symbol::GraphicSymbol;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
@@ -856,6 +857,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
             check_digit: false,
             mode: BarcodeMode::No,
         };
@@ -899,6 +901,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
         };
         if let Some(s) = parts.first() {
             if !s.is_empty() {
@@ -995,6 +998,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
             check_digit: false,
         };
         if let Some(s) = parts.first() {
@@ -1032,6 +1036,7 @@ impl ZplParser {
             height: self.printer.default_barcode_dimensions.height,
             line: true,
             line_above: false,
+            line_alignment: FieldAlignment::Center,
             check_digit: false,
         };
         if let Some(s) = parts.first() {
@@ -1174,7 +1179,15 @@ impl ZplParser {
 
     fn parse_barcode_qr(&mut self, command: &str) {
         let parts = split_command(command, "^BQ");
-        let mut bc = BarcodeQr { magnification: 1 };
+        let mut bc = BarcodeQr {
+            magnification: 1,
+            orientation: self.printer.default_orientation,
+        };
+        if let Some(s) = parts.first() {
+            if !s.is_empty() {
+                bc.orientation = to_field_orientation(s.as_bytes()[0]);
+            }
+        }
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
             bc.magnification = v.clamp(1, 100);
         }
@@ -1256,6 +1269,7 @@ impl ZplParser {
             height: 1,
             border_thickness: 1,
             corner_rounding: 0,
+            corner_radius_dots: None,
             line_color: LineColor::Black,
             reverse_print: self.printer.get_reverse_print(),
         };
@@ -1383,6 +1397,7 @@ impl ZplParser {
             magnification_y: 1,
             reverse_print: self.printer.get_reverse_print(),
             format: GraphicFieldFormat::Hex,
+            mode: GraphicFieldMode::Or,
             data_bytes: 0,
             total_bytes: 0,
             row_bytes: 0,
@@ -1494,6 +1509,7 @@ impl ZplParser {
             magnification_y: 1,
             reverse_print: ReversePrint::default(),
             format: GraphicFieldFormat::Hex,
+            mode: GraphicFieldMode::Or,
             data_bytes: 0,
             total_bytes: 0,
             row_bytes: 0,
@@ -1526,6 +1542,7 @@ impl ZplParser {
             magnification_y: 1,
             reverse_print: self.printer.get_reverse_print(),
             format: GraphicFieldFormat::Hex,
+            mode: GraphicFieldMode::Or,
             data_bytes: 0,
             total_bytes: 0,
             row_bytes: 0,

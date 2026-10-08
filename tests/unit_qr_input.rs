@@ -1,6 +1,7 @@
 use labelize::elements::barcode_qr::{
     BarcodeQr, BarcodeQrWithData, QrCharacterMode, QrErrorCorrectionLevel,
 };
+use labelize::elements::field_orientation::FieldOrientation;
 use labelize::elements::label_position::LabelPosition;
 use labelize::elements::reverse_print::ReversePrint;
 use proptest::prelude::*;
@@ -8,7 +9,10 @@ use proptest::prelude::*;
 fn qr(data: &str) -> BarcodeQrWithData {
     BarcodeQrWithData {
         reverse_print: ReversePrint { value: false },
-        barcode: BarcodeQr { magnification: 1 },
+        barcode: BarcodeQr {
+            magnification: 1,
+            orientation: FieldOrientation::Normal,
+        },
         height: 0,
         position: LabelPosition::default(),
         data: data.to_string(),
