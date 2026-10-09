@@ -74,6 +74,18 @@ pub(crate) const ROTATED_ADVANCE_OFFSET: f64 = 2.0;
 /// Labelary's output; drawing anything (box or fallback glyph) diverges.
 pub(crate) const FONT0_MISSING_GLYPH_ADVANCE_EM: f64 = 0.21390;
 
+/// Characters Labelary's font 0 has no glyph for (probe-verified under ^CI28:
+/// each renders blank with the uniform missing-glyph advance) even though the
+/// substitute subset carries outlines for them. The renderer routes these
+/// through the missing-glyph path — blank ink, calibrated advance — so the
+/// font file itself stays untouched.
+pub const FONT0_LABELARY_BLANKED: &[char] =
+    &['\u{0100}', '\u{015C}', '\u{0180}', '\u{2100}', '\u{2044}'];
+
+pub(crate) fn font0_is_labelary_blanked(ch: char) -> bool {
+    FONT0_LABELARY_BLANKED.contains(&ch)
+}
+
 /// Labelary's substitute for Zebra scalable font 1 is a monospace face (DejaVu
 /// Sans Mono class), unlike font 0's condensed-proportional substitute. Probed
 /// against Labelary at h=10..40, w=10..40:
@@ -324,7 +336,6 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('ý', 0.00746),
     ('þ', 0.01091),
     ('ÿ', 0.00746),
-    ('Ā', -0.40750),
     ('Ă', -0.02433),
     ('ă', -0.00204),
     ('Ą', 0.00481),
@@ -358,7 +369,6 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('ř', 0.00783),
     ('Ś', 0.01682),
     ('ś', 0.00193),
-    ('Ŝ', -0.36712),
     ('Ş', 0.02264),
     ('ş', 0.00193),
     ('Š', 0.02264),
@@ -376,7 +386,6 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('ż', -0.02394),
     ('Ž', -0.01118),
     ('ž', -0.03702),
-    ('ƀ', -0.36436),
     ('ƒ', 0.12996),
     ('ˆ', -0.07844),
     ('ˇ', -0.06256),
@@ -403,9 +412,7 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('‰', 0.22780),
     ('‹', 0.00131),
     ('›', 0.00822),
-    ('⁄', -0.15739),
     ('€', -0.01318),
-    ('℀', -0.47651),
     ('™', 0.23404),
     ('⅓', 0.01843),
     ('⅔', -0.04472),

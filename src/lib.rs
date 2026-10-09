@@ -14,6 +14,10 @@ pub mod parsers;
 pub mod playground;
 pub(crate) mod tuning;
 
+/// Font-0 characters Labelary blanks even though the substitute subset has
+/// outlines for them (see `tuning`). Exposed for the display-sweep ratchets.
+pub use tuning::FONT0_LABELARY_BLANKED;
+
 #[cfg(feature = "skill")]
 pub mod skill;
 

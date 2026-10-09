@@ -18,7 +18,7 @@ static DIGIT_PATTERNS: [[u8; 5]; 10] = [
 pub fn encode(
     content: &str,
     height: i32,
-    wide_bar_ratio: i32,
+    wide_bar_ratio: f64,
     narrow_bar: i32,
     print_check_digit: bool,
 ) -> Result<RgbaImage, String> {
@@ -52,7 +52,7 @@ pub fn encode(
     }
 
     let narrow = narrow_bar.max(1) as usize;
-    let wide = (narrow_bar * wide_bar_ratio).max(2) as usize;
+    let wide = ((narrow_bar as f64) * wide_bar_ratio).round().max(2.0) as usize;
 
     // Calculate width
     // Start: nnnn (4 narrow)

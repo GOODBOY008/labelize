@@ -17,7 +17,7 @@
 ║ correos                        │ zpl  │    2.00% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dbs                            │ zpl  │    1.88% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dbschenker                     │ zpl  │    2.21% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ dhl_express                    │ zpl  │    5.29% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ dhl_express                    │ zpl  │    2.25% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhl_home_delivery              │ zpl  │    1.97% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlecommercetr                 │ zpl  │    1.89% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlpaket                       │ zpl  │    1.15% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -37,7 +37,7 @@
 ║ inpost                         │ zpl  │    3.11% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ jcpenney                       │ zpl  │    2.37% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ kmart                          │ zpl  │    3.40% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
-║ kuehnenagel_eselect            │ zpl  │    8.22% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ kuehnenagel_eselect            │ zpl  │    2.32% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ kuehnenagel_intl               │ zpl  │    4.83% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ labelary                       │ zpl  │    1.86% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ontrac                         │ zpl  │    1.97% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -51,7 +51,7 @@
 ║ royalmail                      │ zpl  │    1.64% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ seur                           │ zpl  │    1.94% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ swisspost                      │ zpl  │    0.71% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ tnt_express                    │ zpl  │    5.76% │      813x1626 │      813x1626 │ MODERATE(<15%) ║
+║ tnt_express                    │ zpl  │    2.44% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups                            │ zpl  │    2.90% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups_import_control             │ zpl  │    3.44% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ ups_surepost                   │ zpl  │    3.60% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
@@ -60,5 +60,5 @@
 ║ usps_intl                      │ zpl  │    2.46% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ yodel                          │ zpl  │    1.86% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 56 total │ 2 perfect │ 2 good │ 47 minor │ 5 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 56 total │ 2 perfect │ 2 good │ 50 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
