@@ -59,11 +59,11 @@ fn get_pattern(ch: char) -> Option<[u8; 9]> {
 pub fn encode(
     content: &str,
     height: i32,
-    wide_bar_ratio: i32,
+    wide_bar_ratio: f64,
     narrow_bar: i32,
 ) -> Result<RgbaImage, String> {
     let narrow = narrow_bar.max(1) as usize;
-    let wide = (narrow_bar * wide_bar_ratio).max(2) as usize;
+    let wide = ((narrow_bar as f64) * wide_bar_ratio).round().max(2.0) as usize;
     let interchar_gap = narrow;
 
     // Calculate width (no quiet zones — Labelary convention)

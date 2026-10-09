@@ -77,7 +77,7 @@ proptest! {
 
     #[test]
     fn twooffive_no_panic(input in proptest_strategies::arb_2of5_input()) {
-        let result = labelize::barcodes::twooffive::encode(&input, 100, 3, 2, false);
+        let result = labelize::barcodes::twooffive::encode(&input, 100, 3.0, 2, false);
         if let Ok(img) = result {
             prop_assert!(img.width() > 0);
             prop_assert!(img.height() > 0);

@@ -1110,7 +1110,7 @@ impl Renderer {
         let img = barcodes::twooffive::encode(
             &content,
             bc.barcode.height,
-            bc.width_ratio as i32,
+            bc.width_ratio,
             bc.width,
             bc.barcode.check_digit,
         )?;
@@ -1138,7 +1138,7 @@ impl Renderer {
         bc: &crate::elements::barcode_39::Barcode39WithData,
     ) -> Result<(), String> {
         let img =
-            barcodes::code39::encode(&bc.data, bc.barcode.height, bc.width_ratio as i32, bc.width)?;
+            barcodes::code39::encode(&bc.data, bc.barcode.height, bc.width_ratio, bc.width)?;
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
 

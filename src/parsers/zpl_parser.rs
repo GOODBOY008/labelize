@@ -457,12 +457,21 @@ impl ZplParser {
     fn parse_label_home(&mut self, command: &str) {
         let parts = split_command(command, "^LH");
         let scale = self.printer.unit_scale();
+        let old = self.printer.label_home_position.clone();
         if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.label_home_position.x = v;
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.label_home_position.y = v;
         }
+        // ^LH may appear mid-format, even between a ^FO/^FT and its field
+        // command; the home in effect when the field starts governs it
+        // (Labelary-verified on the kuehnenagel_eselect capture:
+        // ^FO160,10^LH0,30^BCN draws at y = 10+30). Re-apply the delta to
+        // the already-baked next field position.
+        let new = self.printer.label_home_position.clone();
+        self.printer.next_element_position.x = self.printer.next_element_position.x - old.x + new.x;
+        self.printer.next_element_position.y = self.printer.next_element_position.y - old.y + new.y;
     }
 
     /// `^LTv` -- label top. Shifts every element's y by +v at label emission.

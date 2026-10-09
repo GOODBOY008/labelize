@@ -93,7 +93,7 @@ fn code128_auto_with_fnc1() {
 
 #[test]
 fn code39_encodes_alphanumeric() {
-    let img = code39::encode("ABC123", 100, 3, 2).expect("code39 failed");
+    let img = code39::encode("ABC123", 100, 3.0, 2).expect("code39 failed");
     assert!(img.width() > 0);
     assert!(img.height() > 0);
 }
@@ -101,7 +101,7 @@ fn code39_encodes_alphanumeric() {
 #[test]
 fn code39_empty_input_handled() {
     // Empty input may succeed with a minimal barcode or error - either is acceptable
-    let _result = code39::encode("", 100, 3, 2);
+    let _result = code39::encode("", 100, 3.0, 2);
 }
 
 #[test]
@@ -136,14 +136,14 @@ fn ean13_empty_input_returns_error() {
 
 #[test]
 fn twooffive_encodes_digits() {
-    let img = twooffive::encode("12345678", 100, 3, 2, false).expect("2of5 failed");
+    let img = twooffive::encode("12345678", 100, 3.0, 2, false).expect("2of5 failed");
     assert!(img.width() > 0);
     assert!(img.height() > 0);
 }
 
 #[test]
 fn twooffive_empty_input_returns_error() {
-    let result = twooffive::encode("", 100, 3, 2, false);
+    let result = twooffive::encode("", 100, 3.0, 2, false);
     assert!(result.is_err(), "expected error for empty input");
 }
 

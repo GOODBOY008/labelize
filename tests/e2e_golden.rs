@@ -538,7 +538,7 @@ fn golden_usps_intl() {
 
 #[test]
 fn golden_tnt_express() {
-    golden_zpl_with_tolerance("tnt_express", 8.0);
+    golden_zpl_with_tolerance("tnt_express", 4.0);
 }
 #[test]
 fn golden_royalmail() {
