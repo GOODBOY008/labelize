@@ -758,7 +758,6 @@ fn golden_font0_latin_ext_a() {
     golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
 }
 
-
 // ── Real-provenance carrier labels ────────────────────────────────
 // Sourced from real production captures (see docs/CARRIER_LABELS.md
 // for per-label provenance). cjlogistics/correiosbr are real
