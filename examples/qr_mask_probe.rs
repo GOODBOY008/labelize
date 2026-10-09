@@ -28,7 +28,8 @@ fn format_words() -> Vec<(u8, u8, u32)> {
                     rem ^= BCH_GEN << (i - 10);
                 }
             }
-            out.push((id, mask as u8, ((data << 10) | (rem & 0x3FF)) ^ FORMAT_XOR));        }
+            out.push((id, mask as u8, ((data << 10) | (rem & 0x3FF)) ^ FORMAT_XOR));
+        }
     }
     out
 }
@@ -46,7 +47,9 @@ fn main() {
     Renderer::new()
         .draw_label_as_png(&labels[0], &mut png, DrawerOptions::default())
         .unwrap();
-    let local = image::load_from_memory(&png.into_inner()).unwrap().to_luma8();
+    let local = image::load_from_memory(&png.into_inner())
+        .unwrap()
+        .to_luma8();
     let reference = image::open(&ref_path).unwrap().to_luma8();
 
     let local_grid = extract(&local, mag);
@@ -65,7 +68,11 @@ fn main() {
         local_grid.module_px,
         local_grid.mask,
         local_grid.ecl,
-        if local_grid.format_ok { "" } else { " [BCH MISMATCH]" }
+        if local_grid.format_ok {
+            ""
+        } else {
+            " [BCH MISMATCH]"
+        }
     );
     println!(
         "labelary: side={} modules (module_px {:.2}), format: mask={} ec={}{}",
@@ -73,7 +80,11 @@ fn main() {
         ref_grid.module_px,
         ref_grid.mask,
         ref_grid.ecl,
-        if ref_grid.format_ok { "" } else { " [BCH MISMATCH]" }
+        if ref_grid.format_ok {
+            ""
+        } else {
+            " [BCH MISMATCH]"
+        }
     );
 
     if local_grid.n != ref_grid.n {
@@ -113,8 +124,19 @@ fn main() {
         rxing::qrcode::decoder::qrcode_decoder::decode_bool_array(&ref_grid.dark),
     ) {
         (Ok(a), Ok(b)) => {
-            println!("RESULT: local decodes {:?}, labelary decodes {:?}", a.getText(), b.getText());
-            println!("RESULT: payloads {}", if a.getText() == b.getText() { "IDENTICAL" } else { "DIFFER" });
+            println!(
+                "RESULT: local decodes {:?}, labelary decodes {:?}",
+                a.getText(),
+                b.getText()
+            );
+            println!(
+                "RESULT: payloads {}",
+                if a.getText() == b.getText() {
+                    "IDENTICAL"
+                } else {
+                    "DIFFER"
+                }
+            );
         }
         (e1, e2) => println!(
             "RESULT: decode failed local={} labelary={}",
@@ -168,7 +190,10 @@ fn extract(img: &image::GrayImage, mag: u32) -> Grid {
     assert!(max_x >= 0, "no dark pixels found");
     let bw = (max_x - min_x + 1) as f64;
     let bh = (max_y - min_y + 1) as f64;
-    assert!((bw - bh).abs() <= 1.0, "QR bounding box not square: {bw}x{bh}");
+    assert!(
+        (bw - bh).abs() <= 1.0,
+        "QR bounding box not square: {bw}x{bh}"
+    );
 
     // Symbol side is 4k+17 modules; pick the size whose mag-scaled extent best
     // matches the bounding box (Labelary edges can be a pixel short).

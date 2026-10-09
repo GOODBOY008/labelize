@@ -61,7 +61,11 @@ impl BarcodeQrWithData {
         // recognized manual modes; Labelary keeps them verbatim otherwise
         // (probe-verified across the QR corpus, see docs/QR_MASK_SELECTION.md).
         let manual = bytes[1] == b'M';
-        let skip = if manual || bytes[1].is_ascii_alphabetic() { 3 } else { 2 };
+        let skip = if manual || bytes[1].is_ascii_alphabetic() {
+            3
+        } else {
+            2
+        };
         let mut data = self
             .data
             .get(skip..)

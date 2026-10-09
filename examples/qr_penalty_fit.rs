@@ -104,18 +104,23 @@ fn score_components(colors: &[qrcode::Color], size: usize) -> Scores {
     }
 
     let total = size * size;
-    let dark_count = (0..total).filter(|&i| colors[i] == qrcode::Color::Dark).count();
+    let dark_count = (0..total)
+        .filter(|&i| colors[i] == qrcode::Color::Dark)
+        .count();
 
     // Crate: linear |200·dark/total − 100| (integer floors).
     let ratio = (dark_count * 200 / total) as u32;
-    let n4_crate = if ratio >= 100 { ratio - 100 } else { 100 - ratio };
+    let n4_crate = if ratio >= 100 {
+        ratio - 100
+    } else {
+        100 - ratio
+    };
     // ISO: 10 points per complete 5% deviation from 50%
     // (= floor(|2·dark − total|·10/total) × 10, same as src/barcodes/qr_mask.rs).
     let n4_iso = ((dark_count * 2).abs_diff(total) * 10 / total * 10) as u32;
     // ZXing: |(int)(ratio·100 − 50)| / 5 × 10.
     let zx = ((dark_count as f64 / total as f64) * 100.0 - 50.0) as i32;
     let n4_zx = (zx.abs() / 5 * 10) as u32;
-
 
     Scores {
         n1,
@@ -178,7 +183,10 @@ fn main() {
             .collect();
 
         let picks = [
-            ("crate", pick(&per_mask, |s| s.n1 + s.n2 + s.n3 + s.n4_crate)),
+            (
+                "crate",
+                pick(&per_mask, |s| s.n1 + s.n2 + s.n3 + s.n4_crate),
+            ),
             ("iso", pick(&per_mask, |s| s.n1 + s.n2 + s.n3 + s.n4_iso)),
             ("zx", pick(&per_mask, |s| s.n1 + s.n2 + s.n3 + s.n4_zx)),
             ("no_n4", pick(&per_mask, |s| s.n1 + s.n2 + s.n3)),
@@ -249,8 +257,8 @@ mod probe_dump {
     #[test]
     fn components_match_crate_constants() {
         use super::*;
-        use qrcode::EcLevel as E;
         use qrcode::types::Version;
+        use qrcode::EcLevel as E;
         let mut canvas = Canvas::new(Version::Normal(1), E::Q);
         canvas.draw_all_functional_patterns();
         canvas.draw_data(
@@ -264,7 +272,10 @@ mod probe_dump {
         // finder(h)=0, finder(v)=40, balance=2.
         assert_eq!(s.n1, 180, "N1 h+v");
         assert_eq!(s.n2, 90, "N2");
-        assert_eq!(s.n3, 760, "N3 raw h+v (crate subtracts 360 per orientation)");
+        assert_eq!(
+            s.n3, 760,
+            "N3 raw h+v (crate subtracts 360 per orientation)"
+        );
         assert_eq!(s.n4_crate, 2, "N4 crate linear");
     }
 }
