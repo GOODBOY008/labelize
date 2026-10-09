@@ -1137,8 +1137,7 @@ impl Renderer {
         canvas: &mut RgbaImage,
         bc: &crate::elements::barcode_39::Barcode39WithData,
     ) -> Result<(), String> {
-        let img =
-            barcodes::code39::encode(&bc.data, bc.barcode.height, bc.width_ratio, bc.width)?;
+        let img = barcodes::code39::encode(&bc.data, bc.barcode.height, bc.width_ratio, bc.width)?;
         let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
 
@@ -1378,6 +1377,18 @@ fn warn_unmapped_font(name: &str) {
     }
 }
 
+/// Effective glyph id for laying out `ch`: Labelary's font 0 blanks the
+/// characters in `FONT0_LABELARY_BLANKED` even though the substitute subset
+/// carries their outlines, so for font 0 those must take the missing-glyph
+/// path (no ink, calibrated advance) exactly like glyphs the subset lacks.
+fn effective_glyph_id(font: &FontRef, ch: char, f0: bool) -> ab_glyph::GlyphId {
+    let id = font.glyph_id(ch);
+    if f0 && crate::tuning::font0_is_labelary_blanked(ch) {
+        return ab_glyph::GlyphId(0);
+    }
+    id
+}
+
 /// Pen advance for a character the substitute face has no glyph for
 /// (`font.glyph_id(c) == GlyphId(0)`). Labelary renders such characters as
 /// blank space — no .notdef box — for every substitute font (probed against
@@ -1410,7 +1421,7 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> f
     let mut width = 0.0f32;
     let mut prev = None;
     for ch in text.chars() {
-        let glyph_id = font.glyph_id(ch);
+        let glyph_id = effective_glyph_id(font, ch, f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             width += missing_glyph_advance(font, f0, scale, width_ratio);
             // Nothing is drawn, so no kerning applies on either side —
@@ -1491,7 +1502,7 @@ fn measure_text_ink_bounds(
     let mut max_x = f32::MIN;
     let mut max_y = f32::MIN;
     for c in text.chars() {
-        let glyph_id = font.glyph_id(c);
+        let glyph_id = effective_glyph_id(font, c, f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             w += missing_glyph_advance(font, f0, scale, width_ratio);
             prev = None;
@@ -1582,7 +1593,7 @@ fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, f0: bool) -> 
         if !seen.insert(c) {
             continue;
         }
-        let glyph_id = font.glyph_id(c);
+        let glyph_id = effective_glyph_id(font, c, f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             continue;
         }
@@ -1679,7 +1690,7 @@ fn draw_text_snapped(
     let mut prev: Option<GlyphId> = None;
 
     for c in text.chars() {
-        let glyph_id = font.glyph_id(c);
+        let glyph_id = effective_glyph_id(font, c, f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             // Blank like Labelary: no glyph is drawn and no kerning applies on
             // either side (imageproc only kerns outlined glyphs), but the pen

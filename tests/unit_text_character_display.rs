@@ -32,8 +32,9 @@
 //!
 //! History (2026-10-05): before the renderer fix, 178 (font, character)
 //! combinations lost ink in rotated fields — catastrophically for the font-0
-//! characters whose advance deltas undercut their glyph ink (Ā 267→12 px,
-//! Ŝ, ƀ, ℀), by 5–12% for the DejaVu Greek tonos capitals and Vietnamese
+//! characters whose advance deltas undercut their glyph ink (¤, and the
+//! since-blanked Ā 267→12 px, Ŝ, ƀ, ℀), by 5–12% for the DejaVu Greek tonos
+//! capitals and Vietnamese
 //! horn glyphs (marks overhang the pen origin), and by 1–3 px on the DejaVu
 //! mono trailing edge. The rotated buffer is now sized from the laid-out ink
 //! extents (trailing growth + left margin + descent pad) with per-orientation
@@ -301,7 +302,10 @@ fn sweep_letter(letter: &str, universe: &[char], min_covered: usize) {
         } else {
             ch.to_string()
         };
-        let covered = displayed.chars().any(|c| has_glyph(letter, c));
+        let covered = displayed.chars().any(|c| {
+            has_glyph(letter, c)
+                && !(letter == "0" && labelize::FONT0_LABELARY_BLANKED.contains(&c))
+        });
         let normal_img = render_field_img(letter, 'N', ch, 36, 32);
         let normal = ink_count(&normal_img);
 
@@ -499,12 +503,16 @@ fn fontV_character_display_sweep() {
 }
 
 /// The font-0 family that used to lose ~95% of its ink (advance deltas
-/// undercutting glyph ink) must stay whole at other cell sizes too.
+/// undercutting glyph ink) must stay whole at other cell sizes too. ¤ is the
+/// remaining member whose substitute glyph outgrows its corrected advance.
+/// Ā Ŝ ƀ ℀ ⁄ were in the same clipping family until the subset was aligned
+/// with Labelary's font-0 coverage: Labelary renders all of them blank with
+/// a uniform advance (probe-measured at ^CI28, ^A0N,36,32: 9 px, identical
+/// to the CJK/missing-glyph advance), so they must render NO ink in any
+/// orientation — a glyph re-added to the subset would regress this.
 #[test]
 fn font0_formerly_clipped_chars_preserve_at_small_size() {
-    for ch in [
-        '\u{0100}', '\u{015C}', '\u{0180}', '\u{2100}', '\u{2044}', '\u{00A4}',
-    ] {
+    for ch in ['\u{00A4}'] {
         let normal = render_field("0", 'N', ch, 18, 16);
         assert!(
             normal > 10,
@@ -514,7 +522,22 @@ fn font0_formerly_clipped_chars_preserve_at_small_size() {
             assert_eq!(
                 render_field("0", o, ch, 18, 16),
                 normal,
-                "^A0{o},18,16 {ch:?} lost ink vs N"
+                "^A{o},18,16 {ch:?} lost ink vs N"
+            );
+        }
+    }
+    for ch in ['\u{0100}', '\u{015C}', '\u{0180}', '\u{2100}', '\u{2044}'] {
+        let normal = render_field("0", 'N', ch, 18, 16);
+        assert_eq!(
+            normal, 0,
+            "^A0N,18,16 {ch:?} rendered {normal} ink px — Labelary blanks it \
+             (blank + uniform advance); it must stay in FONT0_LABELARY_BLANKED"
+        );
+        for &o in &['R', 'I', 'B'] {
+            assert_eq!(
+                render_field("0", o, ch, 18, 16),
+                0,
+                "^A{o},18,16 {ch:?} rendered ink vs N's blank"
             );
         }
     }
@@ -799,15 +822,17 @@ fn fb_negative_line_spacing_survives_rotation() {
 /// offsets. The rotated buffer's left margin must be added AFTER the per-line
 /// pen snapping, or `as i32` truncation of a pen that crosses zero inside the
 /// padded value shifts that line 1 px relative to the others. Regression
-/// case: two unbreakable Ŝ words (64 and 60 chars) — assert the inter-line
-/// offset measured along the rotated stacking axis equals the normal
-/// render's, and the inverse-rotated mask matches within a small edge-noise
-/// tolerance (sub-pixel glyph phases differ between orientations).
+/// case: two unbreakable i words (24 and 22 chars, sized to stay on the
+/// label with no label-edge clipping). The guarded invariant is the two lines' RELATIVE position along
+/// the stacking axis: project the ink onto that axis, split the two line
+/// bands, and require both renders to show the same band-start offset (the
+/// ^FB pitch) and the same per-band ink extents — a per-line pen-snapping
+/// bug shifts one band by 1+ px, a clipped line loses a band.
 #[test]
 fn fb_right_aligned_relative_line_positions_survive_rotation() {
-    let sh: char = '\u{15C}';
-    let w1: String = std::iter::repeat(sh).take(64).collect();
-    let w2: String = std::iter::repeat(sh).take(60).collect();
+    let sh: char = 'i';
+    let w1: String = std::iter::repeat(sh).take(24).collect();
+    let w2: String = std::iter::repeat(sh).take(22).collect();
     let zpl =
         |o: char| format!("^XA\n^CI28\n^FO240,200^A0{o},36,32^FB20,2,0,R^FD{w1} {w2}^FS\n^XZ\n");
     let opts = labelize::DrawerOptions {
@@ -873,17 +898,67 @@ fn fb_right_aligned_relative_line_positions_survive_rotation() {
         (a, b)
     }
 
-    let (n1, n2) = half_inks(&normal, false, 150, 400, (200, 700));
-    let (r1, r2) = half_inks(&rotated, true, 150, 500, (150, 700));
-    assert!(
-        n1 > 1000 && n2 > 1000 && r1 > 1000 && r2 > 1000,
-        "unexpected half inks N=({n1},{n2}) R=({r1},{r2})"
-    );
-    for (label, rotated_half, normal_half) in [("line2", r1, n2), ("line1", r2, n1)] {
-        let diff = rotated_half.abs_diff(normal_half);
+    /// Project the ink onto the stacking axis and split it into the two
+    /// line bands. Returns (band1_start, band2_start, band1_extent,
+    /// band2_extent) — band starts are absolute axis coordinates, so the
+    /// (band2 − band1) offset compares across orientations directly.
+    fn line_bands(img: &image::RgbaImage, along_x: bool) -> (u32, u32, u32, u32) {
+        let (w, h) = img.dimensions();
+        let hits: Vec<u32> = (0..if along_x { w } else { h })
+            .filter(|&i| {
+                (0..if along_x { h } else { w }).any(|j| {
+                    let p = if along_x {
+                        img.get_pixel(i, j)
+                    } else {
+                        img.get_pixel(j, i)
+                    };
+                    p[0] < 128
+                })
+            })
+            .collect();
         assert!(
-            diff * 100 <= normal_half,
-            "{label}: rotated half ink {rotated_half} vs normal {normal_half}              (off by {diff}) — a relative line shift or clipped ink"
+            hits.len() >= 2,
+            "block bands: expected two ink bands, got {hits:?}"
+        );
+        // Split at the first gap larger than 5 px (clears the i dot/stem
+        // gap ~3 px; the inter-line pitch gap is ~8-10 px).
+        let mut split = 1usize;
+        while split < hits.len() && hits[split] - hits[split - 1] <= 5 {
+            split += 1;
+        }
+        assert!(split < hits.len(), "block bands: no inter-line gap found");
+        (
+            hits[0],
+            hits[split],
+            hits[split - 1] - hits[0] + 1,
+            *hits.last().unwrap() - hits[split] + 1,
+        )
+    }
+
+    let (na, nb, na_ext, nb_ext) = line_bands(&normal, false);
+    let (ra, rb, ra_ext, rb_ext) = line_bands(&rotated, true);
+    let n_offset = nb as i64 - na as i64;
+    let r_offset = rb as i64 - ra as i64;
+    assert_eq!(
+        n_offset, r_offset,
+        "rotated inter-line offset {r_offset} != normal {n_offset} — per-line pen snapping"
+    );
+    // Both lines present and unclipped in both orientations (the words are
+    // sized to stay inside the label, so no label-edge clipping pollutes the
+    // extents).
+    assert!(
+        na_ext > 25 && nb_ext > 25,
+        "normal band extents {na_ext}/{nb_ext}"
+    );
+    assert!(
+        ra_ext > 25 && rb_ext > 25,
+        "rotated band extents {ra_ext}/{rb_ext}"
+    );
+    for (label, rotated_ext, normal_ext) in [("line1", na_ext, ra_ext), ("line2", nb_ext, rb_ext)] {
+        let diff = rotated_ext.abs_diff(normal_ext);
+        assert!(
+            diff * 20 <= normal_ext,
+            "{label}: band ink extent {rotated_ext} vs normal {normal_ext} (off by {diff}) — clipped line ink"
         );
     }
 

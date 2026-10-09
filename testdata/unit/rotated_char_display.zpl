@@ -4,8 +4,9 @@
 ^LH20,30
 ^FX Font 0, normal: Latin-1 diacritics + ¤ (Labelary-covered; delta-calibrated advance).
 ^FO20,40^A0N,36,32^FDÄÖÜ ÉÑ ß¿¡ ¤^FS
-^FX Font 0 superset glyphs (ĀŜƀ): Labelary's font 0 leaves these blank;
-^FX kept to document the coverage gap — contributes ~0.08% diff.
+^FX Font 0 superset glyphs (ĀŜƀ): blank-with-advance on both sides —
+^FX Labelary's font 0 lacks them and the renderer routes them through the
+^FX calibrated missing-glyph advance path (FONT0_LABELARY_BLANKED).
 ^FO20,100^A0N,36,32^FDĀŜƀ A1^FS
 ^FX Font 0, 180°: multi-char rotated band, right of centre.
 ^FO500,160^A0I,36,32^FDÄÖÜ ¤ ÌÎï^FS
