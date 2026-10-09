@@ -29,7 +29,7 @@ rejects_without_panicking!(emoji_in_prefix, "😀");
 rejects_without_panicking!(emoji_after_level, "Q😀");
 rejects_without_panicking!(multibyte_manual_indicator, "QM,äABCDE");
 rejects_without_panicking!(multibyte_binary_length, "QM,B0😀X");
-rejects_without_panicking!(multibyte_at_prefix_boundary, "00®");
+rejects_without_panicking!(multibyte_at_prefix_boundary, "0®x");
 
 #[test]
 fn valid_inputs_keep_content_level_and_mode() {
@@ -50,6 +50,10 @@ fn valid_inputs_keep_content_level_and_mode() {
         ("QA,A|B", "AB", Q, Automatic),
         ("XA,HELLO", "HELLO", H, Automatic),
         ("QM,XHELLO", "HELLO", Q, Automatic),
+        // Unrecognized digit designator: payload starts after the two format
+        // chars, pipes kept verbatim (Labelary probe-verified).
+        ("00®", "®", H, Automatic),
+        ("9876543210", "76543210", H, Automatic),
     ] {
         assert_eq!(
             qr(input).get_input_data().unwrap(),

@@ -44,11 +44,6 @@ impl BarcodeQrWithData {
         }
 
         let bytes = self.data.as_bytes();
-        let mut data = self
-            .data
-            .get(3..)
-            .ok_or_else(|| "invalid qr barcode data prefix".to_string())?;
-        let mut mode = QrCharacterMode::Automatic;
         let level = match bytes[0] {
             b'H' => QrErrorCorrectionLevel::H,
             b'Q' => QrErrorCorrectionLevel::Q,
@@ -58,7 +53,22 @@ impl BarcodeQrWithData {
             _ => QrErrorCorrectionLevel::H,
         };
 
-        if bytes[1] == b'M' && !data.is_empty() {
+        // The ECC char and the input-mode designator are always consumed. A
+        // recognized letter designator (A/M/…) consumes exactly one separator
+        // char after it (the comma in `QA,data`), while an unrecognized one —
+        // commonly a digit in a tracking number — consumes nothing and the
+        // payload starts at index 2. Pipes are field separators only for the
+        // recognized manual modes; Labelary keeps them verbatim otherwise
+        // (probe-verified across the QR corpus, see docs/QR_MASK_SELECTION.md).
+        let manual = bytes[1] == b'M';
+        let skip = if manual || bytes[1].is_ascii_alphabetic() { 3 } else { 2 };
+        let mut data = self
+            .data
+            .get(skip..)
+            .ok_or_else(|| "invalid qr barcode data prefix".to_string())?;
+        let mut mode = QrCharacterMode::Automatic;
+
+        if manual && !data.is_empty() {
             mode = match data.as_bytes()[0] {
                 b'B' => QrCharacterMode::Binary,
                 b'N' => QrCharacterMode::Numeric,
@@ -72,13 +82,18 @@ impl BarcodeQrWithData {
         }
 
         if mode != QrCharacterMode::Binary {
-            // Zebra printers treat `|` as a field separator in QR data; it is stripped
-            // from the encoded content (not included in the QR symbol), matching Labelary behavior.
-            let content = data.replace('|', "");
-            return Ok((content, level, mode));
+            // `|` is a field separator only for the recognized modes: manual
+            // submodes and the explicit automatic `A` designator strip it from
+            // the encoded content (matching Labelary); an unrecognized letter
+            // or digit designator keeps the payload verbatim (probe-verified,
+            // see docs/QR_MASK_SELECTION.md).
+            if manual || bytes[1] == b'A' {
+                return Ok((data.replace('|', ""), level, mode));
+            }
+            return Ok((data.to_string(), level, mode));
         }
 
-        if data.len() < 5 {
+        if data.len() < 4 {
             return Err("invalid qr barcode byte mode data".to_string());
         }
 

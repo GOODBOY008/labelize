@@ -67,6 +67,7 @@ proptest = "1"
 ab_glyph = "0.2"
 reqwest = { version = "0.13", features = ["blocking"] }
 sha2 = "0.11"
-# Decoder stack is test-only (DataMatrix escapes and QR mask tests); kept out of the
-# production dependency so Android/WASM consumers don't compile it.
+# Decoder stack is test-only (DataMatrix escape tests + QR mask parity
+# assertions); kept out of the production dependency so Android/WASM
+# consumers don't compile it.
 rxing = { version = "0.9", default-features = false, features = ["decoders", "datamatrix", "qrcode"] }

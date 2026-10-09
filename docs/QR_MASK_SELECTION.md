@@ -122,3 +122,36 @@ regressions passed, as did 130 goldens and both diff reports (134 fixtures,
 no HIGH/SKIP/ERR). The new five-symbol golden is pixel-identical to Labelary;
 all existing comparison images and scores remain unchanged relative to main.
 Formatting and all-feature Clippy with warnings denied also passed.
+
+## Payload boundaries (`^FD` parsing)
+
+Mask selection presupposes the right codewords: a second, independent
+mismatch source is the `^BQ` payload itself. Empirically (52 payload pairs
+decoded from Labelary symbols), Labelary consumes the `^FD` ECC char and the
+input-mode designator, then **one separator char only when the designator is a
+letter** (the comma in `QA,data`), and **nothing more when it is a digit**:
+`^FD9876543210` encodes `76543210`. Manual mode additionally consumes its
+submode char and, for `B`, a four-digit byte count. Pipes are field separators
+only for the recognized manual modes and the explicit automatic designator —
+kept verbatim otherwise. `get_input_data` previously dropped three characters
+unconditionally, mangling every digit-leading payload (`9876543210` encoded as
+`6543210`).
+
+`examples/qr_mask_probe.rs` measures this: it renders a minimal one-QR ZPL
+locally and against Labelary, compares the module grids, reads each side's
+mask id and EC level from the (BCH-validated) format information, and decodes
+both payloads with the independent rxing decoder. `examples/qr_penalty_fit.rs`
+fits candidate penalty functions against measured (payload, EC, mask) triples.
+On 29 same-codeword symbol pairs the standard penalty reproduces Labelary's
+mask 29/29; across 68 probed payload classes the two fixes together make 49
+symbol-perfect.
+
+## Error-correction re-optimization (accepted divergence)
+
+For unrecognized or explicitly overridden EC designators Labelary
+re-optimizes the level and sometimes the segmentation (JSON payloads -> M and a
+smaller version; explicit M -> Q; explicit L -> H). Emulating that
+non-standard behaviour was evaluated and rejected in the #52 review (reverted
+in d6fe62c; re-measured 2026-10-06: keeping strict modes costs +4.29 pp across
+11 labels +3.32 pp in unit on the then-current corpus while buying parity only
+where none is needed). The divergence is documented, not matched.
