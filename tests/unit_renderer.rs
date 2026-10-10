@@ -772,3 +772,87 @@ fn fb_bitmap_font_line_pitch_is_cell_height_plus_spacing() {
         );
     }
 }
+
+// --- bitmap font advance + zero glyph calibration ---
+
+/// Start x of every dark-pixel run across one horizontal band of the canvas.
+fn ink_run_starts(img: &image::RgbaImage, y0: u32, y1: u32) -> Vec<u32> {
+    let cols: Vec<bool> = (0..img.width())
+        .map(|x| (y0..y1).any(|y| img.get_pixel(x, y)[0] < 128))
+        .collect();
+    let mut starts = Vec::new();
+    for i in 1..cols.len() {
+        if cols[i] && !cols[i - 1] {
+            starts.push(i as u32);
+        }
+    }
+    if cols[0] {
+        starts.insert(0, 0);
+    }
+    starts
+}
+
+/// Labelary advances the resident bitmap fonts by a per-font cell step that is
+/// wider than the coded cell width (measured over 9-gap `HHHHHHHHHH` runs at
+/// 1x and 2x against Labelary; 2x confirms the step scales linearly). The
+/// substitute face's cell advance equals the width parameter, so the
+/// calibrated multiplier must land the 10th glyph at start + 9 × advance.
+#[test]
+fn bitmap_font_advance_matches_labelary_cell_step() {
+    // (font, cell advance in dots at 1x)
+    let cases = [
+        ("A", 6),
+        ("B", 9),
+        ("C", 12),
+        ("D", 12),
+        ("E", 20),
+        ("F", 16),
+        ("H", 19),
+    ];
+    for (font, adv) in cases {
+        let zpl = format!("^XA^CI28^PW799^FO50,60^A{font}N^FDHHHHHHHHHH^FS^XZ");
+        let img = decode_png(&render_helpers::render_zpl_to_png(
+            &zpl,
+            render_helpers::unit_options(),
+        ));
+        let starts = ink_run_starts(&img, 40, 130);
+        assert_eq!(
+            starts.len(),
+            10,
+            "^A{font}: expected 10 H runs, got {starts:?}"
+        );
+        let span = starts[9] - starts[0];
+        assert!(
+            (span as i64 - 9 * adv).abs() <= 1,
+            "^A{font}: H run span {span}px != 9 × {adv} advance"
+        );
+    }
+}
+
+/// Labelary's bitmap-font zeros are not uniform: E (and A/B/D/H) measure
+/// clean, so the DejaVu substitute's center dot must be removed there; C
+/// carries a 2x2 interior dot in the reference bitmaps, so the substitute's
+/// dot must STAY. Pin both directions via the middle row of a rendered `0`:
+/// two ink runs (the ring's sides) for E, three (walls + dot) for C.
+#[test]
+fn bitmap_font_zero_dot_policy_matches_labelary() {
+    for (font, expected_runs) in [("E", 2), ("C", 3)] {
+        let zpl = format!("^XA^CI28^PW799^FO50,60^A{font}N^FD0^FS^XZ");
+        let img = decode_png(&render_helpers::render_zpl_to_png(
+            &zpl,
+            render_helpers::unit_options(),
+        ));
+        let ys: Vec<u32> = (0..img.height())
+            .filter(|&y| (0..img.width()).any(|x| img.get_pixel(x, y)[0] < 128))
+            .collect();
+        assert!(!ys.is_empty(), "font {font}: no zero rendered");
+        let mid = ys[ys.len() / 2];
+        let runs = ink_run_starts(&img, mid, mid + 1);
+        assert_eq!(
+            runs.len(),
+            expected_runs,
+            "font {font} zero's middle row shows {} ink runs, expected {expected_runs}",
+            runs.len()
+        );
+    }
+}

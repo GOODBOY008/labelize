@@ -1,0 +1,16 @@
+^XA
+^FX Resident bitmap fonts A-H: Labelary per-font cell advance, probed
+^FX over 9-gap H-runs and zero glyphs at 1x (C=12, E=20, F=16, G=48, H=19).
+^FX (^AGSN is NOT the GS font: ^A takes single-char names, so it parses as
+^FX font G with 'S' swallowed as a broken height param -- see parser.)
+^CI28
+^PW799
+^FO20,40^AAN^FDHHHHHHHHHH 0000000000^FS
+^FO20,80^ABN^FDHHHHHHHHHH 0000000000^FS
+^FO20,125^ACN^FDHHHHHHHHHH 0000000000^FS
+^FO20,170^ADN^FDHHHHHHHHHH 0000000000^FS
+^FO20,215^AEN^FDHHHHHHHHHH 0000000000^FS
+^FO20,270^AFN^FDHHHHHHHHHH 0000000000^FS
+^FO20,320^AHN^FDHHHHHHHHHH 0000000000^FS
+^FO20,360^AGN^FDHHHHH 00000^FS
+^XZ
