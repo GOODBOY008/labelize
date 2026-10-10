@@ -63,10 +63,13 @@
 ║ print_mirror_width             │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ qr_code_ft_manual              │ zpl  │    0.29% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_code_offset                 │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ qr_digit_payload               │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ qr_ft_600                      │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_by100                    │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ qr_ft_test                     │ zpl  │    0.47% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ qr_json_payload                │ zpl  │    1.32% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ qr_mask_selection              │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ qr_pipe_kept                   │ zpl  │    1.29% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ return_qrcode                  │ zpl  │    2.01% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ reverse                        │ zpl  │    0.25% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ reverse_qr                     │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -89,5 +92,5 @@
 ║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 85 total │ 12 perfect │ 60 good │ 11 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 88 total │ 13 perfect │ 60 good │ 13 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

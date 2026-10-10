@@ -758,6 +758,25 @@ fn golden_font0_latin_ext_a() {
     golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
 }
 
+// ── ^BQ payload boundary gates ─────────────────────────────────────
+// Each fixture pins a Labelary-verified boundary rule; the decode-level
+// gate lives in e2e_qr_payload_gate.rs. qr_digit_payload's tolerance is
+// deliberately tight: the pre-fix parser encoded "6543210" instead of
+// Labelary's "76543210" and failed this threshold (0.33%).
+
+#[test]
+fn golden_qr_digit_payload() {
+    golden_zpl_with_tolerance("qr_digit_payload", 0.1);
+}
+#[test]
+fn golden_qr_json_payload() {
+    golden_zpl_with_tolerance("qr_json_payload", 2.0);
+}
+#[test]
+fn golden_qr_pipe_kept() {
+    golden_zpl_with_tolerance("qr_pipe_kept", 2.0);
+}
+
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]

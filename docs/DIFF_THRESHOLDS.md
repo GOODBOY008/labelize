@@ -188,7 +188,10 @@ informational.
 | usps_priority_mail | zpl | 0.32 | — | Font metrics (^FB centered) |
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
 | cjk_font0_ci28 | zpl | 0.11 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Roboto Condensed metrics on the Latin prefix |
-| font0_latin_ext_a | zpl | 0.21 | 1.0 | Issue #65: font-0 Latin Extended-A glyphs Labelary renders (Ă ă Đ đ Ţ ţ) drawn with the Roboto Condensed subset; Ș ș Ț ț Ħ ħ stay blank with calibrated advance on both sides |
+| font0_latin_ext_a | zpl | 0.21 | 1.0 |
+| qr_digit_payload | zpl | 0.00 | 0.1 | ^BQ payload boundary gate: digit designator skips only the two format chars (pre-fix encoded "6543210" vs Labelary "76543210"); decode-level gate in e2e_qr_payload_gate.rs |
+| qr_json_payload | zpl | 1.32 | 2.0 | ^BQ boundary gate: { + quote designators both consumed, JSON kept verbatim; residual = accepted EC re-optimization (Labelary shrinks to v2) |
+| qr_pipe_kept | zpl | 1.29 | 2.0 | ^BQ boundary gate: unrecognized letter designator consumes one separator, pipes kept verbatim; residual = segmentation nuance | Issue #65: font-0 Latin Extended-A glyphs Labelary renders (Ă ă Đ đ Ţ ţ) drawn with the Roboto Condensed subset; Ș ș Ț ț Ħ ħ stay blank with calibrated advance on both sides |
 
 ## Known Limitations
 
