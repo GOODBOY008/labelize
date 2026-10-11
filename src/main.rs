@@ -239,7 +239,9 @@ fn convert_file(
     let multi = labels.len() > 1;
     for (i, label) in labels.iter().enumerate() {
         let options = DrawerOptions {
-            label_width_mm: width.or(label.label_width_mm).unwrap_or(DEFAULT_LABEL_WIDTH_MM),
+            label_width_mm: width
+                .or(label.label_width_mm)
+                .unwrap_or(DEFAULT_LABEL_WIDTH_MM),
             label_height_mm: height
                 .or(label.label_height_mm)
                 .unwrap_or(DEFAULT_LABEL_HEIGHT_MM),

@@ -22,7 +22,11 @@ pub fn parse_qr_fd_payload(
     // An entirely empty ^FD is a no-field skip decided by the renderer, not a
     // payload error.
     if field.is_empty() {
-        return Ok((String::new(), QrErrorCorrectionLevel::H, QrCharacterMode::Automatic));
+        return Ok((
+            String::new(),
+            QrErrorCorrectionLevel::H,
+            QrCharacterMode::Automatic,
+        ));
     }
     if field.len() < 2 {
         return Err("invalid qr barcode data".to_string());

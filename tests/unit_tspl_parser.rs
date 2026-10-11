@@ -168,7 +168,10 @@ PRINT 1
 
     match &labels[0].elements[0] {
         LabelElement::Barcode128(bc) => {
-            assert_eq!(bc.barcode.mode, labelize::elements::barcode_128::BarcodeMode::Automatic);
+            assert_eq!(
+                bc.barcode.mode,
+                labelize::elements::barcode_128::BarcodeMode::Automatic
+            );
             assert!(bc.barcode.line);
             assert_eq!(bc.width, 2);
             assert_eq!(bc.data, "A123");
@@ -177,7 +180,10 @@ PRINT 1
     }
     match &labels[0].elements[1] {
         LabelElement::Barcode128(bc) => {
-            assert_eq!(bc.barcode.mode, labelize::elements::barcode_128::BarcodeMode::Ucc);
+            assert_eq!(
+                bc.barcode.mode,
+                labelize::elements::barcode_128::BarcodeMode::Ucc
+            );
             assert!(!bc.barcode.line);
         }
         other => panic!("expected Barcode128, got {:?}", other),
@@ -198,11 +204,13 @@ PRINT 1
 #[test]
 fn unsupported_barcode_type_errors_explicitly() {
     let err = TsplParser::new()
-        .parse(br#"SIZE 4,2
+        .parse(
+            br#"SIZE 4,2
 CLS
 BARCODE 10,10,"93",80,1,0,2,3,"X"
 PRINT 1
-"#)
+"#,
+        )
         .unwrap_err();
     assert!(err.contains("unsupported TSPL barcode type"), "{err}");
 }
@@ -234,7 +242,8 @@ fn direction_zero_inverts_the_label() {
     let normal = parse_one(b"SIZE 4,2\nCLS\nTEXT 10,10,\"1\",0,1,1,\"X\"\nPRINT 1\n");
     assert!(!normal.inverted);
 
-    let inverted = parse_one(b"SIZE 4,2\nDIRECTION 0\nCLS\nTEXT 10,10,\"1\",0,1,1,\"X\"\nPRINT 1\n");
+    let inverted =
+        parse_one(b"SIZE 4,2\nDIRECTION 0\nCLS\nTEXT 10,10,\"1\",0,1,1,\"X\"\nPRINT 1\n");
     assert!(inverted.inverted);
 }
 

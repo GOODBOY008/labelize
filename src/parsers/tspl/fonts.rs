@@ -39,12 +39,8 @@ pub fn resident_font(name: &str) -> TsplFont {
         "8" => cell(14.0, 25.0, FontFace::BitmapMono),
         // Asian bitmap faces (GB/BIG5/SJIS variants share the cell size).
         // Square cells draw 1:1 with no cap correction.
-        "TST16.BF2" | "TTT16.BF2" | "TSS16.BF2" => {
-            cell(16.0, 16.0, FontFace::BitmapSquare)
-        }
-        "TST24.BF2" | "TTT24.BF2" | "TSS24.BF2" => {
-            cell(24.0, 24.0, FontFace::BitmapSquare)
-        }
+        "TST16.BF2" | "TTT16.BF2" | "TSS16.BF2" => cell(16.0, 16.0, FontFace::BitmapSquare),
+        "TST24.BF2" | "TTT24.BF2" | "TSS24.BF2" => cell(24.0, 24.0, FontFace::BitmapSquare),
         // Font 1 and everything unrecognized: TSC defaults to font 1.
         _ => cell(8.0, 12.0, FontFace::BitmapMono),
     }

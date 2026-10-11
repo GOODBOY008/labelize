@@ -70,10 +70,7 @@ fn auto_bootstrap_epl(content: &str, path: &std::path::Path, name: &str) {
 /// No public TSPL reference renderer exists, so the renderer baseline is
 /// always used (same convention as EPL).
 fn auto_bootstrap_tspl(content: &str, path: &std::path::Path, name: &str) {
-    eprintln!(
-        "[bootstrap] '{}': using renderer baseline for TSPL",
-        name
-    );
+    eprintln!("[bootstrap] '{}': using renderer baseline for TSPL", name);
     let png = render_helpers::render_tspl_to_png(content, render_helpers::unit_options());
     std::fs::create_dir_all(path.parent().unwrap()).ok();
     std::fs::write(path, &png).expect("write auto-generated golden PNG");
@@ -849,7 +846,6 @@ fn golden_tspl_with_tolerance(name: &str, tolerance: f64) {
         result.expected_dims,
     );
 }
-
 
 // ── EPL golden tests ──────────────────────────────────────────────
 

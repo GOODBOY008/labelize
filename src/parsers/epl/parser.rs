@@ -873,7 +873,10 @@ fn parse_epl_2d_barcode(
                     }
                     LabelElement::BarcodeQr(BarcodeQrWithData {
                         reverse_print: ReversePrint::default(),
-                        barcode: BarcodeQr { magnification, orientation: FieldOrientation::Normal },
+                        barcode: BarcodeQr {
+                            magnification,
+                            orientation: FieldOrientation::Normal,
+                        },
                         height: 0,
                         position: pos,
                         data: content.to_string(),

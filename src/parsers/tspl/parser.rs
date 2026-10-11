@@ -10,7 +10,6 @@
 //! Semantics follow #13 (littlecxm's TSPL implementation) with the open
 //! questions listed in the PR description; unknown or ambiguous syntax
 /// errors out instead of silently misrendering.
-
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};

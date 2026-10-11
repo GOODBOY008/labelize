@@ -1,3 +1,5 @@
+use super::measurement_unit::MeasurementUnit;
+use super::zebra_fonts;
 use crate::elements::barcode_128::{Barcode128, BarcodeMode};
 use crate::elements::barcode_2of5::Barcode2of5;
 use crate::elements::barcode_39::Barcode39;
@@ -10,6 +12,7 @@ use crate::elements::barcode_qr::BarcodeQr;
 use crate::elements::barcode_upca::BarcodeUca;
 use crate::elements::barcode_upce::BarcodeUcpe;
 use crate::elements::field_block::FieldBlock;
+use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
@@ -21,9 +24,6 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
-use super::measurement_unit::MeasurementUnit;
-use crate::elements::field_orientation::FieldOrientation;
-use super::zebra_fonts;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
 use crate::hex;
@@ -82,7 +82,7 @@ impl ZplParser {
             if upper.starts_with("^XZ") {
                 // Resolve any active recalled format
                 if let Some(ref rf) = current_recalled_format {
-                    let resolved = stored_formats::resolve_elements(&rf)?;
+                    let resolved = stored_formats::resolve_elements(rf)?;
                     result_elements.extend(resolved);
                 }
 
@@ -1193,7 +1193,10 @@ impl ZplParser {
 
     fn parse_barcode_qr(&mut self, command: &str) {
         let parts = split_command(command, "^BQ");
-        let mut bc = BarcodeQr { magnification: 1, orientation: FieldOrientation::Normal };
+        let mut bc = BarcodeQr {
+            magnification: 1,
+            orientation: FieldOrientation::Normal,
+        };
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
             bc.magnification = v.clamp(1, 100);
         }
