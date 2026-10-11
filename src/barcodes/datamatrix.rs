@@ -162,10 +162,11 @@ pub fn encode_zpl_with_ratio(
         .map_err(|error| error.to_string())
 }
 
-/// Renderer policy for the observed row-only rectangular ^BX rejection.
-/// Keep malformed escapes and invalid constraints as errors; only a capacity
-/// failure in this selection mode suppresses the barcode field. ^CV is separate.
-pub(crate) fn render_zpl_field(
+/// Renderer policy for capacity-failure suppression: keep malformed escapes
+/// and invalid constraints as errors, but a capacity failure in the
+/// row-only rectangular selection mode suppresses the barcode field (a
+/// reference-renderer behavior calibrated on ^BX).
+pub(crate) fn render_field(
     content: &[u8],
     magnification: i32,
     rows: i32,

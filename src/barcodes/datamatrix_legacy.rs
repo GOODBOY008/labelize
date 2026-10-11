@@ -287,7 +287,7 @@ pub fn encode_with_ecc(
 
 /// ZPL Legacy dimensions: entries above 49 become automatic; the larger valid
 /// requested dimension wins. Unsupported small/even dimensions are errors.
-pub(crate) fn zpl_symbol_size(rows: i32, columns: i32) -> Result<Option<usize>, String> {
+pub(crate) fn legacy_symbol_size(rows: i32, columns: i32) -> Result<Option<usize>, String> {
     let mut size = 0;
     for value in [rows, columns] {
         if value == 0 || value > 49 {
@@ -479,10 +479,10 @@ mod tests {
             (0, 51, None),
             (51, 17, Some(17)),
         ] {
-            assert_eq!(zpl_symbol_size(rows, cols).unwrap(), expected);
+            assert_eq!(legacy_symbol_size(rows, cols).unwrap(), expected);
         }
         for (rows, cols) in [(8, 13), (10, 13), (-1, 0), (0, -1)] {
-            assert!(zpl_symbol_size(rows, cols).is_err());
+            assert!(legacy_symbol_size(rows, cols).is_err());
         }
         assert_eq!(MASTER_RANDOM[211], 0xbc);
         assert_eq!(MASTER_RANDOM[276], 0);
