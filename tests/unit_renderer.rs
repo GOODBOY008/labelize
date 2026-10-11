@@ -19,6 +19,8 @@ fn empty_label() -> LabelInfo {
         print_width: 0,
         inverted: false,
         mirrored: false,
+        label_width_mm: None,
+        label_height_mm: None,
         elements: vec![],
     }
 }
@@ -73,6 +75,8 @@ fn graphic_box_renders_black_pixels_in_box_region() {
         print_width: 0,
         inverted: false,
         mirrored: false,
+        label_width_mm: None,
+        label_height_mm: None,
         elements: vec![LabelElement::GraphicBox(GraphicBox {
             reverse_print: ReversePrint { value: false },
             position: LabelPosition {
@@ -116,6 +120,8 @@ fn graphic_circle_renders_non_white_pixels() {
         print_width: 0,
         inverted: false,
         mirrored: false,
+        label_width_mm: None,
+        label_height_mm: None,
         elements: vec![LabelElement::GraphicCircle(GraphicCircle {
             reverse_print: ReversePrint { value: false },
             position: LabelPosition {

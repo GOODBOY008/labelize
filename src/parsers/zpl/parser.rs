@@ -22,6 +22,7 @@ use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
 use super::measurement_unit::MeasurementUnit;
+use crate::elements::field_orientation::FieldOrientation;
 use super::zebra_fonts;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
@@ -108,6 +109,8 @@ impl ZplParser {
                             print_width: self.printer.print_width,
                             inverted: self.printer.label_inverted,
                             mirrored: self.printer.label_mirrored,
+                            label_width_mm: None,
+                            label_height_mm: None,
                             elements: shifted.clone(),
                         });
                     }
@@ -1190,7 +1193,7 @@ impl ZplParser {
 
     fn parse_barcode_qr(&mut self, command: &str) {
         let parts = split_command(command, "^BQ");
-        let mut bc = BarcodeQr { magnification: 1 };
+        let mut bc = BarcodeQr { magnification: 1, orientation: FieldOrientation::Normal };
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
             bc.magnification = v.clamp(1, 100);
         }
