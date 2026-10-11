@@ -162,6 +162,16 @@ grep -qi "<html" "$WORK_DIR/playground.html" \
 
 assert_file_min_size "GET / response is non-trivially large" "$WORK_DIR/playground.html" 2000
 
+# 8. TSPL body (Content-Type names the language; SIZE drives the canvas)
+echo "[8] TSPL conversion"
+TSPL_BODY=$'SIZE 76 mm,40 mm\nDIRECTION 1\nCLS\nTEXT 20,20,"3",0,1,1,"TSPL HTTP"\nPRINT 1'
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/tspl.png" -w "%{http_code}" -X POST \
+  -H "Content-Type: text/tspl" \
+  --data-binary "$TSPL_BODY" \
+  "http://127.0.0.1:$PORT/convert?dpmm=8")
+assert_eq "TSPL POST status 200" "200" "$HTTP_CODE"
+assert_file_min_size "TSPL response PNG has content" "$WORK_DIR/tspl.png" 300
+
 echo ""
 echo "=== Results: $pass passed, $fail failed ==="
 [[ "$fail" -eq 0 ]] || exit 1

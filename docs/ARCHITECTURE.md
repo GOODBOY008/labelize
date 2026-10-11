@@ -1,6 +1,6 @@
 # Labelize Architecture
 
-Labelize turns label-printer data (ZPL, EPL) into pixels. The design goal is
+Labelize turns label-printer data (ZPL, EPL, TSPL) into pixels. The design goal is
 **N languages, one renderer**: each language gets a self-contained frontend
 that compiles its commands into a shared, language-neutral IR; a single
 language-blind renderer draws whatever the IR describes.
@@ -21,7 +21,7 @@ src/parsers/<lang>/ ── per-language frontends (self-contained module trees)
   │         zebra_fonts.rs (font matrices + designator resolution),
   │         qr_payload.rs (^FD format conventions), stored_formats.rs (^FN/^XF)
   │   epl/  parser.rs, fonts.rs (font-number metrics)
-  │   tspl/ …
+  │   tspl/ parser.rs, fonts.rs (resident font cells; SIZE → LabelInfo dims)
   │
   ▼  compiles commands into
 src/elements/ ── language-neutral IR
@@ -104,7 +104,7 @@ Old paths remain importable as re-export shims: `parsers::zpl_parser`,
 
 ## Adding a new language (checklist)
 
-Example: TSPL.
+Example: TSPL (shipped — see `parsers/tspl/`).
 
 1. **Frontend module** — `src/parsers/tspl/` (`parser.rs` at minimum, plus
    `fonts.rs` etc. as needed). Map commands onto the shared `LabelElement`

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use labelize::{DrawerOptions, EplParser, LabelInfo, Renderer, ZplParser};
+use labelize::{DrawerOptions, EplParser, LabelInfo, Renderer, TsplParser, ZplParser};
 
 /// Label size (in inches) for every Labelary API request, yielding a native
 /// 813×1626 px canvas — exactly the `default_options()` canvas.
@@ -34,6 +34,11 @@ pub fn parse_epl(epl: &[u8]) -> Vec<LabelInfo> {
     parser.parse(epl).expect("EPL parse failed")
 }
 
+/// Parse TSPL bytes and return the vector of `LabelInfo`.
+pub fn parse_tspl(tspl: &[u8]) -> Vec<LabelInfo> {
+    TsplParser::new().parse(tspl).expect("TSPL parse failed")
+}
+
 /// Parse ZPL and render the first label to PNG bytes.
 pub fn render_zpl_to_png(zpl: &str, options: DrawerOptions) -> Vec<u8> {
     let mut parser = ZplParser::new();
@@ -48,6 +53,23 @@ pub fn render_epl_to_png(epl: &str, options: DrawerOptions) -> Vec<u8> {
     let labels = parser.parse(epl.as_bytes()).expect("EPL parse failed");
     assert!(!labels.is_empty(), "no labels produced from EPL");
     render_label_to_png(&labels[0], options)
+}
+
+/// Parse TSPL and render the first label to PNG bytes. The options' dims
+/// come from the fixture's own `SIZE` when it declares one, falling back to
+/// the given `options` — pass `unit_options()`/`default_options()` as the
+/// fallback like the ZPL/EPL helpers do.
+pub fn render_tspl_to_png(tspl: &str, options: DrawerOptions) -> Vec<u8> {
+    let parser = TsplParser::new();
+    let labels = parser.parse(tspl.as_bytes()).expect("TSPL parse failed");
+    assert!(!labels.is_empty(), "no labels produced from TSPL");
+    let label = &labels[0];
+    let resolved = DrawerOptions {
+        label_width_mm: label.label_width_mm.unwrap_or(options.label_width_mm),
+        label_height_mm: label.label_height_mm.unwrap_or(options.label_height_mm),
+        ..options
+    };
+    render_label_to_png(label, resolved)
 }
 
 /// Render a `LabelInfo` to PNG bytes using the given options.

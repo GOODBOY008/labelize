@@ -49,6 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TSPL/TSC support (#13)** — `parsers/tspl/` frontend: `SIZE` (mm/dot/inch,
+  drives the canvas per label via `LabelInfo::label_*_mm`), `DIRECTION`,
+  `REFERENCE`, `SHIFT`, `CLS`, `TEXT` (resident font cells 1-8 and `.BF2`
+  bitmaps, magnification, alignment incl. new Center), `BAR`/`BOX`/`CIRCLE`/
+  `ELLIPSE`/`ERASE`/`REVERSE`, `BARCODE` (128/128M/EAN128/EAN128M/39/39C/
+  EAN13), `QRCODE` (raw payload + explicit ECC), `PDF417` (incl. raw
+  `L<len>` byte-cursor form), `BITMAP` (binary cursor), `PRINT`; device
+  setup commands (`GAP`, `DENSITY`, `SPEED`, …) are accepted no-ops;
+  unsupported commands error explicitly. CLI (`-f tspl`, `.tspl`),
+  HTTP (`text/tspl`) and wasm (`lz_render_lang`) entry points; content
+  sniffing for extension-less input. By littlecxm, rewritten onto the
+  per-language architecture. *(New `Language::Tspl` variant.)*
 - **Unified language front door** — `labelize::Language` (Zpl, Epl),
   `labelize::parse_labels(lang, bytes, dpmm)` and
   `labelize::detect_language(bytes)` content sniffing. CLI, HTTP `/convert`
