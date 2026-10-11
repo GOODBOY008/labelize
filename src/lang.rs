@@ -8,6 +8,7 @@
 use crate::elements::label_info::LabelInfo;
 use crate::error::LabelizeError;
 use crate::parsers::epl::parser::EplParser;
+use crate::parsers::tspl::parser::TsplParser;
 use crate::parsers::zpl::parser::ZplParser;
 
 /// A label printer language the engine understands.
@@ -17,6 +18,8 @@ pub enum Language {
     Zpl,
     /// Eltron Programming Language (line commands `A`, `B`, `P`, …).
     Epl,
+    /// TSPL/TSC command language (`SIZE`, `TEXT`, `PRINT`, …).
+    Tspl,
 }
 
 impl Language {
@@ -30,6 +33,9 @@ impl Language {
                 .parse(bytes)
                 .map_err(LabelizeError::Parse),
             Language::Epl => EplParser::new().parse(bytes).map_err(LabelizeError::Parse),
+            Language::Tspl => TsplParser::with_dpmm(dpmm)
+                .parse(bytes)
+                .map_err(LabelizeError::Parse),
         }
     }
 }
@@ -43,15 +49,40 @@ pub fn parse_labels(
     language.parse(bytes, dpmm)
 }
 
+/// Command words that unambiguously identify TSPL. Deliberately narrow:
+/// these are full-line command names no other supported language uses.
+const TSPL_COMMAND_WORDS: &[&str] = &[
+    "SIZE",
+    "DIRECTION",
+    "REFERENCE",
+    "SHIFT",
+    "CLS",
+    "PRINT",
+    "TEXT",
+    "BARCODE",
+    "QRCODE",
+    "PDF417",
+    "BOX",
+    "BAR",
+    "CIRCLE",
+    "ELLIPSE",
+    "ERASE",
+    "REVERSE",
+    "BITMAP",
+    "GAP",
+    "DENSITY",
+    "SPEED",
+    "OFFSET",
+    "CODEPAGE",
+];
+
 /// Guess the language of `bytes` from its shape.
 ///
 /// ZPL formats are caret/tilde command streams; EPL is one command letter
-/// per line with comma-separated parameters. When the input matches neither
-/// (or is empty) the function falls back to ZPL, matching the historical
-/// CLI behavior.
-///
-/// Multi-letter uppercase command words (`SIZE`, `TEXT`, `PRINT`, …) are the
-/// TSPL signature — reserved for a future `Language::Tspl` variant.
+/// per line with comma-separated parameters; TSPL lines start with a
+/// multi-letter command word (`SIZE 100 mm, 60 mm`, `PRINT 1`). When the
+/// input matches none (or is empty) the function falls back to ZPL,
+/// matching the historical CLI behavior.
 pub fn detect_language(bytes: &[u8]) -> Language {
     let text = String::from_utf8_lossy(bytes);
     for line in text.lines() {
@@ -63,6 +94,13 @@ pub fn detect_language(bytes: &[u8]) -> Language {
         let first = chars.next().unwrap_or(' ');
         if first == '^' || first == '~' {
             return Language::Zpl;
+        }
+        let word: String = line
+            .chars()
+            .take_while(|c| c.is_ascii_alphabetic())
+            .collect();
+        if TSPL_COMMAND_WORDS.contains(&word.to_ascii_uppercase().as_str()) {
+            return Language::Tspl;
         }
         if looks_like_epl_line(line) {
             return Language::Epl;
@@ -115,10 +153,24 @@ mod tests {
     }
 
     #[test]
-    fn multi_letter_words_are_not_epl() {
-        // TSPL-shaped input must not be misread as EPL; falls back to Zpl
-        // until Language::Tspl exists.
-        assert_eq!(detect_language(b"SIZE 100 mm, 60 mm\nCLS\nTEXT 10,10,\"3\",0,1,1,\"Hi\"\nPRINT 1\n"), Language::Zpl);
+    fn multi_letter_command_words_are_tspl() {
+        assert_eq!(
+            detect_language(b"SIZE 100 mm, 60 mm\nCLS\nTEXT 10,10,\"3\",0,1,1,\"Hi\"\nPRINT 1\n"),
+            Language::Tspl
+        );
+        assert_eq!(detect_language(b"GAP 0,0\nPRINT 1\n"), Language::Tspl);
+    }
+
+    #[test]
+    fn parse_labels_dispatches_tspl() {
+        let tspl = parse_labels(
+            Language::Tspl,
+            b"SIZE 101.5 mm,203 mm\nCLS\nTEXT 50,50,\"1\",0,1,1,\"Hi\"\nPRINT 1\n",
+            8,
+        )
+        .unwrap();
+        assert_eq!(tspl.len(), 1);
+        assert_eq!(tspl[0].label_width_mm, Some(101.5));
     }
 
     #[test]
