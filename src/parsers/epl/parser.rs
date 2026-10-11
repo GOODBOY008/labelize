@@ -14,6 +14,7 @@ use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
+use crate::elements::font_face::FontFace;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
 use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
@@ -254,6 +255,9 @@ fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
                 },
                 font: FontInfo {
                     name: "0".to_string(),
+                    face: FontFace::CondensedBold,
+                    advance_mult: 1.0,
+                    dedot_zero: false,
                     width: font_width,
                     height: font_height,
                     orientation: epl_rotation(rotation),
