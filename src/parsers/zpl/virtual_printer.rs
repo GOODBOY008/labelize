@@ -7,7 +7,7 @@ use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_position::LabelPosition;
-use crate::elements::measurement_unit::MeasurementUnit;
+use super::measurement_unit::MeasurementUnit;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::StoredFormat;
 use crate::elements::stored_graphics::StoredGraphics;
