@@ -16,6 +16,7 @@ pub mod field_block;
 pub mod field_info;
 pub mod field_orientation;
 pub mod font;
+pub mod font_face;
 pub mod graphic_box;
 pub mod graphic_circle;
 pub mod graphic_diagonal_line;

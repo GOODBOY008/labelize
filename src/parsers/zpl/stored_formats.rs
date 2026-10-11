@@ -179,13 +179,16 @@ fn to_graphic_symbol_text_field(
         return Ok(None);
     }
 
-    let font = FontInfo {
+    let (face, advance_mult, dedot_zero) = super::zebra_fonts::resolve_designator("GS");
+    let font = super::zebra_fonts::with_adjusted_sizes(&FontInfo {
         name: "GS".to_string(),
+        face,
+        advance_mult,
+        dedot_zero,
         width: gs.width,
         height: gs.height,
         orientation: gs.orientation,
-    }
-    .with_adjusted_sizes();
+    });
 
     Ok(Some(LabelElement::Text(TextField {
         font,
@@ -222,7 +225,7 @@ fn to_text_field(
         .map_err(|e| format!("failed to convert to unicode text: {}", e))?;
 
     Ok(Some(LabelElement::Text(TextField {
-        font: field.font.with_adjusted_sizes(),
+        font: super::zebra_fonts::with_adjusted_sizes(&field.font),
         position: field.position.clone(),
         alignment: field.alignment,
         text: unicode_text,

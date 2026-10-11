@@ -11,5 +11,6 @@ pub mod measurement_unit;
 pub mod parser;
 pub mod stored_formats;
 pub mod virtual_printer;
+pub mod zebra_fonts;
 
 pub use parser::ZplParser;
