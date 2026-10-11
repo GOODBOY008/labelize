@@ -17,7 +17,7 @@
 ║ barcode128_mode_n_cba_sets     │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ barcode128_mode_u              │ zpl  │    0.25% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ barcode128_rotated             │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ bitmap_font_advance            │ zpl  │    1.70% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
+║ bitmap_font_advance            │ zpl  │    1.34% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ cf_font_designator             │ zpl  │    0.13% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ cf_font_no_orientation         │ zpl  │    0.18% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ cjk_font0_ci28                 │ zpl  │    0.11% │      813x1626 │      813x1626 │ GOOD(<1%)    ║

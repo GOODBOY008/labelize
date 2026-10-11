@@ -247,7 +247,10 @@ impl Renderer {
         let subst = SubstMetrics {
             f0,
             adv_mult: crate::tuning::bitmap_advance_mult(&text.font.name) as f32,
-            dedot_zero: is_bitmap,
+            // GS keeps its own dotted zero: it renders through the dedicated
+            // ZplGS face whose interior dot matches Labelary; only the DejaVu
+            // A-H substitutes carry a dot Zebra never drew.
+            dedot_zero: is_bitmap && text.font.name != "GS",
         };
         // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
         // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
