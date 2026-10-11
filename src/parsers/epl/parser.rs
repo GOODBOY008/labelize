@@ -9,7 +9,7 @@ use crate::elements::barcode_datamatrix::{
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_ean8::{BarcodeEan8, BarcodeEan8WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
-use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData};
+use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
 use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
 use crate::elements::field_orientation::FieldOrientation;
@@ -867,17 +867,18 @@ fn parse_epl_2d_barcode(
                     if content.len() > 9999 {
                         return Err("EPL b QR command data exceeds 9999 bytes".to_string());
                     }
-                    // The QR element carries its ECC level and character mode
-                    // embedded in the data (ZPL ^FD convention); synthesize a
-                    // binary-mode payload so EPL data passes through untouched
-                    // (no Zebra `|` field-separator stripping).
-                    let data = format!("{ecc}M,B{:04}{content}", content.len());
                     LabelElement::BarcodeQr(BarcodeQrWithData {
                         reverse_print: ReversePrint::default(),
                         barcode: BarcodeQr { magnification },
                         height: 0,
                         position: pos,
-                        data,
+                        data: content.to_string(),
+                        error_correction: match ecc {
+                            'L' => QrErrorCorrectionLevel::L,
+                            'Q' => QrErrorCorrectionLevel::Q,
+                            'H' => QrErrorCorrectionLevel::H,
+                            _ => QrErrorCorrectionLevel::M,
+                        },
                     })
                 }
                 other => {

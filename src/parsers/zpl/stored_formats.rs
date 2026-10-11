@@ -27,6 +27,7 @@ use crate::elements::stored_format::{RecalledField, RecalledFormat};
 use crate::elements::text_field::TextField;
 
 use super::charsets;
+pub use super::qr_payload::parse_qr_fd_payload;
 
 pub fn resolve_elements(rf: &RecalledFormat) -> Result<Vec<LabelElement>, String> {
     let mut res = Vec::with_capacity(rf.elements.len());
@@ -144,12 +145,14 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
             }),
         )),
         Some(LabelElement::BarcodeQrConfig(bc)) => {
+            let (data, error_correction, _) = parse_qr_fd_payload(text)?;
             Ok(Some(LabelElement::BarcodeQr(BarcodeQrWithData {
                 reverse_print: field.reverse_print.clone(),
                 barcode: bc.clone(),
                 height: field.height,
                 position: field.position.clone(),
-                data: text.clone(),
+                data,
+                error_correction,
             })))
         }
         Some(LabelElement::BarcodeUcpeConfig(bc)) => {
