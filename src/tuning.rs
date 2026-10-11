@@ -451,3 +451,46 @@ pub(crate) fn bitmap_advance_mult(name: &str) -> f64 {
         _ => 1.0,
     }
 }
+
+/// Whether the substitute face's dotted zero must be removed for this bitmap
+/// font. Labelary's reference zeros are not uniform: C, F and G (and the
+/// dedicated GS face, rendered through ZplGS) carry an interior dot in the
+/// reference bitmaps, so the DejaVu substitute's dot STAYS for those; the
+/// remaining fonts measure closer without it. Diff px over the zero groups of
+/// `bitmap_font_advance` at 1x, de-dot vs keep (2x confirms both directions):
+///
+/// | Font | keep-dot | de-dot | verdict |
+/// |------|----------|--------|---------|
+/// | A    | 276      | 270    | de-dot  |
+/// | B    | 536      | 530    | de-dot  |
+/// | C    | 757      | 777    | KEEP dot |
+/// | D    | 858      | 853    | de-dot  |
+/// | E    | 1618     | 1544   | de-dot (−74, the user-visible clean oval) |
+/// | F    | 1678     | 1717   | KEEP dot |
+/// | H    | 1985     | 1945   | de-dot (−40; reference interior is empty) |
+/// | G    | 1861     | 1973   | KEEP dot (−112 the other way) |
+/// Whether the substitute face's dotted zero must be removed for this bitmap
+/// font. Labelary's reference zeros are not uniform: measured over the
+/// `HHHHHHHHHH 0000000000` probe rows, every font except E and H carries an
+/// interior zero dot in the reference bitmaps (B's merges into the ring wall
+/// at small sizes, G's is 8 rows tall, D's matches our Bold face's closely),
+/// so the DejaVu substitute's dot STAYS for A/B/C/D/F/G/GS; E and H have
+/// empty interiors at every probed size, and removing the dot there is a pure
+/// win. Direct pixel verdicts of the removed dots against the reference:
+///
+/// | Font | 1x de-dot | 2x de-dot (hurts/helps) | verdict |
+/// |------|-----------|-------------------------|---------|
+/// | A    | −6 px     | +20 (10/30), real labels show REF dots matching ours | KEEP |
+/// | B    | −6 px     | −12 (16/4)              | KEEP |
+/// | D    | −5 px     | −1235 (1235/854)        | KEEP |
+/// | E    | −74 px    | +330 (0/330)            | de-dot |
+/// | H    | −40 px    | +232 (0/232)            | de-dot |
+/// | C/F/G| +20/+39/+112 px | C and G keep decisively | KEEP |
+///
+/// Corpus check (135 labels, total diff px): de-dot E+H only = −178 with no
+/// label worse; adding A = −66 more on synthetic 1x fixtures but +2 on the
+/// real `icapaket` label, whose magnified A zeros carry reference-matching
+/// dots — so A keeps its dot too.
+pub(crate) fn bitmap_zero_dedot(name: &str) -> bool {
+    matches!(name, "E" | "H")
+}

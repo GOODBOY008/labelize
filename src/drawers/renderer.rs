@@ -247,10 +247,7 @@ impl Renderer {
         let subst = SubstMetrics {
             f0,
             adv_mult: crate::tuning::bitmap_advance_mult(&text.font.name) as f32,
-            // GS keeps its own dotted zero: it renders through the dedicated
-            // ZplGS face whose interior dot matches Labelary; only the DejaVu
-            // A-H substitutes carry a dot Zebra never drew.
-            dedot_zero: is_bitmap && text.font.name != "GS",
+            dedot_zero: is_bitmap && crate::tuning::bitmap_zero_dedot(&text.font.name),
         };
         // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
         // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
@@ -1456,7 +1453,7 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, m: SubstMetric
     let mut width = 0.0f32;
     let mut prev = None;
     for ch in text.chars() {
-        let glyph_id = effective_glyph_id(font, ch, f0);
+        let glyph_id = effective_glyph_id(font, ch, m.f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             width += missing_glyph_advance(font, m, scale, width_ratio);
             // Nothing is drawn, so no kerning applies on either side —
@@ -1537,7 +1534,7 @@ fn measure_text_ink_bounds(
     let mut max_x = f32::MIN;
     let mut max_y = f32::MIN;
     for c in text.chars() {
-        let glyph_id = effective_glyph_id(font, c, f0);
+        let glyph_id = effective_glyph_id(font, c, m.f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             w += missing_glyph_advance(font, m, scale, width_ratio);
             prev = None;
@@ -1628,7 +1625,7 @@ fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, m: SubstMetri
         if !seen.insert(c) {
             continue;
         }
-        let glyph_id = effective_glyph_id(font, c, f0);
+        let glyph_id = effective_glyph_id(font, c, m.f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             continue;
         }
@@ -1747,7 +1744,7 @@ fn draw_text_snapped(
     let mut prev: Option<GlyphId> = None;
 
     for c in text.chars() {
-        let glyph_id = effective_glyph_id(font, c, f0);
+        let glyph_id = effective_glyph_id(font, c, m.f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             // Blank like Labelary: no glyph is drawn and no kerning applies on
             // either side (imageproc only kerns outlined glyphs), but the pen

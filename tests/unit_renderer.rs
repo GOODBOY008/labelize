@@ -829,27 +829,30 @@ fn bitmap_font_advance_matches_labelary_cell_step() {
     }
 }
 
-/// Zebra's bitmap-font zero is a clean oval; the DejaVu substitute ships a
-/// dotted zero whose center dot must not reach the output. The middle row of a
-/// rendered `0` therefore shows exactly two ink runs (the ring's sides) — a
-/// surviving dot would show up as a third run in the counter.
+/// Labelary's bitmap-font zeros are not uniform: E (and A/B/D/H) measure
+/// clean, so the DejaVu substitute's center dot must be removed there; C
+/// carries a 2x2 interior dot in the reference bitmaps, so the substitute's
+/// dot must STAY. Pin both directions via the middle row of a rendered `0`:
+/// two ink runs (the ring's sides) for E, three (walls + dot) for C.
 #[test]
-fn bitmap_font_zero_has_no_center_dot() {
-    let zpl = "^XA^CI28^PW799^FO50,60^AEN^FD0^FS^XZ";
-    let img = decode_png(&render_helpers::render_zpl_to_png(
-        zpl,
-        render_helpers::unit_options(),
-    ));
-    let ys: Vec<u32> = (0..img.height())
-        .filter(|&y| (0..img.width()).any(|x| img.get_pixel(x, y)[0] < 128))
-        .collect();
-    assert!(!ys.is_empty(), "no zero rendered");
-    let mid = ys[ys.len() / 2];
-    let runs = ink_run_starts(&img, mid, mid + 1);
-    assert_eq!(
-        runs.len(),
-        2,
-        "font E zero's middle row shows {} ink runs (dot not removed?)",
-        runs.len()
-    );
+fn bitmap_font_zero_dot_policy_matches_labelary() {
+    for (font, expected_runs) in [("E", 2), ("C", 3)] {
+        let zpl = format!("^XA^CI28^PW799^FO50,60^A{font}N^FD0^FS^XZ");
+        let img = decode_png(&render_helpers::render_zpl_to_png(
+            &zpl,
+            render_helpers::unit_options(),
+        ));
+        let ys: Vec<u32> = (0..img.height())
+            .filter(|&y| (0..img.width()).any(|x| img.get_pixel(x, y)[0] < 128))
+            .collect();
+        assert!(!ys.is_empty(), "font {font}: no zero rendered");
+        let mid = ys[ys.len() / 2];
+        let runs = ink_run_starts(&img, mid, mid + 1);
+        assert_eq!(
+            runs.len(),
+            expected_runs,
+            "font {font} zero's middle row shows {} ink runs, expected {expected_runs}",
+            runs.len()
+        );
+    }
 }
