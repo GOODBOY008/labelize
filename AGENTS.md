@@ -6,26 +6,47 @@ Labelize is a Rust engine that parses ZPL (Zebra Programming Language) and EPL (
 
 ## Architecture
 
+Full details and the new-language checklist live in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ```
-ZPL/EPL input (bytes)
-  → Parser (src/parsers/)        — splits commands, tracks VirtualPrinter state
-  → Elements (src/elements/)     — typed structs: Text, Barcode128, GraphicBox, etc.
-  → LabelInfo                    — { elements, print_width, inverted }
-  → Renderer (src/drawers/)      — rasterizes to RgbaImage canvas
-  → Encoder (src/images/)        — PNG (monochrome 1-bit) or PDF
+Input bytes + Language
+  → src/lang.rs                  — the single front door: Language enum, parse_labels(),
+                                    detect_language() content sniffing
+  → src/parsers/zpl/             — ZPL: parser, VirtualPrinter state machine, ^CI charsets,
+                                    ^MU units, Zebra font matrices, ^FN/^XF resolution
+  → src/parsers/epl/             — EPL: line parser, built-in font-number metrics
+  → src/elements/                — language-neutral IR: Text, Barcode*, Graphic*, LabelInfo
+  → src/drawers/                 — language-blind renderer (CI-guarded, see
+                                    tests/unit_architecture.rs)
+  → src/images/                  — PNG (monochrome 1-bit) or PDF encoding
 ```
+
+Two invariants hold the three-language boundary clean (a new frontend must not
+break them; CI enforces both):
+
+- **Calibration lives parser-side.** Everything that encodes "how a specific
+  printer renders" — Zebra font matrices, `^FD` payload conventions, ^CI
+  charset tables — stays in `parsers/zpl/` (or the language's own module).
+  Parsers resolve it into the neutral IR before an element exists:
+  `FontInfo { face, advance_mult, dedot_zero }`, QR raw payload +
+  `error_correction`, DataMatrix literal bytes.
+- **The IR and renderer are language-blind.** `elements` describes a label
+  without naming any printer language; `drawers` keys off `FontFace` and
+  neutral field values only. `tests/unit_architecture.rs` fails CI if either
+  module references `parsers::` or carries language tokens in code.
 
 ### Key Modules
 
 | Module | Purpose |
 |--------|---------|
-| `src/parsers/zpl_parser.rs` | ZPL command parser with VirtualPrinter state machine |
-| `src/parsers/epl_parser.rs` | EPL command parser |
-| `src/elements/` | 30+ element structs (text, barcodes, graphics, stored formats) |
+| `src/lang.rs` | `Language` enum, `parse_labels()`, content sniffing — the only place that picks a parser |
+| `src/parsers/zpl/` | ZPL command parser, VirtualPrinter state machine, Zebra calibration |
+| `src/parsers/epl/` | EPL command parser, built-in font metrics |
+| `src/elements/` | Language-neutral element structs (text, barcodes, graphics, stored formats) |
 | `src/drawers/renderer.rs` | Image canvas creation, element drawing, compositing |
 | `src/barcodes/` | Barcode encoders: Code128, Code39, EAN-13, 2of5, PDF417, Aztec, DataMatrix, QR, MaxiCode |
-| `src/encodings/` | Character set encoding maps |
-| `src/assets/fonts/` | Embedded fonts: Helvetica Bold Condensed, DejaVu Sans Mono, ZPL GS |
+| `src/parsers/zpl/charsets.rs` | ^CI character-set tables (ZPL-only; `labelize::encodings` is a compat alias) |
+| `src/assets/fonts/` | Embedded fonts: Roboto Condensed Bold (font 0), DejaVu Sans Mono, ZPL GS |
 
 ## ZPL Official Reference
 
