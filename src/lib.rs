@@ -5,10 +5,13 @@ pub mod assets;
 pub mod barcodes;
 pub mod drawers;
 pub mod elements;
+// Compatibility alias for the pre-reorganization layout; the ^CI tables
+// live at parsers::zpl::charsets now (ZPL-only).
 pub mod encodings;
 pub mod error;
 pub mod hex;
 pub mod images;
+pub mod lang;
 pub mod parsers;
 #[cfg(feature = "playground")]
 pub mod playground;
@@ -27,5 +30,5 @@ pub use elements::label_info::LabelInfo;
 pub use error::LabelizeError;
 pub use images::monochrome::encode_png;
 pub use images::pdf::encode_pdf;
-pub use parsers::epl_parser::EplParser;
-pub use parsers::zpl_parser::ZplParser;
+pub use lang::{detect_language, parse_labels, Language};
+pub use parsers::{EplParser, ZplParser};
