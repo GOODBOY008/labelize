@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.7.1] - 2026-10-11
 
 ### Added
 
@@ -16,6 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `serve`/Docker into an API-only container whose `/` answers with an
   endpoint listing. Both default to `true`; unparseable values warn on
   stderr and fall back to the default (#72).
+- **Windows cross-compilation build script (#15)** — `tools/build/build-windows.sh`
+  cross-compiles a Windows `labelize.exe` (x86_64-pc-windows-gnu) inside Docker
+  with mingw-w64, runnable from any machine with Docker; the binary lands in
+  `target/windows-release/`. Complements the official MSVC binaries attached to
+  each GitHub release.
+- **Unmapped ZPL font warning (#20)** — font names with no built-in mapping
+  (e.g. user-installed numeric fonts or `^CW`-mapped names) now log a one-time
+  notice on stderr instead of silently substituting DejaVu Sans Mono;
+  rendering output is unchanged.
+- **Real-provenance carrier label corpus (#68)** — golden-test labels now come
+  only from official carrier demos or real-world captures, each documented in
+  `docs/CARRIER_LABELS.md`; 80 synthetic fixtures were retired.
+- **Comprehensive character-display test suite** —
+  `tests/unit_text_character_display.rs` sweeps ~960 characters (ASCII,
+  Latin-1/Extended-A/B/Additional, Greek, Cyrillic, punctuation, CJK) across
+  all 14 substitute-font calibration classes and all four field orientations,
+  asserting that covered characters produce ink, that rotation preserves ink
+  pixel-exactly, and that uncovered characters render blank (Labelary parity),
+  plus the same invariants for multiline ^FB blocks.
 
 ### Fixed
 
@@ -88,26 +107,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   characters (CJK, Latin Ext-B digraphs, parts of Latin Extended Additional);
   Labelary renders these blank while the pen still advances one cell, and the
   renderer now matches (font 0 already did).
-
-### Added
-
-- **Windows cross-compilation build script (#15)** — `tools/build/build-windows.sh`
-  cross-compiles a Windows `labelize.exe` (x86_64-pc-windows-gnu) inside Docker
-  with mingw-w64, runnable from any machine with Docker; the binary lands in
-  `target/windows-release/`. Complements the official MSVC binaries attached to
-  each GitHub release.
-- **Unmapped ZPL font warning (#20)** — font names with no built-in mapping
-  (e.g. user-installed numeric fonts or `^CW`-mapped names) now log a one-time
-  notice on stderr instead of silently substituting DejaVu Sans Mono;
-  rendering output is unchanged.
-=======
-- **Comprehensive character-display test suite** —
-  `tests/unit_text_character_display.rs` sweeps ~960 characters (ASCII,
-  Latin-1/Extended-A/B/Additional, Greek, Cyrillic, punctuation, CJK) across
-  all 14 substitute-font calibration classes and all four field orientations,
-  asserting that covered characters produce ink, that rotation preserves ink
-  pixel-exactly, and that uncovered characters render blank (Labelary parity),
-  plus the same invariants for multiline ^FB blocks.
 
 ## [1.7.0] - 2026-10-04
 
