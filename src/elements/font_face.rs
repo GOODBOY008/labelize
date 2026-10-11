@@ -15,7 +15,7 @@ use crate::assets::{
 };
 use crate::tuning;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum FontFace {
     /// Scalable condensed-bold substitute (ZPL font 0): per-glyph advance
     /// calibration, 0.75-cap em, Roboto Condensed Bold.
@@ -23,6 +23,7 @@ pub enum FontFace {
     /// Scalable monospace substitute with its own vertical model (ZPL font 1).
     ScalableMono,
     /// Fixed-cell monospace substitute, regular weight (ZPL A, C, E–H).
+    #[default]
     BitmapMono,
     /// Fixed-cell monospace substitute, bold, no lowercase glyphs — input is
     /// uppercased (ZPL font B: 9-dot advance, 1.59 cap).
@@ -38,21 +39,14 @@ pub enum FontFace {
     Mono,
 }
 
-impl Default for FontFace {
-    fn default() -> Self {
-        // Matches the historical FontInfo default (name "A").
-        FontFace::BitmapMono
-    }
-}
-
 impl FontFace {
     /// The embedded TTF asset drawn for this face.
     pub fn ttf_data(self) -> &'static [u8] {
         match self {
             FontFace::CondensedBold => FONT_ZERO_SUBSTITUTE,
-            FontFace::BitmapBold
-            | FontFace::BitmapBoldWide
-            | FontFace::ResidentBitmap => FONT_DEJAVU_SANS_MONO_BOLD,
+            FontFace::BitmapBold | FontFace::BitmapBoldWide | FontFace::ResidentBitmap => {
+                FONT_DEJAVU_SANS_MONO_BOLD
+            }
             FontFace::Symbol => FONT_ZPL_GS,
             FontFace::ScalableMono | FontFace::BitmapMono | FontFace::Mono => FONT_DEJAVU_SANS_MONO,
         }
@@ -153,7 +147,10 @@ mod tests {
             FontFace::BitmapBoldWide.ttf_data(),
             FONT_DEJAVU_SANS_MONO_BOLD
         );
-        assert_eq!(FontFace::ResidentBitmap.ttf_data(), FONT_DEJAVU_SANS_MONO_BOLD);
+        assert_eq!(
+            FontFace::ResidentBitmap.ttf_data(),
+            FONT_DEJAVU_SANS_MONO_BOLD
+        );
         assert_eq!(FontFace::Symbol.ttf_data(), FONT_ZPL_GS);
         assert_eq!(FontFace::ScalableMono.ttf_data(), FONT_DEJAVU_SANS_MONO);
         assert_eq!(FontFace::BitmapMono.ttf_data(), FONT_DEJAVU_SANS_MONO);
@@ -170,7 +167,10 @@ mod tests {
         assert_eq!(FontFace::ResidentBitmap.width_ratio(), 0.80);
         assert_eq!(FontFace::CondensedBold.width_ratio(), tuning::FONT0_RATIO);
         assert_eq!(FontFace::ScalableMono.width_ratio(), tuning::FONT1_RATIO);
-        assert_eq!(FontFace::ScalableMono.pen_x_offset(), tuning::FONT1_X_OFFSET);
+        assert_eq!(
+            FontFace::ScalableMono.pen_x_offset(),
+            tuning::FONT1_X_OFFSET
+        );
         assert!(FontFace::BitmapBold.uppercases_input());
         assert!(!FontFace::CondensedBold.uppercases_input());
         // Only the two scalable faces skip the fixed-cell corrections.

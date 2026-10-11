@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::measurement_unit::MeasurementUnit;
 use crate::elements::barcode_info::BarcodeDimensions;
 use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_info::FieldInfo;
@@ -7,7 +8,6 @@ use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_position::LabelPosition;
-use super::measurement_unit::MeasurementUnit;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::StoredFormat;
 use crate::elements::stored_graphics::StoredGraphics;

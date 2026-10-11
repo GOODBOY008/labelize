@@ -1262,8 +1262,10 @@ impl Renderer {
             }
             let format = u8::try_from(bc.barcode.format)
                 .map_err(|_| "Legacy DataMatrix: format must be 1 through 6")?;
-            let size =
-                barcodes::datamatrix_legacy::legacy_symbol_size(bc.barcode.rows, bc.barcode.columns)?;
+            let size = barcodes::datamatrix_legacy::legacy_symbol_size(
+                bc.barcode.rows,
+                bc.barcode.columns,
+            )?;
             barcodes::datamatrix_legacy::encode_with_ecc(
                 input,
                 format,
@@ -1303,11 +1305,8 @@ impl Renderer {
         if bc.data.is_empty() {
             return Ok(());
         }
-        let img = barcodes::qrcode::encode(
-            &bc.data,
-            bc.barcode.magnification,
-            bc.error_correction,
-        )?;
+        let img =
+            barcodes::qrcode::encode(&bc.data, bc.barcode.magnification, bc.error_correction)?;
 
         let quiet_zone_px = 4 * bc.barcode.magnification;
 
@@ -2654,5 +2653,3 @@ fn draw_module_centered_interpretation_line(
         }
     }
 }
-
-

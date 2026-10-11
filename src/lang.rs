@@ -102,14 +102,23 @@ mod tests {
 
     #[test]
     fn detects_zpl_from_caret_commands() {
-        assert_eq!(detect_language(b"^XA\n^FO50,50\n^FDHi\n^FS\n^XZ"), Language::Zpl);
+        assert_eq!(
+            detect_language(b"^XA\n^FO50,50\n^FDHi\n^FS\n^XZ"),
+            Language::Zpl
+        );
         assert_eq!(detect_language(b"\n\n~DG..."), Language::Zpl);
     }
 
     #[test]
     fn detects_epl_from_line_commands() {
-        assert_eq!(detect_language(b"N\nq812\nA50,50,0,1,1,1,N,\"Hi\"\nP1\n"), Language::Epl);
-        assert_eq!(detect_language(b"B50,10,0,3,2,7,200,B,\"123\""), Language::Epl);
+        assert_eq!(
+            detect_language(b"N\nq812\nA50,50,0,1,1,1,N,\"Hi\"\nP1\n"),
+            Language::Epl
+        );
+        assert_eq!(
+            detect_language(b"B50,10,0,3,2,7,200,B,\"123\""),
+            Language::Epl
+        );
         assert_eq!(detect_language(b"GW50,10,2,10,"), Language::Epl);
         assert_eq!(detect_language(b"LO10,20,100,5"), Language::Epl);
     }
@@ -118,7 +127,10 @@ mod tests {
     fn multi_letter_words_are_not_epl() {
         // TSPL-shaped input must not be misread as EPL; falls back to Zpl
         // until Language::Tspl exists.
-        assert_eq!(detect_language(b"SIZE 100 mm, 60 mm\nCLS\nTEXT 10,10,\"3\",0,1,1,\"Hi\"\nPRINT 1\n"), Language::Zpl);
+        assert_eq!(
+            detect_language(b"SIZE 100 mm, 60 mm\nCLS\nTEXT 10,10,\"3\",0,1,1,\"Hi\"\nPRINT 1\n"),
+            Language::Zpl
+        );
     }
 
     #[test]

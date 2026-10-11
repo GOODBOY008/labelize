@@ -1,3 +1,5 @@
+use super::measurement_unit::MeasurementUnit;
+use super::zebra_fonts;
 use crate::elements::barcode_128::{Barcode128, BarcodeMode};
 use crate::elements::barcode_2of5::Barcode2of5;
 use crate::elements::barcode_39::Barcode39;
@@ -21,8 +23,6 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
-use super::measurement_unit::MeasurementUnit;
-use super::zebra_fonts;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
 use crate::hex;
@@ -81,7 +81,7 @@ impl ZplParser {
             if upper.starts_with("^XZ") {
                 // Resolve any active recalled format
                 if let Some(ref rf) = current_recalled_format {
-                    let resolved = stored_formats::resolve_elements(&rf)?;
+                    let resolved = stored_formats::resolve_elements(rf)?;
                     result_elements.extend(resolved);
                 }
 
