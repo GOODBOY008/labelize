@@ -756,18 +756,12 @@ fn parse_2d_qr() {
         other => panic!("expected BarcodeQr, got {:?}", other),
     };
     assert_eq!(bc.barcode.magnification, 4);
-    // Data is synthesized into the ZPL-style payload: <ecc>M,B<len><content>.
-    assert_eq!(bc.data, "HM,B0005HELLO");
-    // And it must round-trip through the element's own parser.
-    let (content, level, mode) = bc.get_input_data().expect("qr data parses");
-    assert_eq!(content, "HELLO");
+    // The element carries the raw payload and the resolved ECC level
+    // directly — no synthesized ZPL-style format prefix.
+    assert_eq!(bc.data, "HELLO");
     assert_eq!(
-        level,
+        bc.error_correction,
         labelize::elements::barcode_qr::QrErrorCorrectionLevel::H
-    );
-    assert_eq!(
-        mode,
-        labelize::elements::barcode_qr::QrCharacterMode::Binary
     );
 }
 
@@ -780,7 +774,11 @@ fn parse_2d_qr_params_without_commas() {
     match &labels[0].elements[0] {
         LabelElement::BarcodeQr(b) => {
             assert_eq!(b.barcode.magnification, 4);
-            assert_eq!(b.data, "HM,B0001X");
+            assert_eq!(b.data, "X");
+            assert_eq!(
+                b.error_correction,
+                labelize::elements::barcode_qr::QrErrorCorrectionLevel::H
+            );
         }
         other => panic!("expected BarcodeQr, got {:?}", other),
     }

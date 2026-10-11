@@ -1300,15 +1300,14 @@ impl Renderer {
         // Labelary draws nothing for a QR field whose payload is empty
         // (`^FD^FS`, or a prefix-only ^FD like `^FDQA,` that parses to no
         // data) — skip the field instead of failing the whole label.
-        // Checked before get_input_data(), which rejects short data.
         if bc.data.is_empty() {
             return Ok(());
         }
-        let (input_data, ec, _) = bc.get_input_data()?;
-        if input_data.is_empty() {
-            return Ok(());
-        }
-        let img = barcodes::qrcode::encode(&input_data, bc.barcode.magnification, ec)?;
+        let img = barcodes::qrcode::encode(
+            &bc.data,
+            bc.barcode.magnification,
+            bc.error_correction,
+        )?;
 
         let quiet_zone_px = 4 * bc.barcode.magnification;
 

@@ -1,25 +1,13 @@
-use labelize::elements::barcode_qr::{
-    BarcodeQr, BarcodeQrWithData, QrCharacterMode, QrErrorCorrectionLevel,
-};
-use labelize::elements::label_position::LabelPosition;
-use labelize::elements::reverse_print::ReversePrint;
+use labelize::elements::barcode_qr::QrCharacterMode::*;
+use labelize::elements::barcode_qr::QrErrorCorrectionLevel::*;
+use labelize::parsers::zpl::qr_payload::parse_qr_fd_payload;
 use proptest::prelude::*;
-
-fn qr(data: &str) -> BarcodeQrWithData {
-    BarcodeQrWithData {
-        reverse_print: ReversePrint { value: false },
-        barcode: BarcodeQr { magnification: 1 },
-        height: 0,
-        position: LabelPosition::default(),
-        data: data.to_string(),
-    }
-}
 
 macro_rules! rejects_without_panicking {
     ($name:ident, $data:expr) => {
         #[test]
         fn $name() {
-            assert!(qr($data).get_input_data().is_err());
+            assert!(parse_qr_fd_payload($data).is_err());
         }
     };
 }
@@ -32,9 +20,17 @@ rejects_without_panicking!(multibyte_binary_length, "QM,B0😀X");
 rejects_without_panicking!(multibyte_at_prefix_boundary, "00®");
 
 #[test]
+fn empty_field_is_a_skip_not_an_error() {
+    // `^FD^FS` produces an empty payload the renderer skips (Labelary
+    // behavior) rather than a parse error.
+    assert_eq!(
+        parse_qr_fd_payload("").unwrap(),
+        (String::new(), H, Automatic)
+    );
+}
+
+#[test]
 fn valid_inputs_keep_content_level_and_mode() {
-    use QrCharacterMode::*;
-    use QrErrorCorrectionLevel::*;
     for (input, content, level, mode) in [
         ("QA,HELLO", "HELLO", Q, Automatic),
         ("QA,ä😀", "ä😀", Q, Automatic),
@@ -52,7 +48,7 @@ fn valid_inputs_keep_content_level_and_mode() {
         ("QM,XHELLO", "HELLO", Q, Automatic),
     ] {
         assert_eq!(
-            qr(input).get_input_data().unwrap(),
+            parse_qr_fd_payload(input).unwrap(),
             (content.to_string(), level, mode),
             "{input:?}"
         );
@@ -62,8 +58,8 @@ fn valid_inputs_keep_content_level_and_mode() {
 proptest! {
     #[test]
     fn arbitrary_utf8_never_panics(data in any::<String>()) {
-        let _ = qr(&data).get_input_data();
-        let _ = qr(&format!("QM,{data}")).get_input_data();
-        let _ = qr(&format!("QM,B{data}")).get_input_data();
+        let _ = parse_qr_fd_payload(&data);
+        let _ = parse_qr_fd_payload(&format!("QM,{data}"));
+        let _ = parse_qr_fd_payload(&format!("QM,B{data}"));
     }
 }

@@ -9,6 +9,7 @@ pub mod command_utils;
 pub mod fs;
 pub mod measurement_unit;
 pub mod parser;
+pub mod qr_payload;
 pub mod stored_formats;
 pub mod virtual_printer;
 pub mod zebra_fonts;
