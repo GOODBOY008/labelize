@@ -1263,7 +1263,7 @@ impl Renderer {
             let format = u8::try_from(bc.barcode.format)
                 .map_err(|_| "Legacy DataMatrix: format must be 1 through 6")?;
             let size =
-                barcodes::datamatrix_legacy::zpl_symbol_size(bc.barcode.rows, bc.barcode.columns)?;
+                barcodes::datamatrix_legacy::legacy_symbol_size(bc.barcode.rows, bc.barcode.columns)?;
             barcodes::datamatrix_legacy::encode_with_ecc(
                 input,
                 format,
@@ -1272,7 +1272,7 @@ impl Renderer {
             )?
             .to_image(scale as usize, scale as usize)
         } else {
-            let image = barcodes::datamatrix::render_zpl_field(
+            let image = barcodes::datamatrix::render_field(
                 bc.data.as_bytes(),
                 scale,
                 bc.barcode.rows,
