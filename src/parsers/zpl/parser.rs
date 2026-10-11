@@ -21,13 +21,14 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
-use crate::elements::measurement_unit::MeasurementUnit;
+use super::measurement_unit::MeasurementUnit;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
 use crate::hex;
 
 use super::command_utils::*;
 use super::fs::*;
+use super::stored_formats;
 use super::virtual_printer::VirtualPrinter;
 
 pub struct ZplParser {
@@ -79,7 +80,7 @@ impl ZplParser {
             if upper.starts_with("^XZ") {
                 // Resolve any active recalled format
                 if let Some(ref rf) = current_recalled_format {
-                    let resolved = rf.resolve_elements()?;
+                    let resolved = stored_formats::resolve_elements(&rf)?;
                     result_elements.extend(resolved);
                 }
 
@@ -138,7 +139,7 @@ impl ZplParser {
                 // Handle template swap
                 if let LabelElement::RecalledFormat(rf) = el {
                     if let Some(ref prev_rf) = current_recalled_format {
-                        let resolved = prev_rf.resolve_elements()?;
+                        let resolved = stored_formats::resolve_elements(prev_rf)?;
                         result_elements.extend(resolved);
                     }
                     self.printer.label_inverted = rf.inverted;
@@ -1752,7 +1753,7 @@ fn resolve_recalled_field(
         field_refs: std::collections::HashMap::new(),
     };
 
-    let resolved = rf.resolve_elements()?;
+    let resolved = stored_formats::resolve_elements(&rf)?;
     Ok(resolved.into_iter().next())
 }
 
