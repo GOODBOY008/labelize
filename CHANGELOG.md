@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Per-language parser architecture (TSPL-ready)** — `src/parsers/` is now
+  organized as self-contained per-language module trees (`parsers/zpl/`,
+  `parsers/epl/`) instead of flat `*_parser.rs` files. ZPL-only knowledge
+  moved out of the shared pipeline: ^CI charset tables
+  (`parsers/zpl/charsets.rs`; `labelize::encodings` remains as a compat
+  alias), ^MU measurement units, Zebra font matrices and designator
+  resolution (`parsers/zpl/zebra_fonts.rs`), ^BQ ^FD payload conventions
+  (`parsers/zpl/qr_payload.rs`), and ^FN/^XF stored-format resolution
+  (`parsers/zpl/stored_formats.rs`; `elements/stored_format.rs` keeps the IR
+  structs only). Old import paths (`parsers::zpl_parser`,
+  `parsers::epl_parser`, `parsers::virtual_printer`,
+  `parsers::command_utils`, `parsers::fs`) remain available as compat
+  re-export shims.
+- **`FontInfo` resolves rendering class at parse time** — new fields `face`
+  (`FontFace`: which embedded TTF plus the substitute's calibration),
+  `advance_mult`, `dedot_zero`, all set by the producing parser. The
+  renderer no longer matches on ZPL font designator strings; Zebra font
+  metrics live exclusively in `parsers/zpl/zebra_fonts.rs`. `FontInfo`
+  itself no longer carries the Zebra size-derivation methods
+  (`with_adjusted_sizes` etc. moved parser-side). *(semver-strict: breaking
+  for consumers constructing `FontInfo` directly; shipping in the next
+  minor per project convention.)*
+- **QR elements carry raw payloads** — `BarcodeQrWithData.data` is now the
+  raw QR content and a new `error_correction` field carries the resolved
+  ECC level; `get_input_data()` (which parsed ZPL ^FD format prefixes like
+  `QA,`/`QM,B<len>` at render time) was removed from the shared element and
+  the ZPL ^FD parsing moved to `parsers/zpl/qr_payload.rs`. EPL no longer
+  synthesizes ZPL-style QR payloads. *(semver-strict: breaking for consumers
+  reading `data` as a ^FD-formatted string; shipping in the next minor.)*
+- **Neutral DataMatrix entry-point names** —
+  `barcodes::datamatrix::render_zpl_field` → `render_field`,
+  `barcodes::datamatrix_legacy::zpl_symbol_size` → `legacy_symbol_size`.
+- **Architecture guards in CI** — `tests/unit_architecture.rs` enforces that
+  shared modules (`drawers`/`elements`/`barcodes`/`images`) never depend on
+  `parsers::` and that the renderer carries no language tokens in code.
+- Architecture documentation: `docs/ARCHITECTURE.md` (pipeline, invariants,
+  new-language checklist); `AGENTS.md` architecture section updated.
+
+### Added
+
+- **Unified language front door** — `labelize::Language` (Zpl, Epl),
+  `labelize::parse_labels(lang, bytes, dpmm)` and
+  `labelize::detect_language(bytes)` content sniffing. CLI, HTTP `/convert`
+  and wasm entry points delegate to it; the CLI additionally sniffs
+  extension-less/unknown-extension files instead of always assuming ZPL.
+
 ## [1.7.1] - 2026-10-11
 
 ### Added
