@@ -16,7 +16,9 @@ pub struct BarcodeDatamatrix {
     pub columns: i32,
     pub rows: i32,
     pub format: i32,
-    /// ECC 200 field-data escape; zero disables ZPL escapes (for EPL).
+    /// ECC 200 data-stream escape character (the producing language's
+    /// escape flavor, e.g. ZPL's ^BX `>` sequences); zero means the bytes
+    /// are literal and no escape processing applies.
     pub escape: u8,
     pub ratio: Option<DatamatrixRatio>,
 }
@@ -27,7 +29,8 @@ pub struct BarcodeDatamatrixWithData {
     pub barcode: BarcodeDatamatrix,
     pub position: LabelPosition,
     pub data: String,
-    /// Original ZPL field bytes after ^FH processing, before barcode escapes.
-    /// Legacy encoders consume these without a Unicode round trip.
+    /// Raw bytes the producer decoded (e.g. ZPL ^FH hex), pre-escape.
+    /// The legacy ECC 000-140 encoders consume these without a Unicode
+    /// round trip; `None` falls back to `data`'s bytes.
     pub data_bytes: Option<Vec<u8>>,
 }

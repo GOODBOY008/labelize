@@ -1,3 +1,4 @@
+use super::fonts::epl_font_size;
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
@@ -8,11 +9,12 @@ use crate::elements::barcode_datamatrix::{
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_ean8::{BarcodeEan8, BarcodeEan8WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
-use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData};
+use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
 use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
+use crate::elements::font_face::FontFace;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
 use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
@@ -210,24 +212,6 @@ fn epl_rotation(rotation: i32) -> FieldOrientation {
     }
 }
 
-static EPL_FONT_SIZES: &[(i32, i32, i32)] = &[
-    // (font_num, width, height)
-    (1, 8, 12),
-    (2, 10, 16),
-    (3, 12, 20),
-    (4, 14, 24),
-    (5, 32, 48),
-];
-
-fn epl_font_size(font_num: i32) -> (i32, i32) {
-    for &(n, w, h) in EPL_FONT_SIZES {
-        if n == font_num {
-            return (w, h);
-        }
-    }
-    (8, 12) // default to font 1
-}
-
 fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElement>, String> {
     let data_start = line.find('"');
     let data_end = line.rfind('"');
@@ -271,6 +255,9 @@ fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
                 },
                 font: FontInfo {
                     name: "0".to_string(),
+                    face: FontFace::CondensedBold,
+                    advance_mult: 1.0,
+                    dedot_zero: false,
                     width: font_width,
                     height: font_height,
                     orientation: epl_rotation(rotation),
@@ -880,17 +867,18 @@ fn parse_epl_2d_barcode(
                     if content.len() > 9999 {
                         return Err("EPL b QR command data exceeds 9999 bytes".to_string());
                     }
-                    // The QR element carries its ECC level and character mode
-                    // embedded in the data (ZPL ^FD convention); synthesize a
-                    // binary-mode payload so EPL data passes through untouched
-                    // (no Zebra `|` field-separator stripping).
-                    let data = format!("{ecc}M,B{:04}{content}", content.len());
                     LabelElement::BarcodeQr(BarcodeQrWithData {
                         reverse_print: ReversePrint::default(),
                         barcode: BarcodeQr { magnification },
                         height: 0,
                         position: pos,
-                        data,
+                        data: content.to_string(),
+                        error_correction: match ecc {
+                            'L' => QrErrorCorrectionLevel::L,
+                            'Q' => QrErrorCorrectionLevel::Q,
+                            'H' => QrErrorCorrectionLevel::H,
+                            _ => QrErrorCorrectionLevel::M,
+                        },
                     })
                 }
                 other => {

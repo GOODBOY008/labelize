@@ -1,8 +1,31 @@
-pub mod command_utils;
-pub mod epl_parser;
-pub mod fs;
-pub mod virtual_printer;
-pub mod zpl_parser;
+//! Per-language parser frontends.
+//!
+//! Adding a language (e.g. TSPL) means adding a sibling module that maps its
+//! commands onto the shared `crate::elements` IR — it must not touch the
+//! other languages' modules, `drawers`, or the existing elements' semantics.
+//!
+//! The `*_parser` / helper modules below are compatibility aliases for the
+//! pre-reorganization layout; new code should use `parsers::zpl` /
+//! `parsers::epl` directly.
 
-pub use epl_parser::EplParser;
-pub use zpl_parser::ZplParser;
+pub mod epl;
+pub mod zpl;
+
+pub mod command_utils {
+    pub use crate::parsers::zpl::command_utils::*;
+}
+pub mod epl_parser {
+    pub use crate::parsers::epl::parser::*;
+}
+pub mod fs {
+    pub use crate::parsers::zpl::fs::*;
+}
+pub mod virtual_printer {
+    pub use crate::parsers::zpl::virtual_printer::*;
+}
+pub mod zpl_parser {
+    pub use crate::parsers::zpl::parser::*;
+}
+
+pub use epl::parser::EplParser;
+pub use zpl::parser::ZplParser;

@@ -29,71 +29,11 @@ pub struct BarcodeQrWithData {
     pub barcode: BarcodeQr,
     pub height: i32,
     pub position: LabelPosition,
+    /// Raw QR payload — format prefixes, field-separator conventions, and
+    /// binary length prefixes are the producing language's concern and are
+    /// resolved by the parser before the element is built.
     pub data: String,
-}
-
-impl BarcodeQrWithData {
-    pub fn get_input_data(
-        &self,
-    ) -> Result<(String, QrErrorCorrectionLevel, QrCharacterMode), String> {
-        // Only the two format bytes (error-correction char + mode char) are
-        // required; a prefix-only field like `QA,` parses to an empty payload,
-        // which the renderer skips like Labelary instead of failing the label.
-        if self.data.len() < 2 {
-            return Err("invalid qr barcode data".to_string());
-        }
-
-        let bytes = self.data.as_bytes();
-        let mut data = self
-            .data
-            .get(3..)
-            .ok_or_else(|| "invalid qr barcode data prefix".to_string())?;
-        let mut mode = QrCharacterMode::Automatic;
-        let level = match bytes[0] {
-            b'H' => QrErrorCorrectionLevel::H,
-            b'Q' => QrErrorCorrectionLevel::Q,
-            b'M' => QrErrorCorrectionLevel::M,
-            b'L' => QrErrorCorrectionLevel::L,
-            // Unrecognized format indicator: Labelary defaults to H error correction
-            _ => QrErrorCorrectionLevel::H,
-        };
-
-        if bytes[1] == b'M' && !data.is_empty() {
-            mode = match data.as_bytes()[0] {
-                b'B' => QrCharacterMode::Binary,
-                b'N' => QrCharacterMode::Numeric,
-                b'A' => QrCharacterMode::Alphanumeric,
-                b'K' => QrCharacterMode::Kanji,
-                _ => QrCharacterMode::Automatic,
-            };
-            data = data
-                .get(1..)
-                .ok_or_else(|| "invalid qr barcode character mode".to_string())?;
-        }
-
-        if mode != QrCharacterMode::Binary {
-            // Zebra printers treat `|` as a field separator in QR data; it is stripped
-            // from the encoded content (not included in the QR symbol), matching Labelary behavior.
-            let content = data.replace('|', "");
-            return Ok((content, level, mode));
-        }
-
-        if data.len() < 5 {
-            return Err("invalid qr barcode byte mode data".to_string());
-        }
-
-        let data_len: usize = data
-            .get(..4)
-            .ok_or_else(|| "invalid qr barcode byte mode data length".to_string())?
-            .parse()
-            .map_err(|_| "invalid qr barcode byte mode data length".to_string())?;
-
-        let data = &data[4..];
-        let data_len = data_len.min(data.len());
-
-        let content = data
-            .get(..data_len)
-            .ok_or_else(|| "qr barcode byte mode length splits a UTF-8 character".to_string())?;
-        Ok((content.to_string(), level, mode))
-    }
+    /// Error-correction level resolved by the parser (ZPL takes it from the
+    /// ^FD format char, other languages from their own parameters).
+    pub error_correction: QrErrorCorrectionLevel,
 }

@@ -1,3 +1,5 @@
+use super::measurement_unit::MeasurementUnit;
+use super::zebra_fonts;
 use crate::elements::barcode_128::{Barcode128, BarcodeMode};
 use crate::elements::barcode_2of5::Barcode2of5;
 use crate::elements::barcode_39::Barcode39;
@@ -21,13 +23,13 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
-use crate::elements::measurement_unit::MeasurementUnit;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
 use crate::hex;
 
 use super::command_utils::*;
 use super::fs::*;
+use super::stored_formats;
 use super::virtual_printer::VirtualPrinter;
 
 pub struct ZplParser {
@@ -79,7 +81,7 @@ impl ZplParser {
             if upper.starts_with("^XZ") {
                 // Resolve any active recalled format
                 if let Some(ref rf) = current_recalled_format {
-                    let resolved = rf.resolve_elements()?;
+                    let resolved = stored_formats::resolve_elements(rf)?;
                     result_elements.extend(resolved);
                 }
 
@@ -138,7 +140,7 @@ impl ZplParser {
                 // Handle template swap
                 if let LabelElement::RecalledFormat(rf) = el {
                     if let Some(ref prev_rf) = current_recalled_format {
-                        let resolved = prev_rf.resolve_elements()?;
+                        let resolved = stored_formats::resolve_elements(prev_rf)?;
                         result_elements.extend(resolved);
                     }
                     self.printer.label_inverted = rf.inverted;
@@ -531,7 +533,7 @@ impl ZplParser {
                 let name = (first[0] as char).to_uppercase().to_string();
                 let mut probe = self.printer.default_font.clone();
                 probe.name = name.clone();
-                if probe.is_standard_font() {
+                if zebra_fonts::is_standard_font(&probe) {
                     self.printer.default_font.name = name;
                 } else if (first[0] as char).is_ascii_digit() {
                     // Numeric font names (1-9) are user-installed fonts on Zebra printers.
@@ -570,6 +572,9 @@ impl ZplParser {
         if let Some(v) = width {
             self.printer.default_font.width = v as f64;
         }
+        // The designator (or its numeric fallback) may have changed above —
+        // refresh the render-facing fields from the settled name.
+        zebra_fonts::apply_face(&mut self.printer.default_font);
     }
 
     fn parse_change_font(&mut self, command: &str) {
@@ -591,7 +596,7 @@ impl ZplParser {
             font.name = self.resolve_font_name(&mapped);
         }
 
-        if !font.is_standard_font() {
+        if !zebra_fonts::is_standard_font(&font) {
             // Numeric font names (1-9) are user-installed fonts on Zebra printers.
             // Fall back to font "0" (proportional) rather than font "A" (monospaced).
             if font.name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
@@ -636,6 +641,7 @@ impl ZplParser {
             }
         }
 
+        zebra_fonts::apply_face(&mut font);
         self.printer.next_font = Some(font);
     }
 
@@ -665,6 +671,7 @@ impl ZplParser {
                 font.width = v as f64;
             }
         }
+        zebra_fonts::apply_face(&mut font);
         self.printer.next_font = Some(font);
     }
 
@@ -704,7 +711,7 @@ impl ZplParser {
             name: single.to_uppercase().to_string(),
             ..Default::default()
         };
-        if probe.is_standard_font() {
+        if zebra_fonts::is_standard_font(&probe) {
             probe.name
         } else if single.is_ascii_digit() {
             // Numeric font names (1-9) are user-installed fonts: fall back to font 0.
@@ -1752,7 +1759,7 @@ fn resolve_recalled_field(
         field_refs: std::collections::HashMap::new(),
     };
 
-    let resolved = rf.resolve_elements()?;
+    let resolved = stored_formats::resolve_elements(&rf)?;
     Ok(resolved.into_iter().next())
 }
 

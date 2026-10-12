@@ -4,8 +4,7 @@ use std::io::Cursor;
 
 use labelize::drawers::renderer::Renderer;
 use labelize::elements::drawer_options::DrawerOptions;
-use labelize::parsers::epl_parser::EplParser;
-use labelize::parsers::zpl_parser::ZplParser;
+use labelize::{parse_labels, Language};
 use wasm_bindgen::prelude::*;
 
 /// Failure stage, which maps to HTTP status in the JS worker:
@@ -25,12 +24,13 @@ fn render_payload(
     want_pdf: bool,
     is_epl: bool,
 ) -> Result<Vec<u8>, (Stage, String)> {
-    let labels = if is_epl {
-        EplParser::new().parse(bytes)
+    let language = if is_epl {
+        Language::Epl
     } else {
-        ZplParser::with_dpmm(dpmm).parse(bytes)
-    }
-    .map_err(|e| (Stage::Parse, e.to_string()))?;
+        Language::Zpl
+    };
+    let labels = parse_labels(language, bytes, dpmm)
+        .map_err(|e| (Stage::Parse, e.to_string()))?;
 
     let label = labels
         .into_iter()

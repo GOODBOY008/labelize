@@ -8,6 +8,7 @@ use crate::barcodes;
 use crate::elements::barcode_128::BarcodeMode;
 use crate::elements::drawer_options::DrawerOptions;
 use crate::elements::field_orientation::FieldOrientation;
+use crate::elements::font_face::FontFace;
 use crate::elements::graphic_field::GraphicField;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
@@ -20,8 +21,6 @@ use super::drawer_state::DrawerState;
 
 static FONT_ZERO: &[u8] = crate::assets::FONT_ZERO_SUBSTITUTE;
 static FONT_DEJAVU_MONO: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO;
-static FONT_DEJAVU_BOLD: &[u8] = crate::assets::FONT_DEJAVU_SANS_MONO_BOLD;
-static FONT_GS: &[u8] = crate::assets::FONT_ZPL_GS;
 
 /// Substitute-face layout knobs for one text field, derived from the ZPL font
 /// name and threaded through the pen walks (this supersedes the bare `f0`
@@ -207,21 +206,23 @@ impl Renderer {
         text: &TextField,
         state: &mut DrawerState,
     ) -> Result<(), String> {
-        // Zebra's built-in bitmap Font B has no lowercase glyphs; the printer (and
-        // Labelary) render lowercase field data as uppercase. Match that here so the TTF
-        // substitute doesn't silently produce mixed-case output real hardware can't.
-        let drawn_text: String = if text.font.name == "B" {
+        // Some bitmap faces carry no lowercase glyphs; the printer (and the
+        // reference renderer) draw lowercase field data as uppercase. Match that
+        // here so the TTF substitute doesn't produce mixed-case output real
+        // hardware can't.
+        let face = text.font.face;
+        let drawn_text: String = if face.uppercases_input() {
             text.text.to_uppercase()
         } else {
             text.text.clone()
         };
-        let font_data = get_ttf_font_data(&text.font.name);
+        let font_data = face.ttf_data();
         let font = FontRef::try_from_slice(font_data)
             .map_err(|e| format!("failed to load font: {}", e))?;
 
         // The advance table and the vertical pen offset are calibrated for the scalable
         // font 0 only; the bitmap fonts are left on their existing metrics.
-        let f0 = text.font.name == "0";
+        let f0 = face == FontFace::CondensedBold;
         let font_size = text.font.get_size() as f32;
         let scale_x = text.font.get_scale_x() as f32;
         let mut scale = PxScale {
@@ -243,11 +244,10 @@ impl Renderer {
         //      instead of being pushed down by the TTF ascender gap.
         // The shift is computed from the actual 'H' glyph bounds at the ORIGINAL scale so that
         // it remains correct for any font size or magnification.
-        let is_bitmap = text.font.is_bitmap_font();
         let subst = SubstMetrics {
             f0,
-            adv_mult: crate::tuning::bitmap_advance_mult(&text.font.name) as f32,
-            dedot_zero: is_bitmap && crate::tuning::bitmap_zero_dedot(&text.font.name),
+            adv_mult: text.font.advance_mult as f32,
+            dedot_zero: text.font.dedot_zero,
         };
         // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
         // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
@@ -257,18 +257,7 @@ impl Renderer {
         // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
         // Font 1 (mono substitute): DejaVu Sans Mono regular caps land at 1493/2384
         // ≈ 0.626 of the ab_glyph scale and must read as 0.73 of the height param.
-        let is_pv = matches!(
-            text.font.name.as_str(),
-            "P" | "Q" | "R" | "S" | "T" | "U" | "V"
-        );
-        let is_font1 = text.font.name == "1";
-        let line_height_factor: f32 = if is_font1 {
-            crate::tuning::FONT1_LINE_HEIGHT as f32
-        } else if f0 {
-            crate::tuning::FONT0_LINE_HEIGHT as f32
-        } else {
-            1.0
-        };
+        let line_height_factor: f32 = face.line_height_factor() as f32;
         // Font 0's substitute needs a cap-height correction like the bitmap
         // fonts (see tuning::FONT0_CAP_SCALE): inflate the em so caps land at
         // 0.75 of the cell, matching Labelary. The font-0 constants expressed
@@ -277,25 +266,17 @@ impl Renderer {
         if f0 {
             scale.y = font_size * crate::tuning::FONT0_CAP_SCALE as f32;
         }
-        let cap_scale: f32 = if text.font.name == "B" {
-            1.59
-        } else if is_pv {
-            0.85
-        } else if is_font1 {
-            crate::tuning::FONT1_CAP_SCALE as f32
-        } else {
-            7.0 / 6.0
-        };
+        let cap_scale: f32 = face.cap_scale() as f32;
         // Bitmap fonts (A-H, P-V) enlarge the em by cap_scale only to match glyph
         // size; the ^FB line pitch on the printer is still the font cell height
         // (+ line spacing). Without this, an 18-dot font C block advances 21 dots
         // per line instead of 18 and long blocks overflow into following fields.
-        let line_height_factor: f32 = if (is_bitmap || is_pv) && !is_font1 && !f0 {
+        let line_height_factor: f32 = if face.divides_line_height_by_cap() {
             line_height_factor / cap_scale
         } else {
             line_height_factor
         };
-        let bitmap_y_shift: f64 = if is_bitmap || is_pv || is_font1 {
+        let bitmap_y_shift: f64 = if face.uses_cell_shift() {
             scale.y = font_size * cap_scale;
 
             let orig_scale = PxScale {
@@ -316,7 +297,7 @@ impl Renderer {
             // Labelary anchors P-V caps ~0.15x cell BELOW the field origin (measured:
             // P top is 3px below origin at 20-dot cell, Q 4px at 28-dot, S 6px at
             // 40-dot), so push the origin back down by that amount.
-            let p_low_cap = if is_pv { font_size as f64 * 0.15 } else { 0.0 };
+            let p_low_cap = font_size as f64 * face.cap_anchor_drop();
             -(orig_gap * cap_scale as f64) + p_low_cap
         } else {
             0.0
@@ -356,11 +337,7 @@ impl Renderer {
         // Font 1's mono substitute lsb rounds one pixel wider than Labelary's
         // face. The nudge lives in LOCAL text space (pen axis) so it rotates
         // with the field instead of shifting page-space X for R/I/B.
-        let pen_x_offset: f32 = if is_font1 {
-            crate::tuning::FONT1_X_OFFSET as f32
-        } else {
-            0.0
-        };
+        let pen_x_offset: f32 = face.pen_x_offset() as f32;
         state.update_automatic_text_position(text, pos_width);
 
         let color = Rgba([0, 0, 0, 255]);
@@ -1285,8 +1262,10 @@ impl Renderer {
             }
             let format = u8::try_from(bc.barcode.format)
                 .map_err(|_| "Legacy DataMatrix: format must be 1 through 6")?;
-            let size =
-                barcodes::datamatrix_legacy::zpl_symbol_size(bc.barcode.rows, bc.barcode.columns)?;
+            let size = barcodes::datamatrix_legacy::legacy_symbol_size(
+                bc.barcode.rows,
+                bc.barcode.columns,
+            )?;
             barcodes::datamatrix_legacy::encode_with_ecc(
                 input,
                 format,
@@ -1295,7 +1274,7 @@ impl Renderer {
             )?
             .to_image(scale as usize, scale as usize)
         } else {
-            let image = barcodes::datamatrix::render_zpl_field(
+            let image = barcodes::datamatrix::render_field(
                 bc.data.as_bytes(),
                 scale,
                 bc.barcode.rows,
@@ -1323,15 +1302,11 @@ impl Renderer {
         // Labelary draws nothing for a QR field whose payload is empty
         // (`^FD^FS`, or a prefix-only ^FD like `^FDQA,` that parses to no
         // data) — skip the field instead of failing the whole label.
-        // Checked before get_input_data(), which rejects short data.
         if bc.data.is_empty() {
             return Ok(());
         }
-        let (input_data, ec, _) = bc.get_input_data()?;
-        if input_data.is_empty() {
-            return Ok(());
-        }
-        let img = barcodes::qrcode::encode(&input_data, bc.barcode.magnification, ec)?;
+        let img =
+            barcodes::qrcode::encode(&bc.data, bc.barcode.magnification, bc.error_correction)?;
 
         let quiet_zone_px = 4 * bc.barcode.magnification;
 
@@ -1372,40 +1347,6 @@ impl Renderer {
         let pos = adjust_image_typeset_position(&img, &mc.position, FieldOrientation::Normal);
         overlay_at(canvas, &img, pos.x, pos.y);
         Ok(())
-    }
-}
-
-fn get_ttf_font_data(name: &str) -> &'static [u8] {
-    match name {
-        "0" => FONT_ZERO,
-        "B" | "D" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" => FONT_DEJAVU_BOLD,
-        "GS" => FONT_GS,
-        // Font 1 and the remaining standard fonts (see FontInfo::is_standard_font)
-        // intentionally substitute DejaVu Sans Mono.
-        "1" | "A" | "C" | "E" | "F" | "G" | "H" | "W" | "X" | "Y" | "Z" => FONT_DEJAVU_MONO,
-        _ => {
-            warn_unmapped_font(name);
-            FONT_DEJAVU_MONO
-        }
-    }
-}
-
-/// Font names with no built-in mapping silently fall back to DejaVu Sans Mono.
-/// Surface that once per name -- not once per rendered field -- so rendering
-/// many labels (e.g. through the HTTP service) doesn't flood stderr.
-fn warn_unmapped_font(name: &str) {
-    use std::collections::HashSet;
-    use std::sync::{Mutex, OnceLock};
-    static WARNED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-    let first_time = WARNED
-        .get_or_init(|| Mutex::new(HashSet::new()))
-        .lock()
-        .map(|mut seen| seen.insert(name.to_string()))
-        .unwrap_or(false);
-    if first_time {
-        eprintln!(
-            "labelize: no mapping for ZPL font '{name}'; substituting DejaVu Sans Mono (layout may differ)"
-        );
     }
 }
 
@@ -2710,27 +2651,5 @@ fn draw_module_centered_interpretation_line(
             };
             overlay_at(canvas, &rotated, tx, ty);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn known_font_names_map_to_their_substitutes() {
-        assert_eq!(get_ttf_font_data("0"), FONT_ZERO);
-        assert_eq!(get_ttf_font_data("B"), FONT_DEJAVU_BOLD);
-        assert_eq!(get_ttf_font_data("P"), FONT_DEJAVU_BOLD);
-        assert_eq!(get_ttf_font_data("GS"), FONT_GS);
-        assert_eq!(get_ttf_font_data("1"), FONT_DEJAVU_MONO);
-        assert_eq!(get_ttf_font_data("A"), FONT_DEJAVU_MONO);
-        assert_eq!(get_ttf_font_data("W"), FONT_DEJAVU_MONO);
-    }
-
-    #[test]
-    fn unmapped_font_names_fall_back_to_dejavu_mono() {
-        assert_eq!(get_ttf_font_data("2"), FONT_DEJAVU_MONO);
-        assert_eq!(get_ttf_font_data("E:TT0003M_.FNT"), FONT_DEJAVU_MONO);
     }
 }

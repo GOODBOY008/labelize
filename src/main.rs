@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "cli")]
 use clap::{Parser, Subcommand, ValueEnum};
 #[cfg(any(feature = "cli", feature = "serve"))]
-use labelize::{DrawerOptions, EplParser, LabelInfo, Renderer, ZplParser};
+use labelize::{parse_labels, DrawerOptions, LabelInfo, Language, Renderer};
 
 #[cfg(feature = "cli")]
 #[derive(Parser)]
@@ -130,23 +130,29 @@ fn main() {
 }
 
 #[cfg(feature = "cli")]
-fn detect_format(path: &Path, override_fmt: Option<InputFormat>) -> InputFormat {
+impl InputFormat {
+    fn language(self) -> Language {
+        match self {
+            InputFormat::Zpl => Language::Zpl,
+            InputFormat::Epl => Language::Epl,
+        }
+    }
+}
+
+#[cfg(feature = "cli")]
+fn detect_format(path: &Path, override_fmt: Option<InputFormat>, content: &[u8]) -> InputFormat {
     if let Some(fmt) = override_fmt {
         return fmt;
     }
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     match ext.to_lowercase().as_str() {
+        "zpl" => InputFormat::Zpl,
         "epl" => InputFormat::Epl,
-        _ => InputFormat::Zpl,
-    }
-}
-
-#[cfg(feature = "cli")]
-fn parse_labels(content: &[u8], format: InputFormat, dpmm: i32) -> Result<Vec<LabelInfo>, String> {
-    match format {
-        InputFormat::Epl => EplParser::new().parse(content),
-        // dpmm up front: ^MU may express coordinates in mm/inches.
-        InputFormat::Zpl => ZplParser::with_dpmm(dpmm).parse(content),
+        // Unknown extension: sniff the content instead of assuming ZPL.
+        _ => match labelize::detect_language(content) {
+            Language::Epl => InputFormat::Epl,
+            Language::Zpl => InputFormat::Zpl,
+        },
     }
 }
 
@@ -210,8 +216,8 @@ fn convert_file(
 ) -> Result<(), String> {
     let content = fs::read(input).map_err(|e| format!("Failed to read input file: {}", e))?;
 
-    let fmt = detect_format(input, format);
-    let labels = parse_labels(&content, fmt, dpmm)?;
+    let fmt = detect_format(input, format, &content);
+    let labels = parse_labels(fmt.language(), &content, dpmm).map_err(|e| e.to_string())?;
 
     if labels.is_empty() {
         return Err("No labels found in input".to_string());
@@ -336,21 +342,25 @@ async fn serve(host: String, port: u16) {
         Query(params): Query<ConvertParams>,
         body: Bytes,
     ) -> impl IntoResponse {
-        // Detect format from Content-Type header
+        // Language comes from the Content-Type when it names one, otherwise
+        // the body itself is sniffed.
         let content_type = headers
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
-
-        let labels = if content_type.contains("epl") {
-            EplParser::new().parse(&body)
+        let language = if content_type.contains("epl") {
+            Language::Epl
+        } else if content_type.contains("zpl") {
+            Language::Zpl
         } else {
-            ZplParser::with_dpmm(params.dpmm).parse(&body)
+            labelize::detect_language(&body)
         };
+
+        let labels = parse_labels(language, &body, params.dpmm).map_err(|e| e.to_string());
 
         let labels = match labels {
             Ok(l) => l,
-            Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+            Err(e) => return (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
         };
 
         let label = match labels.into_iter().next() {
