@@ -17,7 +17,7 @@ use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
 use crate::elements::graphic_ellipse::GraphicEllipse;
-use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
+use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
 use crate::elements::graphic_symbol::GraphicSymbol;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
@@ -1409,6 +1409,8 @@ impl ZplParser {
             total_bytes: 0,
             row_bytes: 0,
             data: Vec::new(),
+            mode: GraphicFieldMode::default(),
+            zero_bits_black: false,
         };
         if let Some(s) = parts.first() {
             if !s.is_empty() {
@@ -1520,6 +1522,8 @@ impl ZplParser {
             total_bytes: 0,
             row_bytes: 0,
             data: Vec::new(),
+            mode: GraphicFieldMode::default(),
+            zero_bits_black: false,
         };
 
         let mut path = STORED_GRAPHICS_DEFAULT_PATH.to_string();
@@ -1552,6 +1556,8 @@ impl ZplParser {
             total_bytes: 0,
             row_bytes: 0,
             data: Vec::new(),
+            mode: GraphicFieldMode::default(),
+            zero_bits_black: false,
         };
 
         let mut path = STORED_GRAPHICS_DEFAULT_PATH.to_string();

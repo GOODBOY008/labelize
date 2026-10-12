@@ -285,11 +285,30 @@ fn bitmap_reads_binary_data_by_byte_cursor() {
 }
 
 #[test]
-fn bitmap_blending_mode_errors() {
-    let err = TsplParser::new()
-        .parse(b"SIZE 4,2\nCLS\nBITMAP 10,10,4,4,1,\xF0\x0F\xF0\x0F\xF0\x0F\xF0\x0F\xF0\x0F\xF0\x0F\xF0\x0F\xF0\x0F\nPRINT 1\n")
-        .unwrap_err();
-    assert!(err.contains("blending modes"), "{err}");
+fn bitmap_modes_map_and_carry_tsc_polarity() {
+    let mut data = b"SIZE 4,2\nCLS\n".to_vec();
+    let payload = [0xF0u8; 16];
+    for (y, mode) in [(40i32, 0i32), (140, 1), (240, 2)] {
+        data.extend_from_slice(format!("BITMAP 10,{y},4,4,{mode},").as_bytes());
+        data.extend_from_slice(&payload);
+        data.push(b'\n');
+    }
+    data.extend_from_slice(b"PRINT 1\n");
+
+    let labels = parse(&data);
+    let modes = |i: usize| match &labels[0].elements[i] {
+        LabelElement::GraphicField(gf) => (gf.mode, gf.zero_bits_black),
+        other => panic!("expected GraphicField, got {other:?}"),
+    };
+    use labelize::elements::graphic_field::GraphicFieldMode;
+    assert_eq!(modes(0).0, GraphicFieldMode::Overwrite);
+    assert_eq!(modes(1).0, GraphicFieldMode::Or);
+    assert_eq!(modes(2).0, GraphicFieldMode::Xor);
+    // TSC BITMAP prints cleared bits (inverse of ^GF/GW) — resolved in the
+    // element so the renderer stays language-blind.
+    for i in 0..3 {
+        assert!(modes(i).1, "BITMAP must carry zero-bits-black polarity");
+    }
 }
 
 #[test]
@@ -342,6 +361,69 @@ PRINT 1
             assert_eq!(bc.data, "DATA");
         }
         other => panic!("expected BarcodePdf417, got {:?}", other),
+    }
+}
+
+#[test]
+fn pdf417_compound_options_split_into_letter_runs() {
+    // TSC's documented sample packs options into one token and marks the
+    // raw expression with a trailing L<len>: `PDF417 …,E30R4C4L12`.
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+PDF417 10,10,200,80,0,0,2,E30R4C4L12
+HELLO PDF417
+PRINT 1
+"#,
+    );
+    match &labels[0].elements[0] {
+        LabelElement::BarcodePdf417(bc) => {
+            // E's domain is 0-8 (single digit): the TSC doc sample
+            //  reads as E3 + stray 0, not ECC 30.
+            assert_eq!(bc.barcode.security, 3);
+            assert_eq!(bc.barcode.rows, 4);
+            assert_eq!(bc.barcode.columns, 4);
+            assert_eq!(bc.data, "HELLO PDF417");
+        }
+        other => panic!("expected BarcodePdf417, got {other:?}"),
+    }
+}
+
+#[test]
+fn pdf417_trailing_l_suffix_without_other_options() {
+    // A bare `L<len>` token still works (its own form).
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+PDF417 10,10,200,80,0,0,L5
+12345
+PRINT 1
+"#,
+    );
+    match &labels[0].elements[0] {
+        LabelElement::BarcodePdf417(bc) => {
+            assert_eq!(bc.barcode.rows, 0);
+            assert_eq!(bc.data, "12345");
+        }
+        other => panic!("expected BarcodePdf417, got {other:?}"),
+    }
+}
+
+#[test]
+fn qr_ecc_defaults_to_m_when_omitted() {
+    // TSC QRCODE default error-correction level is M.
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+QRCODE 10,10,,4,A,0,M2,"X"
+PRINT 1
+"#,
+    );
+    match &labels[0].elements[0] {
+        LabelElement::BarcodeQr(qr) => {
+            assert_eq!(qr.error_correction, QrErrorCorrectionLevel::M);
+        }
+        other => panic!("expected BarcodeQr, got {other:?}"),
     }
 }
 

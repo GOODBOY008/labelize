@@ -17,7 +17,7 @@ use crate::elements::font::FontInfo;
 use crate::elements::font_face::FontFace;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
-use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
+use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
@@ -649,6 +649,8 @@ fn parse_epl_graphic_write(
         data: epl_data[data_start..data_end].to_vec(),
         magnification_x: 1,
         magnification_y: 1,
+        mode: GraphicFieldMode::default(),
+        zero_bits_black: false,
     });
 
     Ok(Some((element, data_end)))

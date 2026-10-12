@@ -68,8 +68,9 @@ Individual command docs follow the pattern:
 ## Supported TSPL Commands
 
 **Setup:** `SIZE` (mm/dot/inch → per-label canvas dims), `DIRECTION`, `REFERENCE`, `SHIFT`, `CLS`, `GAP`/`DENSITY`/`SPEED`/`OFFSET`/`CODEPAGE` (no-op)
-**Content:** `TEXT`, `BAR`, `BOX`, `CIRCLE`, `ELLIPSE`, `ERASE`, `REVERSE`, `BARCODE` (128/128M/EAN128/EAN128M/39/39C/EAN13), `QRCODE`, `PDF417` (incl. raw `L<len>`), `BITMAP` (binary cursor), `PRINT`
-**Unsupported (explicit error):** `MPDF417`, `PUTPCX`, `PUTBMP`, `DMATRIX`, `AZTEC`, `BITMAP` OR/XOR blend modes
+**Content:** `TEXT`, `BAR`, `BOX`, `CIRCLE`, `ELLIPSE`, `ERASE`, `REVERSE`, `BARCODE` (128/128M/EAN128/EAN128M/39/39C/EAN13), `QRCODE` (ECC default M per TSC), `PDF417` (raw `L<len>`, incl. compound option tokens like `E30R4C4L26` — ECC is single-digit per its 0-8 domain), `BITMAP` (binary cursor, TSC polarity 0=black, modes 0/1/2 = overwrite/OR/XOR), `PRINT`
+**Unsupported (explicit error):** `MPDF417`, `PUTPCX`, `PUTBMP`, `DMATRIX`, `AZTEC`
+**Semantics notes:** `DIRECTION` models 0 (inverted) / 1 (normal) per the common TSC usage; the 1-4 forms with mirror semantics are not arbitrated by any reference renderer and stay unimplemented
 
 ## Supported ZPL Commands
 
