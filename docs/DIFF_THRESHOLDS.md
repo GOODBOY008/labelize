@@ -110,6 +110,11 @@ informational.
 | tspl_graphics | tspl | 0.00 | 1.5 | Renderer baseline reference (no public TSPL reference renderer); SIZE-driven canvas 608x400 |
 | tspl_shipping | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 812x480 |
 | tspl_text_styles | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 813x407 |
+| tspl_real_probe_text | tspl | 0.54 | 2.0 | labelixa reference (filament-db probe) |
+| tspl_real_drybox | tspl | 6.75 | 8.5 | labelixa reference; REVERSE + magnified-text open questions |
+| tspl_real_te210 | tspl | 7.12 | 9.0 | labelixa reference (TSC TE210 hardware capture); labelixa skips ITF14 |
+| tspl_real_sklad | tspl | 7.29 | 9.0 | labelixa reference; ${placeholder} literal text |
+| tspl_real_probe_full | tspl | 10.90 | 12.5 | labelixa reference; REVERSE + 2x text + barcode ratios (open) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.42 | 2.5 | Character encoding |

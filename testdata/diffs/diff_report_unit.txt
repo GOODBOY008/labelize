@@ -87,6 +87,11 @@
 ║ thick_rotated_fb_text          │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ tspl_graphics                  │ tspl │    0.00% │       608x400 │       608x400 │ PERFECT      ║
 ║ tspl_graphics_doc_style        │ tspl │    0.00% │       608x400 │       608x400 │ PERFECT      ║
+║ tspl_real_drybox               │ tspl │    6.75% │      800x1200 │      800x1200 │ MODERATE(<15%) ║
+║ tspl_real_probe_full           │ tspl │   10.90% │      800x1200 │      800x1200 │ MODERATE(<15%) ║
+║ tspl_real_probe_text           │ tspl │    0.54% │      800x1200 │      800x1200 │ GOOD(<1%)    ║
+║ tspl_real_sklad                │ tspl │    7.29% │       320x456 │       320x456 │ MODERATE(<15%) ║
+║ tspl_real_te210                │ tspl │    7.12% │       800x576 │       800x576 │ MODERATE(<15%) ║
 ║ tspl_shipping                  │ tspl │    0.00% │       812x480 │       812x480 │ PERFECT      ║
 ║ tspl_text_styles               │ tspl │    0.00% │       813x407 │       813x407 │ PERFECT      ║
 ║ upce                           │ zpl  │    0.73% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -94,5 +99,5 @@
 ║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 90 total │ 16 perfect │ 60 good │ 12 minor │ 2 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 95 total │ 16 perfect │ 61 good │ 12 minor │ 6 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝
