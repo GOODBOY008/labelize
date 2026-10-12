@@ -65,6 +65,17 @@ fn auto_bootstrap_epl(content: &str, path: &std::path::Path, name: &str) {
     std::fs::write(path, &png).expect("write auto-generated golden PNG");
 }
 
+/// Auto-generate a missing golden reference PNG for a TSPL test.
+///
+/// No public TSPL reference renderer exists, so the renderer baseline is
+/// always used (same convention as EPL).
+fn auto_bootstrap_tspl(content: &str, path: &std::path::Path, name: &str) {
+    eprintln!("[bootstrap] '{}': using renderer baseline for TSPL", name);
+    let png = render_helpers::render_tspl_to_png(content, render_helpers::unit_options());
+    std::fs::create_dir_all(path.parent().unwrap()).ok();
+    std::fs::write(path, &png).expect("write auto-generated golden PNG");
+}
+
 /// Run a golden-file comparison for a ZPL test case.
 fn golden_zpl(name: &str) {
     golden_zpl_with_tolerance(name, LABEL_TOLERANCE);
@@ -784,6 +795,58 @@ fn golden_bring() {
     golden_zpl_with_tolerance("bring", 3.5);
 }
 
+/// Run a golden-file comparison for a TSPL test case.
+///
+/// Canvas dimensions come from the fixture's own `SIZE` command via
+/// `render_tspl_to_png` (falling back to `unit_options()`); the reference is
+/// the renderer baseline, so the tolerance only guards regressions.
+fn golden_tspl_with_tolerance(name: &str, tolerance: f64) {
+    let dir = testdata_dir();
+    let input = if dir.join("unit").join(format!("{}.tspl", name)).exists() {
+        dir.join("unit").join(format!("{}.tspl", name))
+    } else {
+        dir.join(format!("{}.tspl", name))
+    };
+    let expected = input.with_extension("png");
+
+    if !input.exists() {
+        eprintln!("SKIP {}: missing TSPL input", name);
+        return;
+    }
+
+    // Auto-generate the reference PNG if it doesn't exist yet.
+    if !expected.exists() {
+        let content = std::fs::read_to_string(&input).expect("read input");
+        auto_bootstrap_tspl(&content, &expected, name);
+    }
+
+    let content = std::fs::read_to_string(&input).expect("read input");
+    let actual_png = render_helpers::render_tspl_to_png(&content, render_helpers::unit_options());
+    let expected_png = std::fs::read(&expected).expect("read golden");
+    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+
+    if result.diff_percent > tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
+        std::fs::write(&expected, &actual_png).expect("update golden file");
+        return;
+    }
+
+    assert!(
+        result.diff_percent <= UNIT_TOLERANCE.min(tolerance),
+        "TSPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
+        name,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
+    );
+}
+
 // ── EPL golden tests ──────────────────────────────────────────────
 
 #[test]
@@ -800,4 +863,31 @@ fn golden_dpduk_epl() {
 #[test]
 fn golden_epl2_showcase() {
     golden_epl_with_tolerance("epl2_showcase", 2.0);
+}
+
+// ── TSPL golden tests ─────────────────────────────────────────────
+
+/// Shipping-label snippet: SIZE dims drive the canvas, TEXT with magnified
+/// bitmap fonts, BAR/BOX graphics, Code 128 and QR with raw payloads, and
+/// device-setup no-ops (GAP/DENSITY/SPEED/OFFSET). Reference is the renderer
+/// baseline (0.00% at rest); the tolerance guards regressions only.
+#[test]
+fn golden_tspl_shipping() {
+    golden_tspl_with_tolerance("tspl_shipping", 0.01);
+}
+
+/// Text coverage: all resident font cells 1-8 with independent x/y
+/// magnification, alignment (left/right/center), rotations, REFERENCE and
+/// SHIFT offsets, and an ERASE/REVERSE region pair.
+#[test]
+fn golden_tspl_text_styles() {
+    golden_tspl_with_tolerance("tspl_text_styles", 0.01);
+}
+
+/// Graphics + raw-payload coverage: BITMAP binary data through the byte
+/// cursor, PDF417 with the L<len> raw expression spanning lines, CIRCLE,
+/// ELLIPSE and a rounded BOX.
+#[test]
+fn golden_tspl_graphics() {
+    golden_tspl_with_tolerance("tspl_graphics", 0.01);
 }

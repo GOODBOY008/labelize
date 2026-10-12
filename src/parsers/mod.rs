@@ -9,6 +9,7 @@
 //! `parsers::epl` directly.
 
 pub mod epl;
+pub mod tspl;
 pub mod zpl;
 
 pub mod command_utils {
@@ -16,6 +17,9 @@ pub mod command_utils {
 }
 pub mod epl_parser {
     pub use crate::parsers::epl::parser::*;
+}
+pub mod tspl_parser {
+    pub use crate::parsers::tspl::parser::*;
 }
 pub mod fs {
     pub use crate::parsers::zpl::fs::*;
@@ -28,4 +32,5 @@ pub mod zpl_parser {
 }
 
 pub use epl::parser::EplParser;
+pub use tspl::parser::TsplParser;
 pub use zpl::parser::ZplParser;

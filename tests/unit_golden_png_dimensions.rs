@@ -15,9 +15,32 @@ const UNIT_HEIGHT_LABELARY: u32 = 1624;
 const UNIT_WIDTH_RENDERER: u32 = 813;
 const UNIT_HEIGHT_RENDERER: u32 = 1626;
 
+/// Compute the canvas a `.tspl` fixture's own `SIZE` command implies, at
+/// 8 dpmm, rounding up like the renderer's mm→px conversion. TSPL goldens
+/// are SIZE-driven rather than the fixed Labelary canvas.
+fn tspl_fixture_dims(path: &std::path::Path) -> Option<(u32, u32)> {
+    let content = std::fs::read_to_string(path).ok()?;
+    for line in content.lines() {
+        let line = line.trim();
+        if !line.to_ascii_uppercase().starts_with("SIZE") {
+            continue;
+        }
+        let labels = render_helpers::parse_tspl(content.as_bytes());
+        let label = labels.first()?;
+        let dpmm = 8.0_f64;
+        let w = label.label_width_mm? * dpmm;
+        let h = label.label_height_mm? * dpmm;
+        // Renderer conversion: canvas = ceil(mm × dpmm).
+        return Some((w.ceil() as u32, h.ceil() as u32));
+    }
+    None
+}
+
 /// Verify that every golden PNG has the expected dimensions for its directory.
 /// - `testdata/` and `testdata/labels/` → 813 × 1626 px (Labelary reference at 101.625mm × 203.25mm)
 /// - `testdata/unit/` → 812 × 1624 px (Labelary) OR 813 × 1626 px (renderer baseline)
+/// - `.tspl` fixtures are exempt: their canvas comes from the fixture's own
+///   SIZE command and is verified against it instead.
 #[test]
 fn all_golden_pngs_have_standard_dimensions() {
     let dir = render_helpers::testdata_dir();
@@ -77,8 +100,26 @@ fn all_golden_pngs_have_standard_dimensions() {
         let img = image::load_from_memory(&bytes)
             .unwrap_or_else(|e| panic!("cannot decode {}: {}", name, e));
         let (w, h) = (img.width(), img.height());
-        let ok = (w == UNIT_WIDTH_LABELARY && h == UNIT_HEIGHT_LABELARY)
-            || (w == UNIT_WIDTH_RENDERER && h == UNIT_HEIGHT_RENDERER);
+        let tspl_source = path.with_extension("tspl");
+        let ok = if tspl_source.exists() {
+            match tspl_fixture_dims(&tspl_source) {
+                Some((ew, eh)) => {
+                    if (ew, eh) != (w, h) {
+                        failures.push(format!(
+                            "  {} — {}×{} (TSPL SIZE implies {}×{})",
+                            name, w, h, ew, eh
+                        ));
+                    }
+                    // Already validated; skip the standard-dims check.
+                    checked += 1;
+                    continue;
+                }
+                None => false,
+            }
+        } else {
+            (w == UNIT_WIDTH_LABELARY && h == UNIT_HEIGHT_LABELARY)
+                || (w == UNIT_WIDTH_RENDERER && h == UNIT_HEIGHT_RENDERER)
+        };
         if !ok {
             failures.push(format!(
                 "  {} — {}×{} (expected {}×{} or {}×{})",

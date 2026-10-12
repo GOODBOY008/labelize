@@ -12,6 +12,7 @@ use crate::elements::barcode_qr::BarcodeQr;
 use crate::elements::barcode_upca::BarcodeUca;
 use crate::elements::barcode_upce::BarcodeUcpe;
 use crate::elements::field_block::FieldBlock;
+use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_diagonal_line::GraphicDiagonalLine;
@@ -108,6 +109,8 @@ impl ZplParser {
                             print_width: self.printer.print_width,
                             inverted: self.printer.label_inverted,
                             mirrored: self.printer.label_mirrored,
+                            label_width_mm: None,
+                            label_height_mm: None,
                             elements: shifted.clone(),
                         });
                     }
@@ -1190,7 +1193,10 @@ impl ZplParser {
 
     fn parse_barcode_qr(&mut self, command: &str) {
         let parts = split_command(command, "^BQ");
-        let mut bc = BarcodeQr { magnification: 1 };
+        let mut bc = BarcodeQr {
+            magnification: 1,
+            orientation: FieldOrientation::Normal,
+        };
         if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
             bc.magnification = v.clamp(1, 100);
         }

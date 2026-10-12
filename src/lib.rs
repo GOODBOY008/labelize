@@ -31,4 +31,4 @@ pub use error::LabelizeError;
 pub use images::monochrome::encode_png;
 pub use images::pdf::encode_pdf;
 pub use lang::{detect_language, parse_labels, Language};
-pub use parsers::{EplParser, ZplParser};
+pub use parsers::{EplParser, TsplParser, ZplParser};

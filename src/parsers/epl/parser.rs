@@ -164,6 +164,8 @@ impl EplParser {
                         print_width: 0,
                         inverted: false,
                         mirrored: false,
+                        label_width_mm: None,
+                        label_height_mm: None,
                         elements: current_elements.clone(),
                     });
                 }
@@ -179,6 +181,8 @@ impl EplParser {
                 print_width: 0,
                 inverted: false,
                 mirrored: false,
+                label_width_mm: None,
+                label_height_mm: None,
                 elements: current_elements,
             });
         }
@@ -869,7 +873,10 @@ fn parse_epl_2d_barcode(
                     }
                     LabelElement::BarcodeQr(BarcodeQrWithData {
                         reverse_print: ReversePrint::default(),
-                        barcode: BarcodeQr { magnification },
+                        barcode: BarcodeQr {
+                            magnification,
+                            orientation: FieldOrientation::Normal,
+                        },
                         height: 0,
                         position: pos,
                         data: content.to_string(),

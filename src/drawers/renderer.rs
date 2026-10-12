@@ -2022,6 +2022,7 @@ fn get_text_top_left_pos(
         // ^FO: position is top-left of the field area. Handle justification parameter.
         let x = match text.alignment {
             crate::elements::field_alignment::FieldAlignment::Right => x - w,
+            crate::elements::field_alignment::FieldAlignment::Center => x - w / 2.0,
             _ => x,
         };
         return (x, y);

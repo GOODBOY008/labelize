@@ -43,7 +43,12 @@ fn ensure_ref_png(path: &std::path::Path, content: &str, ext: &str) {
     }
     let opts = render_helpers::default_options();
     let name = path.file_stem().unwrap().to_string_lossy().to_string();
-    let png = if ext != "epl" {
+    let png = if ext == "tspl" {
+        // TSPL: renderer baseline (no public reference renderer exists); the
+        // fixture's own SIZE command drives the canvas via render_tspl_to_png.
+        eprintln!("[bootstrap] {}: TSPL — renderer baseline", name);
+        render_helpers::render_tspl_to_png(content, opts)
+    } else if ext != "epl" {
         // Labelary renders this size natively at 813×1626 — the exact default_options
         // canvas (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must
         // not be used).
@@ -86,7 +91,7 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
                 .path()
                 .extension()
                 .map(|x| x.to_string_lossy().to_string());
-            matches!(ext.as_deref(), Some("zpl") | Some("epl"))
+            matches!(ext.as_deref(), Some("zpl") | Some("epl") | Some("tspl"))
         })
         .map(|e| e.path())
         .collect();
@@ -120,6 +125,9 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
         let actual_png = match ext.as_str() {
             "epl" => std::panic::catch_unwind(|| {
                 render_helpers::render_epl_to_png(&content, opts.clone())
+            }),
+            "tspl" => std::panic::catch_unwind(|| {
+                render_helpers::render_tspl_to_png(&content, opts.clone())
             }),
             _ => std::panic::catch_unwind(|| {
                 render_helpers::render_zpl_to_png(&content, opts.clone())

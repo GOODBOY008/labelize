@@ -2,7 +2,7 @@
 
 ## Overview
 
-Labelize is a Rust engine that parses ZPL (Zebra Programming Language) and EPL (Eltron Programming Language) label data and renders it to PNG or PDF. It runs as a CLI tool, HTTP microservice, or library.
+Labelize is a Rust engine that parses ZPL (Zebra Programming Language), EPL (Eltron Programming Language) and TSPL/TSC label data and renders it to PNG or PDF. It runs as a CLI tool, HTTP microservice, or library.
 
 ## Architecture
 
@@ -15,6 +15,8 @@ Input bytes + Language
   → src/parsers/zpl/             — ZPL: parser, VirtualPrinter state machine, ^CI charsets,
                                     ^MU units, Zebra font matrices, ^FN/^XF resolution
   → src/parsers/epl/             — EPL: line parser, built-in font-number metrics
+  → src/parsers/tspl/            — TSPL/TSC: line + raw-data commands, resident font cells,
+                                    SIZE → per-label physical dims (LabelInfo::label_*_mm)
   → src/elements/                — language-neutral IR: Text, Barcode*, Graphic*, LabelInfo
   → src/drawers/                 — language-blind renderer (CI-guarded, see
                                     tests/unit_architecture.rs)
@@ -42,6 +44,7 @@ break them; CI enforces both):
 | `src/lang.rs` | `Language` enum, `parse_labels()`, content sniffing — the only place that picks a parser |
 | `src/parsers/zpl/` | ZPL command parser, VirtualPrinter state machine, Zebra calibration |
 | `src/parsers/epl/` | EPL command parser, built-in font metrics |
+| `src/parsers/tspl/` | TSPL/TSC command parser, resident font cells |
 | `src/elements/` | Language-neutral element structs (text, barcodes, graphics, stored formats) |
 | `src/drawers/renderer.rs` | Image canvas creation, element drawing, compositing |
 | `src/barcodes/` | Barcode encoders: Code128, Code39, EAN-13, 2of5, PDF417, Aztec, DataMatrix, QR, MaxiCode |
@@ -61,6 +64,12 @@ Individual command docs follow the pattern:
 - Rendered output doesn't match expected behavior
 - Parameter defaults, ranges, or interactions are unclear
 - Adding support for new ZPL commands
+
+## Supported TSPL Commands
+
+**Setup:** `SIZE` (mm/dot/inch → per-label canvas dims), `DIRECTION`, `REFERENCE`, `SHIFT`, `CLS`, `GAP`/`DENSITY`/`SPEED`/`OFFSET`/`CODEPAGE` (no-op)
+**Content:** `TEXT`, `BAR`, `BOX`, `CIRCLE`, `ELLIPSE`, `ERASE`, `REVERSE`, `BARCODE` (128/128M/EAN128/EAN128M/39/39C/EAN13), `QRCODE`, `PDF417` (incl. raw `L<len>`), `BITMAP` (binary cursor), `PRINT`
+**Unsupported (explicit error):** `MPDF417`, `PUTPCX`, `PUTBMP`, `DMATRIX`, `AZTEC`, `BITMAP` OR/XOR blend modes
 
 ## Supported ZPL Commands
 

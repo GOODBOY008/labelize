@@ -107,6 +107,9 @@ informational.
 | dpdpl | zpl | 3.91 | 5.5 | Font metrics (R-block ^FB anchor now reserves the max_lines box like Labelary) |
 | dpduk | epl | 3.79 | 6.5 | EPL reference from Go renderer |
 | epl2_showcase | epl | 0.00 | 1.5 | Renderer baseline reference (Labelary has no EPL); ECC auto table per EPL2 manual |
+| tspl_graphics | tspl | 0.00 | 1.5 | Renderer baseline reference (no public TSPL reference renderer); SIZE-driven canvas 608x400 |
+| tspl_shipping | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 812x480 |
+| tspl_text_styles | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 813x407 |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.42 | 2.5 | Character encoding |

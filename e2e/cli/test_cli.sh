@@ -96,6 +96,19 @@ assert_ok "convert with -f zpl exits 0" labelize convert "$WORK_DIR/label.txt" -
 assert_file_min_size "format-override PNG has content" "$WORK_DIR/override.png" 500
 cp "$WORK_DIR/override.png" "$OUTPUT_DIR/override.png" 2>/dev/null || true
 
+# 7. TSPL conversion (SIZE drives the canvas; no --width/--height needed)
+echo "[7] TSPL conversion"
+TSPL_FILE="$TESTDATA_DIR/sample.tspl"
+assert_ok "convert .tspl exits 0" labelize convert "$TSPL_FILE" -o "$WORK_DIR/tspl.png"
+assert_file_min_size "TSPL PNG has content" "$WORK_DIR/tspl.png" 300
+cp "$WORK_DIR/tspl.png" "$OUTPUT_DIR/tspl.png" 2>/dev/null || true
+
+# 8. TSPL format override on an unknown extension
+echo "[8] TSPL format override"
+cp "$TSPL_FILE" "$WORK_DIR/tspl_label.txt"
+assert_ok "convert with -f tspl exits 0" labelize convert "$WORK_DIR/tspl_label.txt" -f tspl -o "$WORK_DIR/tspl_override.png"
+assert_file_min_size "TSPL override PNG has content" "$WORK_DIR/tspl_override.png" 300
+
 echo ""
 echo "=== Results: $pass passed, $fail failed ==="
 [[ "$fail" -eq 0 ]] || exit 1

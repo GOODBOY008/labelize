@@ -1,0 +1,17 @@
+SIZE 4,2
+GAP 0,0
+DIRECTION 1
+REFERENCE 10,10
+CLS
+TEXT 10,20,"1",0,1,1,"Font 1 Normal"
+TEXT 10,60,"2",0,1,2,"Font 2 Tall"
+TEXT 10,120,"5",0,2,1,"Font 5 Wide"
+TEXT 10,200,"3",90,1,1,"Rotated 90"
+TEXT 10,300,"4",0,1,1,2,"Centered"
+TEXT 10,360,"4",0,1,1,1,"Right Aligned"
+TEXT 10,420,"TST24.BF2",0,1,1,"Bitmap 24"
+SHIFT 0,10
+TEXT 10,480,"7",0,1,1,"Shifted Down"
+REVERSE 10,540,380,40
+TEXT 20,550,"2",0,1,1,"Reversed Band"
+PRINT 1

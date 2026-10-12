@@ -15,20 +15,15 @@ pub enum Stage {
     Render,
 }
 
-fn render_payload(
+fn render_payload_lang(
     bytes: &[u8],
     width_mm: f64,
     height_mm: f64,
     dpmm: i32,
     antialias: bool,
     want_pdf: bool,
-    is_epl: bool,
+    language: Language,
 ) -> Result<Vec<u8>, (Stage, String)> {
-    let language = if is_epl {
-        Language::Epl
-    } else {
-        Language::Zpl
-    };
     let labels = parse_labels(language, bytes, dpmm)
         .map_err(|e| (Stage::Parse, e.to_string()))?;
 
@@ -86,7 +81,41 @@ pub fn lz_render(
     want_pdf: bool,
     is_epl: bool,
 ) -> Result<Vec<u8>, String> {
-    render_payload(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl)
+    let language = if is_epl {
+        Language::Epl
+    } else {
+        Language::Zpl
+    };
+    render_payload_lang(
+        src,
+        width_mm,
+        height_mm,
+        dpmm,
+        antialias,
+        want_pdf,
+        language,
+    )
+    .map_err(|(stage, msg)| render_error(&stage, msg))
+}
+
+/// Language-explicit variant: `lang` is `"zpl"`, `"epl"` or `"tspl"`.
+/// Unknown values fall back to ZPL, matching the CLI's sniff fallback.
+#[wasm_bindgen]
+pub fn lz_render_lang(
+    src: &[u8],
+    width_mm: f64,
+    height_mm: f64,
+    dpmm: i32,
+    antialias: bool,
+    want_pdf: bool,
+    lang: &str,
+) -> Result<Vec<u8>, String> {
+    let language = match lang.to_ascii_lowercase().as_str() {
+        "epl" => Language::Epl,
+        "tspl" => Language::Tspl,
+        _ => Language::Zpl,
+    };
+    render_payload_lang(src, width_mm, height_mm, dpmm, antialias, want_pdf, language)
         .map_err(|(stage, msg)| render_error(&stage, msg))
 }
 

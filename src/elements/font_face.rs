@@ -15,7 +15,7 @@ use crate::assets::{
 };
 use crate::tuning;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum FontFace {
     /// Scalable condensed-bold substitute (ZPL font 0): per-glyph advance
     /// calibration, 0.75-cap em, Roboto Condensed Bold.
@@ -23,6 +23,7 @@ pub enum FontFace {
     /// Scalable monospace substitute with its own vertical model (ZPL font 1).
     ScalableMono,
     /// Fixed-cell monospace substitute, regular weight (ZPL A, C, E–H).
+    /// Matches the historical FontInfo default (name "A").
     #[default]
     BitmapMono,
     /// Fixed-cell monospace substitute, bold, no lowercase glyphs — input is
@@ -34,6 +35,10 @@ pub enum FontFace {
     ResidentBitmap,
     /// Symbol glyphs (ZPL GS).
     Symbol,
+    /// Square-pixel bitmap cell whose substitute scales 1:1 with the
+    /// requested cell (TSPL .BF2 resident fonts): no cap correction, no
+    /// cell shift — the em is the cell.
+    BitmapSquare,
     /// Plain monospace, no cell-shift corrections (ZPL W–Z and unmapped
     /// designators).
     Mono,
@@ -48,7 +53,10 @@ impl FontFace {
                 FONT_DEJAVU_SANS_MONO_BOLD
             }
             FontFace::Symbol => FONT_ZPL_GS,
-            FontFace::ScalableMono | FontFace::BitmapMono | FontFace::Mono => FONT_DEJAVU_SANS_MONO,
+            FontFace::BitmapSquare
+            | FontFace::ScalableMono
+            | FontFace::BitmapMono
+            | FontFace::Mono => FONT_DEJAVU_SANS_MONO,
         }
     }
 
@@ -59,6 +67,7 @@ impl FontFace {
             FontFace::BitmapBold => 1.59,
             FontFace::ResidentBitmap => 0.85,
             FontFace::ScalableMono => tuning::FONT1_CAP_SCALE,
+            FontFace::BitmapSquare => 1.0,
             _ => 7.0 / 6.0,
         }
     }
@@ -70,7 +79,7 @@ impl FontFace {
             FontFace::ScalableMono => tuning::FONT1_RATIO,
             FontFace::BitmapBoldWide => 2.317,
             FontFace::ResidentBitmap => 0.80,
-            FontFace::Symbol => 1.0,
+            FontFace::Symbol | FontFace::BitmapSquare => 1.0,
             _ => 1.931,
         }
     }
@@ -110,6 +119,8 @@ impl FontFace {
                 | FontFace::Symbol
                 | FontFace::ScalableMono
         )
+        // BitmapSquare is intentionally absent: its em IS the cell, so the
+        // substitute needs no cap-top realignment.
     }
 
     /// True when `^FB` line pitch divides by `cap_scale` (fixed-cell faces

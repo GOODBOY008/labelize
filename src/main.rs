@@ -10,12 +10,19 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[cfg(any(feature = "cli", feature = "serve"))]
 use labelize::{parse_labels, DrawerOptions, LabelInfo, Language, Renderer};
 
+/// Historical default label dimensions, used when neither an explicit
+/// override nor the label's own declared size (TSPL SIZE) is available.
+#[cfg(any(feature = "cli", feature = "serve"))]
+const DEFAULT_LABEL_WIDTH_MM: f64 = 102.0;
+#[cfg(any(feature = "cli", feature = "serve"))]
+const DEFAULT_LABEL_HEIGHT_MM: f64 = 152.0;
+
 #[cfg(feature = "cli")]
 #[derive(Parser)]
 #[command(
     name = "labelize",
     version,
-    about = "Turn ZPL/EPL into pixels — label rendering, simplified."
+    about = "Turn ZPL/EPL/TSPL into pixels — label rendering, simplified."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -27,6 +34,7 @@ struct Cli {
 enum InputFormat {
     Zpl,
     Epl,
+    Tspl,
 }
 
 #[cfg(feature = "cli")]
@@ -39,9 +47,9 @@ enum OutputType {
 #[cfg(feature = "cli")]
 #[derive(Subcommand)]
 enum Commands {
-    /// Convert a ZPL/EPL file to PNG or PDF
+    /// Convert a ZPL/EPL/TSPL file to PNG or PDF
     Convert {
-        /// Input file path (.zpl or .epl)
+        /// Input file path (.zpl, .epl, or .tspl)
         input: PathBuf,
 
         /// Output file path (default: input stem + .png/.pdf)
@@ -56,13 +64,15 @@ enum Commands {
         #[arg(short = 't', long = "type", default_value = "png")]
         output_type: OutputType,
 
-        /// Label width in mm
-        #[arg(long, default_value_t = 102.0)]
-        width: f64,
+        /// Label width override in mm (defaults to the label's own SIZE
+        /// for TSPL, else 102)
+        #[arg(long)]
+        width: Option<f64>,
 
-        /// Label height in mm
-        #[arg(long, default_value_t = 152.0)]
-        height: f64,
+        /// Label height override in mm (defaults to the label's own SIZE
+        /// for TSPL, else 152)
+        #[arg(long)]
+        height: Option<f64>,
 
         /// Dots per mm (6, 8, 12, or 24)
         #[arg(long, default_value_t = 8)]
@@ -135,6 +145,7 @@ impl InputFormat {
         match self {
             InputFormat::Zpl => Language::Zpl,
             InputFormat::Epl => Language::Epl,
+            InputFormat::Tspl => Language::Tspl,
         }
     }
 }
@@ -148,9 +159,11 @@ fn detect_format(path: &Path, override_fmt: Option<InputFormat>, content: &[u8])
     match ext.to_lowercase().as_str() {
         "zpl" => InputFormat::Zpl,
         "epl" => InputFormat::Epl,
+        "tspl" => InputFormat::Tspl,
         // Unknown extension: sniff the content instead of assuming ZPL.
         _ => match labelize::detect_language(content) {
             Language::Epl => InputFormat::Epl,
+            Language::Tspl => InputFormat::Tspl,
             Language::Zpl => InputFormat::Zpl,
         },
     }
@@ -209,8 +222,8 @@ fn convert_file(
     output: Option<&Path>,
     format: Option<InputFormat>,
     output_type: OutputType,
-    width: f64,
-    height: f64,
+    width: Option<f64>,
+    height: Option<f64>,
     dpmm: i32,
     antialias: bool,
 ) -> Result<(), String> {
@@ -223,16 +236,20 @@ fn convert_file(
         return Err("No labels found in input".to_string());
     }
 
-    let options = DrawerOptions {
-        label_width_mm: width,
-        label_height_mm: height,
-        dpmm,
-        antialias,
-        ..Default::default()
-    };
-
     let multi = labels.len() > 1;
     for (i, label) in labels.iter().enumerate() {
+        let options = DrawerOptions {
+            label_width_mm: width
+                .or(label.label_width_mm)
+                .unwrap_or(DEFAULT_LABEL_WIDTH_MM),
+            label_height_mm: height
+                .or(label.label_height_mm)
+                .unwrap_or(DEFAULT_LABEL_HEIGHT_MM),
+            dpmm,
+            antialias,
+            ..Default::default()
+        };
+
         let out_path = match output {
             Some(p) if !multi => p.to_path_buf(),
             Some(p) => {
@@ -314,10 +331,10 @@ async fn serve(host: String, port: u16) {
 
     #[derive(serde::Deserialize)]
     struct ConvertParams {
-        #[serde(default = "default_width")]
-        width: f64,
-        #[serde(default = "default_height")]
-        height: f64,
+        #[serde(default)]
+        width: Option<f64>,
+        #[serde(default)]
+        height: Option<f64>,
         #[serde(default = "default_dpmm")]
         dpmm: i32,
         #[serde(default)]
@@ -327,12 +344,6 @@ async fn serve(host: String, port: u16) {
         antialias: bool,
     }
 
-    fn default_width() -> f64 {
-        102.0
-    }
-    fn default_height() -> f64 {
-        152.0
-    }
     fn default_dpmm() -> i32 {
         8
     }
@@ -350,6 +361,8 @@ async fn serve(host: String, port: u16) {
             .unwrap_or("");
         let language = if content_type.contains("epl") {
             Language::Epl
+        } else if content_type.contains("tspl") {
+            Language::Tspl
         } else if content_type.contains("zpl") {
             Language::Zpl
         } else {
@@ -371,8 +384,14 @@ async fn serve(host: String, port: u16) {
         };
 
         let options = DrawerOptions {
-            label_width_mm: params.width,
-            label_height_mm: params.height,
+            label_width_mm: params
+                .width
+                .or(label.label_width_mm)
+                .unwrap_or(DEFAULT_LABEL_WIDTH_MM),
+            label_height_mm: params
+                .height
+                .or(label.label_height_mm)
+                .unwrap_or(DEFAULT_LABEL_HEIGHT_MM),
             dpmm: params.dpmm,
             antialias: params.antialias,
             ..Default::default()
