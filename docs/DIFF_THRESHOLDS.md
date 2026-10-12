@@ -114,7 +114,7 @@ informational.
 | tspl_real_drybox | tspl | 6.75 | 8.5 | labelixa reference; REVERSE + magnified-text open questions |
 | tspl_real_te210 | tspl | 7.12 | 9.0 | labelixa reference (TSC TE210 hardware capture); labelixa skips ITF14 |
 | tspl_real_sklad | tspl | 7.29 | 9.0 | labelixa reference; ${placeholder} literal text |
-| tspl_real_probe_full | tspl | 10.90 | 12.5 | labelixa reference; REVERSE + 2x text + barcode ratios (open) |
+| tspl_real_probe_full | tspl | 10.88 | 12.5 | labelixa reference; REVERSE band skipped by labelixa (~2.4pp) + ymul-width quirk (see TSPL_BASELINES.md) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.42 | 2.5 | Character encoding |

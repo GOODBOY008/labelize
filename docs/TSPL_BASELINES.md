@@ -37,10 +37,37 @@ approximation.
 
 ## Known engine disagreements (open questions, 2026-10-12)
 
-- **Code 128 `wide == narrow`** (`BARCODE …,2,2`): labelixa draws visibly
-  wider bars than labelize; portakal differs from both. No manual clause
-  found; needs hardware arbitration.
-- **Magnified text size** (`TEXT x,y,"4",0,2,2,…`): labelixa draws larger
-  than labelize.
-- **`REVERSE`**: labelize fills a black box (see fix in this PR — TSC
-  semantics is an inverted print area); labelixa skips the command.
+### Text scaling — resolved by probe (2026-10-12, single-element battery)
+
+Font cells 1–5 × multipliers (1x1, 2x1, 1x2, 2x2, 3x3), ink bbox of
+`HHHHHH` on both engines:
+
+- **Ink heights match within ±1 px** across every font/multiplier — the
+  "magnified text renders small" impression was wrong for height.
+- **Width**: at `ymul > 1` labelixa widens glyphs by ymul (e.g. font 2:
+  1x1 → 70 px both engines; 1x2 → labelixa 138 vs labelize 70; 2x2 → 276
+  vs 138). The TSC manual defines xmul as horizontal and ymul as vertical,
+  independent — labelize follows the manual; labelixa's proportional face
+  evidently scales both axes. portakal drops ymul entirely. **Verdict:
+  labelize correct; labelixa quirk recorded, not calibrated to.**
+- 1x advances differ by ≤1.5 px/char vs labelixa with no consistent ratio;
+  labelize lands nearer the manual's nominal cell widths.
+
+### Code 128 `wide == narrow` (`BARCODE …,2,2`)
+
+labelixa draws visibly wider bars than labelize; portakal differs from
+both. Per the manual, `wide` applies to discrete two-width codes (39, ITF);
+continuous codes like 128 use `narrow` only — labelize follows that.
+Needs hardware arbitration to close (low priority).
+
+### `REVERSE` — resolved (see this PR's fix)
+
+Manual + corpus intent: print-time region inversion (white-on-black
+text). labelize now inverts the region; labelixa skips the command
+entirely, portakal draws a plain black rect (both blind to the documented
+behavior — the fix landed on manual semantics, not on either baseline).
+
+### QR version/quiet zone on CJK content (~4.4% on doc_QRCODE_sample_1)
+
+Both engines pick versions automatically; module counts not yet compared
+per symbol. Low priority.
