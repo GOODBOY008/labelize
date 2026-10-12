@@ -1,0 +1,39 @@
+# Dependabot version updates. Minor/patch bumps are grouped per ecosystem
+# to keep the PR stream manageable; major bumps stay as individual PRs.
+version: 2
+updates:
+  # Root Rust crate
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      cargo-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+  # wasm crate (separate Cargo.toml/Cargo.lock)
+  - package-ecosystem: cargo
+    directory: "/wasm"
+    schedule:
+      interval: weekly
+    groups:
+      wasm-cargo-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+  # Base images in the root Dockerfile (rust, debian)
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
