@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Generate checksums
@@ -179,7 +179,7 @@ jobs:
     # Only update the tap for stable releases (vX.Y.Z).
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Compute SHA256 sums
