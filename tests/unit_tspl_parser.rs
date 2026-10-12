@@ -428,6 +428,68 @@ PRINT 1
 }
 
 #[test]
+fn barcode_itf14_maps_to_2of5_with_check_digit() {
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+BARCODE 10,10,"ITF14",80,1,0,2,3,"12345678901231"
+PRINT 1
+"#,
+    );
+    match &labels[0].elements[0] {
+        LabelElement::Barcode2of5(bc) => {
+            assert!(
+                bc.barcode.check_digit,
+                "ITF14 always carries the check digit"
+            );
+            assert_eq!(bc.data, "12345678901231");
+        }
+        other => panic!("expected Barcode2of5, got {other:?}"),
+    }
+}
+
+#[test]
+fn dmatrix_maps_options_and_raw_content() {
+    // Option shape from a real-world TSC capture (FeederCable):
+    // DMATRIX 187,415,187,415,x8,r180,14,14,"P203S730"
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+DMATRIX 187,415,187,415,x8,r180,14,14,"P203S730"
+PRINT 1
+"#,
+    );
+    match &labels[0].elements[0] {
+        LabelElement::BarcodeDatamatrix(bc) => {
+            assert_eq!(bc.barcode.quality, 200);
+            assert_eq!(bc.barcode.rows, 14);
+            assert_eq!(bc.barcode.columns, 14);
+            assert_eq!(
+                bc.barcode.orientation,
+                labelize::elements::field_orientation::FieldOrientation::Rotated180
+            );
+            assert_eq!(bc.data, "P203S730");
+        }
+        other => panic!("expected BarcodeDatamatrix, got {other:?}"),
+    }
+}
+
+#[test]
+fn comment_lines_and_template_placeholders_pass_through() {
+    // Real captures carry `;` comment lines and ${placeholder} template
+    // text; both must parse without error.
+    let labels = parse(
+        br#"; a comment line
+SIZE 40,57
+CLS
+TEXT 17,11,"3",20,1,1,"${drawing}"
+PRINT 1
+"#,
+    );
+    assert_eq!(labels.len(), 1);
+}
+
+#[test]
 fn empty_text_field_is_skipped() {
     let labels = parse(
         br#"SIZE 4,2

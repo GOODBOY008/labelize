@@ -17,6 +17,7 @@ use crate::elements::barcode_pdf417::BarcodePdf417WithData;
 use crate::elements::barcode_qr::BarcodeQrWithData;
 use crate::elements::barcode_upca::BarcodeUcaWithData;
 use crate::elements::barcode_upce::BarcodeUcpeWithData;
+use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_block::FieldBlock;
 use crate::elements::field_info::FieldInfo;
 use crate::elements::font::FontInfo;
@@ -77,6 +78,7 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 barcode: bc.clone(),
                 width: field.width,
                 position: field.position.clone(),
+                line_alignment: FieldAlignment::Center,
                 data: text.clone(),
             })))
         }
@@ -114,6 +116,7 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 width: field.width,
                 width_ratio: field.width_ratio,
                 position: field.position.clone(),
+                line_alignment: FieldAlignment::Center,
                 data: text.clone(),
             })))
         }
@@ -124,6 +127,7 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 width: field.width,
                 width_ratio: field.width_ratio,
                 position: field.position.clone(),
+                line_alignment: FieldAlignment::Center,
                 data: text.clone(),
             })))
         }

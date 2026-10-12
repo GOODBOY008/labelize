@@ -12,6 +12,7 @@ use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
 use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
+use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::font_face::FontFace;
@@ -333,6 +334,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     width: narrow_bar,
                     width_ratio,
                     position: pos,
+                    line_alignment: FieldAlignment::Center,
                     data: data.to_string(),
                 }),
                 "0" | "1" | "1A" | "1B" | "1C" | "1E" => {
@@ -355,6 +357,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         },
                         width: narrow_bar,
                         position: pos,
+                        line_alignment: FieldAlignment::Center,
                         data: data.to_string(),
                     })
                 }
@@ -370,6 +373,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     width: narrow_bar,
                     width_ratio,
                     position: pos,
+                    line_alignment: FieldAlignment::Center,
                     data: data.to_string(),
                 }),
                 "E30" => LabelElement::BarcodeEan13(BarcodeEan13WithData {

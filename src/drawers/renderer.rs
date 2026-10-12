@@ -946,6 +946,7 @@ impl Renderer {
                 bc.barcode.line_above,
                 bc.width,
                 bc.barcode.mode == BarcodeMode::Ean,
+                bc.line_alignment,
             );
         }
         Ok(())
@@ -1151,6 +1152,7 @@ impl Renderer {
                 bc.barcode.line_above,
                 bc.width,
                 false,
+                bc.line_alignment,
             );
         }
         Ok(())
@@ -1176,6 +1178,7 @@ impl Renderer {
                 bc.barcode.line_above,
                 bc.width,
                 false,
+                bc.line_alignment,
             );
         }
         Ok(())
@@ -2348,6 +2351,7 @@ fn draw_barcode_interpretation_line(
     line_above: bool,
     module_width: i32,
     ucc_ean_font: bool,
+    line_alignment: crate::elements::field_alignment::FieldAlignment,
 ) {
     // Code 128 mode D (UCC/EAN) uses a larger condensed bold interpretation font,
     // matching Labelary. Reference probe (code128_mode_d_fnc1 at module 2):
@@ -2445,7 +2449,15 @@ fn draw_barcode_interpretation_line(
 
     match orientation {
         FieldOrientation::Normal => {
-            let cx = pos.x + (bw - text_width as i32) / 2;
+            // Interpretation lines center on the barcode by default (the
+            // ZPL/Labelary calibration); languages with an explicit
+            // alignment parameter (TSPL BARCODE) select left/right.
+            use crate::elements::field_alignment::FieldAlignment as FA;
+            let cx = match line_alignment {
+                FA::Left => pos.x,
+                FA::Right => pos.x + bw - text_width as i32,
+                _ => pos.x + (bw - text_width as i32) / 2,
+            };
             let ty = if line_above {
                 // ink bottom (4 + 0.706 em of parens/digits) must sit ~2px above
                 // the barcode top, mirroring the 4px gap of the below case

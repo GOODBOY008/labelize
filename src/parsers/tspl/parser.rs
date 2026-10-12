@@ -11,7 +11,11 @@
 //! questions listed in the PR description; unknown or ambiguous syntax
 /// errors out instead of silently misrendering.
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
+use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
+use crate::elements::barcode_datamatrix::{
+    BarcodeDatamatrix, BarcodeDatamatrixWithData, DatamatrixRatio,
+};
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
@@ -115,7 +119,8 @@ impl TsplParser {
             "BARCODE" => parse_barcode(line, state),
             "QRCODE" => parse_qrcode(line, state),
             "PDF417" => parse_pdf417(line, state),
-            "MPDF417" | "PUTPCX" | "PUTBMP" | "DMATRIX" | "AZTEC" => {
+            "DMATRIX" => parse_dmatrix(line, state),
+            "MPDF417" | "PUTPCX" | "PUTBMP" | "AZTEC" => {
                 Err(format!("unsupported TSPL command {}", name))
             }
             _ if is_device_noop(&name) => Ok(()),
@@ -701,6 +706,13 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
     let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
     let human_readable = parse_i32_arg(&args[4]).unwrap_or(0);
     let line = human_readable > 0;
+    // TSC BARCODE parameter 5: 1 = left, 2 = center, 3 = right (anything
+    // else centers, matching the reference renderer's default).
+    let line_alignment = match human_readable {
+        1 => FieldAlignment::Left,
+        3 => FieldAlignment::Right,
+        _ => FieldAlignment::Center,
+    };
     let orientation = tspl_rotation(&args[5]);
     let narrow = parse_i32_arg(&args[6]).unwrap_or(1).max(1);
     let wide = parse_i32_arg(&args[7]).unwrap_or(narrow).max(narrow);
@@ -722,6 +734,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             },
             width: narrow,
             position,
+            line_alignment,
             data,
         }),
         "EAN128" | "EAN128M" => LabelElement::Barcode128(Barcode128WithData {
@@ -736,6 +749,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             },
             width: narrow,
             position,
+            line_alignment,
             data,
         }),
         "39" | "39C" => LabelElement::Barcode39(Barcode39WithData {
@@ -750,6 +764,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             width: narrow,
             width_ratio,
             position,
+            line_alignment,
             data,
         }),
         "EAN13" => LabelElement::BarcodeEan13(BarcodeEan13WithData {
@@ -764,10 +779,106 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             position,
             data,
         }),
+        // ITF14 is Interleaved 2of5 carrying 14 digits including the check
+        // digit; drawn as plain I2of5 with a mandatory check digit (the
+        // TSC guard bars are not modeled).
+        "ITF14" => LabelElement::Barcode2of5(Barcode2of5WithData {
+            reverse_print: ReversePrint::default(),
+            barcode: Barcode2of5 {
+                orientation,
+                height,
+                line,
+                line_above: false,
+                check_digit: true,
+            },
+            width: narrow,
+            width_ratio,
+            position,
+            line_alignment,
+            data,
+        }),
         _ => return Err(format!("unsupported TSPL barcode type {}", code_type)),
     };
 
     state.elements.push(element);
+    Ok(())
+}
+
+/// `DMATRIX x,y,width,height[,options…,]"content"` — options are
+/// letter-prefixed tokens (`x8` cell size, `r180` rotation) and bare numeric
+/// tokens forming a symbol size pair (rows, columns). Unknown options are
+/// ignored rather than guessed; the content is passed through raw.
+fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
+    let args = command_args(line, "DMATRIX");
+    if args.len() < 5 {
+        return Err(format!(
+            "TSPL DMATRIX command requires at least 5 parameters, got {}",
+            args.len()
+        ));
+    }
+    let x = parse_i32_arg(&args[0]).unwrap_or(0);
+    let y = parse_i32_arg(&args[1]).unwrap_or(0);
+    let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
+    let content = args.last().cloned().unwrap_or_default();
+    if content.is_empty() {
+        return Ok(());
+    }
+
+    let mut orientation = FieldOrientation::Normal;
+    let mut rows = 0i32;
+    let mut columns = 0i32;
+    let mut size_pair: Vec<i32> = Vec::new();
+    for option in &args[4..args.len() - 1] {
+        let token = option.trim();
+        let Some(first) = token.chars().next() else {
+            continue;
+        };
+        match first {
+            'r' | 'R' => {
+                if let Ok(deg) = token[1..].parse::<i32>() {
+                    orientation = match deg {
+                        90 => FieldOrientation::Rotated90,
+                        180 => FieldOrientation::Rotated180,
+                        270 => FieldOrientation::Rotated270,
+                        _ => FieldOrientation::Normal,
+                    };
+                }
+            }
+            'x' | 'X' => {}
+            digit if digit.is_ascii_digit() => {
+                if let Ok(n) = token.parse::<i32>() {
+                    size_pair.push(n);
+                }
+            }
+            _ => {}
+        }
+    }
+    if size_pair.len() >= 2 {
+        // TSC samples list the square symbol size once per axis; treat the
+        // pair as (columns, rows) — identical for the square sizes used in
+        // the wild.
+        columns = size_pair[0];
+        rows = size_pair[1];
+    }
+
+    state
+        .elements
+        .push(LabelElement::BarcodeDatamatrix(BarcodeDatamatrixWithData {
+            reverse_print: ReversePrint::default(),
+            barcode: BarcodeDatamatrix {
+                orientation,
+                height,
+                quality: 200,
+                columns,
+                rows,
+                format: 6,
+                escape: 0,
+                ratio: Some(DatamatrixRatio::Square),
+            },
+            position: state.position(x, y),
+            data: content,
+            data_bytes: None,
+        }));
     Ok(())
 }
 
