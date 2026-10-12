@@ -57,7 +57,7 @@ jobs:
           Push-Location target/${{ matrix.target }}/release
           Compress-Archive -Path ${{ matrix.binary }} -DestinationPath ../../../${{ matrix.artifact }}
           Pop-Location
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
@@ -91,7 +91,7 @@ jobs:
           cd /tmp/wasm-bundle
           zip -r labelize-wasm-wasm32.zip .
           mv labelize-wasm-wasm32.zip "$GITHUB_WORKSPACE/"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: labelize-wasm-wasm32.zip
           path: labelize-wasm-wasm32.zip
@@ -125,7 +125,7 @@ jobs:
           cd /tmp/aar-bundle
           zip -r labelize-android-aar.zip .
           mv labelize-android-aar.zip "$GITHUB_WORKSPACE/"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: labelize-android-aar.zip
           path: labelize-android-aar.zip
