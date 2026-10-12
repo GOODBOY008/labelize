@@ -90,7 +90,24 @@ impl Renderer {
 
         let mut reverse_buf: Option<RgbaImage> = None;
 
+        // Print-time region inversions (e.g. TSPL REVERSE): collected here,
+        // skipped as drawable, and inverted over the finished label before
+        // any whole-label transformation.
+        let invert_regions: Vec<_> = label
+            .elements
+            .iter()
+            .filter_map(|e| match e {
+                LabelElement::InvertRegion(r) => {
+                    Some((r.position.x, r.position.y, r.width, r.height))
+                }
+                _ => None,
+            })
+            .collect();
+
         for element in &label.elements {
+            if matches!(element, LabelElement::InvertRegion(_)) {
+                continue;
+            }
             let reverse_print = element.is_reverse_print();
 
             if reverse_print {
@@ -109,6 +126,21 @@ impl Renderer {
                 images::reverse_print::reverse_print(buf, &mut canvas);
             } else {
                 self.draw_element(&mut canvas, element, &options, &mut state)?;
+            }
+        }
+
+        // Apply print-time region inversions in label coordinate space,
+        // before print-width centering / whole-label inversion / mirroring.
+        for (x, y, w, h) in invert_regions {
+            let (x0, y0) = (x.max(0) as u32, y.max(0) as u32);
+            let (x1, y1) = ((x + w).max(0) as u32, (y + h).max(0) as u32);
+            let (x1, y1) = (x1.min(canvas.width()), y1.min(canvas.height()));
+            for py in y0..y1 {
+                for px in x0..x1 {
+                    let p = canvas.get_pixel(px, py);
+                    let inverted = 255u8 - p[0];
+                    canvas.put_pixel(px, py, Rgba([inverted, inverted, inverted, p[3]]));
+                }
             }
         }
 

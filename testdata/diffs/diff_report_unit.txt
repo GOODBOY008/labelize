@@ -88,7 +88,7 @@
 ║ tspl_graphics                  │ tspl │    0.00% │       608x400 │       608x400 │ PERFECT      ║
 ║ tspl_graphics_doc_style        │ tspl │    0.00% │       608x400 │       608x400 │ PERFECT      ║
 ║ tspl_real_drybox               │ tspl │    6.75% │      800x1200 │      800x1200 │ MODERATE(<15%) ║
-║ tspl_real_probe_full           │ tspl │   10.90% │      800x1200 │      800x1200 │ MODERATE(<15%) ║
+║ tspl_real_probe_full           │ tspl │   10.88% │      800x1200 │      800x1200 │ MODERATE(<15%) ║
 ║ tspl_real_probe_text           │ tspl │    0.54% │      800x1200 │      800x1200 │ GOOD(<1%)    ║
 ║ tspl_real_sklad                │ tspl │    7.29% │       320x456 │       320x456 │ MODERATE(<15%) ║
 ║ tspl_real_te210                │ tspl │    7.12% │       800x576 │       800x576 │ MODERATE(<15%) ║

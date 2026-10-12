@@ -490,6 +490,27 @@ PRINT 1
 }
 
 #[test]
+fn reverse_maps_to_print_time_region_inversion() {
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+REVERSE 330,300,300,76
+TEXT 350,326,"2",0,1,1,"6  REVERSE"
+PRINT 1
+"#,
+    );
+    match &labels[0].elements[0] {
+        LabelElement::InvertRegion(r) => {
+            assert_eq!(
+                (r.position.x, r.position.y, r.width, r.height),
+                (330, 300, 300, 76)
+            );
+        }
+        other => panic!("expected InvertRegion, got {other:?}"),
+    }
+}
+
+#[test]
 fn empty_text_field_is_skipped() {
     let labels = parse(
         br#"SIZE 4,2
