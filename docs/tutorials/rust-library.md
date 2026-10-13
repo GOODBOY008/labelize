@@ -39,7 +39,16 @@ renderer
 std::fs::write("output.png", buf.into_inner()).unwrap();
 ```
 
-EPL is identical with `EplParser::new()`.
+EPL is identical with `EplParser::new()`. TSPL/TSC input works the same way with
+`TsplParser`, or through the language-neutral front door `labelize::parse_labels`
+which also sniffs the language when you do not know it:
+
+```rust
+use labelize::{detect_language, parse_labels, Language};
+
+let language = detect_language(input_bytes);           // or Language::Tspl
+let labels = parse_labels(language, input_bytes, 8)?;
+```
 
 ## 3. Control the canvas with `DrawerOptions`
 

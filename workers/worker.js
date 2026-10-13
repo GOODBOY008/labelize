@@ -6,7 +6,7 @@
 // manually. Workerd gives us the .wasm as bytes via esbuild's binary loader.
 import {
   __wbg_set_wasm,
-  lz_render,
+  lz_render_lang,
   lz_playground_html,
   __wbindgen_init_externref_table,
   __wbindgen_generic_0000000000000001,
@@ -67,7 +67,9 @@ async function convert(request, url) {
   const dpmm = parseInt(url.searchParams.get("dpmm"), 10) || 8;
   const antialias = url.searchParams.get("antialias") === "true";
   const wantPdf = url.searchParams.get("output") === "pdf";
-  const isEpl = ct.includes("epl");
+  // Content-Type names the language (zpl/epl/tspl); anything else falls
+  // through to ZPL, matching lz_render_lang's unknown-value fallback.
+  const lang = ct.includes("epl") ? "epl" : ct.includes("tspl") ? "tspl" : "zpl";
 
   const body = new Uint8Array(await request.arrayBuffer());
   if (body.length === 0) {
@@ -75,7 +77,7 @@ async function convert(request, url) {
   }
 
   try {
-    const png = lz_render(body, width, height, dpmm, antialias, wantPdf, isEpl);
+    const png = lz_render_lang(body, width, height, dpmm, antialias, wantPdf, lang);
     return new Response(png, {
       headers: { "content-type": wantPdf ? "application/pdf" : "image/png" },
     });

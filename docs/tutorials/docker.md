@@ -30,7 +30,7 @@ curl http://localhost:8080/health
 ```
 
 Open <http://localhost:8080/> in a browser for the interactive playground —
-paste ZPL/EPL, pick a label size, download PNG or PDF.
+paste ZPL/EPL/TSPL, pick a label size, download PNG or PDF.
 
 ## 3. Convert a label
 
@@ -41,8 +41,9 @@ curl -X POST http://localhost:8080/convert \
   -o label.png
 ```
 
-The `Content-Type` header selects the parser (`application/zpl` or
-`application/epl`). Query parameters (`width`, `height`, `dpmm`, `output`,
+The `Content-Type` header selects the parser (`application/zpl`,
+`application/epl`, or `application/tspl`; without one, the body is sniffed).
+Query parameters (`width`, `height`, `dpmm`, `output`,
 `antialias`) are the same as the native service — see the
 [HTTP service tutorial](http-service.md#convert-endpoint) for the full table.
 

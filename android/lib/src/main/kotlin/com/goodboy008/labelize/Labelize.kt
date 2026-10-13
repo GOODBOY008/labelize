@@ -1,7 +1,7 @@
 package com.goodboy008.labelize
 
 /**
- * Kotlin API over the labelize rendering engine (ZPL/EPL → PNG/PDF).
+ * Kotlin API over the labelize rendering engine (ZPL/EPL/TSPL → PNG/PDF).
  *
  * The native library is loaded once per process; all entry points are safe to
  * call from any thread. Failures surface as [LabelizeException] with a [stage]
@@ -39,6 +39,20 @@ object Labelize {
         epl: Boolean,
     ): ByteArray
 
+    /**
+     * Language-explicit entry point: [lang] is `"zpl"`, `"epl"` or `"tspl"`.
+     * Unknown values fall back to ZPL, matching the CLI's sniff fallback.
+     */
+    external fun renderLang(
+        src: ByteArray,
+        widthMm: Double,
+        heightMm: Double,
+        dpmm: Int,
+        antialias: Boolean,
+        pdf: Boolean,
+        lang: String,
+    ): ByteArray
+
     /** Engine version string, e.g. `labelize-android 0.1.0`. */
     external fun version(): String
 
@@ -68,6 +82,25 @@ object Labelize {
         dpmm: Int = 8,
         antialias: Boolean = false,
     ): ByteArray = render(zpl, widthMm, heightMm, dpmm, antialias, pdf = true, epl = false)
+
+    /** Render TSPL/TSC label data to a PNG image. The label's `SIZE` command
+     * does not override [widthMm]/[heightMm] — size the canvas like any other input. */
+    fun renderTsplToPng(
+        tspl: ByteArray,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
+        dpmm: Int = 8,
+        antialias: Boolean = false,
+    ): ByteArray = renderLang(tspl, widthMm, heightMm, dpmm, antialias, pdf = false, lang = "tspl")
+
+    /** Render TSPL/TSC label data to a one-page PDF. */
+    fun renderTsplToPdf(
+        tspl: ByteArray,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
+        dpmm: Int = 8,
+        antialias: Boolean = false,
+    ): ByteArray = renderLang(tspl, widthMm, heightMm, dpmm, antialias, pdf = true, lang = "tspl")
 
     /** Render EPL label data to a one-page PDF. */
     fun renderEplToPdf(

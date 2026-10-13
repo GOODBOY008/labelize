@@ -4,7 +4,7 @@
 
 # Labelize
 
-**Parse and render ZPL / EPL labels to PNG & PDF — fast, offline, open source.**
+**Parse and render ZPL / EPL / TSPL labels to PNG & PDF — fast, offline, open source.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/ci.yml?branch=main&label=CI)](https://github.com/GOODBOY008/labelize/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
@@ -20,7 +20,7 @@
 
 ---
 
-Labelize is a Rust engine that parses **ZPL** (Zebra Programming Language) and **EPL** (Eltron Programming Language) label data and renders it to **PNG** or **PDF** — no printer hardware required. The same engine ships as a **CLI tool**, an **HTTP microservice**, a **WebAssembly package**, an **Android library**, and a plain **Rust crate**, producing identical output on every surface.
+Labelize is a Rust engine that parses **ZPL** (Zebra Programming Language), **EPL** (Eltron Programming Language), and **TSPL/TSC** label data and renders it to **PNG** or **PDF** — no printer hardware required. The same engine ships as a **CLI tool**, an **HTTP microservice**, a **WebAssembly package**, an **Android library**, and a plain **Rust crate**, producing identical output on every surface.
 
 A free public playground is hosted on Cloudflare Workers at **<https://labelize.764629910.workers.dev>** — paste a label, see it render, download PNG or PDF. No install, no signup, no data leaving the browser tab beyond the render call.
 
@@ -33,7 +33,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 | Offline / self-hosted | ✅ | ❌ | ✅ |
 | No hardware needed | ✅ | ✅ | ❌ |
 | Open source | ✅ | ❌ | ❌ |
-| EPL support | ✅ | ❌ | ✅ |
+| EPL + TSPL support | ✅ | ❌ | ✅ (EPL) |
 | PDF output | ✅ | ❌ | ❌ |
 | Embeddable library | ✅ | ❌ | ❌ |
 | REST API | ✅ | ✅ | ❌ |
@@ -118,7 +118,16 @@ const zpl = Buffer.from("^XA^FO50,50^A0N,40,40^FDHello World^FS^XZ", "ascii");
 const png = lz_render(zpl, 102.0, 152.0, 8, false, false, false); // Uint8Array
 ```
 
-Bundlers (webpack 5, Vite + `vite-plugin-wasm`) import from the package root instead. Full API in the [JavaScript tutorial](docs/tutorials/javascript-wasm.md).
+Bundlers (webpack 5, Vite + `vite-plugin-wasm`) import from the package root instead. For TSPL/TSC input, use the language-explicit variant:
+
+```js
+import { lz_render_lang } from "@goodboy008/labelize-wasm/init";
+
+const tspl = Buffer.from('SIZE 101.6 mm,152.4 mm\nCLS\nTEXT 40,40,"4",0,1,1,"Hello World"\nPRINT 1', "ascii");
+const png = lz_render_lang(tspl, 101.6, 152.4, 8, false, false, "tspl");
+```
+
+Full API in the [JavaScript tutorial](docs/tutorials/javascript-wasm.md).
 
 ### Android
 
@@ -166,7 +175,7 @@ A complete runnable example lives at [`examples/render_label.rs`](examples/rende
 Every Labelize server serves an interactive UI at `GET /` — the same page running
 at the public instance:
 
-- Paste ZPL/EPL or open a `.zpl` / `.epl` file, pick a label size (4×6, 4×4, …)
+- Paste ZPL/EPL/TSPL or open a `.zpl` / `.epl` / `.tspl` file, pick a label size (4×6, 4×4, …)
 - **Live preview** with debounced auto-render, zoom fit / percent, dark & light themes, English / 简体中文
 - One-click **PNG / PDF download**, copy-PNG to clipboard, `Ctrl+S`
 - **Compare with Labelary** (ZPL) — fetches the reference render and scores the diff on the same scale as CI
@@ -178,9 +187,11 @@ labelize serve --port 8080     # or: docker run -p 8080:8080 goodboy008/labelize
 
 ## 🖼️ Render Quality
 
-Labelize is calibrated against the Labelary reference renderer with per-label
-pixel-diff tolerance thresholds — 128 real-world carrier and synthetic labels
-are compared on every push. Left = Labelary reference, right = Labelize.
+Labelize is calibrated against reference renderers with per-label pixel-diff
+tolerance thresholds — 151 real-world carrier and synthetic labels are compared
+on every push. ZPL/EPL labels are calibrated against Labelary (left = reference,
+right = Labelize); TSPL labels against the labelixa renderer with real-world
+captures (see [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md)).
 
 | Label | Diff | Preview |
 |-------|------|---------|
@@ -189,7 +200,7 @@ are compared on every push. Left = Labelary reference, right = Labelize.
 | ups | 2.98% | <img src="testdata/diffs/ups.png" height="140"> |
 | fedex | 4.85% | <img src="testdata/diffs/fedex.png" height="140"> |
 
-**128 labels tested** — 8 perfect · 61 good (<1%) · 52 minor (<5%) · 7 moderate (<15%) · 0 high
+**151 labels tested** — 18 perfect · 63 good (<1%) · 62 minor (<5%) · 8 moderate (<15%) · 0 high
 
 All side-by-side images: [`testdata/diffs/`](testdata/diffs/) ·
 full reports: [labels](testdata/diffs/diff_report_labels.txt) · [unit](testdata/diffs/diff_report_unit.txt) ·
@@ -219,16 +230,16 @@ Reference docs: [Usage](docs/USAGE.md) · [ZPL command matrix](docs/ZPL_COMMANDS
 Usage: labelize <COMMAND>
 
 Commands:
-  convert  Convert a ZPL/EPL file to PNG or PDF
+  convert  Convert a ZPL/EPL/TSPL file to PNG or PDF
   serve    Start HTTP server for label conversion
 
 Convert Options:
-  <INPUT>               Input file path (.zpl or .epl)
+  <INPUT>               Input file path (.zpl, .epl, or .tspl)
   -o, --output <PATH>   Output file path (default: input stem + .png/.pdf)
-  -f, --format <FMT>    Input format override: zpl | epl
+  -f, --format <FMT>    Input format override: zpl | epl | tspl
   -t, --type <TYPE>     Output type: png | pdf [default: png]
-  --width <MM>          Label width in mm [default: 102]
-  --height <MM>         Label height in mm [default: 152]
+  --width <MM>          Label width in mm [default: 102; TSPL: from SIZE]
+  --height <MM>         Label height in mm [default: 152; TSPL: from SIZE]
   --dpmm <N>            Dots per mm: 6, 8, 12, or 24 [default: 8]
   --antialias           8-bit grayscale output (default: 1-bit)
 
@@ -248,7 +259,7 @@ Serve Options:
 | `/health` | GET  | Health check → `{"status":"ok"}` |
 | `/convert` | POST | Convert label data → PNG or PDF |
 
-**POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl`):
+**POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl` / `application/tspl`); without one, the body is sniffed:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -294,6 +305,18 @@ attribution. No independent overall validation is claimed.
 ### EPL
 
 `N` (new label) · `A` (text) · `B` (1D barcodes — Code 128, Code 39, EAN-13/8, UPC-A/E, 2-of-5, Codabar, …) · `b` (2D: QR, DataMatrix, Aztec, PDF417, MaxiCode) · `LO`/`LW` (black/white line) · `LS` (diagonal) · `X` (box) · `GW` (graphic write) · `R` (reference point) · `P` (print)
+
+### TSPL / TSC
+
+| Category | Commands |
+|----------|----------|
+| **Setup** | `SIZE` (mm/dot/inch — sets the label canvas) · `DIRECTION` · `REFERENCE` · `SHIFT` · `CLS` · `GAP`/`DENSITY`/`SPEED`/`OFFSET`/`CODEPAGE` (accepted, no render effect) |
+| **Text** | `TEXT` (resident fonts 1–5, xmul/ymul magnification) |
+| **Barcodes** | `BARCODE` (Code 128/128M/EAN128/EAN128M, Code 39/39C, EAN-13, ITF14) · `QRCODE` (ECC defaults to M) · `PDF417` (raw `L<len>`, incl. compound option tokens) · `DMATRIX` |
+| **Graphics** | `BAR` · `BOX` · `CIRCLE` · `ELLIPSE` · `ERASE` · `REVERSE` (print-time region inversion) · `BITMAP` (binary cursor; modes 0/1/2 = overwrite/OR/XOR) |
+| **Output** | `PRINT` |
+
+Unsupported TSPL commands (`MPDF417`, `PUTPCX`, `PUTBMP`, …) fail loudly with an explicit error rather than rendering wrong output. TSPL calibration baselines and open questions: [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md).
 
 </details>
 
@@ -344,11 +367,11 @@ tools/build/build-windows.sh   # → target/windows-release/labelize.exe (via Do
 - **Warehouse management** — batch-convert label templates to PDF for archival
 - **E-commerce integrations** — generate label PNGs on the fly from a microservice
 - **Automated QA** — validate label content in CI/CD with golden-file tests
-- **Label design tools** — add real-time ZPL preview with the library or wasm API
+- **Label design tools** — add real-time ZPL/TSPL preview with the library or wasm API
 
 ## 🤝 Contributing
 
-Contributions are welcome! Bug reports, new ZPL/EPL commands, rendering
+Contributions are welcome! Bug reports, new ZPL/EPL/TSPL commands, rendering
 improvements, and docs fixes all count — see [AGENTS.md](AGENTS.md) for the
 development workflow, then open an issue or submit a pull request.
 
@@ -358,4 +381,4 @@ development workflow, then open an issue or submit a pull request.
 
 ---
 
-<sub>Looking for a <b>ZPL renderer</b>, <b>ZPL to PNG converter</b>, <b>ZPL to PDF</b>, <b>EPL parser</b>, <b>Zebra label preview</b>, <b>thermal label rendering</b>, or a <b>Labelary alternative</b>? Labelize covers all of these.</sub>
+<sub>Looking for a <b>ZPL renderer</b>, <b>ZPL to PNG converter</b>, <b>ZPL to PDF</b>, <b>EPL parser</b>, <b>TSPL renderer</b>, <b>TSC label preview</b>, <b>Zebra label preview</b>, <b>thermal label rendering</b>, or a <b>Labelary alternative</b>? Labelize covers all of these.</sub>

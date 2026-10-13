@@ -2,9 +2,9 @@
 
 # @goodboy008/labelize-wasm
 
-The [Labelize](https://github.com/GOODBOY008/labelize) ZPL/EPL label engine compiled to WebAssembly.
-Parse and render ZPL/EPL label data to PNG (or PDF) entirely in the browser, Node.js, or your bundler —
-no server needed.
+The [Labelize](https://github.com/GOODBOY008/labelize) ZPL/EPL/TSPL label engine compiled to WebAssembly.
+Parse and render ZPL, EPL, or TSPL/TSC label data to PNG (or PDF) entirely in the browser, Node.js, or your
+bundler — no server needed.
 
 ## Usage
 
@@ -19,7 +19,7 @@ const png = lz_render(zpl, 102.0, 152.0, 8, false, false, false);
 ```
 
 The package is the standard wasm-bindgen bundler output: `labelize_wasm.js` initializes
-the engine at module top level and exports `lz_render` / `lz_playground_html`.
+the engine at module top level and exports `lz_render` / `lz_render_lang` / `lz_playground_html`.
 
 ### Node.js (≥ 20)
 
@@ -45,6 +45,18 @@ without bundler support or Node flags.
 | `antialias` | keep renderer greys instead of thresholding to 1-bit |
 | `want_pdf` | return a PDF instead of PNG |
 | `is_epl` | parse input as EPL instead of ZPL |
+
+`lz_render_lang(src, width_mm, height_mm, dpmm, antialias, want_pdf, lang) -> Uint8Array` is the
+language-explicit variant: `lang` is `"zpl"`, `"epl"`, or `"tspl"` (TSPL/TSC labels; the label's own
+`SIZE` in TSPL does not override the `width_mm`/`height_mm` you pass — size the canvas like any other
+input). Unknown `lang` values fall back to ZPL.
+
+```js
+import { lz_render_lang } from "@goodboy008/labelize-wasm/init";
+
+const tspl = Buffer.from('SIZE 101.6 mm,152.4 mm\nCLS\nTEXT 40,40,"4",0,1,1,"HELLO WORLD"\nPRINT 1', "ascii");
+const png = lz_render_lang(tspl, 101.6, 152.4, 8, false, false, "tspl");
+```
 
 Errors throw a string prefixed with the failure stage: `1:` parse error, `2:` rendering error.
 

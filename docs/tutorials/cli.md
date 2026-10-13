@@ -1,6 +1,6 @@
 # Tutorial: Command Line (macOS · Linux · Windows)
 
-Convert `.zpl` / `.epl` files to PNG or PDF from a shell. Format is
+Convert `.zpl` / `.epl` / `.tspl` files to PNG or PDF from a shell. Format is
 auto-detected from the file extension.
 
 ## 1. Install
@@ -45,6 +45,7 @@ different extension, force the format:
 
 ```bash
 labelize convert data.txt --format zpl
+labelize convert data.txt --format tspl   # TSPL/TSC input
 ```
 
 A file containing several labels (`^XA…^XZ` repeated, or several `P` commands

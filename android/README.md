@@ -1,6 +1,6 @@
 # labelize-android
 
-Android support for labelize: parse ZPL/EPL and render labels to PNG/PDF
+Android support for labelize: parse ZPL/EPL/TSPL and render labels to PNG/PDF
 inside any Android app. This directory contains two things:
 
 | Piece | What it is |
@@ -61,10 +61,11 @@ files directory — handy for `adb pull` byte-comparison against a desktop rende
 
 Kotlin (`com.goodboy008.labelize.Labelize`):
 
-- `render(src, widthMm, heightMm, dpmm, antialias, pdf, epl): ByteArray` — raw
+- `render(src, widthMm, heightMm, dpmm, antialias, pdf, epl): ByteArray` — raw (ZPL/EPL)
   entry point, same parameter order as the JS `lz_render` in
   `@goodboy008/labelize-wasm`
-- `renderZplToPng` / `renderEplToPng` / `renderZplToPdf` / `renderEplToPdf` —
+- `renderLang(src, widthMm, heightMm, dpmm, antialias, pdf, lang): ByteArray` — raw, language-explicit (`"zpl"` / `"epl"` / `"tspl"`, unknown falls back to ZPL)
+- `renderZplToPng` / `renderEplToPng` / `renderTsplToPng` / `renderZplToPdf` / `renderEplToPdf` / `renderTsplToPdf` —
   conveniences with sensible 4×6" @ 8 dpmm defaults
 - `version(): String` — engine/binding version for support diagnostics
 

@@ -54,9 +54,7 @@ fn pqrs_font_matrices() -> &'static HashMap<&'static str, [f64; 2]> {
     })
 }
 
-pub fn is_pv_font(name: &str) -> bool {
-    matches!(name, "P" | "Q" | "R" | "S" | "T" | "U" | "V")
-}
+pub use crate::elements::font::is_pv_font;
 
 pub fn is_standard_font(font: &FontInfo) -> bool {
     font.name == "0"
@@ -248,6 +246,25 @@ pub(crate) fn bitmap_advance_mult(name: &str) -> f64 {
 /// the corpus check that kept A/C/D/F/G keeping their dots).
 pub(crate) fn bitmap_zero_dedot(name: &str) -> bool {
     matches!(name, "E" | "H")
+}
+
+/// v1.7.x method forms of the font predicates above. The inherent impl
+/// lives here (methods may be defined anywhere in the defining crate) so
+/// `elements` stays free of parser references; method bodies are thin
+/// delegates and add nothing new — extend the free functions, not these.
+impl FontInfo {
+    pub fn is_standard_font(&self) -> bool {
+        is_standard_font(self)
+    }
+
+    /// Returns true for Zebra bitmap fonts (A-H, GS), false for the scalable font "0".
+    pub fn is_bitmap_font(&self) -> bool {
+        is_bitmap_font(self)
+    }
+
+    pub fn with_adjusted_sizes(&self) -> FontInfo {
+        with_adjusted_sizes(self)
+    }
 }
 
 #[cfg(test)]

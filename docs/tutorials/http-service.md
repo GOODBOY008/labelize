@@ -45,6 +45,7 @@ The parser is selected by the `Content-Type` header:
 | Content-Type | Parser |
 |--------------|--------|
 | `application/zpl` | ZPL |
+| `application/tspl` | TSPL/TSC |
 | `application/epl` | EPL |
 
 Query parameters:

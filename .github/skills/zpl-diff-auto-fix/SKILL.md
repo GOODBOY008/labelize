@@ -6,6 +6,13 @@ argument-hint: "Label name to fix (e.g. 'fedex', 'ups') or 'all' for batch mode"
 
 # ZPL Diff Auto-Fix Skill
 
+> **Other languages:** EPL uses renderer-baseline goldens (no external
+> reference renderer) — the analyze/fix phases still apply with
+> `parsers/epl/` as the fix surface. TSPL has its own sibling skill
+> [tspl-diff-auto-fix](../tspl-diff-auto-fix/SKILL.md) (labelixa/portakal
+> baselines, per-language guardrails); consult its Language Matrix before
+> cross-applying procedures.
+
 ## Purpose
 
 Automatically detect labels with high rendering diff percentages, isolate the problematic ZPL elements into standalone test files for focused debugging, and iteratively fix the rendering logic until the diff drops below a target threshold (default 1%).
