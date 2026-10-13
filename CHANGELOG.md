@@ -28,7 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renderer no longer matches on ZPL font designator strings; Zebra font
   metrics live exclusively in `parsers/zpl/zebra_fonts.rs`. `FontInfo`
   itself no longer carries the Zebra size-derivation methods
-  (`with_adjusted_sizes` etc. moved parser-side). *(semver-strict: breaking
+  (`with_adjusted_sizes` etc. moved parser-side — the v1.7.x inherent-method
+  forms are kept as compat delegates on `FontInfo`, so existing calls
+  compile unchanged). *(semver-strict: breaking
   for consumers constructing `FontInfo` directly; shipping in the next
   minor per project convention.)*
 - **QR elements carry raw payloads** — `BarcodeQrWithData.data` is now the
@@ -36,8 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ECC level; `get_input_data()` (which parsed ZPL ^FD format prefixes like
   `QA,`/`QM,B<len>` at render time) was removed from the shared element and
   the ZPL ^FD parsing moved to `parsers/zpl/qr_payload.rs`. EPL no longer
-  synthesizes ZPL-style QR payloads. *(semver-strict: breaking for consumers
-  reading `data` as a ^FD-formatted string; shipping in the next minor.)*
+  synthesizes ZPL-style QR payloads. `get_input_data()` remains as a
+  `#[deprecated]` shim reporting the parser-resolved fields. *(semver-strict:
+  breaking for consumers reading `data` as a ^FD-formatted string; shipping
+  in the next minor.)*
 - **Neutral DataMatrix entry-point names** —
   `barcodes::datamatrix::render_zpl_field` → `render_field`,
   `barcodes::datamatrix_legacy::zpl_symbol_size` → `legacy_symbol_size`.
@@ -104,6 +108,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   corpus goldens (TSC TE210 hardware capture, filament-db probes/drybox, RU
   warehouse template) with labelixa references and honest tolerances
   (0.54%–10.88%).
+
+### Added
+
+- **v1.7.x public-API compatibility shims** — every removed public item from
+  the reorganization is importable again: `elements::measurement_unit`
+  (canonical neutral definition; `parsers::zpl::measurement_unit` re-exports
+  it), `elements::font::is_pv_font`, the `FontInfo` inherent methods
+  (`is_standard_font` / `is_bitmap_font` / `with_adjusted_sizes`, thin
+  delegates written in `parsers/zpl/zebra_fonts.rs` so `elements` stays
+  parser-free), `RecalledFormat::resolve_elements`, and a deprecated
+  `BarcodeQrWithData::get_input_data` reporting the parser-resolved fields.
+  `cargo semver-checks` against v1.7.1: all removal-type lints cleared.
+- **TSPL on every user-facing surface** — playground language selector with
+  a built-in TSPL showcase sample (en/zh i18n, `.tspl` file input, TSPL
+  Content-Type), npm `lz_render_lang` documented in `init.d.ts`/READMEs,
+  Android `renderLang` JNI entry plus `renderTsplToPng`/`renderTsplToPdf`
+  Kotlin wrappers (with a TSPL render test), README/Cargo.toml
+  description+keywords/tutorials/USAGE TSPL coverage, Cloudflare Worker
+  `application/tspl` dispatch.
+
+### Migration notes (1.7.x → next)
+
+All removals/renames are covered by the compatibility shims above; the
+remaining upgrade frictions are additive one-liners:
+
+- Exhaustive `match` on `FieldAlignment` gains a `Center` arm; on
+  `LabelElement` an `InvertRegion` arm (TSPL features).
+- Struct literals gain fields: `BarcodeQr { orientation }`,
+  `BarcodeQrWithData { error_correction }`, `GraphicField { mode,
+  zero_bits_black }`, `Barcode{128,39,2of5}WithData { line_alignment }`,
+  `FontInfo { face, advance_mult, dedot_zero }`, `LabelInfo {
+  label_width_mm, label_height_mm }`.
+- JS/wasm consumers are unaffected (`lz_render` signature unchanged;
+  `lz_render_lang` is a pure addition).
 
 ## [1.7.1] - 2026-10-11
 

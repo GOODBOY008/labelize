@@ -483,13 +483,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     </svg>
     <span class="logo-text">Labelize</span>
   </div>
-  <span class="tagline" data-i18n="app.tagline">ZPL &amp; EPL Label Playground</span>
+  <span class="tagline" data-i18n="app.tagline">ZPL, EPL &amp; TSPL Label Playground</span>
   <span class="header-spacer"></span>
   <select id="samples" class="hdr-select" aria-label="Samples" data-i18n-aria="hdr.samples">
     <option value="" selected disabled data-i18n="hdr.samples">Samples</option>
     <option value="shipping" data-i18n="sample.shipping">Shipping label</option>
     <option value="barcodes" data-i18n="sample.barcodes">Barcodes &amp; 2D</option>
     <option value="graphics" data-i18n="sample.graphics">Shapes &amp; graphics</option>
+    <option value="tspl" data-i18n="sample.tspl">TSPL showcase</option>
   </select>
   <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
     <option value="en">English</option>
@@ -555,6 +556,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
         <select id="fmt">
           <option value="zpl" selected>ZPL</option>
           <option value="epl">EPL</option>
+          <option value="tspl">TSPL</option>
         </select>
       </div>
 
@@ -590,7 +592,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
         </select>
       </div>
 
-      <input id="file-input" type="file" accept=".zpl,.epl">
+      <input id="file-input" type="file" accept=".zpl,.epl,.tspl">
       <button id="open-file-btn" class="ghost-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -741,11 +743,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var I18N = {
     en: {
       "app.title": "Labelize Playground",
-      "app.tagline": "ZPL & EPL Label Playground",
+      "app.tagline": "ZPL, EPL & TSPL Label Playground",
       "hdr.samples": "Samples",
       "hdr.lang": "Language",
       "hdr.theme": "Toggle theme",
-      "panel.code": "ZPL / EPL Code",
+      "panel.code": "ZPL / EPL / TSPL Code",
       "panel.preview": "Preview",
       "field.format": "Format",
       "field.size": "Size",
@@ -760,6 +762,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.shipping": "Shipping label",
       "sample.barcodes": "Barcodes & 2D",
       "sample.graphics": "Shapes & graphics",
+      "sample.tspl": "TSPL showcase",
       "btn.open": "Open File",
       "btn.compare": "Compare with Labelary",
       "btn.render": "Render",
@@ -779,7 +782,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "status.comparing": "Comparing…",
       "status.diff": "Diff {pct}%",
       "tip.compare": "Fetch the Labelary reference image and estimate the visual diff",
-      "tip.compareEpl": "Labelary does not support EPL — ZPL only",
+      "tip.compareEpl": "Labelary does not support EPL or TSPL — ZPL only",
       "tip.auto": "Re-render automatically as you type",
       "tip.aa": "Emit 8-bit grayscale output instead of 1-bit black/white",
       "tip.share": "Copy a permalink to this label",
@@ -792,10 +795,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "toast.urlCopied": "Share link copied to clipboard",
       "toast.imgCopied": "PNG copied to clipboard",
       "toast.copyFail": "Copy failed: {msg}",
-      "err.empty": "Editor is empty — paste some ZPL or EPL first.",
+      "err.empty": "Editor is empty — paste some ZPL, EPL or TSPL first.",
       "err.server": "Server error {status}: {body}",
       "err.network": "Network error: {msg}",
       "err.epl": "Labelary does not support EPL — switch to ZPL to compare.",
+      "err.tspl": "Labelary does not support TSPL — switch to ZPL to compare.",
       "err.canvas": "Canvas too large ({w}×{h} px) for comparison — lower the dpmm or label size.",
       "err.compare": "Compare failed: {msg}",
       "err.pdf": "PDF error {status}: {body}",
@@ -816,11 +820,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     },
     zh: {
       "app.title": "Labelize 在线预览",
-      "app.tagline": "ZPL 与 EPL 标签在线预览",
+      "app.tagline": "ZPL、EPL 与 TSPL 标签在线预览",
       "hdr.samples": "示例",
       "hdr.lang": "语言",
       "hdr.theme": "切换主题",
-      "panel.code": "ZPL / EPL 代码",
+      "panel.code": "ZPL / EPL / TSPL 代码",
       "panel.preview": "预览",
       "field.format": "格式",
       "field.size": "尺寸",
@@ -835,6 +839,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.shipping": "物流标签",
       "sample.barcodes": "条码与二维码",
       "sample.graphics": "图形与绘图",
+      "sample.tspl": "TSPL 示例",
       "btn.open": "打开文件",
       "btn.compare": "与 Labelary 对比",
       "btn.render": "渲染",
@@ -854,7 +859,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "status.comparing": "对比中…",
       "status.diff": "差异 {pct}%",
       "tip.compare": "获取 Labelary 参考渲染图并估算视觉差异",
-      "tip.compareEpl": "Labelary 不支持 EPL — 仅限 ZPL",
+      "tip.compareEpl": "Labelary 不支持 EPL/TSPL — 仅限 ZPL",
       "tip.auto": "输入时自动重新渲染",
       "tip.aa": "输出 8 位灰度（替代 1 位黑白）",
       "tip.share": "复制此标签的分享链接",
@@ -867,10 +872,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "toast.urlCopied": "分享链接已复制到剪贴板",
       "toast.imgCopied": "PNG 已复制到剪贴板",
       "toast.copyFail": "复制失败：{msg}",
-      "err.empty": "编辑器为空 — 请先粘贴 ZPL 或 EPL 代码。",
+      "err.empty": "编辑器为空 — 请先粘贴 ZPL、EPL 或 TSPL 代码。",
       "err.server": "服务器错误 {status}：{body}",
       "err.network": "网络错误：{msg}",
       "err.epl": "Labelary 不支持 EPL — 请切换到 ZPL 后再对比。",
+      "err.tspl": "Labelary 不支持 TSPL — 请切换到 ZPL 后再对比。",
       "err.canvas": "画布过大（{w}×{h} px），无法对比 — 请降低 dpmm 或缩小标签尺寸。",
       "err.compare": "对比失败：{msg}",
       "err.pdf": "PDF 错误 {status}：{body}",
@@ -976,8 +982,29 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "^FO60,547^FR^GB700,6,3^FS\n" +
       "^CF0,24\n" +
       "^FO50,600^FDBorders, filled shapes, reverse fields^FS\n" +
-      "^XZ"
+      "^XZ",
+    tspl: "SIZE 101.6 mm,152.4 mm\n" +
+      "GAP 3 mm,0 mm\n" +
+      "DIRECTION 1\n" +
+      "CLS\n" +
+      "BOX 16,16,780,180,4\n" +
+      "TEXT 40,40,\"5\",0,1,1,\"TSPL / TSC SHOWCASE\"\n" +
+      "TEXT 40,120,\"3\",0,1,1,\"SIZE defines the canvas; GAP/DENSITY/SPEED are inert\"\n" +
+      "BAR 40,230,740,3\n" +
+      "TEXT 40,260,\"3\",0,1,1,\"BARCODE / QRCODE / DMATRIX / ITF14\"\n" +
+      "BARCODE 40,320,\"128\",90,1,0,2,3,\"1Z999AA10123456784\"\n" +
+      "QRCODE 560,300,M,7,A,0,\"https://github.com/GOODBOY008/labelize\"\n" +
+      "DMATRIX 560,540,180,180,x5,\"FLOWSTOCK|SCANNER-DIAG|V1\"\n" +
+      "BARCODE 40,480,\"ITF14\",110,1,0,3,6,\"0460123456789\"\n" +
+      "BAR 40,640,740,3\n" +
+      "REVERSE 40,660,520,44\n" +
+      "TEXT 60,672,\"3\",0,1,1,\"REVERSE = white-on-black region\"\n" +
+      "TEXT 40,760,\"3\",0,1,1,\"BAR / BOX / CIRCLE / ELLIPSE / ERASE / BITMAP\"\n" +
+      "PRINT 1"
   };
+
+  /* Sample language: keeps the format selector in sync when a sample loads. */
+  var SAMPLE_FMT = { shipping: "zpl", barcodes: "zpl", graphics: "zpl", tspl: "tspl" };
 
   /* ── DOM refs ── */
   var btn          = document.getElementById("render-btn");
@@ -1125,7 +1152,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   }
 
   function ctFor(fmt) {
-    return fmt === "epl" ? "application/epl" : "application/zpl";
+    if (fmt === "epl") return "application/epl";
+    if (fmt === "tspl") return "application/tspl";
+    return "application/zpl";
   }
 
   function clearPreview() {
@@ -1358,6 +1387,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     // `fmt()` helper inside every closure below.
     var fmtVal = fmtSel.value;
     if (fmtVal === "epl") { showError(t("err.epl")); return; }
+    if (fmtVal === "tspl") { showError(t("err.tspl")); return; }
     var zpl = input.value.trim();
     if (!zpl) { showError(t("err.empty")); return; }
 
@@ -1574,6 +1604,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     this.selectedIndex = 0;
     if (!v || !SAMPLES[v]) return;
     input.value = SAMPLES[v];
+    // A sample knows its language; keep the format selector in sync.
+    fmtSel.value = SAMPLE_FMT[v] || "zpl";
+    updateCompareState();
     updateCaret();
     render();
   });
@@ -1586,7 +1619,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (!file) return;
     var ext = file.name.split(".").pop().toLowerCase();
     if (ext === "epl") fmtSel.value = "epl";
-    else               fmtSel.value = "zpl";
+    else if (ext === "tspl") fmtSel.value = "tspl";
+    else                   fmtSel.value = "zpl";
+    updateCompareState();
     var reader = new FileReader();
     reader.onload = function (e) {
       input.value = e.target.result;
@@ -1624,9 +1659,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   // Labelary does not support EPL (404), so the compare tool is ZPL-only.
   function updateCompareState() {
-    var isEpl = fmtSel.value === "epl";
-    compareBtn.disabled = isEpl;
-    compareBtn.title = isEpl ? t("tip.compareEpl") : t("tip.compare");
+    var noCompare = fmtSel.value === "epl" || fmtSel.value === "tspl";
+    compareBtn.disabled = noCompare;
+    compareBtn.title = noCompare ? t("tip.compareEpl") : t("tip.compare");
   }
   fmtSel.addEventListener("change", updateCompareState);
 

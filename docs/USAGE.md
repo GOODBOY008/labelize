@@ -36,6 +36,12 @@ labelize convert label.zpl
 # → label.png (same directory)
 ```
 
+### Convert a TSPL file to PNG
+
+```bash
+labelize convert label.tspl          # .tspl → PNG; SIZE sets the canvas
+```
+
 ### Convert an EPL file to PNG
 
 ```bash

@@ -897,7 +897,7 @@ dependencies = [
 
 [[package]]
 name = "labelize"
-version = "1.6.0"
+version = "1.7.1"
 dependencies = [
  "ab_glyph",
  "base64",

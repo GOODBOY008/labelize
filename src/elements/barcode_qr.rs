@@ -41,3 +41,26 @@ pub struct BarcodeQrWithData {
     /// ^FD format char, other languages from their own parameters).
     pub error_correction: QrErrorCorrectionLevel,
 }
+
+impl BarcodeQrWithData {
+    /// Encoder inputs for this element: `(payload, error correction, mode)`.
+    ///
+    /// Historically this parsed the ZPL `^FD` format prefix (error-correction
+    /// char, optional binary length); that resolution now happens in the
+    /// parser, and `data`/`error_correction` already hold the resolved
+    /// values. The method remains for source compatibility and simply
+    /// reports them; the mode is the encoder's automatic choice.
+    #[deprecated(
+        since = "1.8.0",
+        note = "payload prefixes are resolved by the parser; use the `data` and `error_correction` fields"
+    )]
+    pub fn get_input_data(
+        &self,
+    ) -> Result<(String, QrErrorCorrectionLevel, QrCharacterMode), String> {
+        Ok((
+            self.data.clone(),
+            self.error_correction,
+            QrCharacterMode::Automatic,
+        ))
+    }
+}

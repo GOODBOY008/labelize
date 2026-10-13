@@ -1,7 +1,7 @@
 {
   "name": "@goodboy008/labelize-wasm",
   "version": "1.4.0",
-  "description": "Labelize ZPL/EPL label renderer compiled to WebAssembly — render ZPL/EPL to PNG/PDF in browsers, Node.js, and bundlers",
+  "description": "Labelize ZPL/EPL/TSPL label renderer compiled to WebAssembly — render ZPL/EPL/TSPL to PNG/PDF in browsers, Node.js, and bundlers",
   "type": "module",
   "license": "MIT AND BSD-3-Clause",
   "homepage": "https://github.com/GOODBOY008/labelize",

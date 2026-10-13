@@ -1,31 +1,7 @@
-/// Unit of measurement selected by `^MU` (`a` parameter).
-///
-/// Applies to every dot-valued ZPL parameter (coordinates, box/line geometry, font
-/// heights, barcode module width and height) until a new `^MU` is issued.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum MeasurementUnit {
-    #[default]
-    Dots,
-    Inches,
-    Millimeters,
-}
+//! Compatibility alias: the `MeasurementUnit` enum's canonical definition
+//! lives in `elements::measurement_unit` (it is a neutral
+//! dots/inches/millimeters concept that downstream code consumes); this
+//! module keeps the `parsers::zpl::measurement_unit` path alive for code
+//! written against the post-reorganization layout.
 
-impl MeasurementUnit {
-    pub fn from_byte(b: u8) -> Option<MeasurementUnit> {
-        match b.to_ascii_uppercase() {
-            b'D' => Some(MeasurementUnit::Dots),
-            b'I' => Some(MeasurementUnit::Inches),
-            b'M' => Some(MeasurementUnit::Millimeters),
-            _ => None,
-        }
-    }
-
-    /// Dots per unit for a printer of the given resolution.
-    pub fn dots_per_unit(&self, dpmm: f64) -> f64 {
-        match self {
-            MeasurementUnit::Dots => 1.0,
-            MeasurementUnit::Inches => dpmm * 25.4,
-            MeasurementUnit::Millimeters => dpmm,
-        }
-    }
-}
+pub use crate::elements::measurement_unit::*;

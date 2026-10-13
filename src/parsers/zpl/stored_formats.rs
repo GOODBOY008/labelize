@@ -47,6 +47,16 @@ pub fn resolve_elements(rf: &RecalledFormat) -> Result<Vec<LabelElement>, String
     Ok(res)
 }
 
+/// v1.7.x method form of [`resolve_elements`]. The inherent impl lives in
+/// the parser module (methods may be defined anywhere in the defining
+/// crate) so `elements` stays free of parser references; the body is a
+/// thin delegate — extend the free function, not this.
+impl RecalledFormat {
+    pub fn resolve_elements(&self) -> Result<Vec<LabelElement>, String> {
+        resolve_elements(self)
+    }
+}
+
 fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
     let field = &f.stored.field;
     let text = &f.data;

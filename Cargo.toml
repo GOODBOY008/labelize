@@ -2,8 +2,8 @@
 name = "labelize"
 version = "1.7.1"
 edition = "2021"
-description = "Fast ZPL & EPL label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
-keywords = ["zpl", "epl", "label", "barcode", "thermal-printer"]
+description = "Fast ZPL, EPL & TSPL/TSC label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
+keywords = ["zpl", "epl", "tspl", "tsc", "label", "barcode", "thermal-printer"]
 categories = ["graphics", "parsing"]
 repository = "https://github.com/GOODBOY008/labelize"
 homepage = "https://github.com/GOODBOY008/labelize"

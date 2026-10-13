@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import {
   __wbg_set_wasm,
   lz_render,
+  lz_render_lang,
   lz_playground_html,
   __wbindgen_init_externref_table,
   __wbindgen_cast_0000000000000001,
@@ -33,4 +34,4 @@ const { instance } = await WebAssembly.instantiate(bytes, {
 __wbg_set_wasm(instance.exports);
 instance.exports.__wbindgen_start();
 
-export { lz_render, lz_playground_html };
+export { lz_render, lz_render_lang, lz_playground_html };

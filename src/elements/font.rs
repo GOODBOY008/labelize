@@ -41,6 +41,13 @@ impl Default for FontInfo {
     }
 }
 
+/// True for the resident scalable font designators (ZPL fonts P–V, the
+/// matrix-font family). Kept on the descriptor for downstream diagnostics;
+/// Zebra's calibration tables live in `parsers::zpl::zebra_fonts`.
+pub fn is_pv_font(name: &str) -> bool {
+    matches!(name, "P" | "Q" | "R" | "S" | "T" | "U" | "V")
+}
+
 impl FontInfo {
     pub fn get_size(&self) -> f64 {
         self.height
