@@ -18,7 +18,7 @@ import {
   lz_render_lang,
   lz_playground_html,
   __wbindgen_init_externref_table,
-  __wbindgen_cast_0000000000000001,
+  __wbindgen_generic_0000000000000001,
 } from "./labelize_wasm_bg.js";
 
 const bytes = readFileSync(
@@ -28,7 +28,7 @@ const bytes = readFileSync(
 const { instance } = await WebAssembly.instantiate(bytes, {
   "./labelize_wasm_bg.js": {
     __wbindgen_init_externref_table,
-    __wbindgen_cast_0000000000000001,
+    __wbindgen_generic_0000000000000001,
   },
 });
 __wbg_set_wasm(instance.exports);
