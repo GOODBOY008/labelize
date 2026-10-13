@@ -1,3 +1,4 @@
+use super::field_alignment::FieldAlignment;
 use super::field_orientation::FieldOrientation;
 use super::label_position::LabelPosition;
 use super::reverse_print::ReversePrint;
@@ -27,5 +28,9 @@ pub struct Barcode128WithData {
     pub barcode: Barcode128,
     pub width: i32,
     pub position: LabelPosition,
+    /// Alignment of the human-readable interpretation line relative
+    /// to the barcode (ZPL/Labelary calibration centers it; TSC BARCODE
+    /// exposes left/center/right).
+    pub line_alignment: FieldAlignment,
     pub data: String,
 }

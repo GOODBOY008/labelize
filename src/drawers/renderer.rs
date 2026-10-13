@@ -9,7 +9,7 @@ use crate::elements::barcode_128::BarcodeMode;
 use crate::elements::drawer_options::DrawerOptions;
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font_face::FontFace;
-use crate::elements::graphic_field::GraphicField;
+use crate::elements::graphic_field::{GraphicField, GraphicFieldMode};
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
@@ -853,6 +853,7 @@ impl Renderer {
         };
 
         let black = Rgba([0, 0, 0, 255]);
+        let white = Rgba([255, 255, 255, 255]);
 
         for y in 0..height {
             for x in 0..width {
@@ -861,7 +862,12 @@ impl Renderer {
                     continue;
                 }
                 let val = (gf.data[idx] >> (7 - x % 8)) & 1;
-                if val != 0 {
+                let ink = if gf.zero_bits_black {
+                    val == 0
+                } else {
+                    val != 0
+                };
+                if ink {
                     for my in 0..mag_y {
                         for mx in 0..mag_x {
                             let px = base_x + x * mag_x + mx;
@@ -871,7 +877,16 @@ impl Renderer {
                                 && (px as u32) < canvas.width()
                                 && (py as u32) < canvas.height()
                             {
-                                canvas.put_pixel(px as u32, py as u32, black);
+                                // XOR inverts whatever is already there (black
+                                // ink over black canvas erases it); Overwrite
+                                // and Or just paint black — on a 1-bit canvas
+                                // Or is indistinguishable from Overwrite.
+                                let current = canvas.get_pixel(px as u32, py as u32);
+                                if gf.mode == GraphicFieldMode::Xor && *current == black {
+                                    canvas.put_pixel(px as u32, py as u32, white);
+                                } else {
+                                    canvas.put_pixel(px as u32, py as u32, black);
+                                }
                             }
                         }
                     }
@@ -931,6 +946,7 @@ impl Renderer {
                 bc.barcode.line_above,
                 bc.width,
                 bc.barcode.mode == BarcodeMode::Ean,
+                bc.line_alignment,
             );
         }
         Ok(())
@@ -1136,6 +1152,7 @@ impl Renderer {
                 bc.barcode.line_above,
                 bc.width,
                 false,
+                bc.line_alignment,
             );
         }
         Ok(())
@@ -1161,6 +1178,7 @@ impl Renderer {
                 bc.barcode.line_above,
                 bc.width,
                 false,
+                bc.line_alignment,
             );
         }
         Ok(())
@@ -2333,6 +2351,7 @@ fn draw_barcode_interpretation_line(
     line_above: bool,
     module_width: i32,
     ucc_ean_font: bool,
+    line_alignment: crate::elements::field_alignment::FieldAlignment,
 ) {
     // Code 128 mode D (UCC/EAN) uses a larger condensed bold interpretation font,
     // matching Labelary. Reference probe (code128_mode_d_fnc1 at module 2):
@@ -2430,7 +2449,15 @@ fn draw_barcode_interpretation_line(
 
     match orientation {
         FieldOrientation::Normal => {
-            let cx = pos.x + (bw - text_width as i32) / 2;
+            // Interpretation lines center on the barcode by default (the
+            // ZPL/Labelary calibration); languages with an explicit
+            // alignment parameter (TSPL BARCODE) select left/right.
+            use crate::elements::field_alignment::FieldAlignment as FA;
+            let cx = match line_alignment {
+                FA::Left => pos.x,
+                FA::Right => pos.x + bw - text_width as i32,
+                _ => pos.x + (bw - text_width as i32) / 2,
+            };
             let ty = if line_above {
                 // ink bottom (4 + 0.706 em of parens/digits) must sit ~2px above
                 // the barcode top, mirroring the 4px gap of the below case

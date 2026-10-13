@@ -67,6 +67,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and wasm entry points delegate to it; the CLI additionally sniffs
   extension-less/unknown-extension files instead of always assuming ZPL.
 
+### Fixed
+
+- **TSPL BITMAP polarity** — TSC `BITMAP` prints *cleared* bits black (the
+  inverse of ZPL ^GF/EPL GW); fields rendered with inverted ink before.
+  Confirmed against the labelixa.com TSPL renderer (BITMAP regions now
+  pixel-match within 1.6%).
+- **TSPL BITMAP OR/XOR modes** — modes 1 (OR) and 2 (XOR) are now applied at
+  render time via the new neutral `GraphicField::mode` field instead of
+  erroring (XOR inverts overlapped ink; OR equals overwrite on a 1-bit
+  canvas).
+- **TSPL PDF417 compound option tokens** — TSC's documented sample packs
+  options into one token (`PDF417 …,E30R4C4L26`); the parser now splits
+  letter-runs (with the ECC level's single-digit 0-8 domain respected: that
+  sample reads as E3 + stray 0 + R4 + C4 + L26), recognizes a trailing
+  `L<len>` raw-data marker inside a compound token, and fixes an off-by-one
+  that dropped the last option token for comma-separated options.
+- **TSPL QRCODE ECC default** — an omitted error-correction level now falls
+  back to `M` per the TSC manual (was `H` from #13; the invalid-character
+  path already used `M`).
+
 ## [1.7.1] - 2026-10-11
 
 ### Added

@@ -11,7 +11,11 @@
 //! questions listed in the PR description; unknown or ambiguous syntax
 /// errors out instead of silently misrendering.
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
+use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
+use crate::elements::barcode_datamatrix::{
+    BarcodeDatamatrix, BarcodeDatamatrixWithData, DatamatrixRatio,
+};
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
@@ -21,7 +25,7 @@ use crate::elements::font::FontInfo;
 use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_ellipse::GraphicEllipse;
-use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat};
+use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
@@ -115,7 +119,8 @@ impl TsplParser {
             "BARCODE" => parse_barcode(line, state),
             "QRCODE" => parse_qrcode(line, state),
             "PDF417" => parse_pdf417(line, state),
-            "MPDF417" | "PUTPCX" | "PUTBMP" | "DMATRIX" | "AZTEC" => {
+            "DMATRIX" => parse_dmatrix(line, state),
+            "MPDF417" | "PUTPCX" | "PUTBMP" | "AZTEC" => {
                 Err(format!("unsupported TSPL command {}", name))
             }
             _ if is_device_noop(&name) => Ok(()),
@@ -141,12 +146,12 @@ impl TsplParser {
         let y = parse_i32_arg(&args[1]).unwrap_or(0);
         let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1);
         let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
-        // Mode: 0 overwrite, 1 OR, 2 XOR. Only overwrite has a neutral-IR
-        // representation today; blending modes error instead of silently
-        // misrendering.
-        if parse_i32_arg(&args[4]).unwrap_or(0) != 0 {
-            return Err("TSPL BITMAP blending modes (1=OR, 2=XOR) are not supported".to_string());
-        }
+        // Mode: 0 overwrite, 1 OR, 2 XOR.
+        let mode = match parse_i32_arg(&args[4]).unwrap_or(0) {
+            1 => GraphicFieldMode::Or,
+            2 => GraphicFieldMode::Xor,
+            _ => GraphicFieldMode::Overwrite,
+        };
         let total_bytes = row_bytes * height;
 
         state
@@ -161,6 +166,9 @@ impl TsplParser {
                 data,
                 magnification_x: 1,
                 magnification_y: 1,
+                mode,
+                // TSC BITMAP prints cleared bits — the inverse of ^GF/GW.
+                zero_bits_black: true,
             }));
         Ok(())
     }
@@ -698,6 +706,13 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
     let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
     let human_readable = parse_i32_arg(&args[4]).unwrap_or(0);
     let line = human_readable > 0;
+    // TSC BARCODE parameter 5: 1 = left, 2 = center, 3 = right (anything
+    // else centers, matching the reference renderer's default).
+    let line_alignment = match human_readable {
+        1 => FieldAlignment::Left,
+        3 => FieldAlignment::Right,
+        _ => FieldAlignment::Center,
+    };
     let orientation = tspl_rotation(&args[5]);
     let narrow = parse_i32_arg(&args[6]).unwrap_or(1).max(1);
     let wide = parse_i32_arg(&args[7]).unwrap_or(narrow).max(narrow);
@@ -719,6 +734,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             },
             width: narrow,
             position,
+            line_alignment,
             data,
         }),
         "EAN128" | "EAN128M" => LabelElement::Barcode128(Barcode128WithData {
@@ -733,6 +749,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             },
             width: narrow,
             position,
+            line_alignment,
             data,
         }),
         "39" | "39C" => LabelElement::Barcode39(Barcode39WithData {
@@ -747,6 +764,7 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             width: narrow,
             width_ratio,
             position,
+            line_alignment,
             data,
         }),
         "EAN13" => LabelElement::BarcodeEan13(BarcodeEan13WithData {
@@ -761,10 +779,106 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             position,
             data,
         }),
+        // ITF14 is Interleaved 2of5 carrying 14 digits including the check
+        // digit; drawn as plain I2of5 with a mandatory check digit (the
+        // TSC guard bars are not modeled).
+        "ITF14" => LabelElement::Barcode2of5(Barcode2of5WithData {
+            reverse_print: ReversePrint::default(),
+            barcode: Barcode2of5 {
+                orientation,
+                height,
+                line,
+                line_above: false,
+                check_digit: true,
+            },
+            width: narrow,
+            width_ratio,
+            position,
+            line_alignment,
+            data,
+        }),
         _ => return Err(format!("unsupported TSPL barcode type {}", code_type)),
     };
 
     state.elements.push(element);
+    Ok(())
+}
+
+/// `DMATRIX x,y,width,height[,options…,]"content"` — options are
+/// letter-prefixed tokens (`x8` cell size, `r180` rotation) and bare numeric
+/// tokens forming a symbol size pair (rows, columns). Unknown options are
+/// ignored rather than guessed; the content is passed through raw.
+fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
+    let args = command_args(line, "DMATRIX");
+    if args.len() < 5 {
+        return Err(format!(
+            "TSPL DMATRIX command requires at least 5 parameters, got {}",
+            args.len()
+        ));
+    }
+    let x = parse_i32_arg(&args[0]).unwrap_or(0);
+    let y = parse_i32_arg(&args[1]).unwrap_or(0);
+    let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
+    let content = args.last().cloned().unwrap_or_default();
+    if content.is_empty() {
+        return Ok(());
+    }
+
+    let mut orientation = FieldOrientation::Normal;
+    let mut rows = 0i32;
+    let mut columns = 0i32;
+    let mut size_pair: Vec<i32> = Vec::new();
+    for option in &args[4..args.len() - 1] {
+        let token = option.trim();
+        let Some(first) = token.chars().next() else {
+            continue;
+        };
+        match first {
+            'r' | 'R' => {
+                if let Ok(deg) = token[1..].parse::<i32>() {
+                    orientation = match deg {
+                        90 => FieldOrientation::Rotated90,
+                        180 => FieldOrientation::Rotated180,
+                        270 => FieldOrientation::Rotated270,
+                        _ => FieldOrientation::Normal,
+                    };
+                }
+            }
+            'x' | 'X' => {}
+            digit if digit.is_ascii_digit() => {
+                if let Ok(n) = token.parse::<i32>() {
+                    size_pair.push(n);
+                }
+            }
+            _ => {}
+        }
+    }
+    if size_pair.len() >= 2 {
+        // TSC samples list the square symbol size once per axis; treat the
+        // pair as (columns, rows) — identical for the square sizes used in
+        // the wild.
+        columns = size_pair[0];
+        rows = size_pair[1];
+    }
+
+    state
+        .elements
+        .push(LabelElement::BarcodeDatamatrix(BarcodeDatamatrixWithData {
+            reverse_print: ReversePrint::default(),
+            barcode: BarcodeDatamatrix {
+                orientation,
+                height,
+                quality: 200,
+                columns,
+                rows,
+                format: 6,
+                escape: 0,
+                ratio: Some(DatamatrixRatio::Square),
+            },
+            position: state.position(x, y),
+            data: content,
+            data_bytes: None,
+        }));
     Ok(())
 }
 
@@ -778,7 +892,9 @@ fn parse_qrcode(line: &str, state: &mut TsplState) -> Result<(), String> {
     }
     let x = parse_i32_arg(&args[0]).unwrap_or(0);
     let y = parse_i32_arg(&args[1]).unwrap_or(0);
-    let level = args[2].chars().next().unwrap_or('H').to_ascii_uppercase();
+    // TSC QRCODE default error-correction level is M; unknown characters
+    // fall back to M as well (see apply path below).
+    let level = args[2].chars().next().unwrap_or('M').to_ascii_uppercase();
     let magnification = parse_i32_arg(&args[3]).unwrap_or(1).clamp(1, 10);
     // Input mode (A/N/M automatic-numeric-alphanumeric/B): the encoder
     // selects compaction automatically, so the mode is accepted and unused.
@@ -833,15 +949,26 @@ fn pdf417_raw_layout(data: &[u8], start: usize) -> Option<(usize, usize, usize)>
             .trim()
             .to_ascii_uppercase();
         let token_end = idx;
-        if token.len() > 1 && token.starts_with('L') {
-            if let Ok(len) = token[1..].parse::<usize>() {
-                // Skip the comma that follows the length option.
-                let mut cursor = idx;
-                while cursor < data.len() && matches!(data[cursor], b'\r' | b'\n' | b',') {
-                    cursor += 1;
-                }
-                return Some((len, token_end, cursor));
+        // The L<len> raw-data marker either is its own token or trails a
+        // compound option token (TSC's documented sample: `PDF417 …,E30R4C4L26`).
+        let raw_len = if token.len() > 1 && token.starts_with('L') {
+            token[1..].parse::<usize>().ok()
+        } else if let Some(lpos) = token.rfind('L') {
+            if lpos > 0 {
+                token[lpos + 1..].parse::<usize>().ok()
+            } else {
+                None
             }
+        } else {
+            None
+        };
+        if let Some(len) = raw_len {
+            // Skip the comma that follows the length option.
+            let mut cursor = idx;
+            while cursor < data.len() && matches!(data[cursor], b'\r' | b'\n' | b',') {
+                cursor += 1;
+            }
+            return Some((len, token_end, cursor));
         }
         if idx >= data.len() {
             return None;
@@ -913,7 +1040,7 @@ fn parse_pdf417_raw(header: &str, data: &[u8], state: &mut TsplState) -> Result<
         ));
     }
     let content = String::from_utf8_lossy(data).to_string();
-    push_pdf417(&args, content, state)
+    push_pdf417(&args, content, args.len(), state)
 }
 
 fn parse_pdf417(line: &str, state: &mut TsplState) -> Result<(), String> {
@@ -926,10 +1053,20 @@ fn parse_pdf417(line: &str, state: &mut TsplState) -> Result<(), String> {
     }
 
     let content = args.last().cloned().unwrap_or_default();
-    push_pdf417(&args, content, state)
+    let options_end = args.len().saturating_sub(1);
+    push_pdf417(&args, content, options_end, state)
 }
 
-fn push_pdf417(args: &[String], content: String, state: &mut TsplState) -> Result<(), String> {
+/// `options_end` is where the option list stops inside `args`: for the
+/// comma form the trailing argument is the content, so it is
+/// `args.len() - 1`; for the raw `L<len>` form every remaining argument is
+/// an option (the content came from the byte cursor).
+fn push_pdf417(
+    args: &[String],
+    content: String,
+    options_end: usize,
+    state: &mut TsplState,
+) -> Result<(), String> {
     let x = parse_i32_arg(&args[0]).unwrap_or(0);
     let y = parse_i32_arg(&args[1]).unwrap_or(0);
     let expected_height = parse_i32_arg(&args[3]).unwrap_or(10).max(1);
@@ -945,7 +1082,7 @@ fn push_pdf417(args: &[String], content: String, state: &mut TsplState) -> Resul
         by_height: expected_height,
     };
 
-    for option in args.iter().skip(5).take(args.len().saturating_sub(6)) {
+    for option in &args[5..options_end] {
         apply_pdf417_option(option, &mut barcode);
     }
 
@@ -961,15 +1098,47 @@ fn push_pdf417(args: &[String], content: String, state: &mut TsplState) -> Resul
 }
 
 fn apply_pdf417_option(option: &str, barcode: &mut BarcodePdf417) {
+    // Options arrive either comma-separated (`E3,R4,C4`) or packed into one
+    // compound token (`E3R4C4`, TSC's documented sample style). Split the
+    // latter into single-letter runs and apply each; a trailing `L<len>` raw
+    // length was already consumed by the splitter and is ignored here.
     let upper = option.trim().to_ascii_uppercase();
-    if upper.is_empty() {
+    let mut current: Option<(u8, String)> = None;
+    for ch in upper.chars() {
+        if ch.is_ascii_alphabetic() {
+            if let Some((letter, digits)) = current {
+                apply_pdf417_pair(letter, &digits, barcode);
+            }
+            current = Some((ch as u8, String::new()));
+        } else if ch.is_ascii_digit() {
+            let Some((letter, digits)) = current.as_ref() else {
+                continue; // digits before any letter: malformed, skip
+            };
+            // The ECC level's domain is 0-8 — a single digit. A second
+            // digit after `E` belongs to the next (often letterless)
+            // parameter: TSC's documented sample `E30R4C4L26` reads as E3,
+            // stray 0, R4, C4, L26.
+            if letter == &b'E' && !digits.is_empty() {
+                let (letter, digits) = current.take().unwrap();
+                apply_pdf417_pair(letter, &digits, barcode);
+                continue;
+            }
+            current.as_mut().unwrap().1.push(ch);
+        }
+        // anything else: ignored
+    }
+    if let Some((letter, digits)) = current {
+        apply_pdf417_pair(letter, &digits, barcode);
+    }
+}
+
+fn apply_pdf417_pair(letter: u8, digits: &str, barcode: &mut BarcodePdf417) {
+    if letter == b'L' {
+        // Raw-data length — consumed by the command splitter, not an option.
         return;
     }
-    let value = upper
-        .get(1..)
-        .and_then(|s| s.parse::<i32>().ok())
-        .unwrap_or(0);
-    match upper.as_bytes()[0] {
+    let value = digits.parse::<i32>().unwrap_or(0);
+    match letter {
         b'E' => barcode.security = value.clamp(0, 8),
         b'W' => barcode.module_width = value.max(1),
         b'H' => barcode.row_height = value.max(1),

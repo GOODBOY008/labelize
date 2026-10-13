@@ -891,3 +891,11 @@ fn golden_tspl_text_styles() {
 fn golden_tspl_graphics() {
     golden_tspl_with_tolerance("tspl_graphics", 0.01);
 }
+
+/// TSC documentation-style compound options: `PDF417 …,E30R4C4L12` packs
+/// rows/columns/security into one token and marks the 12-byte raw expression.
+/// Reference is the renderer baseline; guards the compound-token splitter.
+#[test]
+fn golden_tspl_graphics_doc_style() {
+    golden_tspl_with_tolerance("tspl_graphics_doc_style", 0.01);
+}
