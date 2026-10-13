@@ -88,7 +88,7 @@ jobs:
       # ── Upload e2e outputs ──────────────────────────────────────
       - name: Upload e2e outputs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-windows-outputs
           retention-days: 1
@@ -142,7 +142,7 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --features serve --target ${{ matrix.target }}
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: labelize-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/${{ matrix.binary }}
@@ -173,7 +173,7 @@ jobs:
         run: ./gradlew :lib:assembleRelease
       - name: Binding unit tests (host)
         run: cargo test --manifest-path android/Cargo.toml
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: labelize-android-aar
           path: android/lib/build/outputs/aar/lib-release.aar
