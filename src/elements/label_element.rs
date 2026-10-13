@@ -16,6 +16,7 @@ use super::graphic_diagonal_line::GraphicDiagonalLine;
 use super::graphic_ellipse::GraphicEllipse;
 use super::graphic_field::GraphicField;
 use super::graphic_symbol::GraphicSymbol;
+use super::invert_region::InvertRegion;
 use super::maxicode::{Maxicode, MaxicodeWithData};
 use super::stored_format::{RecalledField, RecalledFieldData, RecalledFormat, StoredField};
 use super::text_field::TextField;
@@ -29,6 +30,7 @@ pub enum LabelElement {
     GraphicCircle(GraphicCircle),
     GraphicEllipse(GraphicEllipse),
     DiagonalLine(GraphicDiagonalLine),
+    InvertRegion(InvertRegion),
     GraphicField(GraphicField),
     Barcode128(Barcode128WithData),
     BarcodeEan13(BarcodeEan13WithData),
@@ -74,6 +76,7 @@ impl LabelElement {
             LabelElement::GraphicCircle(g) => g.reverse_print.value,
             LabelElement::GraphicEllipse(g) => g.reverse_print.value,
             LabelElement::DiagonalLine(g) => g.reverse_print.value,
+            LabelElement::InvertRegion(_) => false,
             LabelElement::GraphicField(g) => g.reverse_print.value,
             LabelElement::Barcode128(b) => b.reverse_print.value,
             LabelElement::BarcodeEan13(b) => b.reverse_print.value,

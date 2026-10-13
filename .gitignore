@@ -10,3 +10,4 @@ e2e/sdk-output/
 testdata/labelary_cache/
 *.env
 .playwright-mcp/
+testdata/labelixa_cache/

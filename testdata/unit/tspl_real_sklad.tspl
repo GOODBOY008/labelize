@@ -1,0 +1,16 @@
+SIZE 40 mm,57 mm
+GAP 2 mm,0
+DENSITY 12
+SPEED 4
+DIRECTION 1
+REFERENCE 0,0
+SET TEAR ON
+; Артефакт Arial: шрифт 3
+; Плейсхолдеры:
+TEXT 17,11,"3",20,1,1,"${drawing}"
+QRCODE 12,73,L,5,A,0,"${qrData}"
+TEXT 304,71,"3",12,1,1,"${name}"
+TEXT 261,113,"3",12,1,1,"${date}"
+BOX 257,182,443,304,2
+TEXT 266,188,"3",16,1,1,"${cellNumber}"
+PRINT 1

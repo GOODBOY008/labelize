@@ -26,6 +26,7 @@ use crate::elements::graphic_box::GraphicBox;
 use crate::elements::graphic_circle::GraphicCircle;
 use crate::elements::graphic_ellipse::GraphicEllipse;
 use crate::elements::graphic_field::{GraphicField, GraphicFieldFormat, GraphicFieldMode};
+use crate::elements::invert_region::InvertRegion;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
@@ -115,7 +116,7 @@ impl TsplParser {
             "CIRCLE" => parse_circle(line, state),
             "ELLIPSE" => parse_ellipse(line, state),
             "ERASE" => parse_region_box(line, state, LineColor::White, false),
-            "REVERSE" => parse_region_box(line, state, LineColor::Black, true),
+            "REVERSE" => parse_reverse_region(line, state),
             "BARCODE" => parse_barcode(line, state),
             "QRCODE" => parse_qrcode(line, state),
             "PDF417" => parse_pdf417(line, state),
@@ -669,6 +670,31 @@ fn parse_region_box(
     state.elements.push(LabelElement::GraphicBox(filled_box(
         state, x, y, width, height, color, reverse,
     )));
+    Ok(())
+}
+
+/// `REVERSE x,y,width,height` — print-time region inversion (the TSPL
+/// manual documents white-on-black text in the area). Modeled as the neutral
+/// InvertRegion element the renderer applies after drawing.
+fn parse_reverse_region(line: &str, state: &mut TsplState) -> Result<(), String> {
+    let args = command_args(line, "REVERSE");
+    if args.len() < 4 {
+        return Err(format!(
+            "TSPL REVERSE command requires 4 parameters, got {}",
+            args.len()
+        ));
+    }
+    let x = parse_i32_arg(&args[0]).unwrap_or(0);
+    let y = parse_i32_arg(&args[1]).unwrap_or(0);
+    let width = parse_i32_arg(&args[2]).unwrap_or(1).max(1);
+    let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
+    state
+        .elements
+        .push(LabelElement::InvertRegion(InvertRegion {
+            position: state.position(x, y),
+            width,
+            height,
+        }));
     Ok(())
 }
 

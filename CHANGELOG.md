@@ -87,6 +87,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back to `M` per the TSC manual (was `H` from #13; the invalid-character
   path already used `M`).
 
+### Fixed
+
+- **TSPL `REVERSE` prints a region inversion** (manual semantics:
+  white-on-black text in the area) instead of a filled black box that hid
+  the text. New neutral `InvertRegion` IR element applied by the renderer
+  as a post-pass in label coordinate space; ZPL/EPL output unchanged.
+
+### Added
+
+- **TSPL calibration infrastructure**: `docs/TSPL_BASELINES.md` (two-baseline
+  strategy — labelixa.com API primary, portakal secondary — with a
+  triangulation policy and a measured engine-disagreement ledger incl. a
+  font-cell probe battery), `docs/TSPL_CORPUS.md` (real-capture provenance),
+  a cached/rate-limited labelixa reference client, and five real-world
+  corpus goldens (TSC TE210 hardware capture, filament-db probes/drybox, RU
+  warehouse template) with labelixa references and honest tolerances
+  (0.54%–10.88%).
+
 ## [1.7.1] - 2026-10-11
 
 ### Added
