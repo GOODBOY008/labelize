@@ -189,7 +189,7 @@ jobs:
           echo "mac_arm64=$(sha256sum artifacts/labelize-aarch64-apple-darwin.tar.gz/labelize-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           echo "mac_x64=$(sha256sum artifacts/labelize-x86_64-apple-darwin.tar.gz/labelize-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Update Homebrew tap
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           repository: GOODBOY008/homebrew-labelize
