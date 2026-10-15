@@ -39,7 +39,7 @@ jobs:
             artifact: labelize-x86_64-pc-windows-msvc.zip
             package: zip
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -66,7 +66,7 @@ jobs:
     name: Build (wasm32-unknown-unknown)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -100,7 +100,7 @@ jobs:
     name: Build (android AAR)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
@@ -135,7 +135,7 @@ jobs:
     needs: [build, wasm-build, android-build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
@@ -166,7 +166,7 @@ jobs:
     # Only publish stable releases (vX.Y.Z), not prereleases like v1.0.0-rc.1.
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Publish to crates.io
@@ -209,7 +209,7 @@ jobs:
     # Only publish stable releases (vX.Y.Z), not prereleases like v1.0.0-rc.1.
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
