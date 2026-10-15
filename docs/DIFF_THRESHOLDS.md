@@ -203,7 +203,7 @@ informational.
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
 | cjk_font0_ci28 | zpl | 0.11 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Roboto Condensed metrics on the Latin prefix |
 | font0_latin_ext_a | zpl | 0.21 | 1.0 | Issue #65: font-0 Latin Extended-A glyphs Labelary renders (Ă ă Đ đ Ţ ţ) drawn with the Roboto Condensed subset; Ș ș Ț ț Ħ ħ stay blank with calibrated advance on both sides |
-| font0_symbols | zpl | 0.83 | 1.0 | Issue #78: font-0 symbol ink calibration (tuning::FONT0_INK_TARGETS) stretches dashes/operators/`%`/braces to Labelary's ink box, `©`/`®` render as equal-size superscripts, ASCII quotes as curly shapes; residual = Roboto glyph shapes vs Labelary's Helvetica-class face on the letters |
+| font0_symbols | zpl | 0.57 | 1.0 | Issue #78: font-0 symbol ink calibration (tuning::FONT0_INK_TARGETS) stretches dashes/operators/`%`/braces to Labelary's ink box, `©`/`®` render as equal-size superscripts, ASCII quotes as curly shapes; en/em dash advances re-probed (Labelary advances the whole dash family uniformly at 0.9 × cell height); residual = Roboto glyph shapes vs Labelary's Helvetica-class face on the letters |
 
 ## Known Limitations
 

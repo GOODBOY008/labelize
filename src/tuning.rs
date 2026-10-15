@@ -486,8 +486,13 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('˜', -0.06670),
     ('˝', -0.01943),
     (' ', -0.30190),
-    ('–', -0.02326),
-    ('—', 0.26062),
+    // Dash family re-probed directly for issue #78 (displacement method at
+    // h=40 and h=80): Labelary advances '-', '–' and '—' identically at
+    // exactly 0.9 × cell-height px (0.6469 em), so the en dash needs a large
+    // positive delta (Roboto's own advance is under 0.39 em) and the em dash
+    // less than the old model-derived value.
+    ('–', 0.25974),
+    ('—', 0.18422),
     ('‘', 0.04031),
     ('’', 0.04341),
     ('‚', 0.02892),

@@ -20,7 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`tuning::FONT0_INK_TARGETS`; the embedded font files are untouched).
   `©` now renders as the same small superscript Labelary draws for `®`, and
   ASCII quotes `'` `` ` `` `"` draw as the curly `’` `‘` `“` shapes Labelary
-  substitutes (`tuning::font0_shape_glyph`). Corpus effect vs Labelary:
+  substitutes (`tuning::font0_shape_glyph`). The en/em dash advances were
+  re-probed directly (Labelary advances the whole dash family uniformly at
+  0.9 × cell height) — the old model-derived deltas were off by +0.28/−0.08 em,
+  shifting every character after an en dash. Corpus effect vs Labelary:
   34 labels improved (best: correiosbr 3.67% → 3.47%, dpdpl 3.83% → 3.76%),
   none regressed beyond quantisation noise.
 

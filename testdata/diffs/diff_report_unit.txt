@@ -35,7 +35,7 @@
 ║ fb_bitmap_line_pitch           │ zpl  │    2.11% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ fo_lenient_coord               │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font0_latin_ext_a              │ zpl  │    0.21% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
-║ font0_symbols                  │ zpl  │    0.83% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ font0_symbols                  │ zpl  │    0.57% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_p                         │ zpl  │    0.17% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_q                         │ zpl  │    0.18% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ font_r                         │ zpl  │    0.44% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
