@@ -1412,6 +1412,71 @@ fn effective_glyph_id(font: &FontRef, ch: char, f0: bool) -> ab_glyph::GlyphId {
     id
 }
 
+/// Font-0 ink calibration for `ch` (issue #78): the substitute's glyph is
+/// stretched horizontally and shifted so its pen-relative ink box matches
+/// Labelary's measured extents (see `tuning::FONT0_INK_TARGETS`). Returns the
+/// stretched `PxScale` for drawing the outline and the pen-space `(dx, dy)`
+/// shifts to add to the glyph's position. `None` when the character is not
+/// calibrated (or outlines nothing), leaving the glyph untouched.
+fn font0_ink_adjust(
+    font: &FontRef,
+    glyph_id: ab_glyph::GlyphId,
+    ch: char,
+    scale: PxScale,
+    width_ratio: f32,
+) -> Option<(PxScale, f32, f32)> {
+    use ab_glyph::Font as _;
+    let (left_em, width_em, dy_em) = crate::tuning::font0_ink_target(ch)?;
+    let probe = glyph_id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0));
+    let probe = font.outline_glyph(probe)?;
+    let bb = probe.px_bounds();
+    let w0 = bb.width();
+    if w0 <= 0.0 || w0.is_nan() {
+        return None;
+    }
+    // Same em scaling as the advance deltas: the targets are calibrated at
+    // width == height and must track the hmtx component's ∝(w/h) scaling.
+    // The vertical shift follows scale.y only — vertical ink does not scale
+    // with the w/h cell ratio.
+    let target_w = width_em as f32 * scale.y * width_ratio;
+    let target_l = left_em as f32 * scale.y * width_ratio;
+    let dy = dy_em as f32 * scale.y;
+    let k = (target_w / w0).max(0.1);
+    let stretched = PxScale {
+        x: scale.x * k,
+        y: scale.y,
+    };
+    let dx = target_l - bb.min.x * k;
+    Some((stretched, dx, dy))
+}
+
+/// Scale, pen shifts and glyph id for drawing `ch`'s outline in a layout walk:
+/// font 0 applies the ink calibration plus the curly-quote shape substitution
+/// (Labelary's font-0 substitute draws `'`/`` ` ``/`"` as `’`/`‘`/`“`);
+/// every other face draws the glyph untouched. Advances and kerning stay
+/// keyed on the original character's metrics either way.
+#[inline]
+fn outline_placement(
+    font: &FontRef,
+    glyph_id: ab_glyph::GlyphId,
+    ch: char,
+    m: SubstMetrics,
+    scale: PxScale,
+    width_ratio: f32,
+) -> (PxScale, f32, f32, ab_glyph::GlyphId) {
+    if !m.f0 {
+        return (scale, 0.0, 0.0, glyph_id);
+    }
+    // Substitute the shape FIRST and calibrate against the shape glyph's own
+    // outline — stretching by the original char's width would mis-scale the
+    // substituted quotes badly (the straight-quote bar is far narrower than
+    // the curly glyph that gets drawn).
+    let shape_id = font.glyph_id(crate::tuning::font0_shape_glyph(ch));
+    let (scale, dx, dy) =
+        font0_ink_adjust(font, shape_id, ch, scale, width_ratio).unwrap_or((scale, 0.0, 0.0));
+    (scale, dx, dy, shape_id)
+}
+
 /// Pen advance for a character the substitute face has no glyph for
 /// (`font.glyph_id(c) == GlyphId(0)`). Labelary renders such characters as
 /// blank space — no .notdef box — for every substitute font (probed against
@@ -1468,30 +1533,69 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, m: SubstMetric
 /// built-in fonts: it appears smaller and top-aligned relative to surrounding text.
 /// This scale factor approximates Zebra's built-in glyph size (≈55% of the em height).
 const REGISTERED_MARK: char = '\u{00AE}';
+const COPYRIGHT_MARK: char = '\u{00A9}';
 const REGISTERED_MARK_SCALE: f32 = 0.55;
 
-/// Measure text width treating ® as a superscript (at REGISTERED_MARK_SCALE of main scale).
+/// Characters rendered through the superscript path: ® for every face
+/// (pre-existing behaviour), and for font 0 also `©` — Labelary's font-0
+/// substitute draws both marks the same small size (~0.34 em ink width,
+/// probe-verified identical extents), while the Roboto Condensed subset
+/// carries © at full glyph size.
+fn is_superscript_mark(ch: char, f0: bool) -> bool {
+    ch == REGISTERED_MARK || (f0 && ch == COPYRIGHT_MARK)
+}
+
+/// Split `text` into `(plain segment, following superscript mark)` pairs; the
+/// final segment has no mark. Empty segments occur when the text starts with
+/// (or has adjacent) marks — callers skip them.
+fn superscript_segments<'a>(
+    text: &'a str,
+    f0: bool,
+) -> impl Iterator<Item = (&'a str, Option<char>)> + 'a {
+    let mut rest = text;
+    std::iter::from_fn(move || {
+        if rest.is_empty() {
+            return None;
+        }
+        match rest.find(|c: char| is_superscript_mark(c, f0)) {
+            Some(i) => {
+                let (seg, tail) = rest.split_at(i);
+                let mark = tail.chars().next().unwrap();
+                rest = &tail[mark.len_utf8()..];
+                Some((seg, Some(mark)))
+            }
+            None => {
+                let seg = rest;
+                rest = "";
+                Some((seg, None))
+            }
+        }
+    })
+}
+
+/// Measure text width treating ® (and, for font 0, ©) as superscripts
+/// (at REGISTERED_MARK_SCALE of main scale).
 fn measure_text_width_with_superscript(
     text: &str,
     font: &FontRef,
     scale: PxScale,
     m: SubstMetrics,
 ) -> f32 {
-    if !text.contains(REGISTERED_MARK) {
+    if !text.chars().any(|c| is_superscript_mark(c, m.f0)) {
         return measure_text_width(text, font, scale, m);
     }
     let super_scale = PxScale {
         x: scale.x * REGISTERED_MARK_SCALE,
         y: scale.y * REGISTERED_MARK_SCALE,
     };
-    let reg_str = REGISTERED_MARK.to_string();
     let mut width = 0.0f32;
-    for (i, part) in text.split(REGISTERED_MARK).enumerate() {
-        if i > 0 {
-            width += measure_text_width(&reg_str, font, super_scale, m);
+    for (seg, mark) in superscript_segments(text, m.f0) {
+        if !seg.is_empty() {
+            width += measure_text_width(seg, font, scale, m);
         }
-        if !part.is_empty() {
-            width += measure_text_width(part, font, scale, m);
+        if let Some(mark) = mark {
+            let mark_str = mark.to_string();
+            width += measure_text_width(&mark_str, font, super_scale, m);
         }
     }
     width
@@ -1532,8 +1636,12 @@ fn measure_text_ink_bounds(
             continue;
         }
         // The glyph is positioned at the pen BEFORE its own advance and kern
-        // are added — mirror `draw_text_snapped` exactly.
-        let glyph = glyph_id.with_scale_and_position(scale, ab_glyph::point(w, 0.0));
+        // are added — mirror `draw_text_snapped` exactly, including the
+        // font-0 ink calibration's stretched scale and pen shifts.
+        let (draw_scale, draw_dx, draw_dy, draw_id) =
+            outline_placement(font, glyph_id, c, m, scale, width_ratio);
+        let glyph =
+            draw_id.with_scale_and_position(draw_scale, ab_glyph::point(w + draw_dx, draw_dy));
         w += scaled.h_advance(glyph_id) * m.adv_mult;
         if m.f0 {
             w += crate::tuning::font0_advance_delta(c) as f32 * scale.y * width_ratio;
@@ -1553,44 +1661,44 @@ fn measure_text_ink_bounds(
 }
 
 /// Superscript-aware ink bounds, mirroring `draw_text_with_superscript`'s
-/// split layout: ® renders at REGISTERED_MARK_SCALE and the parts advance the
-/// pen by their measured widths.
+/// split layout: ® (and, for font 0, ©) renders at REGISTERED_MARK_SCALE and
+/// the segments advance the pen by their measured widths.
 fn measure_text_ink_bounds_with_superscript(
     text: &str,
     font: &FontRef,
     scale: PxScale,
     m: SubstMetrics,
 ) -> (f32, f32, f32) {
-    if !text.contains(REGISTERED_MARK) {
+    if !text.chars().any(|c| is_superscript_mark(c, m.f0)) {
         return measure_text_ink_bounds(text, font, scale, m);
     }
     let super_scale = PxScale {
         x: scale.x * REGISTERED_MARK_SCALE,
         y: scale.y * REGISTERED_MARK_SCALE,
     };
-    let reg_str = REGISTERED_MARK.to_string();
     let mut cx = 0.0f32;
     let mut min_x = f32::MAX;
     let mut max_x = f32::MIN;
     let mut max_y = f32::MIN;
-    for (i, part) in text.split(REGISTERED_MARK).enumerate() {
-        if i > 0 {
-            let (a, b, y) = measure_text_ink_bounds(&reg_str, font, super_scale, m);
+    for (seg, mark) in superscript_segments(text, m.f0) {
+        if !seg.is_empty() {
+            let (a, b, y) = measure_text_ink_bounds(seg, font, scale, m);
             if a <= b {
                 min_x = min_x.min(cx + a);
                 max_x = max_x.max(cx + b);
                 max_y = max_y.max(y);
             }
-            cx += measure_text_width(&reg_str, font, super_scale, m);
+            cx += measure_text_width(seg, font, scale, m);
         }
-        if !part.is_empty() {
-            let (a, b, y) = measure_text_ink_bounds(part, font, scale, m);
+        if let Some(mark) = mark {
+            let mark_str = mark.to_string();
+            let (a, b, y) = measure_text_ink_bounds(&mark_str, font, super_scale, m);
             if a <= b {
                 min_x = min_x.min(cx + a);
                 max_x = max_x.max(cx + b);
                 max_y = max_y.max(y);
             }
-            cx += measure_text_width(part, font, scale, m);
+            cx += measure_text_width(&mark_str, font, super_scale, m);
         }
     }
     (min_x, max_x, max_y)
@@ -1620,7 +1728,9 @@ fn block_ink_overhangs(text: &str, font: &FontRef, scale: PxScale, m: SubstMetri
         if glyph_id == ab_glyph::GlyphId(0) {
             continue;
         }
-        let glyph = glyph_id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0));
+        let (draw_scale, draw_dx, draw_dy, draw_id) =
+            outline_placement(font, glyph_id, c, m, scale, width_ratio);
+        let glyph = draw_id.with_scale_and_position(draw_scale, ab_glyph::point(draw_dx, draw_dy));
         let Some(g) = font.outline_glyph(glyph) else {
             continue;
         };
@@ -1744,8 +1854,12 @@ fn draw_text_snapped(
             prev = None;
             continue;
         }
-        let glyph =
-            glyph_id.with_scale_and_position(scale, ab_glyph::point(w, scaled.ascent() + yoff));
+        let (draw_scale, draw_dx, draw_dy, draw_id) =
+            outline_placement(font, glyph_id, c, m, scale, width_ratio);
+        let glyph = draw_id.with_scale_and_position(
+            draw_scale,
+            ab_glyph::point(w + draw_dx, scaled.ascent() + yoff + draw_dy),
+        );
         w += scaled.h_advance(glyph_id) * m.adv_mult;
         if m.f0 {
             w += crate::tuning::font0_advance_delta(c) as f32 * scale.y * width_ratio;
@@ -1825,7 +1939,8 @@ fn dedotted_pixels(g: &ab_glyph::OutlinedGlyph) -> Vec<bool> {
     ink.iter().zip(&keep).map(|(&i, &k)| i && !k).collect()
 }
 
-/// Draw text onto `canvas`, rendering ® as a top-aligned superscript at REGISTERED_MARK_SCALE.
+/// Draw text onto `canvas`, rendering ® (and, for font 0, ©) as a top-aligned
+/// superscript at REGISTERED_MARK_SCALE.
 #[allow(clippy::too_many_arguments)]
 fn draw_text_with_superscript(
     canvas: &mut RgbaImage,
@@ -1837,7 +1952,7 @@ fn draw_text_with_superscript(
     text: &str,
     m: SubstMetrics,
 ) {
-    if !text.contains(REGISTERED_MARK) {
+    if !text.chars().any(|c| is_superscript_mark(c, m.f0)) {
         draw_text_snapped(canvas, color, x as i32, y as i32, scale, font, text, m);
         return;
     }
@@ -1845,10 +1960,14 @@ fn draw_text_with_superscript(
         x: scale.x * REGISTERED_MARK_SCALE,
         y: scale.y * REGISTERED_MARK_SCALE,
     };
-    let reg_str = REGISTERED_MARK.to_string();
     let mut cx = x;
-    for (i, part) in text.split(REGISTERED_MARK).enumerate() {
-        if i > 0 {
+    for (seg, mark) in superscript_segments(text, m.f0) {
+        if !seg.is_empty() {
+            draw_text_snapped(canvas, color, cx as i32, y as i32, scale, font, seg, m);
+            cx += measure_text_width(seg, font, scale, m);
+        }
+        if let Some(mark) = mark {
+            let mark_str = mark.to_string();
             draw_text_snapped(
                 canvas,
                 color,
@@ -1856,14 +1975,10 @@ fn draw_text_with_superscript(
                 y as i32,
                 super_scale,
                 font,
-                &reg_str,
+                &mark_str,
                 m,
             );
-            cx += measure_text_width(&reg_str, font, super_scale, m);
-        }
-        if !part.is_empty() {
-            draw_text_snapped(canvas, color, cx as i32, y as i32, scale, font, part, m);
-            cx += measure_text_width(part, font, scale, m);
+            cx += measure_text_width(&mark_str, font, super_scale, m);
         }
     }
 }

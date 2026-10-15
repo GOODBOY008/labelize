@@ -86,6 +86,95 @@ pub(crate) fn font0_is_labelary_blanked(ch: char) -> bool {
     FONT0_LABELARY_BLANKED.contains(&ch)
 }
 
+/// Per-character ink calibration for font 0: Labelary's rendered ink extents
+/// `(left, width)` relative to the pen origin plus a vertical shift `dy`, in
+/// scaled-em units (the extents are multiplied by `scale.y * width_ratio` at
+/// use, like the advance deltas; `dy` by `scale.y` only since vertical ink
+/// does not scale with the w/h cell ratio). See [`FONT0_INK_TARGETS`].
+pub(crate) fn font0_ink_target(ch: char) -> Option<(f64, f64, f64)> {
+    FONT0_INK_TARGETS
+        .iter()
+        .find(|&&(c, ..)| c == ch)
+        .copied()
+        .map(|(_, l, w, dy)| (l, w, dy))
+}
+
+/// Labelary's font-0 substitute (a Helvetica-class face) draws many punctuation
+/// and operator glyphs much wider than the Roboto Condensed subset, while the
+/// advance deltas above already give those characters their full Labelary
+/// advance — so the narrow ink sits at the start of a correctly-sized cell and
+/// leaves a visible gap after the symbol (issue #78: `EMB-  812`, tiny `=`,
+/// thin `<`/`>`). The renderer horizontally stretches (or shrinks) the
+/// substitute's outline and shifts it so the pen-relative ink box matches
+/// Labelary's measured extents instead of editing the font file. A non-zero
+/// `dy` additionally shifts glyphs whose substitute sits systematically above
+/// or below Labelary's baseline-relative ink (the underscore is the extreme:
+/// Roboto's rides ~0.14 em high, which matters on `Recebedor:______`-style
+/// signature lines).
+///
+/// Each entry was probed by rendering the character alone at `^A0N,80,80` and
+/// `^A0N,40,40` against Labelary (same method as the advance deltas: ink
+/// extents in px / `h × FONT0_CAP_SCALE`, averaged over the two sizes; the
+/// control glyphs A/H/0 agree within ±1 px). Characters not listed match
+/// closely enough that calibration would only encode quantisation noise.
+/// `©` and `®` entries are expressed in *superscript* em units because both
+/// render at REGISTERED_MARK_SCALE for font 0 (Labelary draws them the same
+/// small size, ~0.34 em wide — see the renderer's superscript path).
+const FONT0_INK_TARGETS: &[(char, f64, f64, f64)] = &[
+    // dashes and math operators: Labelary renders them at ~0.41 em wide,
+    // starting ~0.12 em right of the pen
+    ('-', 0.1213, 0.4133, 0.0180),
+    ('–', 0.1213, 0.4133, 0.0539),
+    ('—', 0.0359, 0.5750, 0.0719),
+    ('+', 0.1213, 0.4133, 0.0),
+    ('=', 0.1213, 0.4133, 0.0),
+    ('<', 0.1438, 0.4313, 0.0),
+    ('>', 0.1438, 0.4313, 0.0),
+    ('±', 0.1213, 0.4133, 0.0269),
+    ('×', 0.1213, 0.4043, 0.0),
+    ('÷', 0.1213, 0.3998, 0.0270),
+    ('~', 0.1438, 0.4447, 0.0314),
+    // wide punctuation
+    ('%', 0.0225, 0.6065, 0.0),
+    ('{', 0.0539, 0.2561, 0.0),
+    ('}', 0.0404, 0.2605, 0.0),
+    ('|', 0.1617, 0.0359, 0.0),
+    ('…', 0.0674, 0.5076, 0.0179),
+    ('‰', 0.0315, 0.8490, 0.0),
+    ('°', 0.0359, 0.2695, 0.0),
+    ('_', 0.0000, 0.3594, 0.1396),
+    ('¼', 0.0539, 0.5166, 0.0),
+    ('½', 0.0494, 0.5256, 0.0),
+    ('·', -0.0135, 0.0988, -0.0231),
+    ('•', -0.0135, 0.0988, 0.0225),
+    // quotes: Labelary substitutes curly shapes for the ASCII forms; these
+    // targets pair with [`font0_shape_glyph`]'s shape substitution (dy values
+    // are measured against the substituted shape's own ink position)
+    ('\'', 0.0584, 0.1033, 0.0225),
+    ('`', 0.0539, 0.1033, 0.0359),
+    ('"', 0.0584, 0.2246, 0.0359),
+    // smaller-than-Roboto glyphs
+    ('@', 0.1078, 0.4313, 0.0),
+    ('™', 0.0494, 0.3414, 0.0540),
+    // superscript-rendered marks (em units of the 0.55-scaled em)
+    ('©', 0.0409, 0.6207, 0.0),
+    ('®', 0.0409, 0.6207, 0.0),
+];
+
+/// Shape substitution for font 0: Labelary's font-0 substitute draws the ASCII
+/// quote characters as curly typographic quotes (probe-verified: `'` renders
+/// with the `’` ink shape, `` ` `` as `‘`, `"` as `“`). The renderer draws the
+/// substituted outline while keeping advance metrics keyed on the original
+/// character, so the calibrated advance deltas stay authoritative.
+pub(crate) fn font0_shape_glyph(ch: char) -> char {
+    match ch {
+        '\'' => '’',
+        '`' => '‘',
+        '"' => '“',
+        _ => ch,
+    }
+}
+
 /// Labelary's substitute for Zebra scalable font 1 is a monospace face (DejaVu
 /// Sans Mono class), unlike font 0's condensed-proportional substitute. Probed
 /// against Labelary at h=10..40, w=10..40:
@@ -397,8 +486,13 @@ const FONT0_ADVANCE_DELTAS: &[(char, f64)] = &[
     ('˜', -0.06670),
     ('˝', -0.01943),
     (' ', -0.30190),
-    ('–', -0.02326),
-    ('—', 0.26062),
+    // Dash family re-probed directly for issue #78 (displacement method at
+    // h=40 and h=80): Labelary advances '-', '–' and '—' identically at
+    // exactly 0.9 × cell-height px (0.6469 em), so the en dash needs a large
+    // positive delta (Roboto's own advance is under 0.39 em) and the em dash
+    // less than the old model-derived value.
+    ('–', 0.25974),
+    ('—', 0.18422),
     ('‘', 0.04031),
     ('’', 0.04341),
     ('‚', 0.02892),

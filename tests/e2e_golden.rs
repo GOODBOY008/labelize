@@ -793,6 +793,16 @@ fn golden_font0_latin_ext_a() {
     golden_zpl_with_tolerance("font0_latin_ext_a", 1.0);
 }
 
+/// Issue #78 regression: font-0 dashes, operators (`+ = < >`), `%`, braces
+/// and quotes must fill their calibrated advance like Labelary's wide
+/// Helvetica-class glyphs (no trailing gap), `©`/`®` render as the same
+/// small superscript, and ASCII quotes draw as curly shapes. See
+/// `tuning::FONT0_INK_TARGETS` and `tuning::font0_shape_glyph`.
+#[test]
+fn golden_font0_symbols() {
+    golden_zpl_with_tolerance("font0_symbols", 1.0);
+}
+
 // ── Real-provenance carrier labels ────────────────────────────────
 // Sourced from real production captures (see docs/CARRIER_LABELS.md
 // for per-label provenance). cjlogistics/correiosbr are real
@@ -804,7 +814,7 @@ fn golden_cjlogistics() {
 }
 #[test]
 fn golden_correiosbr() {
-    golden_zpl_with_tolerance("correiosbr", 5.0);
+    golden_zpl_with_tolerance("correiosbr", 3.7);
 }
 #[test]
 fn golden_kuehnenagel_intl() {

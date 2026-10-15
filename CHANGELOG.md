@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Font-0 symbol ink calibration (issue #78)** — since the Roboto Condensed
+  substitution (v1.7.0), font-0 punctuation and operators (`-` `–` `—` `+` `=`
+  `<` `>` `%` `{` `|` `}` `~` `±` `×` `÷` `…` `‰` `°` `_` …) rendered visibly
+  narrower than Labelary while keeping the calibrated advance, leaving a gap
+  after every symbol (`EMB- 812`). The renderer now stretches (or shrinks)
+  each calibrated glyph horizontally and shifts it — including a vertical
+  correction for glyphs like `_` and the dashes that sat too high — so the
+  pen-relative ink matches probe-measured Labelary extents
+  (`tuning::FONT0_INK_TARGETS`; the embedded font files are untouched).
+  `©` now renders as the same small superscript Labelary draws for `®`, and
+  ASCII quotes `'` `` ` `` `"` draw as the curly `’` `‘` `“` shapes Labelary
+  substitutes (`tuning::font0_shape_glyph`). The en/em dash advances were
+  re-probed directly (Labelary advances the whole dash family uniformly at
+  0.9 × cell height) — the old model-derived deltas were off by +0.28/−0.08 em,
+  shifting every character after an en dash. Corpus effect vs Labelary:
+  34 labels improved (best: correiosbr 3.67% → 3.47%, dpdpl 3.83% → 3.76%),
+  none regressed beyond quantisation noise.
+
 ## [1.8.0] - 2026-10-13
 
 ### Changed
