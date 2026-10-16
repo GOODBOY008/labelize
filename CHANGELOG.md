@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-16
+
+### Changed
+
+- **CI maintenance** — bumped GitHub Actions workflows (actions/checkout 5→7,
+  docker/build-push-action 6→7, docker/metadata-action 5→6,
+  peter-evans/repository-dispatch 3→4, softprops/action-gh-release 2→3) and
+  the `proptest` dev-dependency.
+
 ### Fixed
 
 - **Font-0 symbol ink calibration (issue #78)** — since the Roboto Condensed
