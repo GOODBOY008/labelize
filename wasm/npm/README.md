@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/logo.svg" width="180" alt="Labelize logo" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/logo-icon.svg" width="120" alt="Labelize logo" /></p>
 
 # @goodboy008/labelize-wasm
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/logo.svg" alt="Labelize" width="190"/>
+<img src="docs/logo-icon.svg" alt="Labelize logo" width="140"/>
 
 # Labelize
 
