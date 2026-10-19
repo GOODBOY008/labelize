@@ -490,6 +490,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     <option value="shipping" data-i18n="sample.shipping">Shipping label</option>
     <option value="barcodes" data-i18n="sample.barcodes">Barcodes &amp; 2D</option>
     <option value="graphics" data-i18n="sample.graphics">Shapes &amp; graphics</option>
+    <option value="epl" data-i18n="sample.epl">EPL showcase</option>
     <option value="tspl" data-i18n="sample.tspl">TSPL showcase</option>
   </select>
   <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
@@ -762,6 +763,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.shipping": "Shipping label",
       "sample.barcodes": "Barcodes & 2D",
       "sample.graphics": "Shapes & graphics",
+      "sample.epl": "EPL showcase",
       "sample.tspl": "TSPL showcase",
       "btn.open": "Open File",
       "btn.compare": "Compare with Labelary",
@@ -839,6 +841,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.shipping": "物流标签",
       "sample.barcodes": "条码与二维码",
       "sample.graphics": "图形与绘图",
+      "sample.epl": "EPL 示例",
       "sample.tspl": "TSPL 示例",
       "btn.open": "打开文件",
       "btn.compare": "与 Labelary 对比",
@@ -983,6 +986,22 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "^CF0,24\n" +
       "^FO50,600^FDBorders, filled shapes, reverse fields^FS\n" +
       "^XZ",
+    epl: "N\n" +
+      "A20,24,0,3,1,1,N,\"EPL2 SHOWCASE\"\n" +
+      "LO20,62,760,3\n" +
+      "A20,84,0,2,1,1,N,\"Text, boxes, lines and barcodes\"\n" +
+      "A20,140,0,4,1,1,N,\"Font 4 heading\"\n" +
+      "A20,200,0,3,2,2,N,\"Font 3 double\"\n" +
+      "A20,268,0,2,1,1,N,\"Font 2 - regular text\"\n" +
+      "A20,298,0,1,1,1,N,\"Font 1 - small text\"\n" +
+      "X20,350,3,780,560\n" +
+      "A40,382,0,3,1,1,N,\"X box - frame between two corners\"\n" +
+      "A40,436,0,2,1,1,N,\"LO lines, X boxes, barcodes below\"\n" +
+      "B20,590,0,3,2,4,80,B,\"ABC-1234\"\n" +
+      "A20,710,0,2,1,1,N,\"Code 39 with human readable line\"\n" +
+      "B20,770,0,1,2,4,90,B,\"EPL-DEMO-2026\"\n" +
+      "A20,910,0,2,1,1,N,\"Code 128 with human readable line\"\n" +
+      "P1",
     tspl: "SIZE 101.6 mm,152.4 mm\n" +
       "GAP 3 mm,0 mm\n" +
       "DIRECTION 1\n" +
@@ -1004,7 +1023,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   };
 
   /* Sample language: keeps the format selector in sync when a sample loads. */
-  var SAMPLE_FMT = { shipping: "zpl", barcodes: "zpl", graphics: "zpl", tspl: "tspl" };
+  var SAMPLE_FMT = { shipping: "zpl", barcodes: "zpl", graphics: "zpl", epl: "epl", tspl: "tspl" };
+
+  /* Demo for each format: swapped in by the format selector while the editor
+     still holds content the user never typed (see autoLoaded below). */
+  var DEMOS = { zpl: SAMPLES.shipping, epl: SAMPLES.epl, tspl: SAMPLES.tspl };
 
   /* ── DOM refs ── */
   var btn          = document.getElementById("render-btn");
@@ -1055,6 +1078,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var lastPngBlob = null;
   var renderSeq = 0;
   var toastTimer = null;
+
+  // Content last placed in the editor on the user's behalf (the initial demo,
+  // a sample, or a format-switch demo). While the editor still holds exactly
+  // this content, switching format swaps in the new format's demo; any manual
+  // edit breaks the equality and the user's content is never replaced.
+  var autoLoaded = null;
 
   function setStatus(text, cls) {
     statusText.textContent = text;
@@ -1564,6 +1593,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (!code) return false;
 
     input.value = code;
+    autoLoaded = null; // shared-link content belongs to the user
     if (q.f === "epl" || q.f === "zpl") fmtSel.value = q.f;
     if (q.d && [6, 8, 12, 24].indexOf(parseInt(q.d, 10)) >= 0) dpmmSel.value = String(parseInt(q.d, 10));
     // Permalinks without `a` predate the antialias option (default off), so
@@ -1604,6 +1634,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     this.selectedIndex = 0;
     if (!v || !SAMPLES[v]) return;
     input.value = SAMPLES[v];
+    autoLoaded = SAMPLES[v];
     // A sample knows its language; keep the format selector in sync.
     fmtSel.value = SAMPLE_FMT[v] || "zpl";
     updateCompareState();
@@ -1625,6 +1656,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     var reader = new FileReader();
     reader.onload = function (e) {
       input.value = e.target.result;
+      autoLoaded = null; // opened file content belongs to the user
       input.focus();
       updateCaret();
     };
@@ -1663,7 +1695,19 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     compareBtn.disabled = noCompare;
     compareBtn.title = noCompare ? t("tip.compareEpl") : t("tip.compare");
   }
-  fmtSel.addEventListener("change", updateCompareState);
+  fmtSel.addEventListener("change", function () {
+    updateCompareState();
+    var demo = DEMOS[fmtSel.value];
+    // The user hasn't typed anything of their own yet: swap in the demo for
+    // the newly selected format so the canvas isn't drawn from the previous
+    // language's data.
+    if (demo && autoLoaded !== null && input.value === autoLoaded && input.value !== demo) {
+      input.value = demo;
+      autoLoaded = demo;
+      updateCaret();
+      render();
+    }
+  });
 
   input.addEventListener("input", function () {
     if (!autoChk.checked) return;
@@ -1689,6 +1733,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   /* ── Init ── */
   langSel.value = lang;
   applyI18n();
+  autoLoaded = input.value; // the baked-in demo counts as auto-loaded
   var loadedFromHash = loadFromHash();
   updateCaret();
   if (loadedFromHash) render();

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Playground: per-format demos** — switching the Format selector
+  (ZPL/EPL/TSPL) now auto-loads a demo label for the newly selected language
+  while the editor still holds content the user never typed; any manual edit
+  is never replaced. The Samples menu gains an "EPL showcase" label
+  demonstrating text fonts, `X` boxes, `LO` lines and Code 39 / Code 128
+  barcodes with human-readable lines.
+
 ## [1.8.1] - 2026-10-16
 
 ### Changed
