@@ -1,4 +1,4 @@
-// Labelize Cloudflare Worker: / , /health, /convert (mirrors the axum server).
+// Labelize Cloudflare Worker: / , /health, /convert, /validate, /format (mirrors the axum server).
 //
 // The wasm-bindgen thin entry (labelize_wasm.js) auto-initializes with the
 // bundler's wasm import, which workerd resolves to a module (not an instance),
@@ -8,6 +8,8 @@ import {
   __wbg_set_wasm,
   lz_render_lang,
   lz_playground_html,
+  lz_validate,
+  lz_format,
   __wbindgen_init_externref_table,
   __wbindgen_generic_0000000000000001,
 } from "../wasm/npm/labelize_wasm_bg.js";
@@ -88,6 +90,40 @@ async function convert(request, url) {
   }
 }
 
+// Validate: lz_validate never throws — the report JSON carries ok/error,
+// mirroring the axum server's POST /validate response shape.
+async function validate(request, url) {
+  const dpmm = parseInt(url.searchParams.get("dpmm"), 10) || 8;
+  const lang = url.searchParams.get("language") || "";
+  const bad = badLanguage(lang);
+  if (bad) return bad;
+  const body = new Uint8Array(await request.arrayBuffer());
+  return jsonResponse(JSON.parse(lz_validate(body, dpmm, lang)));
+}
+
+// Format: reflows the source one command per line; raw bytes so binary
+// payloads (GW/BITMAP) survive unchanged, mirroring POST /format.
+async function formatLabel(request, url) {
+  const lang = url.searchParams.get("language") || "";
+  const bad = badLanguage(lang);
+  if (bad) return bad;
+  const body = new Uint8Array(await request.arrayBuffer());
+  const formatted = lz_format(body, lang);
+  return new Response(formatted, {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
+}
+
+function badLanguage(lang) {
+  if (lang && !["zpl", "epl", "tspl"].includes(lang.toLowerCase())) {
+    return jsonResponse(
+      { error: `unknown language ${lang.toLowerCase()} — expected zpl, epl or tspl` },
+      400,
+    );
+  }
+  return null;
+}
+
 export default {
   async fetch(request, env, ctx) {
     await ensureEngine();
@@ -102,6 +138,12 @@ export default {
     }
     if (request.method === "POST" && url.pathname === "/convert") {
       return convert(request, url);
+    }
+    if (request.method === "POST" && url.pathname === "/validate") {
+      return validate(request, url);
+    }
+    if (request.method === "POST" && url.pathname === "/format") {
+      return formatLabel(request, url);
     }
     return jsonResponse({ error: "Not Found" }, 404);
   },

@@ -313,7 +313,8 @@ async fn serve(host: String, port: u16) {
                 ],
                 format!(
                     "{{\"service\":\"labelize\",\"version\":\"{}\",\"playground\":false,\
-                     \"endpoints\":{{\"health\":\"GET /health\",\"convert\":\"POST /convert\"}}}}",
+                     \"endpoints\":{{\"health\":\"GET /health\",\"convert\":\"POST /convert\",\
+                     \"validate\":\"POST /validate\",\"format\":\"POST /format\"}}}}",
                     env!("CARGO_PKG_VERSION")
                 ),
             )
@@ -440,10 +441,84 @@ async fn serve(host: String, port: u16) {
         }
     }
 
+    #[derive(serde::Deserialize)]
+    struct LanguageParams {
+        /// Force the language (`zpl` | `epl` | `tspl`); absent = auto-detect
+        /// from the body, matching `/convert`'s Content-Type sniffing.
+        #[serde(default)]
+        language: Option<String>,
+        #[serde(default = "default_dpmm")]
+        dpmm: i32,
+    }
+
+    #[derive(serde::Serialize)]
+    struct ValidateResponse {
+        language: &'static str,
+        ok: bool,
+        labels: usize,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    }
+
+    // Shared `?language=` resolution for /validate and /format: absent means
+    // auto-detect, an unknown name is a 400.
+    fn forced_language(name: Option<&str>) -> Result<Option<Language>, String> {
+        match name {
+            None => Ok(None),
+            Some(name) => {
+                Language::from_name(name).map(Some).ok_or_else(|| format!("unknown language {name:?} — expected zpl, epl or tspl"))
+            }
+        }
+    }
+
+    async fn validate_handler(
+        Query(params): Query<LanguageParams>,
+        body: Bytes,
+    ) -> impl IntoResponse {
+        let forced = match forced_language(params.language.as_deref()) {
+            Ok(forced) => forced,
+            Err(msg) => return (StatusCode::BAD_REQUEST, msg).into_response(),
+        };
+        let report = labelize::validate(&body, params.dpmm, forced);
+        let response = ValidateResponse {
+            language: report.language.name(),
+            ok: report.ok,
+            labels: report.labels,
+            error: report.error,
+        };
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/json")],
+            serde_json::to_string(&response).unwrap_or_default(),
+        )
+            .into_response()
+    }
+
+    async fn format_handler(
+        Query(params): Query<LanguageParams>,
+        body: Bytes,
+    ) -> impl IntoResponse {
+        let forced = match forced_language(params.language.as_deref()) {
+            Ok(forced) => forced,
+            Err(msg) => return (StatusCode::BAD_REQUEST, msg).into_response(),
+        };
+        // Formatting never fails and never changes what the source renders;
+        // unknown commands are reflowed, not rejected.
+        let (_language, formatted) = labelize::format_source(&body, forced);
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            formatted,
+        )
+            .into_response()
+    }
+
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
-        .route("/convert", post(convert_handler));
+        .route("/convert", post(convert_handler))
+        .route("/validate", post(validate_handler))
+        .route("/format", post(format_handler));
 
     let addr = format!("{}:{}", host, port);
     println!("Starting server on {}", addr);
@@ -457,7 +532,7 @@ async fn serve(host: String, port: u16) {
             }
         );
     } else {
-        println!("Playground: disabled — API-only mode (GET /health, POST /convert)");
+        println!("Playground: disabled — API-only mode (GET /health, POST /convert, POST /validate, POST /format)");
     }
     let listener = tokio::net::TcpListener::bind(&addr)
         .await

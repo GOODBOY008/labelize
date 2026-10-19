@@ -579,13 +579,28 @@ fn parse_epl_box(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelEleme
 /// that may contain newline bytes, so the data block is consumed straight
 /// from the byte stream. Returns the element and the byte offset just past
 /// the data block, or `None` when the line is not a GW command.
-fn parse_epl_graphic_write(
+/// Byte layout of a `GW` command: parsed header parameters plus the
+/// `[data_start, data_end)` span of its raw binary payload.
+pub(super) struct GwSpan {
+    pub(super) x: i32,
+    pub(super) y: i32,
+    pub(super) width_bytes: i32,
+    pub(super) data_start: usize,
+    pub(super) data_end: usize,
+}
+
+/// Scan the `GW` command starting on line `[line_start, line_end)` of
+/// `epl_data` and locate its binary payload.
+///
+/// `Ok(None)` when the line is not a GW command; `Err` when it is one but is
+/// malformed (missing params, negative dimensions, overflow, truncated data).
+/// Shared by the parser and the source formatter so both walk GW blocks with
+/// identical boundaries.
+pub(super) fn gw_span(
     epl_data: &[u8],
     line_start: usize,
     line_end: usize,
-    ref_x: i32,
-    ref_y: i32,
-) -> Result<Option<(LabelElement, usize)>, String> {
+) -> Result<Option<GwSpan>, String> {
     let raw_line = &epl_data[line_start..line_end];
     let Some(first) = raw_line.iter().position(|b| !b.is_ascii_whitespace()) else {
         return Ok(None);
@@ -639,25 +654,46 @@ fn parse_epl_graphic_write(
         ));
     }
 
+    Ok(Some(GwSpan {
+        x,
+        y,
+        width_bytes,
+        data_start,
+        data_end,
+    }))
+}
+
+fn parse_epl_graphic_write(
+    epl_data: &[u8],
+    line_start: usize,
+    line_end: usize,
+    ref_x: i32,
+    ref_y: i32,
+) -> Result<Option<(LabelElement, usize)>, String> {
+    let Some(span) = gw_span(epl_data, line_start, line_end)? else {
+        return Ok(None);
+    };
+    let total = span.data_end - span.data_start;
+
     let element = LabelElement::GraphicField(GraphicField {
         reverse_print: ReversePrint::default(),
         position: LabelPosition {
-            x: x + ref_x,
-            y: y + ref_y,
+            x: span.x + ref_x,
+            y: span.y + ref_y,
             ..Default::default()
         },
         format: GraphicFieldFormat::Raw,
         data_bytes: total as i32,
         total_bytes: total as i32,
-        row_bytes: width_bytes,
-        data: epl_data[data_start..data_end].to_vec(),
+        row_bytes: span.width_bytes,
+        data: epl_data[span.data_start..span.data_end].to_vec(),
         magnification_x: 1,
         magnification_y: 1,
         mode: GraphicFieldMode::default(),
         zero_bits_black: false,
     });
 
-    Ok(Some((element, data_end)))
+    Ok(Some((element, span.data_end)))
 }
 
 fn epl_parse_int(bytes: &[u8]) -> Option<i32> {

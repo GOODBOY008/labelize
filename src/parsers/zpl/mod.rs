@@ -7,6 +7,7 @@
 pub mod charsets;
 pub mod command_utils;
 pub mod fs;
+pub mod format;
 pub mod measurement_unit;
 pub mod parser;
 pub mod qr_payload;

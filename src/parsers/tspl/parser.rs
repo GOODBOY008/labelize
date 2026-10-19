@@ -297,7 +297,7 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
     Ok(commands)
 }
 
-fn first_token_end(data: &[u8], start: usize) -> usize {
+pub(super) fn first_token_end(data: &[u8], start: usize) -> usize {
     let mut idx = start;
     while idx < data.len() && !data[idx].is_ascii_whitespace() {
         idx += 1;
@@ -305,7 +305,7 @@ fn first_token_end(data: &[u8], start: usize) -> usize {
     idx
 }
 
-fn bitmap_payload_start(data: &[u8], start: usize) -> Option<usize> {
+pub(super) fn bitmap_payload_start(data: &[u8], start: usize) -> Option<usize> {
     let mut commas = 0usize;
     let mut idx = start;
     while idx < data.len() {
@@ -323,7 +323,7 @@ fn bitmap_payload_start(data: &[u8], start: usize) -> Option<usize> {
     None
 }
 
-fn command_line_end(data: &[u8], start: usize) -> usize {
+pub(super) fn command_line_end(data: &[u8], start: usize) -> usize {
     let mut idx = start;
     let mut in_quotes = false;
 
@@ -354,7 +354,7 @@ fn command_name(line: &str) -> String {
         .to_ascii_uppercase()
 }
 
-fn command_args(line: &str, name: &str) -> Vec<String> {
+pub(super) fn command_args(line: &str, name: &str) -> Vec<String> {
     let rest = line.get(name.len()..).unwrap_or("").trim_start();
     split_tspl_args(rest)
 }
@@ -404,7 +404,7 @@ fn clean_arg(arg: &str) -> String {
     unquoted.replace("\\[\"]", "\"").replace("\\\"", "\"")
 }
 
-fn parse_i32_arg(arg: &str) -> Option<i32> {
+pub(super) fn parse_i32_arg(arg: &str) -> Option<i32> {
     arg.trim().parse::<f64>().ok().map(|v| v.round() as i32)
 }
 
@@ -956,7 +956,7 @@ fn parse_qrcode(line: &str, state: &mut TsplState) -> Result<(), String> {
 /// may continue onto following lines: a newline only continues the option
 /// list when the line ended with a trailing comma. Returns `None` when no
 /// length option is present, leaving the command to the line parser.
-fn pdf417_raw_layout(data: &[u8], start: usize) -> Option<(usize, usize, usize)> {
+pub(super) fn pdf417_raw_layout(data: &[u8], start: usize) -> Option<(usize, usize, usize)> {
     let mut idx = start;
     while idx < data.len() && !matches!(data[idx], b'\r' | b'\n') && data[idx] != b',' {
         idx += 1;
@@ -1031,7 +1031,7 @@ fn pdf417_raw_layout(data: &[u8], start: usize) -> Option<(usize, usize, usize)>
 /// would swallow it; content lines that merely start with a command-like word
 /// ("Bar Height ...") must NOT truncate, so the structural set is deliberately
 /// narrow.
-fn raw_content_end(data: &[u8], start: usize, len: usize) -> usize {
+pub(super) fn raw_content_end(data: &[u8], start: usize, len: usize) -> usize {
     let end = start.saturating_add(len).min(data.len());
     let mut idx = start;
     while idx < end {

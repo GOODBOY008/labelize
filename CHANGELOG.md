@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`POST /validate` + `POST /format` APIs** — the HTTP server (and the
+  Cloudflare Worker mirror) gain two language-aware endpoints:
+  `/validate` syntax-checks label source without rendering (JSON report:
+  detected `language`, `ok`, `labels`, and the exact parse `error`),
+  `/format` pretty-prints it one command per line with `^XA` blocks
+  indented. Both take an optional `?language=zpl|epl|tspl` and auto-detect
+  otherwise; unknown values are a 400.
+- **Source formatters (core + SDK)** — `labelize::format_source()` and the
+  wasm exports `lz_validate()` / `lz_format()` bring the same capabilities
+  to library and `@goodboy008/labelize-wasm` users, so SDK callers can
+  surface the real parser error (JSON report) instead of guessing from a
+  thrown string. Formatters never fail and never touch binary payloads
+  (`^FD` data, `GW`/`BITMAP` graphics): formatting real corpus labels
+  (dpduk.epl, dpdpl.zpl, dhl_express.zpl, tspl_graphics.tspl) renders
+  pixel-identically (sha256-verified).
+- **Playground: syntax badge + Format button** — the editor header shows a
+  live `ZPL · syntax OK · 1 label` (or the parser error) badge driven by
+  `POST /validate`, and a Format button reflows the editor via
+  `POST /format`. While the user owns the content and has not pinned the
+  format selector by hand, the detected language keeps the selector in
+  sync so pasted EPL/TSPL renders with the right engine.
 - **Playground: per-format demos** — switching the Format selector
   (ZPL/EPL/TSPL) now auto-loads a demo label for the newly selected language
   while the editor still holds content the user never typed; any manual edit
@@ -25,6 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   justification, `^BC` mode) is now case-insensitive, matching Zebra
   printers and Labelary (verified pixel-identical against Labelary
   references).
+- **wasm crate test module** — `wasm/src/lib.rs` tests had not compiled
+  since the crate moved into `wasm/` (stale `include_str!` path) and an
+  earlier refactor removed the `render_payload` helper the tests called;
+  both restored, 12 tests green again.
+- **EPL `GW` boundary logic deduplicated** — the graphic-data span scan
+  lives in one place (`gw_span`) shared by the parser and the new
+  formatter, so the two can never disagree about where binary data ends.
 
 ## [1.8.1] - 2026-10-16
 
