@@ -54,7 +54,10 @@ serde_json = { version = "1", optional = true }
 default = []
 cli = ["dep:clap"]
 playground = []
-serve = ["cli", "playground", "dep:axum", "dep:tokio", "dep:serde", "dep:serde_json"]
+# Serialize the report types (Language, ValidationReport) so HTTP layers and
+# SDK consumers share one wire shape instead of re-declaring mirror structs.
+serde = ["dep:serde"]
+serve = ["cli", "playground", "serde", "dep:axum", "dep:tokio", "dep:serde_json"]
 skill = []
 
 [[bin]]

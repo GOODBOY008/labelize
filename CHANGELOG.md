@@ -37,6 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   demonstrating text fonts, `X` boxes, `LO` lines and Code 39 / Code 128
   barcodes with human-readable lines.
 
+### Added
+
+- **One-call render API** — `labelize::render_png` / `render_pdf` with
+  `RenderOptions` and a `Rendered { language, labels, bytes }` result:
+  language detection, first-label selection, dimension fallback
+  (user size > label-declared size > 102×152 mm) and PNG/PDF encoding in a
+  single call returning one `LabelizeError` (parse = user input, rest =
+  engine-side). The HTTP `/convert` handler and the wasm render path now go
+  through it instead of re-implementing the glue; outputs verified
+  byte-identical (sha256) across ZPL/EPL/TSPL, PDF, custom sizes and
+  antialias before/after.
+- **`serde` feature** — opt-in `Serialize` for `Language` and
+  `ValidationReport` (lowercase wire names, `error` omitted when `None`),
+  so HTTP layers and SDK consumers share one wire shape; the server drops
+  its mirror response struct.
+
 ### Docs
 
 - **Rust tutorial rewritten** (`docs/tutorials/rust-library.md`) — front-door
