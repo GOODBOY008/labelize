@@ -830,10 +830,15 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
     Ok(())
 }
 
-/// `DMATRIX x,y,width,height[,options…,]"content"` — options are
-/// letter-prefixed tokens (`x8` cell size, `r180` rotation) and bare numeric
-/// tokens forming a symbol size pair (rows, columns). Unknown options are
-/// ignored rather than guessed; the content is passed through raw.
+/// `DMATRIX x,y,width,height,[c#,x#,r#,a#,row,col,]"content"` — width/height
+/// are the expected symbol area and stay advisory: the manual's result
+/// figure prints the x-less example as an 18×18 symbol of ~72 dots inside a
+/// 400×400 request, so the symbol is never scaled to fill the area. `x#` is
+/// the module size in dots (default 4, from that same figure: 70 measured
+/// dots / 18 modules), `c#` the escape control character in decimal (only
+/// active when present), `r#` rotation, `a#` 0 square (default) / 1
+/// rectangle, and the bare numeric pair is the symbol size in the manual's
+/// row,col order. The content is passed through raw.
 fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
     let args = command_args(line, "DMATRIX");
     if args.len() < 5 {
@@ -844,13 +849,17 @@ fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
     }
     let x = parse_i32_arg(&args[0]).unwrap_or(0);
     let y = parse_i32_arg(&args[1]).unwrap_or(0);
-    let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1);
     let content = args.last().cloned().unwrap_or_default();
     if content.is_empty() {
         return Ok(());
     }
 
     let mut orientation = FieldOrientation::Normal;
+    // TSC default module size in dots (no stated default in the manual;
+    // 4 is calibrated from its example figure).
+    let mut module_size = 4i32;
+    let mut escape = 0u8;
+    let mut ratio = DatamatrixRatio::Square;
     let mut rows = 0i32;
     let mut columns = 0i32;
     let mut size_pair: Vec<i32> = Vec::new();
@@ -870,7 +879,21 @@ fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
                     };
                 }
             }
-            'x' | 'X' => {}
+            'c' | 'C' => {
+                if let Ok(code) = token[1..].parse::<u8>() {
+                    escape = code;
+                }
+            }
+            'a' | 'A' => {
+                if token[1..].trim() == "1" {
+                    ratio = DatamatrixRatio::Rectangular;
+                }
+            }
+            'x' | 'X' => {
+                if let Ok(n) = token[1..].parse::<i32>() {
+                    module_size = n;
+                }
+            }
             digit if digit.is_ascii_digit() => {
                 if let Ok(n) = token.parse::<i32>() {
                     size_pair.push(n);
@@ -880,11 +903,8 @@ fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
         }
     }
     if size_pair.len() >= 2 {
-        // TSC samples list the square symbol size once per axis; treat the
-        // pair as (columns, rows) — identical for the square sizes used in
-        // the wild.
-        columns = size_pair[0];
-        rows = size_pair[1];
+        rows = size_pair[0];
+        columns = size_pair[1];
     }
 
     state
@@ -893,13 +913,13 @@ fn parse_dmatrix(line: &str, state: &mut TsplState) -> Result<(), String> {
             reverse_print: ReversePrint::default(),
             barcode: BarcodeDatamatrix {
                 orientation,
-                height,
+                height: module_size.max(1),
                 quality: 200,
                 columns,
                 rows,
                 format: 6,
-                escape: 0,
-                ratio: Some(DatamatrixRatio::Square),
+                escape,
+                ratio: Some(ratio),
             },
             position: state.position(x, y),
             data: content,
