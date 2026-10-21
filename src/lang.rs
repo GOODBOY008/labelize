@@ -339,7 +339,9 @@ mod tests {
             ("testdata/unit/tspl_graphics.tspl", Language::Tspl),
         ];
         for (path, lang) in cases {
-            let Ok(src) = std::fs::read(path) else { continue };
+            let Ok(src) = std::fs::read(path) else {
+                continue;
+            };
             let before = parse_labels(lang, &src, 8).unwrap_or_else(|e| panic!("{path}: {e}"));
             let (_, formatted) = format_source(&src, Some(lang));
             let after = parse_labels(lang, &formatted, 8).unwrap_or_else(|e| panic!("{path}: {e}"));

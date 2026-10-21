@@ -47,7 +47,8 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
         let cmd = &buf[start..end];
         let is_xa = starts_with_ignoring_case(cmd, b"^XA");
         let is_xz = starts_with_ignoring_case(cmd, b"^XZ");
-        let is_data = starts_with_ignoring_case(cmd, b"^FD") || starts_with_ignoring_case(cmd, b"^FV");
+        let is_data =
+            starts_with_ignoring_case(cmd, b"^FD") || starts_with_ignoring_case(cmd, b"^FV");
         if is_xz {
             *depth = (*depth - 1).max(0);
         }
