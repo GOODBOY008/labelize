@@ -15,10 +15,49 @@ image = "0.25"   # only if you post-process the rendered pixels
 The default features are enough for library use; `cli` / `serve` features are
 only needed for the binaries.
 
-## 2. The front door: detect → parse → render
+## 2. One call: `render_png` / `render_pdf`
 
-Everything enters through [`src/lang.rs`](../../src/lang.rs) — one enum, one
-dispatch, all three languages:
+The high-level API ([`src/render.rs`](../../src/render.rs)) detects the
+language, parses, resolves the canvas, and encodes — bytes in, bytes out:
+
+```rust
+use labelize::{render_png, RenderOptions};
+
+let input = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
+
+let out = render_png(input, RenderOptions::default())?;
+// out.language == Language::Zpl (auto-detected)
+// out.labels  == 1             (total labels in the input)
+// out.bytes   — PNG file bytes
+std::fs::write("output.png", out.bytes)?;
+```
+
+`render_pdf` takes the same arguments and returns PDF bytes. Everything is
+steerable through `RenderOptions`:
+
+```rust
+use labelize::{render_pdf, Language, RenderOptions};
+
+let opts = RenderOptions {
+    language: Some(Language::Epl), // None = auto-detect
+    width_mm: Some(100.0),         // None = label-declared, else 102×152
+    height_mm: Some(62.0),
+    dpmm: 12,
+    antialias: false,
+};
+let out = render_pdf(epl_bytes, opts)?;
+```
+
+Errors are a single `LabelizeError`: `Parse` variants are user-input
+problems, everything else is engine-side — the same split the built-in HTTP
+service maps to 400 vs 500.
+
+## 3. The composable path: detect → parse → render
+
+When you need element-level access, want to iterate every label, or stream
+into your own writer, drop to the front door in
+[`src/lang.rs`](../../src/lang.rs) — one enum, one dispatch, all three
+languages:
 
 ```rust
 use std::io::Cursor;
@@ -54,7 +93,7 @@ The per-language parsers (`ZplParser`, `EplParser`, `TsplParser`) remain
 public for direct use, but `parse_labels` is the recommended entry point —
 it is the only place that picks a parser, and new languages land there.
 
-## 3. Validate without rendering
+## 4. Validate without rendering
 
 Before you spend a render — or before you show a user an error — check the
 source and get the exact parser failure. `validate` never fails; the outcome
@@ -78,7 +117,7 @@ assert!(ok.ok && ok.labels == 1);
 and skips detection; empty input reports `ok: true` with `labels: 0` —
 "parses to nothing", not "invalid".
 
-## 4. Format (pretty-print) label source
+## 5. Format (pretty-print) label source
 
 `format_source` reflows source one command per line — `^XA` blocks indented,
 CRLF normalized, blank runs collapsed — without changing what renders:
@@ -98,7 +137,7 @@ valid UTF-8. On real corpus labels the formatted source renders
 pixel-identically (sha256-verified), so it is safe to expose as a
 "beautify" feature. Formatting never fails and never rejects input.
 
-## 5. Control the canvas with `DrawerOptions`
+## 6. Control the canvas with `DrawerOptions`
 
 ```rust
 let options = DrawerOptions {
@@ -129,7 +168,7 @@ let options = DrawerOptions {
 };
 ```
 
-## 6. PDF output
+## 7. PDF output
 
 PDF wraps the rendered pixels in a single-page document:
 
@@ -144,7 +183,7 @@ encode_pdf(&img, &options, &mut pdf)?;
 std::fs::write("output.pdf", pdf.into_inner())?;
 ```
 
-## 7. Multiple labels per input
+## 8. Multiple labels per input
 
 `^XA…^XZ` blocks repeat, and `^PQ` multiplies a single block into a print
 quantity — both arrive as extra entries in the `Vec`:
@@ -158,22 +197,23 @@ for (i, label) in labels.iter().enumerate() {
 }
 ```
 
-## 8. Error handling
+## 9. Error handling
 
 Two stages fail differently — keep them distinct in your messages, they map
 to HTTP 400 vs 500 in the built-in service:
 
 | Stage | Call | Error type |
 |---|---|---|
+| Any | `render_png` / `render_pdf` | `LabelizeError` — `Parse` variants are user-input, the rest engine-side |
 | Parse | `parse_labels` | `LabelizeError::Parse(String)` — bad input, user's fault |
-| Render | `draw_label_as_png` | `String` — engine-side failure |
+| Render | `draw_label_as_png` | `String` — low-level; the one-call API wraps this into `LabelizeError::Render` |
 | Encode | `encode_pdf` / `encode_png` | `LabelizeError` |
 
 `validate` sits outside the table: it converts parse failures into data, so
 "what is wrong with this snippet" is a question you ask *before* rendering
 instead of an `Err` you unpack after.
 
-## 9. A complete, runnable example
+## 10. A complete, runnable example
 
 The repo ships a ~90-line example that turns these pieces into a mini
 `convert` command with PNG/PDF output:
@@ -184,7 +224,7 @@ cargo run --example render_label -- testdata/labels/amazon.zpl out.png
 
 Source: [`examples/render_label.rs`](../../examples/render_label.rs).
 
-## 10. What's next
+## 11. What's next
 
 - Explore the modules — `parsers/` (ZPL/EPL/TSPL), `elements/` (typed label
   elements), `drawers/renderer.rs` (rasterizer), `images/` (PNG/PDF encoders)

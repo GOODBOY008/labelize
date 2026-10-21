@@ -355,89 +355,50 @@ async fn serve(host: String, port: u16) {
         body: Bytes,
     ) -> impl IntoResponse {
         // Language comes from the Content-Type when it names one, otherwise
-        // the body itself is sniffed.
+        // the body itself is sniffed (inside render, when left unset).
         let content_type = headers
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
         let language = if content_type.contains("epl") {
-            Language::Epl
+            Some(Language::Epl)
         } else if content_type.contains("tspl") {
-            Language::Tspl
+            Some(Language::Tspl)
         } else if content_type.contains("zpl") {
-            Language::Zpl
+            Some(Language::Zpl)
         } else {
-            labelize::detect_language(&body)
+            None
         };
 
-        let labels = parse_labels(language, &body, params.dpmm).map_err(|e| e.to_string());
-
-        let labels = match labels {
-            Ok(l) => l,
-            Err(e) => return (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
-        };
-
-        let label = match labels.into_iter().next() {
-            Some(l) => l,
-            None => {
-                return (StatusCode::BAD_REQUEST, "No labels found".to_string()).into_response()
-            }
-        };
-
-        let options = DrawerOptions {
-            label_width_mm: params
-                .width
-                .or(label.label_width_mm)
-                .unwrap_or(DEFAULT_LABEL_WIDTH_MM),
-            label_height_mm: params
-                .height
-                .or(label.label_height_mm)
-                .unwrap_or(DEFAULT_LABEL_HEIGHT_MM),
+        let options = labelize::RenderOptions {
+            language,
+            width_mm: params.width,
+            height_mm: params.height,
             dpmm: params.dpmm,
             antialias: params.antialias,
-            ..Default::default()
         };
 
-        let want_pdf = params.output.as_deref() == Some("pdf");
-
-        let renderer = Renderer::new();
-        let mut buf = Cursor::new(Vec::new());
-        if let Err(e) = renderer.draw_label_as_png(&label, &mut buf, options.clone()) {
-            return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response();
-        }
-
-        if want_pdf {
-            let img = match image::load_from_memory(&buf.into_inner()) {
-                Ok(img) => img.to_rgba8(),
-                Err(e) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!("image decode: {}", e),
-                    )
-                        .into_response()
-                }
-            };
-            let mut pdf_buf = Cursor::new(Vec::new());
-            match labelize::encode_pdf(&img, &options, &mut pdf_buf) {
-                Ok(_) => (
-                    StatusCode::OK,
-                    [(header::CONTENT_TYPE, "application/pdf")],
-                    pdf_buf.into_inner(),
-                )
-                    .into_response(),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("pdf encode: {}", e),
-                )
-                    .into_response(),
-            }
+        // Parse failures are user input (400); render/encode failures are
+        // engine-side (500) — LabelizeError's variants carry that split.
+        let rendered = if params.output.as_deref() == Some("pdf") {
+            labelize::render_pdf(&body, options)
         } else {
-            (
-                StatusCode::OK,
-                [(header::CONTENT_TYPE, "image/png")],
-                buf.into_inner(),
-            )
-                .into_response()
+            labelize::render_png(&body, options)
+        };
+
+        match rendered {
+            Ok(out) => {
+                let content = if params.output.as_deref() == Some("pdf") {
+                    "application/pdf"
+                } else {
+                    "image/png"
+                };
+                (StatusCode::OK, [(header::CONTENT_TYPE, content)], out.bytes).into_response()
+            }
+            Err(labelize::LabelizeError::Parse(msg)) => {
+                (StatusCode::BAD_REQUEST, msg).into_response()
+            }
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
         }
     }
 
@@ -449,15 +410,6 @@ async fn serve(host: String, port: u16) {
         language: Option<String>,
         #[serde(default = "default_dpmm")]
         dpmm: i32,
-    }
-
-    #[derive(serde::Serialize)]
-    struct ValidateResponse {
-        language: &'static str,
-        ok: bool,
-        labels: usize,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        error: Option<String>,
     }
 
     // Shared `?language=` resolution for /validate and /format: absent means
@@ -480,16 +432,10 @@ async fn serve(host: String, port: u16) {
             Err(msg) => return (StatusCode::BAD_REQUEST, msg).into_response(),
         };
         let report = labelize::validate(&body, params.dpmm, forced);
-        let response = ValidateResponse {
-            language: report.language.name(),
-            ok: report.ok,
-            labels: report.labels,
-            error: report.error,
-        };
         (
             StatusCode::OK,
             [(header::CONTENT_TYPE, "application/json")],
-            serde_json::to_string(&response).unwrap_or_default(),
+            serde_json::to_string(&report).unwrap_or_default(),
         )
             .into_response()
     }

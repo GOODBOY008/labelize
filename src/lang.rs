@@ -12,6 +12,8 @@ use crate::parsers::tspl::parser::TsplParser;
 use crate::parsers::zpl::parser::ZplParser;
 
 /// A label printer language the engine understands.
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Language {
     /// Zebra Programming Language (`^XA … ^XZ`).
@@ -62,6 +64,7 @@ impl Language {
 
 /// Outcome of a [`validate`] pass: which language the data was checked as,
 /// whether it parsed, and the parse error when it did not.
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationReport {
     /// Language the data was checked as (auto-detected when not forced).
@@ -71,6 +74,7 @@ pub struct ValidationReport {
     /// Number of labels found (`0` when parsing failed).
     pub labels: usize,
     /// Parse error message when [`ValidationReport::ok`] is `false`.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub error: Option<String>,
 }
 

@@ -1,10 +1,6 @@
 //! labelize compiled to wasm32-unknown-unknown, exposed through wasm-bindgen.
 
-use std::io::Cursor;
-
-use labelize::drawers::renderer::Renderer;
-use labelize::elements::drawer_options::DrawerOptions;
-use labelize::{parse_labels, Language};
+use labelize::Language;
 use wasm_bindgen::prelude::*;
 
 /// Failure stage, which maps to HTTP status in the JS worker:
@@ -24,39 +20,26 @@ fn render_payload_lang(
     want_pdf: bool,
     language: Language,
 ) -> Result<Vec<u8>, (Stage, String)> {
-    let labels = parse_labels(language, bytes, dpmm)
-        .map_err(|e| (Stage::Parse, e.to_string()))?;
-
-    let label = labels
-        .into_iter()
-        .next()
-        .ok_or_else(|| (Stage::Parse, "No labels found".to_string()))?;
-
-    let options = DrawerOptions {
-        label_width_mm: width_mm,
-        label_height_mm: height_mm,
+    // The crate's one-call render path; JS always passes explicit dimensions
+    // (the browser playground knows its canvas size), so width/height are
+    // Some(...) and the 102×152 fallback never engages here.
+    let options = labelize::RenderOptions {
+        language: Some(language),
+        width_mm: if width_mm > 0.0 { Some(width_mm) } else { None },
+        height_mm: if height_mm > 0.0 { Some(height_mm) } else { None },
         dpmm,
         antialias,
-        ..Default::default()
     };
-
-    let renderer = Renderer::new();
-    let mut png_buf = Cursor::new(Vec::new());
-    renderer
-        .draw_label_as_png(&label, &mut png_buf, options.clone())
-        .map_err(|e| (Stage::Render, e.to_string()))?;
-
-    if want_pdf {
-        let img = image::load_from_memory(png_buf.get_ref())
-            .map_err(|e| (Stage::Render, format!("image decode: {e}")))?
-            .to_rgba8();
-        let mut pdf_buf = Cursor::new(Vec::new());
-        labelize::encode_pdf(&img, &options, &mut pdf_buf)
-            .map_err(|e| (Stage::Render, e.to_string()))?;
-        Ok(pdf_buf.into_inner())
+    let stage = |err: labelize::LabelizeError| match err {
+        labelize::LabelizeError::Parse(msg) => (Stage::Parse, msg),
+        e => (Stage::Render, e.to_string()),
+    };
+    let rendered = if want_pdf {
+        labelize::render_pdf(bytes, options)
     } else {
-        Ok(png_buf.into_inner())
-    }
+        labelize::render_png(bytes, options)
+    };
+    rendered.map(|out| out.bytes).map_err(stage)
 }
 
 /// Error surfaced to JS as a thrown string prefixed with the stage code:
@@ -71,6 +54,9 @@ fn render_error(stage: &Stage, msg: String) -> String {
 
 /// Parse ZPL/EPL and render to PNG (or PDF when `want_pdf`). Copies all data
 /// across the JS boundary automatically via wasm-bindgen.
+///
+/// Legacy boolean-language variant kept for backwards compatibility — prefer
+/// `lz_render_lang`, which names all three languages.
 #[wasm_bindgen]
 pub fn lz_render(
     src: &[u8],

@@ -217,22 +217,16 @@ labelize = "1.8"
 
 ### Parse and render a label
 
-The language-neutral front door (auto-detects ZPL/EPL/TSPL; see the
-[Rust tutorial](tutorials/rust-library.md) for the full guide — canvas
-control, PDF, `validate()` / `format_source()` and error handling):
+One call detects the language, parses, resolves the canvas and encodes —
+see the [Rust tutorial](tutorials/rust-library.md) for the full guide
+(composable parse/render path, canvas control, PDF, `validate()` /
+`format_source()` and error handling):
 
 ```rust
-use std::io::Cursor;
-use labelize::{detect_language, parse_labels, Renderer, DrawerOptions};
-
 fn main() {
     let input = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
-    let labels = parse_labels(detect_language(input), input, 8).unwrap();
-
-    let renderer = Renderer::new();
-    let mut buf = Cursor::new(Vec::new());
-    renderer.draw_label_as_png(&labels[0], &mut buf, DrawerOptions::default()).unwrap();
-    std::fs::write("output.png", buf.into_inner()).unwrap();
+    let out = labelize::render_png(input, labelize::RenderOptions::default()).unwrap();
+    std::fs::write("output.png", out.bytes).unwrap();
 }
 ```
 
