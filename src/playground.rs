@@ -187,6 +187,26 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     letter-spacing: 0; font-weight: 400; color: var(--text-dim);
   }
 
+  /* Syntax badge: detected language + parse verdict for the editor content.
+     Sits right after the panel title; long error messages ellipsize with the
+     full text on hover (title attribute). */
+  .syntax-status {
+    font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0;
+    color: var(--text-dim); max-width: 55%; overflow: hidden;
+    white-space: nowrap; text-overflow: ellipsis; flex-shrink: 1; min-width: 0;
+  }
+  .syntax-status:empty { display: none; }
+  .syntax-status.syn-ok::before { content: "● "; color: #2ea043; }
+  .syntax-status.syn-err::before { content: "● "; color: #f85149; }
+
+  .fmt-btn {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-dim);
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 8px; cursor: pointer; flex-shrink: 0;
+  }
+  .fmt-btn:hover { color: var(--text); border-color: var(--accent); }
+
   #zpl-input {
     flex: 1; background: var(--bg); color: var(--text);
     font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
@@ -519,6 +539,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   <div class="editor-panel">
     <div class="panel-header">
       <span class="dot"></span><span data-i18n="panel.code">ZPL / EPL Code</span>
+      <span id="syntax-status" class="syntax-status" aria-live="polite"></span>
+      <button id="format-btn" class="fmt-btn" data-i18n="btn.format" title="Reflow one command per line">Format</button>
       <span id="caret-pos" class="hdr-side" aria-live="off"></span>
     </div>
 
@@ -765,6 +787,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.graphics": "Shapes & graphics",
       "sample.epl": "EPL showcase",
       "sample.tspl": "TSPL showcase",
+      "btn.format": "Format",
+      "syn.ok": "syntax OK",
+      "syn.bad": "syntax error",
+      "syn.oneLabel": "1 label",
+      "syn.nLabels": "{n} labels",
       "btn.open": "Open File",
       "btn.compare": "Compare with Labelary",
       "btn.render": "Render",
@@ -843,6 +870,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.graphics": "图形与绘图",
       "sample.epl": "EPL 示例",
       "sample.tspl": "TSPL 示例",
+      "btn.format": "格式化",
+      "syn.ok": "语法通过",
+      "syn.bad": "语法错误",
+      "syn.oneLabel": "1 个标签",
+      "syn.nLabels": "{n} 个标签",
       "btn.open": "打开文件",
       "btn.compare": "与 Labelary 对比",
       "btn.render": "渲染",
@@ -1084,6 +1116,21 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   // this content, switching format swaps in the new format's demo; any manual
   // edit breaks the equality and the user's content is never replaced.
   var autoLoaded = null;
+
+  /* ── Syntax check state ──
+     The editor content is checked against POST /check (auto-detected
+     language) after every change. While the user owns the content and has
+     not pinned a format by hand, the format selector follows the detected
+     language so renders always use the right parser. The pin survives
+     edits — it only clears when content is replaced wholesale (sample,
+     demo swap, file), which re-establishes a consistent format. */
+  var syntaxEl       = document.getElementById("syntax-status");
+  var formatBtn      = document.getElementById("format-btn");
+  var fmtUserTouched = false;
+  var lastReport     = null;
+  var checkTimer     = null;
+  var CHECK_DELAY    = 400;
+  var LANG_NAMES     = { zpl: "ZPL", epl: "EPL", tspl: "TSPL" };
 
   function setStatus(text, cls) {
     statusText.textContent = text;
@@ -1637,9 +1684,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     autoLoaded = SAMPLES[v];
     // A sample knows its language; keep the format selector in sync.
     fmtSel.value = SAMPLE_FMT[v] || "zpl";
+    fmtUserTouched = false; // content and format are consistent again
     updateCompareState();
     updateCaret();
     render();
+    scheduleCheck();
   });
 
   /* ── Open File ── */
@@ -1652,6 +1701,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (ext === "epl") fmtSel.value = "epl";
     else if (ext === "tspl") fmtSel.value = "tspl";
     else                   fmtSel.value = "zpl";
+    fmtUserTouched = false; // content and format are consistent again
     updateCompareState();
     var reader = new FileReader();
     reader.onload = function (e) {
@@ -1659,6 +1709,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       autoLoaded = null; // opened file content belongs to the user
       input.focus();
       updateCaret();
+      scheduleCheck();
     };
     reader.readAsText(file);
     this.value = "";
@@ -1676,6 +1727,94 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   input.addEventListener("keyup", updateCaret);
   input.addEventListener("click", updateCaret);
   input.addEventListener("select", updateCaret);
+
+  /* ── Syntax check ── */
+  function renderSyntaxBadge() {
+    if (!lastReport) {
+      syntaxEl.className = "syntax-status";
+      syntaxEl.textContent = "";
+      syntaxEl.title = "";
+      return;
+    }
+    var name = LANG_NAMES[lastReport.language] || "ZPL";
+    syntaxEl.className = "syntax-status " + (lastReport.ok ? "syn-ok" : "syn-err");
+    syntaxEl.title = lastReport.error || "";
+    if (lastReport.ok) {
+      var count = "";
+      if (lastReport.labels > 1) count = " · " + fmt(t("syn.nLabels"), { n: lastReport.labels });
+      else if (lastReport.labels === 1) count = " · " + t("syn.oneLabel");
+      syntaxEl.textContent = name + " · " + t("syn.ok") + count;
+    } else {
+      var msg = lastReport.error || t("syn.bad");
+      syntaxEl.textContent = name + " · " + t("syn.bad") + " · " + msg;
+    }
+  }
+
+  function runCheck() {
+    var code = input.value;
+    if (!code.trim()) {
+      lastReport = null;
+      renderSyntaxBadge();
+      return;
+    }
+    fetch("/validate?dpmm=" + encodeURIComponent(dpmmSel.value), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: new TextEncoder().encode(code)
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (report) {
+        if (input.value !== code) return; // content changed while in flight
+        lastReport = report;
+        renderSyntaxBadge();
+        maybeSyncFormat(report);
+      })
+      .catch(function () { /* best-effort; render errors still surface in the banner */ });
+  }
+
+  function scheduleCheck() {
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(runCheck, CHECK_DELAY);
+  }
+
+  // While the editor holds the user's own content and they have not pinned
+  // the format selector by hand, follow the detected language so the preview
+  // always parses with the right engine.
+  function maybeSyncFormat(report) {
+    if (!LANG_NAMES[report.language]) return;
+    var userOwns = autoLoaded === null || input.value !== autoLoaded;
+    if (userOwns && !fmtUserTouched && fmtSel.value !== report.language) {
+      fmtSel.value = report.language;
+      updateCompareState();
+      render();
+    }
+  }
+
+  /* Format button: reflow the editor content one command per line via
+     POST /format. The result is still the user's own content (just
+     reflowed), so it never re-enables the demo-swap path. */
+  formatBtn.addEventListener("click", function () {
+    var code = input.value;
+    if (!code.trim()) { showError(t("err.empty")); return; }
+    fetch("/format", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: new TextEncoder().encode(code)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.arrayBuffer();
+      })
+      .then(function (buf) {
+        if (input.value !== code) return; // changed while in flight
+        input.value = new TextDecoder().decode(buf);
+        autoLoaded = null; // formatted content belongs to the user
+        updateCaret();
+        render();
+        scheduleCheck();
+      })
+      .catch(function (e) { showError(fmt(t("err.renderFail"), { status: e.message })); });
+  });
 
   /* ── Events ── */
   btn.addEventListener("click", render);
@@ -1696,6 +1835,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     compareBtn.title = noCompare ? t("tip.compareEpl") : t("tip.compare");
   }
   fmtSel.addEventListener("change", function () {
+    fmtUserTouched = true;
     updateCompareState();
     var demo = DEMOS[fmtSel.value];
     // The user hasn't typed anything of their own yet: swap in the demo for
@@ -1704,12 +1844,15 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (demo && autoLoaded !== null && input.value === autoLoaded && input.value !== demo) {
       input.value = demo;
       autoLoaded = demo;
+      fmtUserTouched = false; // content and format are consistent again
       updateCaret();
       render();
+      scheduleCheck();
     }
   });
 
   input.addEventListener("input", function () {
+    scheduleCheck();
     if (!autoChk.checked) return;
     clearTimeout(autoTimer);
     autoTimer = setTimeout(function () { render({ auto: true }); }, AUTO_DELAY);
@@ -1736,6 +1879,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   autoLoaded = input.value; // the baked-in demo counts as auto-loaded
   var loadedFromHash = loadFromHash();
   updateCaret();
+  scheduleCheck();
   if (loadedFromHash) render();
 })();
 </script>

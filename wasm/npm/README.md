@@ -60,6 +60,30 @@ const png = lz_render_lang(tspl, 101.6, 152.4, 8, false, false, "tspl");
 
 Errors throw a string prefixed with the failure stage: `1:` parse error, `2:` rendering error.
 
+`lz_validate(src, dpmm, lang) -> string` syntax-checks without rendering and never throws —
+the JSON report carries the outcome, so SDK callers get the exact parser error instead of a bare
+thrown string:
+
+```js
+import { lz_validate } from "@goodboy008/labelize-wasm/init";
+
+const report = JSON.parse(lz_validate(src, 8, "")); // "" = auto-detect the language
+// { language: "zpl", ok: true,  labels: 1 }
+// { language: "epl", ok: false, labels: 0, error: "Parse error: EPL X command requires 5 parameters, got 2" }
+
+if (!report.ok) console.error(`[${report.language}] ${report.error}`);
+```
+
+`lz_format(src, lang) -> Uint8Array` pretty-prints the source: one command per line, `^XA`
+blocks indented, CRLF normalized. Binary payloads (`^FD` data, `GW`/`BITMAP` graphics) pass
+through byte-for-byte, so formatted source renders pixel-identically:
+
+```js
+import { lz_format } from "@goodboy008/labelize-wasm/init";
+
+const pretty = new TextDecoder().decode(lz_format(src, "")); // "" = auto-detect
+```
+
 `lz_playground_html() -> string` returns the Labelize playground page (identical to the
 HTTP server's `/`).
 

@@ -6,6 +6,7 @@
 
 pub mod charsets;
 pub mod command_utils;
+pub mod format;
 pub mod fs;
 pub mod measurement_unit;
 pub mod parser;

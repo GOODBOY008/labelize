@@ -161,6 +161,49 @@ curl -X POST "http://localhost:8080/convert?width=100&height=62&dpmm=12" \
 | `dpmm`    | 8       | Dots per mm             |
 | `output`  | png     | Output format: png/pdf  |
 
+### Validate label source via HTTP
+
+Syntax-check without rendering: auto-detects the language (or takes an
+explicit `?language=zpl|epl|tspl`) and reports what failed.
+
+```bash
+curl -X POST http://localhost:8080/validate \
+  -d '^XA^FO50,50^A0N,40,40^FDHello World^FS^XZ'
+# {"language":"zpl","ok":true,"labels":1}
+
+curl -X POST http://localhost:8080/validate -d 'N
+B10,10,0,9,2,4,80,B,"oops"
+P1'
+# {"language":"epl","ok":false,"labels":0,"error":"Parse error: EPL B command: unsupported bar code type \"9\" (Code 93)"}
+```
+
+| Parameter  | Default | Description                            |
+|------------|---------|----------------------------------------|
+| `language` | auto    | Force `zpl`/`epl`/`tspl` (else detect) |
+| `dpmm`     | 8       | Dots per mm (feeds ZPL `^MU` units)    |
+
+### Format label source via HTTP
+
+Pretty-print the source: one command per line, `^XA` blocks indented, CRLF
+normalized, blank runs collapsed. Binary payloads (`^FD` data, `GW`/`BITMAP`
+graphics) pass through byte-for-byte, so formatted source renders
+pixel-identically (verified by sha256 on real corpus labels).
+
+```bash
+curl -X POST http://localhost:8080/format \
+  -d '^XA^CF0,60^FO50,50^FDHello^FS^XZ'
+# ^XA
+#   ^CF0,60
+#   ^FO50,50
+#   ^FDHello
+# ^FS
+# ^XZ
+```
+
+| Parameter  | Default | Description                            |
+|------------|---------|----------------------------------------|
+| `language` | auto    | Force `zpl`/`epl`/`tspl` (else detect) |
+
 ---
 
 ## Library Usage
