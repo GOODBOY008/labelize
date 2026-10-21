@@ -37,6 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   demonstrating text fonts, `X` boxes, `LO` lines and Code 39 / Code 128
   barcodes with human-readable lines.
 
+### Docs
+
+- **Rust tutorial rewritten** (`docs/tutorials/rust-library.md`) — front-door
+  API (`detect_language`/`parse_labels`), new sections for `validate()` and
+  `format_source()`, canvas fallback pattern, multi-label loops, and a
+  stage/error-type table; every snippet compile- and run-verified. The
+  `docs/USAGE.md` library quickstart now uses the same front door and links
+  to the tutorial.
+
 ### Fixed
 
 - **ZPL: lowercase single-letter parameters (issue #104)** — real-world

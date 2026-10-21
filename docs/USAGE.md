@@ -212,24 +212,26 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-labelize = { path = "." }
+labelize = "1.8"
 ```
 
-### Parse and render a ZPL string
+### Parse and render a label
+
+The language-neutral front door (auto-detects ZPL/EPL/TSPL; see the
+[Rust tutorial](tutorials/rust-library.md) for the full guide — canvas
+control, PDF, `validate()` / `format_source()` and error handling):
 
 ```rust
 use std::io::Cursor;
-use labelize::{ZplParser, Renderer, DrawerOptions};
+use labelize::{detect_language, parse_labels, Renderer, DrawerOptions};
 
 fn main() {
-    let zpl = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
-    let mut parser = ZplParser::new();
-    let labels = parser.parse(zpl).unwrap();
+    let input = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
+    let labels = parse_labels(detect_language(input), input, 8).unwrap();
 
     let renderer = Renderer::new();
-    let opts = DrawerOptions::default();
     let mut buf = Cursor::new(Vec::new());
-    renderer.draw_label_as_png(&labels[0], &mut buf, opts).unwrap();
+    renderer.draw_label_as_png(&labels[0], &mut buf, DrawerOptions::default()).unwrap();
     std::fs::write("output.png", buf.into_inner()).unwrap();
 }
 ```
@@ -238,12 +240,11 @@ fn main() {
 
 ```rust
 use std::io::Cursor;
-use labelize::{ZplParser, Renderer, DrawerOptions, encode_pdf};
+use labelize::{detect_language, parse_labels, Renderer, DrawerOptions, encode_pdf};
 
 fn main() {
-    let zpl = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
-    let mut parser = ZplParser::new();
-    let labels = parser.parse(zpl).unwrap();
+    let input = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
+    let labels = parse_labels(detect_language(input), input, 8).unwrap();
 
     let opts = DrawerOptions::default();
     let renderer = Renderer::new();
