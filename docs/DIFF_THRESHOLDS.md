@@ -73,6 +73,7 @@ informational.
 | dhlparceluk_ver | zpl | 0.05 | 5.5 | Font metrics |
 | empty_barcodes | zpl | 0.00 | 1.0 | Empty 2D barcode fields (QR/DM/MaxiCode skip, Aztec core) — pixel-identical |
 | fo_lenient_coord | zpl | 0.02 | 5.0 | ^FO coordinate parsing leniency |
+| lowercase_orientation | zpl | 0.24 | 1.0 | Lowercase single-letter params (^FWr, ^BCr, ^A0r, ^FB c, y/n) — issue #104 |
 | maxicode_default_mode2 | zpl | 0.59 | 1.0 | MaxiCode mode 2 module placement |
 | maxicode_mode4 | zpl | 0.58 | 1.0 | MaxiCode mode 4 module placement |
 | mu_dpi_conversion | zpl | 0.05 | 2.0 | ^MU dpi conversion + font metrics |

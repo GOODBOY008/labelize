@@ -12,8 +12,12 @@ pub fn command_text<'a>(command: &'a str, prefix: &str) -> &'a str {
     &command[prefix.len()..]
 }
 
+// ZPL single-letter parameters are case-insensitive on Zebra printers and in
+// Labelary (verified pixel-identical for lowercase vs uppercase n/r/i/b, y,
+// l/r/j/c and u/a/d), so every converter here folds its letter to uppercase.
+
 pub fn to_field_orientation(b: u8) -> FieldOrientation {
-    match b {
+    match b.to_ascii_uppercase() {
         b'N' => FieldOrientation::Normal,
         b'R' => FieldOrientation::Rotated90,
         b'I' => FieldOrientation::Rotated180,
@@ -32,7 +36,7 @@ pub fn to_field_alignment(s: &str) -> Option<FieldAlignment> {
 }
 
 pub fn to_text_alignment(b: u8) -> TextAlignment {
-    match b {
+    match b.to_ascii_uppercase() {
         b'L' => TextAlignment::Left,
         b'R' => TextAlignment::Right,
         b'J' => TextAlignment::Justified,
@@ -42,7 +46,7 @@ pub fn to_text_alignment(b: u8) -> TextAlignment {
 }
 
 pub fn to_barcode_mode(b: u8) -> BarcodeMode {
-    match b {
+    match b.to_ascii_uppercase() {
         b'U' => BarcodeMode::Ucc,
         b'A' => BarcodeMode::Automatic,
         b'D' => BarcodeMode::Ean,
@@ -51,7 +55,7 @@ pub fn to_barcode_mode(b: u8) -> BarcodeMode {
 }
 
 pub fn to_bool_field(b: u8) -> bool {
-    b == b'Y'
+    b.eq_ignore_ascii_case(&b'Y')
 }
 
 pub fn to_positive_int(s: &str) -> Option<i32> {
