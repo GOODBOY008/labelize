@@ -641,3 +641,84 @@ fn cf_numeric_user_font_falls_back_to_scalable_font_0() {
     let labels = parse("^XA^CF3,20^FO50,50^FDHello^FS^XZ");
     assert_eq!(first_text(&labels).font.name, "0");
 }
+
+// --- Case-insensitive single-letter parameters (issue #104) ---
+
+use labelize::elements::barcode_128::BarcodeMode;
+use labelize::elements::field_orientation::FieldOrientation;
+use labelize::elements::text_alignment::TextAlignment;
+
+fn first_barcode_128(
+    labels: &[labelize::LabelInfo],
+) -> &labelize::elements::barcode_128::Barcode128WithData {
+    labels[0]
+        .elements
+        .iter()
+        .find_map(|e| match e {
+            LabelElement::Barcode128(bc) => Some(bc),
+            _ => None,
+        })
+        .expect("no barcode element")
+}
+
+#[test]
+fn lowercase_orientation_letters_parse_like_uppercase() {
+    let cases = [
+        ('n', FieldOrientation::Normal),
+        ('r', FieldOrientation::Rotated90),
+        ('i', FieldOrientation::Rotated180),
+        ('b', FieldOrientation::Rotated270),
+    ];
+    for (letter, want) in cases {
+        // ^A per-field orientation slot
+        let zpl = format!("^XA^FO50,50^A0{letter},30,30^FDHi^FS^XZ");
+        assert_eq!(
+            first_text(&parse(&zpl)).font.orientation,
+            want,
+            "^A0{letter}"
+        );
+
+        // ^BC barcode orientation letter
+        let zpl = format!("^XA^FO50,50^BC{letter},80,Y,N,N^FD12345678^FS^XZ");
+        assert_eq!(
+            first_barcode_128(&parse(&zpl)).barcode.orientation,
+            want,
+            "^BC{letter}"
+        );
+
+        // ^FW default orientation, consumed by a barcode without its own letter
+        let zpl = format!("^XA^FW{letter}^FO50,50^BC,80,Y,N,N^FD12345678^FS^XZ");
+        assert_eq!(
+            first_barcode_128(&parse(&zpl)).barcode.orientation,
+            want,
+            "^FW{letter} default"
+        );
+    }
+}
+
+#[test]
+fn issue104_repro_lowercase_field_renders_like_uppercase_twin() {
+    // The issue's verbatim barcode field: lowercase orientation + booleans + mode.
+    let repro = parse("^XA^FO100,200^BY3^BCr,230,n,n,n,A^FD123456789012^FS^XZ");
+    let bc = first_barcode_128(&repro);
+    assert_eq!(bc.barcode.orientation, FieldOrientation::Rotated90);
+    assert_eq!(bc.barcode.mode, BarcodeMode::Automatic);
+    assert!(!bc.barcode.line);
+    assert!(!bc.barcode.line_above);
+
+    // Lowercase y is Yes, not the silent No it used to collapse to.
+    let y_lower = parse("^XA^FO50,50^BCN,100,y,n,n,a^FD123456789012^FS^XZ");
+    let bc = first_barcode_128(&y_lower);
+    assert!(bc.barcode.line);
+    assert_eq!(bc.barcode.mode, BarcodeMode::Automatic);
+}
+
+#[test]
+fn lowercase_fb_justification_letter_parses_like_uppercase() {
+    let labels = parse("^XA^FO50,50^A0N,30,30^FB400,2,0,c,0^FDCentered^FS^XZ");
+    let text = first_text(&labels);
+    assert_eq!(
+        text.block.as_ref().expect("expected FieldBlock").alignment,
+        TextAlignment::Center
+    );
+}

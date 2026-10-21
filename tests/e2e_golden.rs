@@ -348,6 +348,10 @@ fn golden_font_v() {
     golden_zpl("font_v");
 }
 #[test]
+fn golden_lowercase_orientation() {
+    golden_zpl("lowercase_orientation");
+}
+#[test]
 fn golden_gd_thin_r() {
     golden_zpl_with_tolerance("gd_thin_r", 1.0);
 }

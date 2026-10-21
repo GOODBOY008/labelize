@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   demonstrating text fonts, `X` boxes, `LO` lines and Code 39 / Code 128
   barcodes with human-readable lines.
 
+### Fixed
+
+- **ZPL: lowercase single-letter parameters (issue #104)** — real-world
+  labels using lowercase orientation values (`^FWr`, `^BCr`, `^A0r`) were
+  silently rendered as normal orientation. Single-letter parameter parsing
+  (orientation letters in `^FW`/`^BC`/`^A`/etc., Y/N booleans, `^FB`
+  justification, `^BC` mode) is now case-insensitive, matching Zebra
+  printers and Labelary (verified pixel-identical against Labelary
+  references).
+
 ## [1.8.1] - 2026-10-16
 
 ### Changed
