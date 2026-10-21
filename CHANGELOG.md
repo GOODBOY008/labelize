@@ -64,6 +64,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **TSPL: `DMATRIX` rendered a giant black slab** — the `x#` module-size
+  option was parsed but discarded, and the symbol-area `height` argument
+  (e.g. the `180` in `DMATRIX 560,540,180,180,x5,"…"`) leaked into the
+  module scale, drawing 180-px modules that covered the label as a solid
+  black block. `x#` now sets the module size in dots per the TSC TSPL
+  manual (omitted → 4, calibrated from the manual's result figure), the
+  advisory area no longer feeds geometry, and the previously unused `c#`
+  escape char, `a#` rectangle shape, and manual `row,col` ordering are
+  wired through. Verified round-trip: the rendered symbols decode back to
+  the exact content with rxing (22×22 and 32×32 ECC200 cases from the
+  TE210 capture). `labelixa` returns blank for every `DMATRIX`, so the
+  calibration rests on the manual + its figure alone (documented in
+  `docs/TSPL_BASELINES.md`).
 - **ZPL: lowercase single-letter parameters (issue #104)** — real-world
   labels using lowercase orientation values (`^FWr`, `^BCr`, `^A0r`) were
   silently rendered as normal orientation. Single-letter parameter parsing

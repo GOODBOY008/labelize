@@ -14,9 +14,11 @@ approximation.
 
 - **labelixa** does not render: `DIRECTION` (declared "not applied to the
   MVP preview"; verified 0–4 identical), `CIRCLE`, `ELLIPSE`, rounded `BOX`,
-  `PDF417`, `ITF14`. It also skips `|` characters in text. Canvas is
-  floor-rounded (812×406 where labelize produces 813×407) — pad to union
-  before diffing.
+  `PDF417`, `ITF14`, `DMATRIX` (returns a blank label; measured 2026-10-21
+  with area-only, `x#`, and manual-sample shapes — DMATRIX is therefore
+  calibrated against the TSC TSPL manual + its result figure alone). It also
+  skips `|` characters in text. Canvas is floor-rounded (812×406 where
+  labelize produces 813×407) — pad to union before diffing.
 - **portakal** parses a subset (`doc_QRCODE_sample_1` → 0 elements,
   `doc_BARCODE_sample_1` → 1 of 3 elements). Its SVG viewport adds a
   decorative margin; rasterize with `fitTo` and re-check dimensions. Font

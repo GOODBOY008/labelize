@@ -462,6 +462,9 @@ PRINT 1
     match &labels[0].elements[0] {
         LabelElement::BarcodeDatamatrix(bc) => {
             assert_eq!(bc.barcode.quality, 200);
+            // x8 is the module size in dots (TSPL manual), not the area
+            // height (which is 415 here).
+            assert_eq!(bc.barcode.height, 8);
             assert_eq!(bc.barcode.rows, 14);
             assert_eq!(bc.barcode.columns, 14);
             assert_eq!(
@@ -469,6 +472,63 @@ PRINT 1
                 labelize::elements::field_orientation::FieldOrientation::Rotated180
             );
             assert_eq!(bc.data, "P203S730");
+        }
+        other => panic!("expected BarcodeDatamatrix, got {other:?}"),
+    }
+}
+
+#[test]
+fn dmatrix_module_size_default_and_option_map() {
+    // The manual's option order is c#,x#,r#,a#,row,col — a1 is rectangular,
+    // c126 activates ~ escapes, row comes before col, and the symbol area
+    // width/height never feed the module size.
+    let labels = parse(
+        br#"SIZE 4,2
+CLS
+DMATRIX 560,540,180,180,x5,"FLOWSTOCK|SCANNER-DIAG|V1"
+DMATRIX 100,110,400,400,"DMATRIX EXAMPLE 1"
+DMATRIX 100,50,100,100,c126,x6,r90,a1,16,48,"DMATRIX EXAMPLE 4"
+PRINT 1
+"#,
+    );
+    let element = match &labels[0].elements[0] {
+        LabelElement::BarcodeDatamatrix(bc) => bc,
+        other => panic!("expected BarcodeDatamatrix, got {other:?}"),
+    };
+    // Real-world TE210 capture shape: x5 → 5-dot modules; 180 (the symbol
+    // area height) must not leak into the module size (it used to render
+    // the symbol as a giant black slab).
+    assert_eq!(element.barcode.height, 5);
+    assert_eq!(element.data, "FLOWSTOCK|SCANNER-DIAG|V1");
+
+    match &labels[0].elements[1] {
+        LabelElement::BarcodeDatamatrix(bc) => {
+            // No x#: default module size 4, calibrated from the manual's
+            // result figure (an 18×18 symbol of ~72 dots).
+            assert_eq!(bc.barcode.height, 4);
+            assert_eq!(bc.barcode.escape, 0);
+            assert_eq!(
+                bc.barcode.ratio,
+                Some(labelize::elements::barcode_datamatrix::DatamatrixRatio::Square)
+            );
+        }
+        other => panic!("expected BarcodeDatamatrix, got {other:?}"),
+    }
+
+    match &labels[0].elements[2] {
+        LabelElement::BarcodeDatamatrix(bc) => {
+            assert_eq!(bc.barcode.height, 6);
+            assert_eq!(bc.barcode.escape, 126);
+            assert_eq!(bc.barcode.rows, 16);
+            assert_eq!(bc.barcode.columns, 48);
+            assert_eq!(
+                bc.barcode.orientation,
+                labelize::elements::field_orientation::FieldOrientation::Rotated90
+            );
+            assert_eq!(
+                bc.barcode.ratio,
+                Some(labelize::elements::barcode_datamatrix::DatamatrixRatio::Rectangular)
+            );
         }
         other => panic!("expected BarcodeDatamatrix, got {other:?}"),
     }
