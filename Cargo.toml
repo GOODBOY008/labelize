@@ -1,6 +1,6 @@
 [package]
 name = "labelize"
-version = "1.8.1"
+version = "1.9.0"
 edition = "2021"
 description = "Fast ZPL, EPL & TSPL/TSC label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
 keywords = ["zpl", "epl", "tspl", "label", "barcode"]

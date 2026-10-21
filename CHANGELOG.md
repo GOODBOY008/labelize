@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.9.0] - 2026-10-21
 
 ### Added
 
@@ -36,9 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is never replaced. The Samples menu gains an "EPL showcase" label
   demonstrating text fonts, `X` boxes, `LO` lines and Code 39 / Code 128
   barcodes with human-readable lines.
-
-### Added
-
 - **One-call render API** — `labelize::render_png` / `render_pdf` with
   `RenderOptions` and a `Rendered { language, labels, bytes }` result:
   language detection, first-label selection, dimension fallback
@@ -53,8 +50,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so HTTP layers and SDK consumers share one wire shape; the server drops
   its mirror response struct.
 
+### Changed
+
+- **Dependency maintenance** — Docker base image `rust` 1.99.0-bookworm →
+  1.99.1-bookworm; `tokio` 1.53.2 → 1.53.3 and `sha2` minor/patch bump
+  (dependabot group).
+
 ### Docs
 
+- **README: icon-only logo** — the wordmark above the `# Labelize` heading
+  duplicated the brand name; README (and the npm package README) now show
+  the new icon-only `docs/logo-icon.svg` crop instead.
 - **Rust tutorial rewritten** (`docs/tutorials/rust-library.md`) — front-door
   API (`detect_language`/`parse_labels`), new sections for `validate()` and
   `format_source()`, canvas fallback pattern, multi-label loops, and a
