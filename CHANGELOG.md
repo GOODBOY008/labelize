@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **TSPL `BITMAP`: hex-text payload form accepted** (#108) — the payload
+  may be ASCII hex (the form the issue reporter's writer emits and TSC
+  TX610 firmware reportedly accepts): a clean all-hex-digit run at a line
+  boundary — or exactly `2 × widthBytes × height` digits — is decoded to
+  bitmap bytes instead of being consumed as raw bytes one character per
+  pixel; space-separated pairs (the manual's data table style) are
+  tolerated, short runs are zero-padded, and anything else stays on the
+  raw binary byte cursor unchanged. Polarity was re-arbitrated during
+  this fix and **confirmed 0 = printed (black) dot** — the manual's
+  example figure prints bit-0 cells black (its Result glyph is the
+  matching arrow), and the tspl-core / hackernoon / bitmap.py writers all
+  map ink→0; binary behavior is unchanged from 1.9.0. labelixa's BITMAP
+  is broken on both axes (hex-blind, byte-misaligned binary) and can no
+  longer arbitrate the command — probe records in `docs/TSPL_BASELINES.md`.
+
 ## [1.9.0] - 2026-10-21
 
 ### Added
