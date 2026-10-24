@@ -2,7 +2,9 @@
 //!
 //! TSPL is a line-command language like EPL, with two raw-data commands
 //! (`BITMAP` and `PDF417 …,L<len>`) whose payloads are consumed by byte
-//! cursor rather than parsed as lines. State is minimal: label reference /
+//! cursor rather than parsed as lines. `BITMAP` additionally accepts the
+//! hex-text payload form TSC firmware reads (sniffed by
+//! [`bitmap_hex_payload`], #108). State is minimal: label reference /
 //! shift offsets, the inverted flag from `DIRECTION`, and the physical
 //! label size from `SIZE` (carried on `LabelInfo::label_*_mm` — entry
 //! points fall back to it behind explicit user overrides).
@@ -168,7 +170,11 @@ impl TsplParser {
                 magnification_x: 1,
                 magnification_y: 1,
                 mode,
-                // TSC BITMAP prints cleared bits — the inverse of ^GF/GW.
+                // The TSPL manual's own example figure prints bit-0 cells
+                // black (its Result glyph is the matching arrow), and
+                // tspl-core/hackernoon/bit.py writers all map ink→0
+                // (#108 arbitration in docs/TSPL_BASELINES.md) — 0 = black,
+                // same as ^GF/GW.
                 zero_bits_black: true,
             }));
         Ok(())
@@ -257,12 +263,22 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
             let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1) as usize;
             let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1) as usize;
             let data_len = row_bytes * height;
-            let payload_end = payload_start.saturating_add(data_len).min(data.len());
-            commands.push(TsplCommand::Bitmap {
-                header,
-                data: data[payload_start..payload_end].to_vec(),
-            });
-            idx = payload_end;
+            // Hex-text payload (TSC firmware accepts both forms, #108); a
+            // non-hex payload stays on the raw binary byte cursor.
+            if let Some((hex_end, decoded)) = bitmap_hex_payload(data, payload_start, data_len) {
+                commands.push(TsplCommand::Bitmap {
+                    header,
+                    data: decoded,
+                });
+                idx = hex_end;
+            } else {
+                let payload_end = payload_start.saturating_add(data_len).min(data.len());
+                commands.push(TsplCommand::Bitmap {
+                    header,
+                    data: data[payload_start..payload_end].to_vec(),
+                });
+                idx = payload_end;
+            }
             while idx < data.len() && matches!(data[idx], b'\r' | b'\n') {
                 idx += 1;
             }
@@ -321,6 +337,69 @@ pub(super) fn bitmap_payload_start(data: &[u8], start: usize) -> Option<usize> {
         idx += 1;
     }
     None
+}
+
+/// Hex-text `BITMAP` payload form: a contiguous run of hex digits
+/// (optionally space/tab separated, as printed in the manual's data table)
+/// ending at a line boundary — or anywhere, when the digit count is exactly
+/// `2 * expected_bytes`. TSC firmware accepts the bitmap data as ASCII hex
+/// as well as the raw binary the manual's sample code shows (#108).
+///
+/// A payload is treated as hex text when it can only be text: real binary
+/// bitmaps are full of bytes outside `[0-9A-Fa-f \t]`, so a clean all-hex
+/// line is unambiguous. Odd digit counts are malformed text and fall back
+/// to the binary cursor. Returns the scan end plus the decoded bytes —
+/// the first `expected_bytes` bytes, zero-padded when the text is short.
+pub(super) fn bitmap_hex_payload(
+    data: &[u8],
+    start: usize,
+    expected_bytes: usize,
+) -> Option<(usize, Vec<u8>)> {
+    let mut digits = 0usize;
+    let mut idx = start;
+    while idx < data.len() {
+        match data[idx] {
+            b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f' => digits += 1,
+            b' ' | b'\t' => {}
+            _ => break,
+        }
+        idx += 1;
+    }
+    let at_boundary = idx >= data.len() || matches!(data[idx], b'\r' | b'\n');
+    let exact_count = digits == expected_bytes * 2;
+    let hex_line = at_boundary && digits > 0 && digits.is_multiple_of(2);
+    if !exact_count && !hex_line {
+        return None;
+    }
+
+    let mut decoded = Vec::with_capacity(expected_bytes);
+    let mut nibble: Option<u8> = None;
+    for &b in &data[start..idx] {
+        if decoded.len() == expected_bytes {
+            break;
+        }
+        let v = match b {
+            b'0'..=b'9' => b - b'0',
+            b'A'..=b'F' => b - b'A' + 10,
+            b'a'..=b'f' => b - b'a' + 10,
+            _ => continue, // separator space/tab
+        };
+        nibble = match nibble {
+            None => Some(v),
+            Some(hi) => {
+                decoded.push((hi << 4) | v);
+                None
+            }
+        };
+    }
+    if let Some(hi) = nibble {
+        // An odd trailing digit cannot happen on the hex_line path; the
+        // exact_count path is even by definition. Defensive: keep the high
+        // nibble as a byte rather than dropping data.
+        decoded.push(hi << 4);
+    }
+    decoded.resize(expected_bytes, 0);
+    Some((idx, decoded))
 }
 
 pub(super) fn command_line_end(data: &[u8], start: usize) -> usize {

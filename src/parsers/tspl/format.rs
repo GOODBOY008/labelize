@@ -2,14 +2,15 @@
 //! binary payloads.
 //!
 //! The boundary walk reuses the parser's command splitter helpers
-//! ([`first_token_end`], [`bitmap_payload_start`], [`pdf417_raw_layout`],
-//! [`raw_content_end`], [`command_line_end`]) so formatter and parser can
-//! never disagree about where `BITMAP`/`PDF417 L<len>` raw data ends —
-//! reflowing those blocks with a line-based pass would corrupt the payload.
+//! ([`first_token_end`], [`bitmap_payload_start`], [`bitmap_hex_payload`],
+//! [`pdf417_raw_layout`], [`raw_content_end`], [`command_line_end`]) so
+//! formatter and parser can never disagree about where `BITMAP`/`PDF417
+//! L<len>` raw data ends — reflowing those blocks with a line-based pass
+//! would corrupt the payload.
 
 use super::parser::{
-    bitmap_payload_start, command_args, command_line_end, first_token_end, parse_i32_arg,
-    pdf417_raw_layout, raw_content_end,
+    bitmap_hex_payload, bitmap_payload_start, command_args, command_line_end, first_token_end,
+    parse_i32_arg, pdf417_raw_layout, raw_content_end,
 };
 
 /// Format TSPL source as raw bytes (BITMAP payloads are not UTF-8). Never
@@ -30,7 +31,8 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         let token_end = first_token_end(data, line_start);
         let token = String::from_utf8_lossy(&data[line_start..token_end]).to_uppercase();
 
-        // BITMAP: header line plus `row_bytes * height` raw bytes, verbatim.
+        // BITMAP: header line plus `row_bytes * height` raw bytes (or the
+        // hex-text form's digit run), verbatim.
         if token == "BITMAP" {
             if let Some(payload_start) = bitmap_payload_start(data, line_start) {
                 let header = String::from_utf8_lossy(&data[line_start..payload_start]).to_string();
@@ -38,9 +40,21 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
                 if args.len() >= 4 {
                     let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1) as usize;
                     let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1) as usize;
-                    let payload_end = payload_start
-                        .saturating_add(row_bytes * height)
-                        .min(data.len());
+                    let payload_end =
+                        match bitmap_hex_payload(data, payload_start, row_bytes * height) {
+                            Some((hex_end, _)) => {
+                                // Keep the digit run verbatim; drop trailing
+                                // separator spaces the scan absorbed.
+                                let mut end = hex_end;
+                                while end > payload_start && matches!(data[end - 1], b' ' | b'\t') {
+                                    end -= 1;
+                                }
+                                end
+                            }
+                            None => payload_start
+                                .saturating_add(row_bytes * height)
+                                .min(data.len()),
+                        };
                     out.extend_from_slice(&data[line_start..payload_end]);
                     out.push(b'\n');
                     idx = payload_end;
@@ -118,6 +132,19 @@ mod tests {
         let after_header = &formatted[expected_prefix.len()..];
         assert_eq!(&after_header[..2], &payload, "payload preserved byte-exact");
         assert!(formatted.ends_with(b"\nPRINT 1\n"));
+    }
+
+    #[test]
+    fn bitmap_hex_payload_is_verbatim() {
+        // Hex-text form (issue #108): the digit run is preserved exactly,
+        // including the manual-table space separators, and PRINT survives.
+        let formatted = format_tspl(
+            b"SIZE 60 mm,30 mm\r\nCLS\r\nBITMAP 10,10,2,2,0,07 FF 1F 8F\r\nPRINT 1\r\n",
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&formatted),
+            "SIZE 60 mm,30 mm\nCLS\nBITMAP 10,10,2,2,0,07 FF 1F 8F\nPRINT 1\n"
+        );
     }
 
     #[test]

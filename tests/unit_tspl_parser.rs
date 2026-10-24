@@ -285,7 +285,7 @@ fn bitmap_reads_binary_data_by_byte_cursor() {
 }
 
 #[test]
-fn bitmap_modes_map_and_carry_tsc_polarity() {
+fn bitmap_modes_map_and_carry_cleared_bits_black_polarity() {
     let mut data = b"SIZE 4,2\nCLS\n".to_vec();
     let payload = [0xF0u8; 16];
     for (y, mode) in [(40i32, 0i32), (140, 1), (240, 2)] {
@@ -304,10 +304,80 @@ fn bitmap_modes_map_and_carry_tsc_polarity() {
     assert_eq!(modes(0).0, GraphicFieldMode::Overwrite);
     assert_eq!(modes(1).0, GraphicFieldMode::Or);
     assert_eq!(modes(2).0, GraphicFieldMode::Xor);
-    // TSC BITMAP prints cleared bits (inverse of ^GF/GW) — resolved in the
-    // element so the renderer stays language-blind.
+    // The TSPL manual's example figure prints bit-0 cells black (its Result
+    // glyph is the matching arrow); the tspl-core, hackernoon and bitmap.py
+    // writers all map ink→0 (#108 arbitration in docs/TSPL_BASELINES.md).
+    // Same polarity as ^GF/GW, resolved in the element so the renderer
+    // stays language-blind.
     for i in 0..3 {
         assert!(modes(i).1, "BITMAP must carry zero-bits-black polarity");
+    }
+}
+
+#[test]
+fn bitmap_hex_text_payload_decodes_to_bytes() {
+    // Issue #108's repro shape: TSC firmware accepts the payload as ASCII
+    // hex; 4 bytes x 8 rows needs 64 digits.
+    let data = b"SIZE 4 mm,1 mm\nCLS\nBITMAP 0,0,4,8,0,FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00\nPRINT 1";
+
+    let labels = parse(data);
+    match &labels[0].elements[0] {
+        LabelElement::GraphicField(gf) => {
+            assert_eq!(gf.row_bytes, 4);
+            assert_eq!(gf.data.len(), 32);
+            // Every row is FF 00 FF 00 — decoded bytes, polarity-independent.
+            for row in 0..8 {
+                let row_data = &gf.data[row * 4..row * 4 + 4];
+                assert_eq!(row_data, &[0xFF, 0x00, 0xFF, 0x00]);
+            }
+            assert!(gf.zero_bits_black);
+        }
+        other => panic!("expected GraphicField, got {:?}", other),
+    }
+}
+
+#[test]
+fn bitmap_hex_text_payload_accepts_manual_table_separators() {
+    // The manual's data table prints the payload as space-separated hex
+    // pairs; the sniff tolerates the separators.
+    let data = b"SIZE 4,2\nCLS\nBITMAP 10,10,2,2,0,07 FF 1F 8F\nPRINT 1";
+
+    let labels = parse(data);
+    match &labels[0].elements[0] {
+        LabelElement::GraphicField(gf) => assert_eq!(gf.data, vec![0x07, 0xFF, 0x1F, 0x8F]),
+        other => panic!("expected GraphicField, got {:?}", other),
+    }
+}
+
+#[test]
+fn bitmap_hex_text_short_payload_pads_with_blank_bytes() {
+    // A truncated hex line is still unambiguous text (clean all-hex line at
+    // a boundary): decode what is there, pad the rest with 0x00 (no ink).
+    let data = b"SIZE 4,2\nCLS\nBITMAP 10,10,4,4,0,FF00FF00\nPRINT 1";
+
+    let labels = parse(data);
+    match &labels[0].elements[0] {
+        LabelElement::GraphicField(gf) => {
+            assert_eq!(gf.data.len(), 16);
+            assert_eq!(&gf.data[..4], &[0xFF, 0x00, 0xFF, 0x00]);
+            assert!(gf.data[4..].iter().all(|&b| b == 0));
+        }
+        other => panic!("expected GraphicField, got {:?}", other),
+    }
+}
+
+#[test]
+fn bitmap_odd_hex_digits_fall_back_to_binary_cursor() {
+    // An odd digit count is malformed text, not a hex payload: keep the
+    // raw byte-cursor path (the 4 declared bytes include the newline).
+    let data = b"SIZE 4,2\nCLS\nBITMAP 10,10,1,4,0,F0F\nPRINT 1";
+
+    let labels = parse(data);
+    match &labels[0].elements[0] {
+        LabelElement::GraphicField(gf) => {
+            assert_eq!(gf.data, b"F0F\n".to_vec());
+        }
+        other => panic!("expected GraphicField, got {:?}", other),
     }
 }
 

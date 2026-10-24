@@ -975,3 +975,12 @@ fn golden_tspl_real_sklad() {
 fn golden_tspl_graphics_doc_style() {
     golden_tspl_with_tolerance("tspl_graphics_doc_style", 0.01);
 }
+
+/// Issue #108's repro shape: a hex-text `BITMAP` payload (the form TSC
+/// firmware reads) on a 32×8 canvas. Reference is the renderer baseline —
+/// labelixa's BITMAP cannot arbitrate (hex-blind, inverted polarity; see
+/// TSPL_BASELINES.md).
+#[test]
+fn golden_tspl_bitmap_hex() {
+    golden_tspl_with_tolerance("tspl_bitmap_hex", 0.01);
+}

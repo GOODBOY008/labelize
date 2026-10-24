@@ -108,7 +108,8 @@ informational.
 | dpdpl | zpl | 3.76 | 5.5 | Font metrics (R-block ^FB anchor now reserves the max_lines box like Labelary) |
 | dpduk | epl | 3.80 | 6.5 | EPL reference from Go renderer |
 | epl2_showcase | epl | 0.01 | 1.5 | Renderer baseline reference (Labelary has no EPL); ECC auto table per EPL2 manual |
-| tspl_graphics | tspl | 0.00 | 1.5 | Renderer baseline reference (no public TSPL reference renderer); SIZE-driven canvas 608x400 |
+| tspl_graphics | tspl | 0.00 | 1.5 | Renderer baseline reference (no public TSPL reference renderer); SIZE-driven canvas 608x400; BITMAP payload is space-separated hex (manual table style) |
+| tspl_bitmap_hex | tspl | 0.00 | 1.0 | Renderer baseline reference; issue #108 hex-text BITMAP repro, 32x8 canvas; labelixa cannot arbitrate BITMAP (see TSPL_BASELINES.md) |
 | tspl_shipping | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 812x480 |
 | tspl_text_styles | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 813x407 |
 | tspl_real_probe_text | tspl | 0.54 | 2.0 | labelixa reference (filament-db probe) |
