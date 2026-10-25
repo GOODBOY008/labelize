@@ -171,7 +171,7 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_render<'local>(
     }
 }
 
-/// Parse a named language (`"zpl"`, `"epl"`, `"tspl"`) and render to PNG (or
+/// Parse a named language (`"zpl"`, `"epl"`, `"tspl"`, `"cpcl"`, `"dpl"`) and render to PNG (or
 /// PDF when `pdf` is true). Mapping for `Labelize.renderLang(...)` in
 /// `lib/src/main/kotlin/com/goodboy008/labelize/Labelize.kt`. Unknown values
 /// fall back to ZPL, matching the CLI's sniff fallback.
@@ -197,6 +197,8 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_renderLang<'local>(
         let language = match lang_str.to_ascii_lowercase().as_str() {
             "epl" => labelize::Language::Epl,
             "tspl" => labelize::Language::Tspl,
+            "cpcl" => labelize::Language::Cpcl,
+            "dpl" => labelize::Language::Dpl,
             _ => labelize::Language::Zpl,
         };
         let bytes = match env.convert_byte_array(src) {
