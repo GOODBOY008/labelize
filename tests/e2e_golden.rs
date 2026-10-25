@@ -1,5 +1,7 @@
 mod common;
 
+use labelize::DrawerOptions;
+
 use common::image_compare;
 use common::labelary_client;
 use common::render_helpers;
@@ -1178,6 +1180,132 @@ fn golden_cpcl_shipping() {
 #[test]
 fn golden_cpcl_2d_graphics() {
     golden_cpcl_with_tolerance("cpcl_2d_graphics", 0.01);
+}
+
+/// Auto-generate a missing golden reference PNG for a real-provenance
+/// DPL test. layoutview.evolabel.com renders DPL server-side (~11.8
+/// px/mm); its PNG is stored raw and the comparison canvas is derived
+/// from it at test time (dpmm 12, mm = px/12), so bottom-left-anchored
+/// content aligns. Falls back to the renderer baseline.
+fn auto_bootstrap_dpl_real(
+    content: &[u8],
+    path: &std::path::Path,
+    name: &str,
+    w_mm: u32,
+    h_mm: u32,
+) {
+    let png = match common::evolabel_client::evolabel_render(content, w_mm, h_mm) {
+        Some(fetched) => {
+            eprintln!("[bootstrap] '{}': fetched from evolabel layout view", name);
+            fetched
+        }
+        None => {
+            eprintln!("[bootstrap] '{}': using renderer baseline for DPL", name);
+            let opts = DrawerOptions {
+                label_width_mm: w_mm as f64,
+                label_height_mm: h_mm as f64,
+                dpmm: 12,
+                ..render_helpers::unit_options()
+            };
+            render_helpers::render_dpl_to_png(content, opts)
+        }
+    };
+    std::fs::create_dir_all(path.parent().unwrap()).ok();
+    std::fs::write(path, &png).expect("write auto-generated golden PNG");
+}
+
+/// Real-provenance DPL golden test. The comparison canvas is derived from
+/// the stored reference (dpmm 12, mm = ref_px/12 − ε) so both renders
+/// share it exactly; DPL's bottom-left home keeps content anchored the
+/// same way in both. The tolerance records the honest distance to the
+/// evolabel layout preview (font substitute shapes + barcode geometry)
+/// and the renderer baseline keeps it at 0.00% offline.
+fn golden_dpl_real_with_tolerance(name: &str, tolerance: f64, w_mm: u32, h_mm: u32) {
+    let dir = testdata_dir();
+    let input = dir.join("unit").join(format!("{}.dpl", name));
+    let expected_path = input.with_extension("png");
+
+    if !input.exists() {
+        eprintln!("SKIP {}: missing DPL input", name);
+        return;
+    }
+    let content = std::fs::read(&input).expect("read input");
+
+    if !expected_path.exists() {
+        auto_bootstrap_dpl_real(&content, &expected_path, name, w_mm, h_mm);
+    }
+
+    let expected_png = std::fs::read(&expected_path).expect("read golden");
+    let ref_img = image::load_from_memory(&expected_png).expect("decode golden");
+    let opts = DrawerOptions {
+        label_width_mm: ref_img.width() as f64 / 12.0 - 1e-6,
+        label_height_mm: ref_img.height() as f64 / 12.0 - 1e-6,
+        dpmm: 12,
+        ..render_helpers::unit_options()
+    };
+    let actual_png = render_helpers::render_dpl_to_png(&content, opts);
+    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+
+    if result.diff_percent > tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
+        std::fs::write(&expected_path, &actual_png).expect("update golden file");
+        return;
+    }
+
+    assert!(
+        result.diff_percent <= tolerance,
+        "DPL real golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
+        name,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
+    );
+}
+
+/// Real-provenance corpus — CPCL: the MIT-licensed
+/// Labelixa/thermal-printer-examples collection (official renderer-vendor
+/// corpus); references from labelixa's CPCL renderer.
+fn golden_cpcl_real_with_tolerance(name: &str, tolerance: f64) {
+    golden_cpcl_with_tolerance(name, tolerance);
+}
+
+/// Asset tag (2x1"): fonts 4/7 + Code 39 with HRI off, ratio 2.
+#[test]
+fn golden_cpcl_real_asset_tag() {
+    golden_cpcl_real_with_tolerance("cpcl_real_asset_tag", 18.5);
+}
+
+/// Delivery route label (2x2"): BOX border, LINE rule, rotated TEXT270,
+/// Code 128.
+#[test]
+fn golden_cpcl_real_route_label() {
+    golden_cpcl_real_with_tolerance("cpcl_real_route_label", 13.0);
+}
+
+/// Delivery note receipt (2x3"): text block, LINE, Code 128.
+#[test]
+fn golden_cpcl_real_receipt() {
+    golden_cpcl_real_with_tolerance("cpcl_real_receipt", 10.5);
+}
+
+/// DPL manual Appendix B Figure B-1: electronic component label (smooth
+/// font 9 + Code 39), official Datamax-O'Neil sample program.
+#[test]
+fn golden_dpl_real_manual_component() {
+    golden_dpl_real_with_tolerance("dpl_real_manual_component", 16.0, 100, 50);
+}
+
+/// DPL manual Appendix B VB order-picking label (adapted: field values
+/// filled in, the stored-image record dropped — see docs/CPCL_DPL_CORPUS.md).
+#[test]
+fn golden_dpl_real_manual_order() {
+    golden_dpl_real_with_tolerance("dpl_real_manual_order", 13.0, 80, 115);
 }
 
 /// Manual-session coverage exercising the manual's own examples

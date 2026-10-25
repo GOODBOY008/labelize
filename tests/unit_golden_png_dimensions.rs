@@ -115,6 +115,7 @@ fn all_golden_pngs_have_standard_dimensions() {
         let (w, h) = (img.width(), img.height());
         let tspl_source = path.with_extension("tspl");
         let cpcl_source = path.with_extension("cpcl");
+        let dpl_source = path.with_extension("dpl");
         let ok = if tspl_source.exists() {
             match tspl_fixture_dims(&tspl_source) {
                 Some((ew, eh)) => {
@@ -130,6 +131,12 @@ fn all_golden_pngs_have_standard_dimensions() {
                 }
                 None => false,
             }
+        } else if dpl_source.exists() {
+            // DPL declares no in-band label size; real-corpus goldens
+            // derive their canvas from the external reference (dpmm 12),
+            // pinned by the golden test itself rather than a fixed size.
+            checked += 1;
+            continue;
         } else if cpcl_source.exists() {
             match cpcl_fixture_dims(&cpcl_source) {
                 Some((ew, eh)) => {
