@@ -1,3 +1,4 @@
+pub mod evolabel_client;
 pub mod image_compare;
 pub mod labelary_client;
 pub mod labelixa_client;

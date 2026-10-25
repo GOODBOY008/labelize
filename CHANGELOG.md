@@ -20,7 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   MaxiCode (fixed-field form), Aztec, and `X` line/box records. Metric
   mode, `C`/`R` offsets and the `T` terminator command included. Wired
   through every surface like CPCL. Golden tests use the renderer baseline
-  (no public DPL reference renderer exists — EPL convention).
+  for the synthetic fixtures plus a real-provenance corpus: the CPCL side
+  adds the three MIT-licensed labels from Labelixa's example collection
+  (referenced against labelixa's CPCL renderer), the DPL side adds the
+  manual's Appendix B samples (referenced against the hosted Evolabel
+  layout view, the only server-side DPL renderer found). Provenance and
+  honest cross-engine distances: docs/CPCL_DPL_CORPUS.md.
 
 - **CPCL support (fourth language)** — Zebra's mobile-printer language
   (QL/MZ series). `! {offset} {hdpi} {vdpi} {height} {qty}` sessions with

@@ -25,12 +25,17 @@
 ║ cp850_hex_chars                │ zpl  │    0.23% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ cpcl_2d_graphics               │ cpcl │    0.00% │       576x480 │       576x480 │ PERFECT      ║
 ║ cpcl_manual_examples           │ cpcl │   13.28% │       576x240 │       576x240 │ MODERATE(<15%) ║
+║ cpcl_real_asset_tag            │ cpcl │   17.76% │       400x200 │       400x200 │ HIGH(>=15%)  ║
+║ cpcl_real_receipt              │ cpcl │    9.54% │       400x600 │       400x600 │ MODERATE(<15%) ║
+║ cpcl_real_route_label          │ cpcl │   12.24% │       400x400 │       400x400 │ MODERATE(<15%) ║
 ║ cpcl_shipping                  │ cpcl │   16.12% │       576x560 │       576x560 │ HIGH(>=15%)  ║
 ║ datamatrix_dimensions          │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ dein_ticket_packliste          │ zpl  │    1.23% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparceluk_dhl_text           │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ dhlparceluk_ver                │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ dpl_2d_graphics                │ dpl  │    0.00% │      812x1624 │      812x1624 │ PERFECT      ║
+║ dpl_real_manual_component      │ dpl  │   14.49% │      1181x590 │      1181x590 │ MODERATE(<15%) ║
+║ dpl_real_manual_order          │ dpl  │    9.74% │      944x1358 │      944x1358 │ MODERATE(<15%) ║
 ║ dpl_shipping                   │ dpl  │    0.00% │      812x1624 │      812x1624 │ PERFECT      ║
 ║ dpl_text_styles                │ dpl  │    0.00% │      812x1624 │      812x1624 │ PERFECT      ║
 ║ ean13                          │ zpl  │    0.71% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -107,5 +112,5 @@
 ║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 103 total │ 20 perfect │ 63 good │ 12 minor │ 7 moderate │ 1 high │ 0 skip │ 0 err
+║ Summary: 108 total │ 20 perfect │ 63 good │ 12 minor │ 11 moderate │ 2 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

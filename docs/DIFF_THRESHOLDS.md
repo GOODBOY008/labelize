@@ -122,6 +122,11 @@ informational.
 | dpl_shipping | dpl | 0.00 | 0.01 | Renderer baseline reference (no public DPL reference renderer); unit canvas 812x1624 |
 | dpl_2d_graphics | dpl | 0.00 | 0.01 | Renderer baseline reference; QR/DataMatrix/PDF-417/MaxiCode/Aztec coverage |
 | dpl_text_styles | dpl | 0.00 | 0.01 | Renderer baseline reference; fonts 0-9, rotations, scalable sizes, C/R offsets |
+| cpcl_real_asset_tag | cpcl | 17.76 | 18.5 | labelixa reference (Labelixa/thermal-printer-examples corpus, MIT) |
+| cpcl_real_route_label | cpcl | 12.24 | 13.0 | labelixa reference; TEXT270 + BOX + Code 128 |
+| cpcl_real_receipt | cpcl | 9.54 | 10.5 | labelixa reference; text block + Code 128 |
+| dpl_real_manual_component | dpl | 14.49 | 16.0 | evolabel layout-view reference (manual Appendix B Fig B-1); font-substitute width delta |
+| dpl_real_manual_order | dpl | 9.74 | 13.0 | evolabel layout-view reference (manual Appendix B VB sample, adapted) |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.37 | 2.5 | Character encoding |

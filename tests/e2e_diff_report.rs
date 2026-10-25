@@ -167,13 +167,30 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             "cpcl" => std::panic::catch_unwind(|| {
                 render_helpers::render_cpcl_to_png(&content, opts.clone())
             }),
-            // DPL declares no label size; the golden refs use the unit
-            // canvas, so render at the same 812x1624 here.
+            // DPL declares no label size: the synthetic fixtures' goldens
+            // use the unit canvas, while the real-provenance corpus
+            // (dpl_real_*) derives its canvas from the evolabel reference
+            // (dpmm 12) exactly like e2e_golden does.
             "dpl" => std::panic::catch_unwind(|| {
-                render_helpers::render_dpl_to_png(
-                    content.as_bytes(),
-                    render_helpers::unit_options(),
-                )
+                if name.starts_with("dpl_real_") {
+                    let ref_img =
+                        image::load_from_memory(&std::fs::read(&ref_png).unwrap_or_default()).ok();
+                    let opts = ref_img.map(|img| labelize::DrawerOptions {
+                        label_width_mm: img.width() as f64 / 12.0 - 1e-6,
+                        label_height_mm: img.height() as f64 / 12.0 - 1e-6,
+                        dpmm: 12,
+                        ..render_helpers::unit_options()
+                    });
+                    render_helpers::render_dpl_to_png(
+                        content.as_bytes(),
+                        opts.unwrap_or_else(render_helpers::unit_options),
+                    )
+                } else {
+                    render_helpers::render_dpl_to_png(
+                        content.as_bytes(),
+                        render_helpers::unit_options(),
+                    )
+                }
             }),
             _ => std::panic::catch_unwind(|| {
                 render_helpers::render_zpl_to_png(&content, opts.clone())
