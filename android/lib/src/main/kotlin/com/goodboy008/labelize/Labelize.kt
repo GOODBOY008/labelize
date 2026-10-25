@@ -93,6 +93,42 @@ object Labelize {
         antialias: Boolean = false,
     ): ByteArray = renderLang(tspl, widthMm, heightMm, dpmm, antialias, pdf = false, lang = "tspl")
 
+    /** Render CPCL (Zebra mobile) label data to a PNG. */
+    fun renderCpclToPng(
+        cpcl: ByteArray,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
+        dpmm: Int = 8,
+        antialias: Boolean = false,
+    ): ByteArray = renderLang(cpcl, widthMm, heightMm, dpmm, antialias, pdf = false, lang = "cpcl")
+
+    /** Render CPCL (Zebra mobile) label data to a one-page PDF. */
+    fun renderCpclToPdf(
+        cpcl: ByteArray,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
+        dpmm: Int = 8,
+        antialias: Boolean = false,
+    ): ByteArray = renderLang(cpcl, widthMm, heightMm, dpmm, antialias, pdf = true, lang = "cpcl")
+
+    /** Render DPL (Datamax-O'Neil) label data to a PNG. */
+    fun renderDplToPng(
+        dpl: ByteArray,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
+        dpmm: Int = 8,
+        antialias: Boolean = false,
+    ): ByteArray = renderLang(dpl, widthMm, heightMm, dpmm, antialias, pdf = false, lang = "dpl")
+
+    /** Render DPL (Datamax-O'Neil) label data to a one-page PDF. */
+    fun renderDplToPdf(
+        dpl: ByteArray,
+        widthMm: Double = 102.0,
+        heightMm: Double = 152.0,
+        dpmm: Int = 8,
+        antialias: Boolean = false,
+    ): ByteArray = renderLang(dpl, widthMm, heightMm, dpmm, antialias, pdf = true, lang = "dpl")
+
     /** Render TSPL/TSC label data to a one-page PDF. */
     fun renderTsplToPdf(
         tspl: ByteArray,

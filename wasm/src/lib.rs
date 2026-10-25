@@ -84,9 +84,9 @@ pub fn lz_render(
     .map_err(|(stage, msg)| render_error(&stage, msg))
 }
 
-/// Language-explicit variant: `lang` is `"zpl"`, `"epl"`, `"tspl"` or
-/// `"cpcl"`. Unknown values fall back to ZPL, matching the CLI's sniff
-/// fallback.
+/// Language-explicit variant: `lang` is `"zpl"`, `"epl"`, `"tspl"`,
+/// `"cpcl"` or `"dpl"`. Unknown values fall back to ZPL, matching the
+/// CLI's sniff fallback.
 #[wasm_bindgen]
 pub fn lz_render_lang(
     src: &[u8],
@@ -101,6 +101,7 @@ pub fn lz_render_lang(
         "epl" => Language::Epl,
         "tspl" => Language::Tspl,
         "cpcl" => Language::Cpcl,
+        "dpl" => Language::Dpl,
         _ => Language::Zpl,
     };
     render_payload_lang(src, width_mm, height_mm, dpmm, antialias, want_pdf, language)

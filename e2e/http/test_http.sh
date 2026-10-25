@@ -172,6 +172,26 @@ HTTP_CODE=$(curl -sf -o "$WORK_DIR/tspl.png" -w "%{http_code}" -X POST \
 assert_eq "TSPL POST status 200" "200" "$HTTP_CODE"
 assert_file_min_size "TSPL response PNG has content" "$WORK_DIR/tspl.png" 300
 
+# 9. CPCL body (Content-Type names the language)
+echo "[9] CPCL conversion"
+CPCL_BODY=$'! 0 203 203 200 1\r\nPAGE-WIDTH 400\r\nTEXT 4 0 20 30 CPCL HTTP\r\nBARCODE 128 2 1 60 30 100 8412345678\r\nFORM\r\nPRINT\r\n'
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/cpcl.png" -w "%{http_code}" -X POST \
+  -H "Content-Type: application/cpcl" \
+  --data-binary "$CPCL_BODY" \
+  "http://127.0.0.1:$PORT/convert?dpmm=8")
+assert_eq "CPCL POST status 200" "200" "$HTTP_CODE"
+assert_file_min_size "CPCL response PNG has content" "$WORK_DIR/cpcl.png" 300
+
+# 10. DPL body (Content-Type names the language)
+echo "[10] DPL conversion"
+printf '\x02L\r191100801200100DPL HTTP\r1E21040015002401234567890\rQ0001\rE\r' > "$WORK_DIR/label.dpl"
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/dpl.png" -w "%{http_code}" -X POST \
+  -H "Content-Type: application/dpl" \
+  --data-binary "@$WORK_DIR/label.dpl" \
+  "http://127.0.0.1:$PORT/convert?dpmm=8")
+assert_eq "DPL POST status 200" "200" "$HTTP_CODE"
+assert_file_min_size "DPL response PNG has content" "$WORK_DIR/dpl.png" 300
+
 echo ""
 echo "=== Results: $pass passed, $fail failed ==="
 [[ "$fail" -eq 0 ]] || exit 1

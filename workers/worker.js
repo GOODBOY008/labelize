@@ -77,7 +77,9 @@ async function convert(request, url) {
       ? "tspl"
       : ct.includes("cpcl")
         ? "cpcl"
-        : "zpl";
+        : ct.includes("dpl")
+          ? "dpl"
+          : "zpl";
 
   const body = new Uint8Array(await request.arrayBuffer());
   if (body.length === 0) {
@@ -121,9 +123,9 @@ async function formatLabel(request, url) {
 }
 
 function badLanguage(lang) {
-  if (lang && !["zpl", "epl", "tspl", "cpcl"].includes(lang.toLowerCase())) {
+  if (lang && !["zpl", "epl", "tspl", "cpcl", "dpl"].includes(lang.toLowerCase())) {
     return jsonResponse(
-      { error: `unknown language ${lang.toLowerCase()} — expected zpl, epl, tspl or cpcl` },
+      { error: `unknown language ${lang.toLowerCase()} — expected zpl, epl, tspl, cpcl or dpl` },
       400,
     );
   }

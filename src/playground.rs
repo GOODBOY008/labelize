@@ -503,7 +503,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     </svg>
     <span class="logo-text">Labelize</span>
   </div>
-  <span class="tagline" data-i18n="app.tagline">ZPL, EPL, TSPL &amp; CPCL Label Playground</span>
+  <span class="tagline" data-i18n="app.tagline">ZPL, EPL, TSPL, CPCL &amp; DPL Label Playground</span>
   <span class="header-spacer"></span>
   <select id="samples" class="hdr-select" aria-label="Samples" data-i18n-aria="hdr.samples">
     <option value="" selected disabled data-i18n="hdr.samples">Samples</option>
@@ -513,6 +513,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     <option value="epl" data-i18n="sample.epl">EPL showcase</option>
     <option value="tspl" data-i18n="sample.tspl">TSPL showcase</option>
     <option value="cpcl" data-i18n="sample.cpcl">CPCL showcase</option>
+    <option value="dpl" data-i18n="sample.dpl">DPL showcase</option>
   </select>
   <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
     <option value="en">English</option>
@@ -582,6 +583,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
           <option value="epl">EPL</option>
           <option value="tspl">TSPL</option>
           <option value="cpcl">CPCL</option>
+          <option value="dpl">DPL</option>
         </select>
       </div>
 
@@ -617,7 +619,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
         </select>
       </div>
 
-      <input id="file-input" type="file" accept=".zpl,.epl,.tspl,.cpcl">
+      <input id="file-input" type="file" accept=".zpl,.epl,.tspl,.cpcl,.dpl">
       <button id="open-file-btn" class="ghost-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -768,11 +770,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var I18N = {
     en: {
       "app.title": "Labelize Playground",
-      "app.tagline": "ZPL, EPL, TSPL & CPCL Label Playground",
+      "app.tagline": "ZPL, EPL, TSPL, CPCL & DPL Label Playground",
       "hdr.samples": "Samples",
       "hdr.lang": "Language",
       "hdr.theme": "Toggle theme",
-      "panel.code": "ZPL / EPL / TSPL / CPCL Code",
+      "panel.code": "ZPL / EPL / TSPL / CPCL / DPL Code",
       "panel.preview": "Preview",
       "field.format": "Format",
       "field.size": "Size",
@@ -790,6 +792,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.epl": "EPL showcase",
       "sample.tspl": "TSPL showcase",
       "sample.cpcl": "CPCL showcase",
+      "sample.dpl": "DPL showcase",
       "btn.format": "Format",
       "syn.ok": "syntax OK",
       "syn.bad": "syntax error",
@@ -814,7 +817,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "status.comparing": "Comparing…",
       "status.diff": "Diff {pct}%",
       "tip.compare": "Fetch the Labelary reference image and estimate the visual diff",
-      "tip.compareEpl": "Labelary does not support EPL, TSPL or CPCL — ZPL only",
+      "tip.compareEpl": "Labelary does not support EPL, TSPL, CPCL or DPL — ZPL only",
       "tip.auto": "Re-render automatically as you type",
       "tip.aa": "Emit 8-bit grayscale output instead of 1-bit black/white",
       "tip.share": "Copy a permalink to this label",
@@ -827,12 +830,13 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "toast.urlCopied": "Share link copied to clipboard",
       "toast.imgCopied": "PNG copied to clipboard",
       "toast.copyFail": "Copy failed: {msg}",
-      "err.empty": "Editor is empty — paste some ZPL, EPL, TSPL or CPCL first.",
+      "err.empty": "Editor is empty — paste some ZPL, EPL, TSPL, CPCL or DPL first.",
       "err.server": "Server error {status}: {body}",
       "err.network": "Network error: {msg}",
       "err.epl": "Labelary does not support EPL — switch to ZPL to compare.",
       "err.tspl": "Labelary does not support TSPL — switch to ZPL to compare.",
       "err.cpcl": "Labelary does not support CPCL — switch to ZPL to compare.",
+      "err.dpl": "Labelary does not support DPL — switch to ZPL to compare.",
       "err.canvas": "Canvas too large ({w}×{h} px) for comparison — lower the dpmm or label size.",
       "err.compare": "Compare failed: {msg}",
       "err.pdf": "PDF error {status}: {body}",
@@ -853,11 +857,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     },
     zh: {
       "app.title": "Labelize 在线预览",
-      "app.tagline": "ZPL、EPL、TSPL 与 CPCL 标签在线预览",
+      "app.tagline": "ZPL、EPL、TSPL、CPCL 与 DPL 标签在线预览",
       "hdr.samples": "示例",
       "hdr.lang": "语言",
       "hdr.theme": "切换主题",
-      "panel.code": "ZPL / EPL / TSPL / CPCL 代码",
+      "panel.code": "ZPL / EPL / TSPL / CPCL / DPL 代码",
       "panel.preview": "预览",
       "field.format": "格式",
       "field.size": "尺寸",
@@ -875,6 +879,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.epl": "EPL 示例",
       "sample.tspl": "TSPL 示例",
       "sample.cpcl": "CPCL 示例",
+      "sample.dpl": "DPL 示例",
       "btn.format": "格式化",
       "syn.ok": "语法通过",
       "syn.bad": "语法错误",
@@ -899,7 +904,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "status.comparing": "对比中…",
       "status.diff": "差异 {pct}%",
       "tip.compare": "获取 Labelary 参考渲染图并估算视觉差异",
-      "tip.compareEpl": "Labelary 不支持 EPL/TSPL/CPCL — 仅限 ZPL",
+      "tip.compareEpl": "Labelary 不支持 EPL/TSPL/CPCL/DPL — 仅限 ZPL",
       "tip.auto": "输入时自动重新渲染",
       "tip.aa": "输出 8 位灰度（替代 1 位黑白）",
       "tip.share": "复制此标签的分享链接",
@@ -912,12 +917,13 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "toast.urlCopied": "分享链接已复制到剪贴板",
       "toast.imgCopied": "PNG 已复制到剪贴板",
       "toast.copyFail": "复制失败：{msg}",
-      "err.empty": "编辑器为空 — 请先粘贴 ZPL、EPL、TSPL 或 CPCL 代码。",
+      "err.empty": "编辑器为空 — 请先粘贴 ZPL、EPL、TSPL、CPCL 或 DPL 代码。",
       "err.server": "服务器错误 {status}：{body}",
       "err.network": "网络错误：{msg}",
       "err.epl": "Labelary 不支持 EPL — 请切换到 ZPL 后再对比。",
       "err.tspl": "Labelary 不支持 TSPL — 请切换到 ZPL 后再对比。",
       "err.cpcl": "Labelary 不支持 CPCL — 请切换到 ZPL 后再对比。",
+      "err.dpl": "Labelary 不支持 DPL — 请切换到 ZPL 后再对比。",
       "err.canvas": "画布过大（{w}×{h} px），无法对比 — 请降低 dpmm 或缩小标签尺寸。",
       "err.compare": "对比失败：{msg}",
       "err.pdf": "PDF 错误 {status}：{body}",
@@ -1075,15 +1081,27 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "CENTER 575\n" +
       "TEXT 4 0 0 350 PRINTED ON A ZEBRA QL SERIES\n" +
       "FORM\n" +
-      "PRINT\n"
+      "PRINT\n",
+    dpl:
+      "\u0002L\n" +
+      "D11\n" +
+      "1911A1200050010DPL SHOWCASE\n" +
+      "121100106001000DATAMAX I-CLASS\n" +
+      "1X1100004500000L400002\n" +
+      "1E21040030002601234567890\n" +
+      "1F21040055002604006381333931\n" +
+      "1z00000001502600F1000000PDF417 DATA\n" +
+      "1W1d4400001504000https://example.com/dpl\n\n" +
+      "Q0001\n" +
+      "E\n"
   };
 
   /* Sample language: keeps the format selector in sync when a sample loads. */
-  var SAMPLE_FMT = { shipping: "zpl", barcodes: "zpl", graphics: "zpl", epl: "epl", tspl: "tspl", cpcl: "cpcl" };
+  var SAMPLE_FMT = { shipping: "zpl", barcodes: "zpl", graphics: "zpl", epl: "epl", tspl: "tspl", cpcl: "cpcl", dpl: "dpl" };
 
   /* Demo for each format: swapped in by the format selector while the editor
      still holds content the user never typed (see autoLoaded below). */
-  var DEMOS = { zpl: SAMPLES.shipping, epl: SAMPLES.epl, tspl: SAMPLES.tspl, cpcl: SAMPLES.cpcl };
+  var DEMOS = { zpl: SAMPLES.shipping, epl: SAMPLES.epl, tspl: SAMPLES.tspl, cpcl: SAMPLES.cpcl, dpl: SAMPLES.dpl };
 
   /* ── DOM refs ── */
   var btn          = document.getElementById("render-btn");
@@ -1154,7 +1172,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var lastReport     = null;
   var checkTimer     = null;
   var CHECK_DELAY    = 400;
-  var LANG_NAMES     = { zpl: "ZPL", epl: "EPL", tspl: "TSPL", cpcl: "CPCL" };
+  var LANG_NAMES     = { zpl: "ZPL", epl: "EPL", tspl: "TSPL", cpcl: "CPCL", dpl: "DPL" };
 
   function setStatus(text, cls) {
     statusText.textContent = text;
@@ -1255,6 +1273,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (fmt === "epl") return "application/epl";
     if (fmt === "tspl") return "application/tspl";
     if (fmt === "cpcl") return "application/cpcl";
+    if (fmt === "dpl") return "application/dpl";
     return "application/zpl";
   }
 
@@ -1490,6 +1509,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (fmtVal === "epl") { showError(t("err.epl")); return; }
     if (fmtVal === "tspl") { showError(t("err.tspl")); return; }
     if (fmtVal === "cpcl") { showError(t("err.cpcl")); return; }
+    if (fmtVal === "dpl") { showError(t("err.dpl")); return; }
     var zpl = input.value.trim();
     if (!zpl) { showError(t("err.empty")); return; }
 
@@ -1667,7 +1687,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
     input.value = code;
     autoLoaded = null; // shared-link content belongs to the user
-    if (["zpl", "epl", "tspl", "cpcl"].indexOf(q.f) >= 0) fmtSel.value = q.f;
+    if (["zpl", "epl", "tspl", "cpcl", "dpl"].indexOf(q.f) >= 0) fmtSel.value = q.f;
     if (q.d && [6, 8, 12, 24].indexOf(parseInt(q.d, 10)) >= 0) dpmmSel.value = String(parseInt(q.d, 10));
     // Permalinks without `a` predate the antialias option (default off), so
     // fall back to false rather than the viewer's localStorage: shared links
@@ -1727,6 +1747,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (ext === "epl") fmtSel.value = "epl";
     else if (ext === "tspl") fmtSel.value = "tspl";
     else if (ext === "cpcl") fmtSel.value = "cpcl";
+    else if (ext === "dpl") fmtSel.value = "dpl";
     else                   fmtSel.value = "zpl";
     fmtUserTouched = false; // content and format are consistent again
     updateCompareState();
@@ -1857,7 +1878,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   // Labelary does not support EPL (404), so the compare tool is ZPL-only.
   function updateCompareState() {
-    var noCompare = fmtSel.value === "epl" || fmtSel.value === "tspl" || fmtSel.value === "cpcl";
+    var noCompare = ["epl", "tspl", "cpcl", "dpl"].indexOf(fmtSel.value) >= 0;
     compareBtn.disabled = noCompare;
     compareBtn.title = noCompare ? t("tip.compareEpl") : t("tip.compare");
   }

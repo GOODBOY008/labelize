@@ -206,6 +206,7 @@ impl TsplState {
             y: y + self.reference_y + self.shift_y,
             calculate_from_bottom: false,
             automatic_position: false,
+            from_bottom: false,
         }
     }
 

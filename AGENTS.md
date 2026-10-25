@@ -2,7 +2,7 @@
 
 ## Overview
 
-Labelize is a Rust engine that parses ZPL (Zebra Programming Language), EPL (Eltron Programming Language), TSPL/TSC and CPCL (Zebra mobile) label data and renders it to PNG or PDF. It runs as a CLI tool, HTTP microservice, or library.
+Labelize is a Rust engine that parses ZPL (Zebra Programming Language), EPL (Eltron Programming Language), TSPL/TSC, CPCL (Zebra mobile) and DPL (Datamax-O'Neil) label data and renders it to PNG or PDF. It runs as a CLI tool, HTTP microservice, or library.
 
 ## Architecture
 
@@ -19,6 +19,8 @@ Input bytes + Language
                                     SIZE → per-label physical dims (LabelInfo::label_*_mm)
   → src/parsers/cpcl/            — CPCL: ! header sessions, resident font cells, counted
                                     EG/CG graphics, header height/PAGE-WIDTH → label dims
+  → src/parsers/dpl/             — DPL: <STX>L formats, 15/17-byte record headers, fonts 0-9,
+                                    bottom-left home (LabelPosition.from_bottom)
   → src/elements/                — language-neutral IR: Text, Barcode*, Graphic*, LabelInfo
   → src/drawers/                 — language-blind renderer (CI-guarded, see
                                     tests/unit_architecture.rs)
@@ -48,6 +50,7 @@ break them; CI enforces both):
 | `src/parsers/epl/` | EPL command parser, built-in font metrics |
 | `src/parsers/tspl/` | TSPL/TSC command parser, resident font cells |
 | `src/parsers/cpcl/` | CPCL command parser (Zebra mobile), Appendix-D font cells |
+| `src/parsers/dpl/` | DPL command parser (Datamax-O'Neil), Table C-2 font cells |
 | `src/elements/` | Language-neutral element structs (text, barcodes, graphics, stored formats) |
 | `src/drawers/renderer.rs` | Image canvas creation, element drawing, compositing |
 | `src/barcodes/` | Barcode encoders: Code128, Code39, EAN-13, 2of5, PDF417, Aztec, DataMatrix, QR, MaxiCode |
@@ -84,6 +87,17 @@ Zebra's mobile-printer language (QL/MZ series); sessions start with `! {offset} 
 **No-op (device behaviour):** `CONTRAST`, `TONE`, `JOURNAL`, `PACE`, `AUTO-PACE`, `NO-PACE`, `WAIT`, `BEEP`, `CUT`, `PARTIAL-CUT`, `FORM`, `PREFEED`, `POSTFEED`, `ENCODING`, `COUNT` (inert serial state like `^SN`)
 **Unsupported (explicit error):** `CONCAT`/`VCONCAT`, `FG` font groups, `PCX`, `SCALE-TO-FIT`, `DEFINE-FORMAT`/`USE-FORMAT`, `VEG`/`VCG`, `PATTERN` ≠ 100, barcode types with addenda (`UPCA2/5`, `UPCE2/5`, `EAN132/5`, `EAN82/5`), `93`, `CODABAR`, `MSI*`, `POSTNET`, `FIM`
 **Reference renderer:** labelixa.com renders a CPCL subset (`POST /v1/cpcl/render`) and is the golden reference where it covers the commands; renderer-baseline otherwise (EPL/TSPL convention). Tolerances in [docs/DIFF_THRESHOLDS.md](docs/DIFF_THRESHOLDS.md).
+
+## Supported DPL Commands
+
+Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` terminates and prints, `X` terminates without printing; records are `{rotation 1-4}{type}{c}{d}{eee}{row}{col}…{data}<CR>` with the **bottom-left home** (rows grow up — `LabelPosition.from_bottom`) and coordinates in hundredths of an inch (`m` switches to tenths of a millimetre).
+
+**Config inside a format:** `D` (dot size), `Q` (quantity), `C`/`R` (column/row offsets), `T` (field-data terminator), `m`/`n` (metric/imperial), `A` (format attribute), `F` (bold/italic flags), `M` (mirror), `z`, `G`, `U`, `+`, `-`, `^`, `y`, speeds/heat/cut (no-ops where they have no drawable effect)
+**Text:** bitmap fonts `0`-`8` (Table C-2 cells, base-25 `c`/`d` multipliers), smooth font `9` (CG Triumvirate, `eee` = `Ann`/`0nn` point sizes), scalable `S`/`U` IDs with `P015`-style point or dot size fields
+**Barcodes:** `A` (39), `H` (HIBC 39 + mod-43), `B` (UPC-A), `C` (UPC-E), `D` (I2of5), `J`/`L` (I2of5 + mod-10), `E` (Code 128), `Q`/`R`/`S` (UCC/EAN 128), `F` (EAN-13), `G` (EAN-8) — uppercase prints the HRI line; `z`/`Z` (PDF-417 with T/F, security, aspect, rows, columns), `u`/`U` (MaxiCode fixed-field zip+4/country/class/message), `W1c`/`W1C` (DataMatrix; the byte-count field exists only in the uppercase form), `W1d`/`W1D` (QR auto/manual — manual carries the EC/mask/segment payload conventions), `W1f`/`W1F` (Aztec)
+**Graphics:** `X` records with `L`/`l` lines and `B`/`b` boxes (dimensions in units)
+**Unsupported (explicit error):** `Y` (stored images), polygons `P` and circles `C` in `X` records, `W1z`/`W1t`, Codabar `I`, Plessey `K`, Code 93 `O`, Telepen `T`, Postnet `p`, FIM `v`, addenda `M`/`N`, MaxiCode structured `[)>RS…` form
+**Reference renderer:** none exists publicly — golden tests use the renderer baseline (EPL convention), tolerances guard regressions only.
 
 ## Supported ZPL Commands
 

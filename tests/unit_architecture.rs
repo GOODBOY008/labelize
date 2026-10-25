@@ -109,7 +109,7 @@ fn drawers_are_language_blind() {
         let code = strip_comments(&content);
         for (line_no, line) in code.lines().enumerate() {
             let lower = line.to_lowercase();
-            for token in ["zpl", "epl", "tspl"] {
+            for token in ["zpl", "epl", "tspl", "cpcl", "dpl"] {
                 // Word-boundary match: `display_zpl` would be a violation,
                 // `sizezpling` (hypothetical identifier substring) would not.
                 if lower

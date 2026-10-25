@@ -1013,6 +1013,93 @@ fn golden_tspl_graphics_doc_style() {
     golden_tspl_with_tolerance("tspl_graphics_doc_style", 0.01);
 }
 
+// ── DPL golden tests ──────────────────────────────────────────────
+
+/// Auto-generate a missing golden reference PNG for a DPL test. No public
+/// DPL reference renderer exists, so the renderer baseline is always used
+/// (same convention as EPL).
+fn auto_bootstrap_dpl(content: &[u8], path: &std::path::Path, name: &str) {
+    eprintln!(
+        "[bootstrap] '{}': using renderer baseline for DPL (812x1624)",
+        name
+    );
+    let opts = render_helpers::unit_options();
+    let png = render_helpers::render_dpl_to_png(content, opts);
+    std::fs::create_dir_all(path.parent().unwrap()).ok();
+    std::fs::write(path, &png).expect("write auto-generated golden PNG");
+}
+
+/// Run a golden-file comparison for a DPL test case. The reference is the
+/// renderer baseline (0.00% at rest); the tolerance only guards
+/// regressions in the covered paths.
+fn golden_dpl_with_tolerance(name: &str, tolerance: f64) {
+    let dir = testdata_dir();
+    let input = if dir.join("unit").join(format!("{}.dpl", name)).exists() {
+        dir.join("unit").join(format!("{}.dpl", name))
+    } else {
+        dir.join(format!("{}.dpl", name))
+    };
+    let expected = input.with_extension("png");
+
+    if !input.exists() {
+        eprintln!("SKIP {}: missing DPL input", name);
+        return;
+    }
+
+    // Auto-generate the reference PNG if it doesn't exist yet.
+    if !expected.exists() {
+        let content = std::fs::read(&input).expect("read input");
+        auto_bootstrap_dpl(&content, &expected, name);
+    }
+
+    let content = std::fs::read(&input).expect("read input");
+    let actual_png = render_helpers::render_dpl_to_png(&content, render_helpers::unit_options());
+    let expected_png = std::fs::read(&expected).expect("read golden");
+    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+
+    if result.diff_percent > tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
+        std::fs::write(&expected, &actual_png).expect("update golden file");
+        return;
+    }
+
+    assert!(
+        result.diff_percent <= tolerance,
+        "DPL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
+        name,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
+    );
+}
+
+/// Warehouse label from the manual's own sample shapes: smooth font 9 and
+/// bitmap fonts, Code 128 with/without HRI, EAN-13, line and box records.
+#[test]
+fn golden_dpl_shipping() {
+    golden_dpl_with_tolerance("dpl_shipping", 0.01);
+}
+
+/// 2-D coverage: QR auto/manual payloads, DataMatrix (auto-sized),
+/// PDF-417 defaults, MaxiCode fixed-field tags, Aztec.
+#[test]
+fn golden_dpl_2d_graphics() {
+    golden_dpl_with_tolerance("dpl_2d_graphics", 0.01);
+}
+
+/// Text coverage: bitmap fonts 1/4/6 with multipliers, smooth font 9
+/// point sizes, rotations 1-4, a scalable S01 record, and C/R offsets.
+#[test]
+fn golden_dpl_text_styles() {
+    golden_dpl_with_tolerance("dpl_text_styles", 0.01);
+}
+
 // ── CPCL golden tests ──────────────────────────────────────────────
 
 /// Run a golden-file comparison for a CPCL test case.
