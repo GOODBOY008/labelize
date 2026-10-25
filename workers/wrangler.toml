@@ -1,3 +1,9 @@
 name = "labelize"
 main = "worker.js"
 compatibility_date = "2026-08-01"
+
+# After attaching a custom domain (e.g. https://labelize.dev), uncomment and
+# set PUBLIC_BASE_URL so canonical/OG/JSON-LD URLs, robots.txt and sitemap.xml
+# point at it and the workers.dev HTML page 301-redirects there:
+# [vars]
+# PUBLIC_BASE_URL = "https://labelize.dev"
