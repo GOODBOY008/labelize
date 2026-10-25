@@ -364,8 +364,14 @@ fn parse_line(
             Some(n) => Err(format!("CPCL fill pattern {n} is not supported")),
         },
         "SETMAG" => {
-            let mut w = args.first().and_then(|v| v.parse::<f64>().ok()).unwrap_or(1.0);
-            let mut h = args.get(1).and_then(|v| v.parse::<f64>().ok()).unwrap_or(1.0);
+            let mut w = args
+                .first()
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(1.0);
+            let mut h = args
+                .get(1)
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(1.0);
             // 0 0 cancels magnification (manual).
             if w == 0.0 {
                 w = 1.0;
@@ -379,7 +385,10 @@ fn parse_line(
             Ok(Flow::Continue)
         }
         "ROTATE" | "R" => {
-            let deg = args.first().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0);
+            let deg = args
+                .first()
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.0);
             if deg.rem_euclid(90.0) != 0.0 {
                 return Err(format!(
                     "CPCL ROTATE angles beyond 90° steps are not supported ({deg})"
@@ -554,11 +563,7 @@ fn apply_justify(s: &CpclSession, mut text: TextField) -> TextField {
 }
 
 /// `ML {height}` / `{TEXT…} {font} {size} {x} {y}` / data lines / ENDML.
-fn parse_multiline(
-    s: &mut CpclSession,
-    rest: &str,
-    lines: &mut CpclLines,
-) -> Result<Flow, String> {
+fn parse_multiline(s: &mut CpclSession, rest: &str, lines: &mut CpclLines) -> Result<Flow, String> {
     let (pitch_tok, _) = next_token(rest);
     let pitch = parse_num(pitch_tok)?;
 
@@ -576,9 +581,7 @@ fn parse_multiline(
     let mut data_lines: Vec<String> = Vec::new();
     while let Some(raw) = lines.next_line() {
         let trimmed = raw.trim();
-        if trimmed.eq_ignore_ascii_case("ENDML")
-            || trimmed.eq_ignore_ascii_case("ENDMULTILINE")
-        {
+        if trimmed.eq_ignore_ascii_case("ENDML") || trimmed.eq_ignore_ascii_case("ENDMULTILINE") {
             break;
         }
         if !trimmed.is_empty() {
@@ -716,18 +719,17 @@ fn parse_2d_qr(
         return Ok(Flow::Continue);
     }
     let (payload, ec) = super::qr_payload::resolve_cpcl_qr_payload(&data)?;
-    s.elements
-        .push(LabelElement::BarcodeQr(BarcodeQrWithData {
-            reverse_print: ReversePrint::default(),
-            barcode: BarcodeQr {
-                magnification,
-                orientation: orientation_for(vertical),
-            },
-            height: 0,
-            position: s.position(x, y),
-            data: payload,
-            error_correction: ec,
-        }));
+    s.elements.push(LabelElement::BarcodeQr(BarcodeQrWithData {
+        reverse_print: ReversePrint::default(),
+        barcode: BarcodeQr {
+            magnification,
+            orientation: orientation_for(vertical),
+        },
+        height: 0,
+        position: s.position(x, y),
+        data: payload,
+        error_correction: ec,
+    }));
     Ok(Flow::Continue)
 }
 
@@ -759,8 +761,7 @@ fn parse_2d_maxicode(
             "MSG" => secondary = value.to_string(),
             "UPS5" if value.trim() == "1" => {
                 return Err(
-                    "CPCL MAXICODE UPS5 structured carrier messages are not supported"
-                        .to_string(),
+                    "CPCL MAXICODE UPS5 structured carrier messages are not supported".to_string(),
                 )
             }
             _ => {}
@@ -779,13 +780,12 @@ fn parse_2d_maxicode(
     } else {
         format!("{class:0>3}{country:0>3}{padded_postal}[)>\x1e\x1d{secondary}")
     };
-    s.elements
-        .push(LabelElement::Maxicode(MaxicodeWithData {
-            reverse_print: ReversePrint::default(),
-            code: Maxicode { mode: 2 },
-            position: s.position(x, y),
-            data: payload,
-        }));
+    s.elements.push(LabelElement::Maxicode(MaxicodeWithData {
+        reverse_print: ReversePrint::default(),
+        code: Maxicode { mode: 2 },
+        position: s.position(x, y),
+        data: payload,
+    }));
     Ok(Flow::Continue)
 }
 
@@ -837,11 +837,7 @@ fn orientation_for(vertical: bool) -> FieldOrientation {
 }
 
 /// `BARCODE {type} {width} {ratio} {height} {x} {y} {data}`.
-fn parse_linear_barcode(
-    s: &mut CpclSession,
-    rest: &str,
-    vertical: bool,
-) -> Result<(), String> {
+fn parse_linear_barcode(s: &mut CpclSession, rest: &str, vertical: bool) -> Result<(), String> {
     let (code, r) = next_token(rest);
     let (w_tok, r) = next_token(r);
     let (ratio_tok, r) = next_token(r);
@@ -1130,17 +1126,16 @@ fn parse_line_graphic(s: &mut CpclSession, args: &[&str], inverse: bool) -> Resu
         } else {
             (width.max(thickness_dots), height.max(thickness_dots))
         };
-        s.elements
-            .push(LabelElement::InvertRegion(InvertRegion {
-                position: LabelPosition {
-                    x: left,
-                    y: top,
-                    calculate_from_bottom: false,
-                    automatic_position: false,
-                },
-                width: rw,
-                height: rh,
-            }));
+        s.elements.push(LabelElement::InvertRegion(InvertRegion {
+            position: LabelPosition {
+                x: left,
+                y: top,
+                calculate_from_bottom: false,
+                automatic_position: false,
+            },
+            width: rw,
+            height: rh,
+        }));
         return Ok(());
     }
 
@@ -1265,24 +1260,23 @@ fn parse_expanded_graphics(
         data
     };
 
-    s.elements
-        .push(LabelElement::GraphicField(GraphicField {
-            reverse_print: ReversePrint::default(),
-            position: s.position(x, y),
-            format: if hex {
-                GraphicFieldFormat::Hex
-            } else {
-                GraphicFieldFormat::Raw
-            },
-            data_bytes: total_bytes as i32,
-            total_bytes: total_bytes as i32,
-            row_bytes: row_bytes as i32,
-            data,
-            magnification_x: 1,
-            magnification_y: 1,
-            mode: GraphicFieldMode::Overwrite,
-            zero_bits_black: false,
-        }));
+    s.elements.push(LabelElement::GraphicField(GraphicField {
+        reverse_print: ReversePrint::default(),
+        position: s.position(x, y),
+        format: if hex {
+            GraphicFieldFormat::Hex
+        } else {
+            GraphicFieldFormat::Raw
+        },
+        data_bytes: total_bytes as i32,
+        total_bytes: total_bytes as i32,
+        row_bytes: row_bytes as i32,
+        data,
+        magnification_x: 1,
+        magnification_y: 1,
+        mode: GraphicFieldMode::Overwrite,
+        zero_bits_black: false,
+    }));
     Ok(())
 }
 

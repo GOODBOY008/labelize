@@ -278,7 +278,10 @@ mod tests {
         );
         // SGD/utility headers are not label sessions; the file falls
         // through to the ZPL default.
-        assert_eq!(detect_language(b"! U1 setvar \"device.friendly_name\" \"x\"\r\n"), Language::Zpl);
+        assert_eq!(
+            detect_language(b"! U1 setvar \"device.friendly_name\" \"x\"\r\n"),
+            Language::Zpl
+        );
     }
 
     #[test]
@@ -323,12 +326,7 @@ mod tests {
 
     #[test]
     fn language_names_roundtrip() {
-        for lang in [
-            Language::Zpl,
-            Language::Epl,
-            Language::Tspl,
-            Language::Cpcl,
-        ] {
+        for lang in [Language::Zpl, Language::Epl, Language::Tspl, Language::Cpcl] {
             assert_eq!(Language::from_name(lang.name()), Some(lang));
         }
         assert_eq!(Language::from_name("ZPL"), Some(Language::Zpl));

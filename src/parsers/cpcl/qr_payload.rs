@@ -36,10 +36,7 @@ pub fn resolve_cpcl_qr_payload(data: &str) -> Result<(String, QrErrorCorrectionL
 
     // Optional mask digit (0-8) between the level and the mode letter.
     let mut idx = 1;
-    if bytes
-        .get(idx)
-        .is_some_and(|b| b.is_ascii_digit())
-    {
+    if bytes.get(idx).is_some_and(|b| b.is_ascii_digit()) {
         idx += 1;
     }
     let manual = matches!(bytes.get(idx), Some(b'M') | Some(b'm'));

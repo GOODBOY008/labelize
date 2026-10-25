@@ -423,9 +423,9 @@ async fn serve(host: String, port: u16) {
     fn forced_language(name: Option<&str>) -> Result<Option<Language>, String> {
         match name {
             None => Ok(None),
-            Some(name) => Language::from_name(name)
-                .map(Some)
-                .ok_or_else(|| format!("unknown language {name:?} — expected zpl, epl, tspl or cpcl")),
+            Some(name) => Language::from_name(name).map(Some).ok_or_else(|| {
+                format!("unknown language {name:?} — expected zpl, epl, tspl or cpcl")
+            }),
         }
     }
 

@@ -40,11 +40,9 @@ pub fn format_cpcl(data: &[u8]) -> Vec<u8> {
                 for slot in params.iter_mut() {
                     let ws = remainder.len() - remainder.trim_start().len();
                     let after = &remainder[ws..];
-                    let end = after
-                        .find(char::is_whitespace)
-                        .unwrap_or(after.len());
+                    let end = after.find(char::is_whitespace).unwrap_or(after.len());
                     *slot = &after[..end];
-                    if *slot == "" || slot.parse::<f64>().is_err() {
+                    if slot.is_empty() || slot.parse::<f64>().is_err() {
                         ok = false;
                         break;
                     }
@@ -87,12 +85,7 @@ pub fn format_cpcl(data: &[u8]) -> Vec<u8> {
 /// `need` hex digits (EG) or raw bytes (CG) from the cursor. Hex digits
 /// re-emit as parsed; raw payloads stay verbatim. A short payload returns
 /// whatever was collected (the header re-emits with a partial payload).
-fn finish_counted(
-    lines: &mut CpclLines,
-    need: usize,
-    hex: bool,
-    seed: Vec<u8>,
-) -> Vec<u8> {
+fn finish_counted(lines: &mut CpclLines, need: usize, hex: bool, seed: Vec<u8>) -> Vec<u8> {
     let mut collected = seed;
     if hex {
         collected.retain(|b| b.is_ascii_hexdigit());
@@ -169,9 +162,7 @@ mod tests {
         use crate::parsers::cpcl::parser::CpclParser;
         let src = b"! 0 200 200 210 1\nCENTER\nTEXT 4 0 0 40 Hello\nB 128 1 1 50 30 120 1234567\nFORM\nPRINT\n";
         let before = CpclParser::with_dpmm(8).parse(src).unwrap();
-        let after = CpclParser::with_dpmm(8)
-            .parse(&format_cpcl(src))
-            .unwrap();
+        let after = CpclParser::with_dpmm(8).parse(&format_cpcl(src)).unwrap();
         assert_eq!(before.len(), after.len());
         assert_eq!(before[0].elements.len(), after[0].elements.len());
     }

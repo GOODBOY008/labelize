@@ -119,7 +119,10 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
                 .path()
                 .extension()
                 .map(|x| x.to_string_lossy().to_string());
-            matches!(ext.as_deref(), Some("zpl") | Some("epl") | Some("tspl") | Some("cpcl"))
+            matches!(
+                ext.as_deref(),
+                Some("zpl") | Some("epl") | Some("tspl") | Some("cpcl")
+            )
         })
         .map(|e| e.path())
         .collect();

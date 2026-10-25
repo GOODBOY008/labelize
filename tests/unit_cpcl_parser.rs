@@ -98,7 +98,10 @@ fn scale_text_uses_points_and_rotate_state() {
     let first = text_at(&label, 0);
     assert_eq!(first.font.face, FontFace::CondensedBold);
     // 10 pt = 25.4/72 mm ≈ 28.44 dots at 8 dpmm.
-    assert_eq!(first.font.height, (10.0 * 25.4 / 72.0 * 8.0 + 0.5) as i32 as f64);
+    assert_eq!(
+        first.font.height,
+        (10.0 * 25.4 / 72.0 * 8.0 + 0.5) as i32 as f64
+    );
     assert_eq!(first.font.orientation, FieldOrientation::Normal);
     assert_eq!(
         text_at(&label, 1).font.orientation,
@@ -109,9 +112,7 @@ fn scale_text_uses_points_and_rotate_state() {
 #[test]
 fn units_commands_switch_measurements() {
     let dots = parse_one(b"! 0 200 200 100 1\r\nTEXT 4 0 64 16 mm\r\nPRINT\r\n");
-    let mm = parse_one(
-        b"! 0 200 200 12.7 1\r\nIN-MILLIMETERS\r\nTEXT 4 0 8 2 mm\r\nPRINT\r\n",
-    );
+    let mm = parse_one(b"! 0 200 200 12.7 1\r\nIN-MILLIMETERS\r\nTEXT 4 0 8 2 mm\r\nPRINT\r\n");
     // 64 dots at 8 dots/mm = 8 mm — identical position both ways.
     assert_eq!(text_at(&dots, 0).position.x, 64);
     assert_eq!(text_at(&mm, 0).position.x, 64);
@@ -306,7 +307,11 @@ fn maxicode_tags_build_the_structured_payload() {
             assert_eq!(m.code.mode, 2);
             // class + country + 9-digit postal, then the message header.
             assert!(m.data.starts_with("001840028860000"), "{}", m.data);
-            assert!(m.data.ends_with("[)>\x1e\x1dLOW PRIORITY MESSAGE."), "{}", m.data);
+            assert!(
+                m.data.ends_with("[)>\x1e\x1dLOW PRIORITY MESSAGE."),
+                "{}",
+                m.data
+            );
             // The shared encoder accepts what we built.
             assert!(labelize::barcodes::maxicode::encode(&m.data, m.code.mode).is_ok());
         }
