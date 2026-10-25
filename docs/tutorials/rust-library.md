@@ -226,7 +226,7 @@ Source: [`examples/render_label.rs`](../../examples/render_label.rs).
 
 ## 11. What's next
 
-- Explore the modules — `parsers/` (ZPL/EPL/TSPL), `elements/` (typed label
+- Explore the modules — `parsers/` (ZPL/EPL/TSPL/CPCL/DPL), `elements/` (typed label
   elements), `drawers/renderer.rs` (rasterizer), `images/` (PNG/PDF encoders)
 - [`docs/ZPL_COMMANDS_REFERENCE.md`](../ZPL_COMMANDS_REFERENCE.md) — the
   supported command matrix

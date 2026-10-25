@@ -2,7 +2,7 @@
 
 Step-by-step guides for using Labelize on each platform. All tutorials use the
 same Rust rendering engine — output is identical whether you convert from the
-CLI, an HTTP call, WebAssembly, or Android. ZPL, EPL and TSPL/TSC input are
+CLI, an HTTP call, WebAssembly, or Android. ZPL, EPL, TSPL/TSC, CPCL and DPL input are
 supported on every platform.
 
 | Tutorial | Platform | Start here if you want to… |

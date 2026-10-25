@@ -1,6 +1,6 @@
 # Tutorial: JavaScript / WebAssembly
 
-Render ZPL, EPL and TSPL/TSC entirely client-side with
+Render ZPL, EPL, TSPL/TSC, CPCL and DPL entirely client-side with
 [`@goodboy008/labelize-wasm`](https://www.npmjs.com/package/@goodboy008/labelize-wasm) —
 no server round-trip, works in Node.js, browsers, and bundlers. The public
 playground at <https://labelize.764629910.workers.dev> is built on this

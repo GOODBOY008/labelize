@@ -1,7 +1,7 @@
 package com.goodboy008.labelize
 
 /**
- * Kotlin API over the labelize rendering engine (ZPL/EPL/TSPL → PNG/PDF).
+ * Kotlin API over the labelize rendering engine (ZPL/EPL/TSPL/CPCL/DPL → PNG/PDF).
  *
  * The native library is loaded once per process; all entry points are safe to
  * call from any thread. Failures surface as [LabelizeException] with a [stage]

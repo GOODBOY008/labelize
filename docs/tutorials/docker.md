@@ -30,7 +30,7 @@ curl http://localhost:8080/health
 ```
 
 Open <http://localhost:8080/> in a browser for the interactive playground —
-paste ZPL/EPL/TSPL, pick a label size, download PNG or PDF.
+paste ZPL/EPL/TSPL/CPCL/DPL, pick a label size, download PNG or PDF.
 
 ## 3. Convert a label
 

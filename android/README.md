@@ -1,6 +1,6 @@
 # labelize-android
 
-Android support for labelize: parse ZPL/EPL/TSPL and render labels to PNG/PDF
+Android support for labelize: parse ZPL/EPL/TSPL/CPCL/DPL and render labels to PNG/PDF
 inside any Android app. This directory contains two things:
 
 | Piece | What it is |

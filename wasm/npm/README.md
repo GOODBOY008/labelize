@@ -2,8 +2,8 @@
 
 # @goodboy008/labelize-wasm
 
-The [Labelize](https://github.com/GOODBOY008/labelize) ZPL/EPL/TSPL label engine compiled to WebAssembly.
-Parse and render ZPL, EPL, or TSPL/TSC label data to PNG (or PDF) entirely in the browser, Node.js, or your
+The [Labelize](https://github.com/GOODBOY008/labelize) ZPL/EPL/TSPL/CPCL/DPL label engine compiled to WebAssembly.
+Parse and render ZPL, EPL, TSPL/TSC, CPCL or DPL label data to PNG (or PDF) entirely in the browser, Node.js, or your
 bundler — no server needed.
 
 ## Usage
