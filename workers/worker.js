@@ -71,7 +71,13 @@ async function convert(request, url) {
   const wantPdf = url.searchParams.get("output") === "pdf";
   // Content-Type names the language (zpl/epl/tspl); anything else falls
   // through to ZPL, matching lz_render_lang's unknown-value fallback.
-  const lang = ct.includes("epl") ? "epl" : ct.includes("tspl") ? "tspl" : "zpl";
+  const lang = ct.includes("epl")
+    ? "epl"
+    : ct.includes("tspl")
+      ? "tspl"
+      : ct.includes("cpcl")
+        ? "cpcl"
+        : "zpl";
 
   const body = new Uint8Array(await request.arrayBuffer());
   if (body.length === 0) {
@@ -115,9 +121,9 @@ async function formatLabel(request, url) {
 }
 
 function badLanguage(lang) {
-  if (lang && !["zpl", "epl", "tspl"].includes(lang.toLowerCase())) {
+  if (lang && !["zpl", "epl", "tspl", "cpcl"].includes(lang.toLowerCase())) {
     return jsonResponse(
-      { error: `unknown language ${lang.toLowerCase()} — expected zpl, epl or tspl` },
+      { error: `unknown language ${lang.toLowerCase()} — expected zpl, epl, tspl or cpcl` },
       400,
     );
   }

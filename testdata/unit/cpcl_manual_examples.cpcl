@@ -1,0 +1,17 @@
+! 0 200 200 240 1
+PAGE-WIDTH 576
+; --- justification with explicit end points ---
+CENTER 383
+T 4 0 0 40 C
+LEFT
+T 4 0 0 80 L
+RIGHT 383
+T 4 0 0 120 R
+; --- barcodes, full and abbreviated forms ---
+BARCODE 128 1 1 40 40 160 HORIZ.
+B 39 2 2 40 40 210 ACME-991
+TEXT 7 0 220 60 CODE 39
+B UPCA 1 1 40 330 20 40123456784
+TEXT 7 0 220 90 UPC-A
+FORM
+PRINT

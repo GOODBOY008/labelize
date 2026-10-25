@@ -47,7 +47,7 @@ without bundler support or Node flags.
 | `is_epl` | parse input as EPL instead of ZPL |
 
 `lz_render_lang(src, width_mm, height_mm, dpmm, antialias, want_pdf, lang) -> Uint8Array` is the
-language-explicit variant: `lang` is `"zpl"`, `"epl"`, or `"tspl"` (TSPL/TSC labels; the label's own
+language-explicit variant: `lang` is `"zpl"`, `"epl"`, `"tspl"`, or `"cpcl"` (TSPL/TSC and CPCL labels; the label's own
 `SIZE` in TSPL does not override the `width_mm`/`height_mm` you pass — size the canvas like any other
 input). Unknown `lang` values fall back to ZPL.
 

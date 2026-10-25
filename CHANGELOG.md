@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **CPCL support (fourth language)** — Zebra's mobile-printer language
+  (QL/MZ series). `! {offset} {hdpi} {vdpi} {height} {qty}` sessions with
+  `PRINT`/`END`/`ABORT` terminators; resident fonts 0-7 with `SETMAG`,
+  `SCALE-TEXT` + `ROTATE`, `ML` blocks, `LEFT`/`CENTER`/`RIGHT`
+  justification, 1-D barcodes (128, UCCEAN128, 39 family, UPC-A/E,
+  EAN-13/8, I2of5) with `BARCODE-TEXT` HRI, QR / PDF-417 / MaxiCode /
+  Aztec, `BOX` / `LINE` / `INVERSE-LINE`, and counted `EG`/`CG` graphics.
+  Wired through every surface: `Language::Cpcl` + content sniffing,
+  CLI `-f cpcl` / `.cpcl` files, HTTP `application/cpcl`, the wasm
+  bindings, the Worker, and the playground (selector, CPCL showcase
+  sample, validate/format badges). Golden tests reference labelixa's CPCL
+  renderer where it covers the commands and the renderer baseline
+  otherwise (EPL/TSPL convention; see docs/DIFF_THRESHOLDS.md).
+
 ## [1.9.0] - 2026-10-21
 
 ### Added

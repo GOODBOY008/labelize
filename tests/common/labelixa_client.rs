@@ -1,8 +1,9 @@
-//! Client for the labelixa.com TSPL renderer — the only hosted TSPL
-//! reference renderer (see docs/TSPL_BASELINES.md). Mirrors the Labelary
-//! client's shape: SHA-256 keyed disk cache under `testdata/labelixa_cache/`
-//! (gitignored), rate limiting, and a None-on-failure contract so callers
-//! can fall back to the renderer baseline.
+//! Client for the labelixa.com TSPL/CPCL renderers — the only hosted
+//! reference renderers for either language (see docs/TSPL_BASELINES.md).
+//! Mirrors the Labelary client's shape: SHA-256 keyed disk cache under
+//! `testdata/labelixa_cache/` (gitignored), rate limiting, and a
+//! None-on-failure contract so callers can fall back to the renderer
+//! baseline.
 
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
@@ -21,9 +22,10 @@ fn cache_dir() -> PathBuf {
     dir
 }
 
-fn cache_key(tspl: &str) -> String {
+fn cache_key(endpoint: &str, source: &str) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(tspl.as_bytes());
+    hasher.update(endpoint.as_bytes());
+    hasher.update(source.as_bytes());
     hasher
         .finalize()
         .iter()
@@ -48,7 +50,18 @@ fn rate_limit() {
 /// Returns None when the service is unreachable, errors, or the quota is
 /// exhausted (X-RateLimit-Remaining: 0).
 pub fn labelixa_render(tspl: &str) -> Option<Vec<u8>> {
-    let key = cache_key(tspl);
+    render_via_labelixa("tspl", tspl)
+}
+
+/// Render CPCL to a PNG via the labelixa API (same contract as
+/// [`labelixa_render`]; the CPCL endpoint is an interpretation of the
+/// CPCL guide at 203 dpi and covers a subset of commands).
+pub fn labelixa_render_cpcl(cpcl: &str) -> Option<Vec<u8>> {
+    render_via_labelixa("cpcl", cpcl)
+}
+
+fn render_via_labelixa(lang: &str, source: &str) -> Option<Vec<u8>> {
+    let key = cache_key(lang, source);
     let cache_path = cache_dir().join(format!("{}.png", key));
 
     if let Some(cached) = std::fs::read(&cache_path).ok() {
@@ -62,9 +75,9 @@ pub fn labelixa_render(tspl: &str) -> Option<Vec<u8>> {
         .build()
         .ok()?;
     let resp = client
-        .post("https://api.labelixa.com/v1/tspl/render")
+        .post(format!("https://api.labelixa.com/v1/{lang}/render"))
         .header("Content-Type", "text/plain")
-        .body(tspl.to_string())
+        .body(source.to_string())
         .send()
         .ok()?;
 

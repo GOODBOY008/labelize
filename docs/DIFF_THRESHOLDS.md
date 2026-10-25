@@ -116,6 +116,9 @@ informational.
 | tspl_real_te210 | tspl | 7.12 | 9.0 | labelixa reference (TSC TE210 hardware capture); labelixa skips ITF14 |
 | tspl_real_sklad | tspl | 7.29 | 9.0 | labelixa reference; ${placeholder} literal text |
 | tspl_real_probe_full | tspl | 10.88 | 12.5 | labelixa reference; REVERSE band skipped by labelixa (~2.4pp) + ymul-width quirk (see TSPL_BASELINES.md) |
+| cpcl_2d_graphics | cpcl | 0.00 | 0.01 | Renderer baseline reference (labelixa skips QR/PDF-417/Aztec/EG/ML); header-driven canvas 576x480 |
+| cpcl_manual_examples | cpcl | 13.28 | 15.0 | labelixa CPCL reference; font substitute shapes + barcode geometry distance |
+| cpcl_shipping | cpcl | 16.12 | 17.5 | labelixa CPCL reference; magnified font 5 + barcode interpretation-line distance |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.37 | 2.5 | Character encoding |

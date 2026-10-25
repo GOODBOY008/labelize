@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use labelize::{DrawerOptions, EplParser, LabelInfo, Renderer, TsplParser, ZplParser};
+use labelize::{CpclParser, DrawerOptions, EplParser, LabelInfo, Renderer, TsplParser, ZplParser};
 
 /// Label size (in inches) for every Labelary API request, yielding a native
 /// 813×1626 px canvas — exactly the `default_options()` canvas.
@@ -39,6 +39,11 @@ pub fn parse_tspl(tspl: &[u8]) -> Vec<LabelInfo> {
     TsplParser::new().parse(tspl).expect("TSPL parse failed")
 }
 
+/// Parse CPCL bytes and return the vector of `LabelInfo`.
+pub fn parse_cpcl(cpcl: &[u8]) -> Vec<LabelInfo> {
+    CpclParser::new().parse(cpcl).expect("CPCL parse failed")
+}
+
 /// Parse ZPL and render the first label to PNG bytes.
 pub fn render_zpl_to_png(zpl: &str, options: DrawerOptions) -> Vec<u8> {
     let mut parser = ZplParser::new();
@@ -63,6 +68,22 @@ pub fn render_tspl_to_png(tspl: &str, options: DrawerOptions) -> Vec<u8> {
     let parser = TsplParser::new();
     let labels = parser.parse(tspl.as_bytes()).expect("TSPL parse failed");
     assert!(!labels.is_empty(), "no labels produced from TSPL");
+    let label = &labels[0];
+    let resolved = DrawerOptions {
+        label_width_mm: label.label_width_mm.unwrap_or(options.label_width_mm),
+        label_height_mm: label.label_height_mm.unwrap_or(options.label_height_mm),
+        ..options
+    };
+    render_label_to_png(label, resolved)
+}
+
+/// Parse CPCL and render the first label to PNG bytes. The options' dims
+/// come from the label's own header height / PAGE-WIDTH when declared,
+/// falling back to the given `options`.
+pub fn render_cpcl_to_png(cpcl: &str, options: DrawerOptions) -> Vec<u8> {
+    let parser = CpclParser::new();
+    let labels = parser.parse(cpcl.as_bytes()).expect("CPCL parse failed");
+    assert!(!labels.is_empty(), "no labels produced from CPCL");
     let label = &labels[0];
     let resolved = DrawerOptions {
         label_width_mm: label.label_width_mm.unwrap_or(options.label_width_mm),

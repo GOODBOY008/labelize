@@ -48,6 +48,34 @@ fn ensure_ref_png(path: &std::path::Path, content: &str, ext: &str) {
         // fixture's own SIZE command drives the canvas via render_tspl_to_png.
         eprintln!("[bootstrap] {}: TSPL — renderer baseline", name);
         render_helpers::render_tspl_to_png(content, opts)
+    } else if ext == "cpcl" {
+        // CPCL: labelixa renders a CPCL subset; fall back to the renderer
+        // baseline when the service is unavailable.
+        match common::labelixa_client::labelixa_render_cpcl(content) {
+            Some(fetched) => {
+                let labels = render_helpers::parse_cpcl(content.as_bytes());
+                let (w, h) = labels
+                    .first()
+                    .and_then(|l| l.label_width_mm.zip(l.label_height_mm))
+                    .map(|(w, h)| {
+                        (
+                            (w * opts.dpmm as f64).ceil() as u32,
+                            (h * opts.dpmm as f64).ceil() as u32,
+                        )
+                    })
+                    .unwrap_or((812, 1624));
+                let padded = labelary_client::pad_png_to_size(&fetched, w, h);
+                eprintln!(
+                    "[bootstrap] {}: fetched from labelixa (cpcl), padded to {}×{}",
+                    name, w, h
+                );
+                padded
+            }
+            None => {
+                eprintln!("[bootstrap] {}: CPCL — renderer baseline", name);
+                render_helpers::render_cpcl_to_png(content, opts)
+            }
+        }
     } else if ext != "epl" {
         // Labelary renders this size natively at 813×1626 — the exact default_options
         // canvas (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must
@@ -91,7 +119,7 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
                 .path()
                 .extension()
                 .map(|x| x.to_string_lossy().to_string());
-            matches!(ext.as_deref(), Some("zpl") | Some("epl") | Some("tspl"))
+            matches!(ext.as_deref(), Some("zpl") | Some("epl") | Some("tspl") | Some("cpcl"))
         })
         .map(|e| e.path())
         .collect();
@@ -128,6 +156,9 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             }),
             "tspl" => std::panic::catch_unwind(|| {
                 render_helpers::render_tspl_to_png(&content, opts.clone())
+            }),
+            "cpcl" => std::panic::catch_unwind(|| {
+                render_helpers::render_cpcl_to_png(&content, opts.clone())
             }),
             _ => std::panic::catch_unwind(|| {
                 render_helpers::render_zpl_to_png(&content, opts.clone())

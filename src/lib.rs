@@ -34,7 +34,7 @@ pub use images::pdf::encode_pdf;
 pub use lang::{
     detect_language, format_source, parse_labels, validate, Language, ValidationReport,
 };
-pub use parsers::{EplParser, TsplParser, ZplParser};
+pub use parsers::{CpclParser, EplParser, TsplParser, ZplParser};
 pub use render::{
     render_pdf, render_png, RenderOptions, Rendered, DEFAULT_LABEL_HEIGHT_MM,
     DEFAULT_LABEL_WIDTH_MM,
