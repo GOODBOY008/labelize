@@ -170,7 +170,10 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             // DPL declares no label size; the golden refs use the unit
             // canvas, so render at the same 812x1624 here.
             "dpl" => std::panic::catch_unwind(|| {
-                render_helpers::render_dpl_to_png(content.as_bytes(), render_helpers::unit_options())
+                render_helpers::render_dpl_to_png(
+                    content.as_bytes(),
+                    render_helpers::unit_options(),
+                )
             }),
             _ => std::panic::catch_unwind(|| {
                 render_helpers::render_zpl_to_png(&content, opts.clone())
