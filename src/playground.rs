@@ -18,7 +18,71 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labelize Playground</title>
+<title>Labelize — Free Online ZPL Viewer (ZPL, EPL &amp; TSPL to PNG)</title>
+<meta name="description" content="Render ZPL, EPL and TSPL/TSC thermal-label code to PNG or PDF right in your browser. Free online label preview with syntax validation, formatting and an optional Labelary diff — open source, no sign-up.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://labelize.764629910.workers.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Labelize">
+<meta property="og:title" content="Labelize — Free Online ZPL Viewer (ZPL, EPL &amp; TSPL to PNG)">
+<meta property="og:description" content="Render ZPL, EPL and TSPL/TSC label code to PNG or PDF in your browser — preview, validate and format thermal-label data for free.">
+<meta property="og:url" content="https://labelize.764629910.workers.dev/">
+<meta property="og:image" content="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Labelize — Free Online ZPL Viewer (ZPL, EPL &amp; TSPL to PNG)">
+<meta name="twitter:description" content="Render ZPL, EPL and TSPL/TSC label code to PNG or PDF in your browser — preview, validate and format thermal-label data for free.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/social-preview.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Labelize",
+      "url": "https://labelize.764629910.workers.dev/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "isAccessibleForFree": true,
+      "description": "Free online ZPL, EPL and TSPL/TSC label viewer. Render thermal-label code to PNG or PDF, validate syntax and format label data.",
+      "featureList": [
+        "ZPL (Zebra) viewer and renderer",
+        "EPL (Eltron) label preview",
+        "TSPL/TSC label preview",
+        "Render label code to PNG or PDF",
+        "Syntax validation and one-command-per-line formatting",
+        "Pixel diff against the Labelary reference renderer"
+      ],
+      "license": "https://github.com/GOODBOY008/labelize/blob/main/LICENSE",
+      "author": { "@type": "Organization", "name": "GOODBOY008", "url": "https://github.com/GOODBOY008" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is this ZPL viewer free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Labelize is free to use, MIT-licensed open source, and requires no sign-up." }
+        },
+        {
+          "@type": "Question",
+          "name": "Which label languages are supported?",
+          "acceptedAnswer": { "@type": "Answer", "text": "ZPL (Zebra), EPL (Eltron) and TSPL/TSC. Labels render to PNG or PDF at selectable sizes and resolutions." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there an API?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. The hosted service exposes POST /convert, /validate and /format endpoints, and the same engine ships as a CLI, Rust library, WebAssembly package and Docker image for self-hosting." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does my label data leave my browser?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The hosted playground renders labels server-side and stores nothing. The optional Compare with Labelary feature sends your code to the external labelary.com service and can be disabled." }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%22374%20246%20520%20471%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22lzA%22%20x1%3D%220.08%22%20y1%3D%220.02%22%20x2%3D%220.95%22%20y2%3D%220.98%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2310a7f5%22%2F%3E%3Cstop%20offset%3D%2252%25%22%20stop-color%3D%22%23167ce9%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%234734e9%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22lzB%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%236425f3%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%237548ef%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M%20463%2C570%20463%2C577%20467%2C580%20641%2C603%20646%2C599%20648%2C591%20647%2C584%20643%2C582%20477%2C560%20469%2C560%20466%2C562%20Z%20M%20869%2C551%20861%2C546%20852%2C544%20833%2C543%20764%2C534%20744%2C537%20729%2C545%20709%2C565%20698%2C585%20670%2C686%20659%2C701%20649%2C708%20641%2C711%20655%2C713%20683%2C713%20695%2C711%20715%2C704%20741%2C689%20756%2C677%20870%2C563%20871%2C554%20Z%20M%20476%2C525%20477%2C532%20483%2C534%20672%2C558%20679%2C554%20682%2C545%20681%2C539%20675%2C536%20608%2C529%20487%2C513%20481%2C514%20478%2C517%20Z%20M%20855%2C282%20832%2C274%20549%2C250%20526%2C250%20517%2C252%20499%2C260%20488%2C268%20473%2C285%20464%2C303%20380%2C563%20378%2C573%20379%2C607%20387%2C631%20401%2C653%20424%2C673%20448%2C684%20620%2C709%20633%2C708%20645%2C702%20657%2C689%20661%2C680%20661%2C677%20469%2C649%20447%2C638%20435%2C626%20428%2C615%20421%2C592%20422%2C564%20491%2C329%20495%2C321%20503%2C313%20512%2C309%20529%2C309%20822%2C336%20833%2C340%20841%2C351%20842%2C359%20798%2C529%20838%2C534%20890%2C352%20890%2C333%20884%2C313%20875%2C299%20864%2C288%20Z%22%20fill%3D%22url%28%23lzA%29%22%20fill-rule%3D%22evenodd%22%2F%3E%3Cpath%20d%3D%22M%20869%2C551%20861%2C546%20852%2C544%20833%2C543%20764%2C534%20744%2C537%20729%2C545%20709%2C565%20698%2C585%20691%2C606%20689%2C618%20670%2C686%20659%2C701%20649%2C708%20641%2C711%20655%2C713%20683%2C713%20695%2C711%20715%2C704%20741%2C689%20756%2C677%20870%2C563%20871%2C554%20Z%22%20fill%3D%22url%28%23lzB%29%22%20fill-rule%3D%22evenodd%22%2F%3E%3Cpath%20d%3D%22M%20462%2C573%20465%2C579%20472%2C581%20487%2C582%20501%2C585%20516%2C586%20635%2C603%20643%2C602%20646%2C599%20648%2C592%20648%2C585%20644%2C582%20591%2C576%20478%2C560%20467%2C561%20465%2C563%20Z%20M%20476%2C524%20476%2C531%20481%2C534%20674%2C558%20679%2C555%20682%2C545%20682%2C540%20676%2C536%20593%2C527%20489%2C513%20481%2C514%20478%2C517%20Z%22%20fill%3D%22%236077aa%22%20fill-rule%3D%22evenodd%22%2F%3E%3Cpath%20d%3D%22M%20791%2C379%20763%2C377%20760%2C381%20750%2C425%20730%2C499%20731%2C503%20760%2C506%20763%2C503%20794%2C386%20794%2C381%20Z%20M%20742%2C375%20731%2C374%20728%2C377%20721%2C408%20697%2C497%20699%2C500%20709%2C501%20712%2C499%20743%2C379%20Z%20M%20709%2C372%20689%2C370%20686%2C373%20655%2C493%20658%2C496%20677%2C497%20680%2C493%20680%2C489%20685%2C474%20692%2C443%20710%2C377%20Z%20M%20667%2C368%20654%2C366%20649%2C368%20618%2C487%20619%2C491%20635%2C493%20638%2C490%20666%2C378%20668%2C374%20Z%20M%20630%2C364%20614%2C363%20612%2C365%20603%2C403%20581%2C483%20581%2C486%20584%2C488%20598%2C489%20601%2C485%20631%2C369%20Z%20M%20592%2C360%20571%2C359%20569%2C361%20560%2C399%20538%2C479%20540%2C483%20558%2C485%20563%2C483%20594%2C367%20594%2C361%20Z%20M%20549%2C356%20527%2C354%20523%2C358%20492%2C471%20492%2C476%20494%2C478%20517%2C480%20520%2C478%20546%2C377%20551%2C362%20551%2C358%20Z%22%20fill%3D%22%23111a39%22%20fill-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E">
 <script>
 /* Apply the saved (or system) theme before first paint to avoid a flash. */
@@ -468,6 +532,37 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   .status-ok  { color: var(--success); }
   .status-err { color: var(--error); }
 
+  /* ── About / FAQ disclosure ── */
+  details.about {
+    flex-shrink: 0; background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-dim);
+  }
+  details.about summary {
+    cursor: pointer; padding: 6px 16px; list-style: none;
+    user-select: none; display: flex; align-items: center; gap: 6px;
+  }
+  details.about summary::-webkit-details-marker { display: none; }
+  details.about summary::before { content: "▸"; font-size: 10px; transition: transform 0.15s; }
+  details.about[open] summary::before { transform: rotate(90deg); }
+  details.about[open] summary { border-bottom: 1px solid var(--border); }
+  .about-body { padding: 12px 20px 16px; max-height: 42vh; overflow: auto; line-height: 1.55; }
+  .about-body h1 { font-size: 14px; color: var(--text); margin: 0 0 8px; }
+  .about-body h2 { font-size: 12px; color: var(--text); margin: 14px 0 4px; }
+  .about-body p { margin: 0 0 8px; max-width: 76ch; }
+  .about-body ul { margin: 0 0 8px 18px; padding: 0; }
+  .about-body li { margin: 2px 0; }
+  .about-body dl { margin: 0; }
+  .about-body dt { color: var(--text); font-weight: 600; margin-top: 8px; }
+  .about-body dd { margin: 2px 0 0; max-width: 76ch; }
+  .about-body code {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 0 4px;
+  }
+  .about-body a { color: var(--accent); text-decoration: none; }
+  .about-body a:hover { text-decoration: underline; }
+  .about-links { margin-top: 10px; }
+
   /* ── Responsive: stack editor above preview on narrow screens ── */
   @media (max-width: 880px) {
     header { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
@@ -488,6 +583,27 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 </style>
 </head>
 <body>
+<noscript>
+  <div style="max-width:760px;margin:0 auto;padding:24px 20px;font-family:system-ui,sans-serif;line-height:1.6;color:var(--text)">
+    <h1 style="font-size:20px">Labelize — free online ZPL, EPL &amp; TSPL label viewer</h1>
+    <p>
+      Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra),
+      <strong>EPL</strong> (Eltron) and <strong>TSPL/TSC</strong> — to PNG images or PDF documents.
+      This playground needs JavaScript for the live editor and preview; for headless use,
+      call the free REST API instead:
+    </p>
+    <ul>
+      <li><code>POST /convert</code> — label code in, PNG or PDF out</li>
+      <li><code>POST /validate</code> — parse report with per-field diagnostics</li>
+      <li><code>POST /format</code> — reflow label code one command per line</li>
+    </ul>
+    <p>
+      The same engine also ships as a CLI, a Rust crate, a WebAssembly package and a
+      Docker image. Source code and docs:
+      <a href="https://github.com/GOODBOY008/labelize">github.com/GOODBOY008/labelize</a>
+    </p>
+  </div>
+</noscript>
 
 <header>
   <div class="logo">
@@ -749,6 +865,31 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   </div>
 </main>
 
+<details class="about">
+  <summary data-i18n="about.summary">About Labelize · FAQ · Open source (MIT)</summary>
+  <div class="about-body">
+    <h1 data-i18n-html="about.h1">Labelize — free online ZPL, EPL &amp; TSPL label viewer</h1>
+    <p data-i18n-html="about.pitch">Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron) and <strong>TSPL/TSC</strong> — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.</p>
+    <ul data-i18n-html="about.features"></ul>
+    <h2 data-i18n="about.faq">Frequently asked questions</h2>
+    <dl>
+      <dt data-i18n="about.q1">Is this ZPL viewer free?</dt>
+      <dd data-i18n-html="about.a1">Yes. Labelize is free to use, MIT-licensed open source, and requires no sign-up.</dd>
+      <dt data-i18n="about.q2">Which label languages are supported?</dt>
+      <dd data-i18n-html="about.a2">ZPL (Zebra), EPL (Eltron) and TSPL/TSC. Labels render to PNG or PDF at selectable sizes and resolutions.</dd>
+      <dt data-i18n="about.q3">Is there an API?</dt>
+      <dd data-i18n-html="about.a3">Yes — <code>POST /convert</code>, <code>/validate</code> and <code>/format</code> on this host, or self-host the CLI, Rust crate, WebAssembly package or Docker image.</dd>
+      <dt data-i18n="about.q4">Does my label data leave my browser?</dt>
+      <dd data-i18n-html="about.a4">The playground renders labels server-side and stores nothing. The optional <em>Compare with Labelary</em> feature sends your code to the external labelary.com service and can be disabled.</dd>
+    </dl>
+    <p class="about-links">
+      <a href="https://github.com/GOODBOY008/labelize" data-i18n="about.gh">GitHub source</a> ·
+      <a href="https://www.npmjs.com/package/@goodboy008/labelize-wasm" data-i18n="about.npm">npm package</a> ·
+      <a href="https://crates.io/crates/labelize" data-i18n="about.crates">crates.io</a>
+    </p>
+  </div>
+</details>
+
 <script>
 (function () {
   "use strict";
@@ -769,8 +910,24 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
      go through t(key) and fmt(t(key), {placeholder: value}). */
   var I18N = {
     en: {
-      "app.title": "Labelize Playground",
+      "app.title": "Labelize — Free Online ZPL Viewer (ZPL, EPL & TSPL to PNG)",
       "app.tagline": "ZPL, EPL, TSPL, CPCL & DPL Label Playground",
+      "about.summary": "About Labelize · FAQ · Open source (MIT)",
+      "about.h1": "Labelize — free online ZPL, EPL &amp; TSPL label viewer",
+      "about.pitch": "Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron) and <strong>TSPL/TSC</strong> — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.",
+      "about.features": "<li>Live preview with zoom, PNG/PDF download and shareable permalinks</li><li>Syntax validation and one-command-per-line formatting</li><li>Optional pixel diff against the Labelary reference renderer</li><li>Free REST API: <code>POST /convert</code>, <code>/validate</code>, <code>/format</code></li><li>Same engine as CLI, HTTP microservice, Rust crate, WebAssembly package or Docker image</li>",
+      "about.faq": "Frequently asked questions",
+      "about.q1": "Is this ZPL viewer free?",
+      "about.a1": "Yes. Labelize is free to use, MIT-licensed open source, and requires no sign-up.",
+      "about.q2": "Which label languages are supported?",
+      "about.a2": "ZPL (Zebra), EPL (Eltron) and TSPL/TSC. Labels render to PNG or PDF at selectable sizes and resolutions.",
+      "about.q3": "Is there an API?",
+      "about.a3": "Yes — <code>POST /convert</code>, <code>/validate</code> and <code>/format</code> on this host, or self-host the CLI, Rust crate, WebAssembly package or Docker image.",
+      "about.q4": "Does my label data leave my browser?",
+      "about.a4": "The playground renders labels server-side and stores nothing. The optional <em>Compare with Labelary</em> feature sends your code to the external labelary.com service and can be disabled.",
+      "about.gh": "GitHub source",
+      "about.npm": "npm package",
+      "about.crates": "crates.io",
       "hdr.samples": "Samples",
       "hdr.lang": "Language",
       "hdr.theme": "Toggle theme",
@@ -856,8 +1013,24 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "alt.diff": "Diff overlay"
     },
     zh: {
-      "app.title": "Labelize 在线预览",
+      "app.title": "Labelize — 免费在线 ZPL / EPL / TSPL 标签查看器",
       "app.tagline": "ZPL、EPL、TSPL、CPCL 与 DPL 标签在线预览",
+      "about.summary": "关于 Labelize · FAQ · 开源（MIT）",
+      "about.h1": "Labelize — 免费在线 ZPL、EPL 与 TSPL 标签查看器",
+      "about.pitch": "Labelize 将热敏打印机标签代码 —— <strong>ZPL</strong>（Zebra）、<strong>EPL</strong>（Eltron）与 <strong>TSPL/TSC</strong> —— 渲染为 PNG 图片或 PDF 文档。把标签代码粘贴到上方，点击<strong>渲染</strong>，或直接试试内置示例。",
+      "about.features": "<li>实时预览：缩放、下载 PNG/PDF、可分享的固定链接</li><li>语法校验与一键格式化（每行一条指令）</li><li>可选：与 Labelary 参考渲染器逐像素对比</li><li>免费 REST API：<code>POST /convert</code>、<code>/validate</code>、<code>/format</code></li><li>同一引擎提供 CLI、HTTP 服务、Rust 库、WebAssembly 包与 Docker 镜像</li>",
+      "about.faq": "常见问题",
+      "about.q1": "这个 ZPL 查看器免费吗？",
+      "about.a1": "免费。Labelize 是 MIT 许可的开源项目，无需注册。",
+      "about.q2": "支持哪些标签语言？",
+      "about.a2": "ZPL（Zebra）、EPL（Eltron）与 TSPL/TSC，可按选定尺寸和分辨率渲染为 PNG 或 PDF。",
+      "about.q3": "有 API 吗？",
+      "about.a3": "有 —— 在本站调用 <code>POST /convert</code>、<code>/validate</code> 与 <code>/format</code>，或自托管 CLI、Rust 库、WebAssembly 包或 Docker 镜像。",
+      "about.q4": "我的标签数据会离开浏览器吗？",
+      "about.a4": "在线预览在服务端渲染且不存储任何数据。可选的「与 Labelary 对比」功能会把代码发送到外部 labelary.com 服务，可予关闭。",
+      "about.gh": "GitHub 源码",
+      "about.npm": "npm 包",
+      "about.crates": "crates.io",
       "hdr.samples": "示例",
       "hdr.lang": "语言",
       "hdr.theme": "切换主题",
@@ -1942,7 +2115,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 /// historical behaviour); an unset variable falls back to the default, and an
 /// unparseable value warns on stderr before falling back — a typo'd flag
 /// should be visible, not silently ignored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlaygroundConfig {
     /// `LABELIZE_PLAYGROUND_ENABLED=false` makes the server API-only: `/`
     /// answers with a small endpoint listing instead of the playground page.
@@ -1953,13 +2126,24 @@ pub struct PlaygroundConfig {
     /// "Compare with Labelary" button, which otherwise POSTs the current
     /// ZPL to the external api.labelary.com service.
     pub labelary_compare: bool,
+    /// Canonical public origin of the hosted playground, without a trailing
+    /// slash (`LABELIZE_PUBLIC_BASE_URL`). Baked into the page's
+    /// canonical/OG/JSON-LD URLs and echoed by `robots_txt`/`sitemap_xml`.
+    /// After attaching a custom domain, set this so search engines
+    /// consolidate on it instead of the default workers.dev origin.
+    pub public_base_url: String,
 }
+
+/// The origin the page's SEO metadata ships with, matching the current
+/// public Cloudflare Worker deployment.
+pub const DEFAULT_PUBLIC_BASE_URL: &str = "https://labelize.764629910.workers.dev";
 
 impl Default for PlaygroundConfig {
     fn default() -> Self {
         Self {
             enabled: true,
             labelary_compare: true,
+            public_base_url: DEFAULT_PUBLIC_BASE_URL.to_string(),
         }
     }
 }
@@ -1971,7 +2155,24 @@ impl PlaygroundConfig {
         Self {
             enabled: env_flag("LABELIZE_PLAYGROUND_ENABLED", true),
             labelary_compare: env_flag("LABELIZE_PLAYGROUND_LABELARY_COMPARE", true),
+            public_base_url: env_base_url("LABELIZE_PUBLIC_BASE_URL"),
         }
+    }
+}
+
+/// `LABELIZE_PUBLIC_BASE_URL`: trimmed, trailing slashes dropped, empty or
+/// unset falls back to [`DEFAULT_PUBLIC_BASE_URL`].
+fn env_base_url(name: &str) -> String {
+    match std::env::var(name) {
+        Ok(raw) => {
+            let trimmed = raw.trim().trim_end_matches('/').to_string();
+            if trimmed.is_empty() {
+                DEFAULT_PUBLIC_BASE_URL.to_string()
+            } else {
+                trimmed
+            }
+        }
+        Err(_) => DEFAULT_PUBLIC_BASE_URL.to_string(),
     }
 }
 
@@ -2009,22 +2210,49 @@ const CONFIG_MARKER: &str = "/*__CONFIG__*/";
 /// Renders the playground page with `config` applied.
 ///
 /// Returns the static [`PLAYGROUND_HTML`] unchanged (borrowed) unless the
-/// Labelary compare is disabled, so default deployments pay nothing.
+/// Labelary compare is disabled or `public_base_url` differs from
+/// [`DEFAULT_PUBLIC_BASE_URL`], so default deployments pay nothing.
 pub fn page_html(config: &PlaygroundConfig) -> std::borrow::Cow<'static, str> {
     // `enabled` never reaches the page: the server declines to serve it.
     // The injected payload is boolean-only; if a string-valued option is
     // ever added, escape `<` as \u003c so the value cannot close the
     // script element.
-    if config.labelary_compare {
+    let base_changed = config.public_base_url != DEFAULT_PUBLIC_BASE_URL;
+    if !base_changed && config.labelary_compare {
         return std::borrow::Cow::Borrowed(PLAYGROUND_HTML);
     }
     // NB: the marker sits *inside* the braces (`= {/*__CONFIG__*/};`), so the
     // replacement is the object body only — unreplaced it parses as `{}`.
-    std::borrow::Cow::Owned(PLAYGROUND_HTML.replacen(
-        CONFIG_MARKER,
-        r#""labelaryCompare":false"#,
-        1,
-    ))
+    let mut html = if base_changed {
+        PLAYGROUND_HTML.replace(DEFAULT_PUBLIC_BASE_URL, &config.public_base_url)
+    } else {
+        PLAYGROUND_HTML.to_string()
+    };
+    if !config.labelary_compare {
+        html = html.replacen(CONFIG_MARKER, r#""labelaryCompare":false"#, 1);
+    }
+    std::borrow::Cow::Owned(html)
+}
+
+/// robots.txt for the hosted playground; `base` is the canonical origin
+/// (no trailing slash).
+pub fn robots_txt(base: &str) -> String {
+    format!("User-agent: *\nAllow: /\n\nSitemap: {base}/sitemap.xml\n")
+}
+
+/// Single-entry sitemap pointing at the playground (the only indexable URL).
+pub fn sitemap_xml(base: &str) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{base}/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+"#
+    )
 }
 
 #[cfg(test)]
@@ -2062,6 +2290,72 @@ mod tests {
         });
         assert!(html.contains(r#"window.__LABELIZE_CONFIG__ = {"labelaryCompare":false};"#));
         assert!(!html.contains(CONFIG_MARKER));
+    }
+
+    #[test]
+    fn seo_metadata_ships_with_the_default_base_url() {
+        // canonical link + og:url + JSON-LD WebApplication url
+        assert_eq!(
+            PLAYGROUND_HTML.matches(DEFAULT_PUBLIC_BASE_URL).count(),
+            3,
+            "canonical/og:url/JSON-LD must all carry the default origin"
+        );
+        assert!(PLAYGROUND_HTML
+            .contains(r#"<link rel="canonical" href="https://labelize.764629910.workers.dev/">"#));
+        assert!(PLAYGROUND_HTML.contains(r#"<script type="application/ld+json">"#));
+        assert!(PLAYGROUND_HTML.contains(r#""@type": "FAQPage""#));
+    }
+
+    #[test]
+    fn custom_base_url_replaces_every_default_occurrence() {
+        let html = page_html(&PlaygroundConfig {
+            public_base_url: "https://labelize.dev".to_string(),
+            ..Default::default()
+        });
+        assert_eq!(html.matches("https://labelize.dev").count(), 3);
+        assert!(!html.contains(DEFAULT_PUBLIC_BASE_URL));
+        // default config still leaves the compare feature untouched
+        assert!(html.contains(CONFIG_MARKER));
+    }
+
+    #[test]
+    fn custom_base_url_and_disabled_compare_both_apply() {
+        let html = page_html(&PlaygroundConfig {
+            public_base_url: "https://labelize.dev".to_string(),
+            labelary_compare: false,
+            ..Default::default()
+        });
+        assert!(!html.contains(DEFAULT_PUBLIC_BASE_URL));
+        assert!(html.contains(r#"{"labelaryCompare":false}"#));
+    }
+
+    #[test]
+    fn robots_and_sitemap_point_at_the_base_url() {
+        let robots = robots_txt("https://labelize.dev");
+        assert!(robots.starts_with("User-agent: *\nAllow: /\n"));
+        assert!(robots.contains("Sitemap: https://labelize.dev/sitemap.xml"));
+        let sitemap = sitemap_xml("https://labelize.dev");
+        assert!(sitemap.contains("<loc>https://labelize.dev/</loc>"));
+    }
+
+    #[test]
+    fn env_base_url_trims_and_falls_back() {
+        // Directly exercise the normalization the env reader applies.
+        let normalize = |raw: &str| -> String {
+            let trimmed = raw.trim().trim_end_matches('/').to_string();
+            if trimmed.is_empty() {
+                DEFAULT_PUBLIC_BASE_URL.to_string()
+            } else {
+                trimmed
+            }
+        };
+        assert_eq!(normalize("https://labelize.dev/"), "https://labelize.dev");
+        assert_eq!(
+            normalize("  https://labelize.dev  "),
+            "https://labelize.dev"
+        );
+        assert_eq!(normalize(""), DEFAULT_PUBLIC_BASE_URL);
+        assert_eq!(normalize("   "), DEFAULT_PUBLIC_BASE_URL);
     }
 
     #[test]

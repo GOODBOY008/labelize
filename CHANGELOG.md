@@ -41,6 +41,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renderer where it covers the commands and the renderer baseline
   otherwise (EPL/TSPL convention; see docs/DIFF_THRESHOLDS.md).
 
+- **Playground SEO landing page** — the hosted playground ships real search
+  metadata: keyword-rich `<title>`/`description`, canonical URL, Open Graph /
+  Twitter cards, `WebApplication` + `FAQPage` JSON-LD, a `<noscript>` pitch
+  for non-JS visitors and a new collapsible **About · FAQ** panel (EN/中文)
+  with the feature list, API endpoints and repository links. The server and
+  worker now also serve `/robots.txt` and `/sitemap.xml`.
+- **`LABELIZE_PUBLIC_BASE_URL`** — canonical origin of the hosted playground
+  (baked into canonical/OG/JSON-LD URLs and echoed by robots/sitemap). After
+  attaching a custom domain, set it (worker: `PUBLIC_BASE_URL` var, also
+  uncommented in `wrangler.toml`) so search engines consolidate on the domain
+  and the workers.dev HTML page 301-redirects there.
+
 ## [1.9.0] - 2026-10-21
 
 ### Added

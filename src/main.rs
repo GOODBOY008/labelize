@@ -300,6 +300,32 @@ async fn serve(host: String, port: u16) {
         std::borrow::Cow::Owned(html) => Box::leak(html.into_boxed_str()),
     };
     let playground_html: Option<&'static str> = config.enabled.then_some(page);
+    // Canonical origin for robots.txt/sitemap.xml (LABELIZE_PUBLIC_BASE_URL).
+    let base: &'static str = Box::leak(config.public_base_url.clone().into_boxed_str());
+
+    let robots = move || async move {
+        (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
+                (header::CACHE_CONTROL, "max-age=86400"),
+            ],
+            labelize::playground::robots_txt(base),
+        )
+            .into_response()
+    };
+
+    let sitemap = move || async move {
+        (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/xml; charset=utf-8"),
+                (header::CACHE_CONTROL, "max-age=86400"),
+            ],
+            labelize::playground::sitemap_xml(base),
+        )
+            .into_response()
+    };
 
     let root = move || async move {
         match playground_html {
@@ -474,6 +500,8 @@ async fn serve(host: String, port: u16) {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
+        .route("/robots.txt", get(robots))
+        .route("/sitemap.xml", get(sitemap))
         .route("/convert", post(convert_handler))
         .route("/validate", post(validate_handler))
         .route("/format", post(format_handler));
