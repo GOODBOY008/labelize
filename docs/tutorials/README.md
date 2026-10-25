@@ -42,6 +42,6 @@ A few terms shared by every tutorial:
 ## Try it without installing anything
 
 The public playground runs the latest `main` build:
-<https://labelize.764629910.workers.dev> — paste ZPL/EPL, preview, download
+<https://labelize.764629910.workers.dev> — paste ZPL/EPL/TSPL/CPCL/DPL, preview, download
 PNG/PDF, and optionally score your render against the
 [Labelary](http://labelary.com/) reference.

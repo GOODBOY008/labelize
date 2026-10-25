@@ -79,7 +79,7 @@ labelize convert label.zpl --width 100 --height 150 --dpmm 12
 | `--width`   | 102     | Label width in mm                        |
 | `--height`  | 152     | Label height in mm                       |
 | `--dpmm`    | 8       | Dots per mm (6, 8, 12, or 24)           |
-| `-f, --format`  | auto    | Input format: `zpl` or `epl`         |
+| `-f, --format`  | auto    | Input format: `zpl`, `epl`, `tspl`, `cpcl` or `dpl` |
 | `-t, --type`    | png     | Output type: `png` or `pdf`          |
 | `-o, --output`  | auto    | Output file path                     |
 
@@ -164,7 +164,7 @@ curl -X POST "http://localhost:8080/convert?width=100&height=62&dpmm=12" \
 ### Validate label source via HTTP
 
 Syntax-check without rendering: auto-detects the language (or takes an
-explicit `?language=zpl|epl|tspl`) and reports what failed.
+explicit `?language=zpl|epl|tspl|cpcl|dpl`) and reports what failed.
 
 ```bash
 curl -X POST http://localhost:8080/validate \
@@ -179,7 +179,7 @@ P1'
 
 | Parameter  | Default | Description                            |
 |------------|---------|----------------------------------------|
-| `language` | auto    | Force `zpl`/`epl`/`tspl` (else detect) |
+| `language` | auto    | Force `zpl`/`epl`/`tspl`/`cpcl`/`dpl` (else detect) |
 | `dpmm`     | 8       | Dots per mm (feeds ZPL `^MU` units)    |
 
 ### Format label source via HTTP
@@ -202,7 +202,7 @@ curl -X POST http://localhost:8080/format \
 
 | Parameter  | Default | Description                            |
 |------------|---------|----------------------------------------|
-| `language` | auto    | Force `zpl`/`epl`/`tspl` (else detect) |
+| `language` | auto    | Force `zpl`/`epl`/`tspl`/`cpcl`/`dpl` (else detect) |
 
 ---
 

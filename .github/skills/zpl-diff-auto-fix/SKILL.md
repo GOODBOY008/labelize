@@ -8,10 +8,12 @@ argument-hint: "Label name to fix (e.g. 'fedex', 'ups') or 'all' for batch mode"
 
 > **Other languages:** EPL uses renderer-baseline goldens (no external
 > reference renderer) — the analyze/fix phases still apply with
-> `parsers/epl/` as the fix surface. TSPL has its own sibling skill
-> [tspl-diff-auto-fix](../tspl-diff-auto-fix/SKILL.md) (labelixa/portakal
-> baselines, per-language guardrails); consult its Language Matrix before
-> cross-applying procedures.
+> `parsers/epl/` as the fix surface. TSPL, CPCL and DPL each have their
+> own sibling skill — [tspl-diff-auto-fix](../tspl-diff-auto-fix/SKILL.md)
+> (labelixa/portakal), [cpcl-diff-auto-fix](../cpcl-diff-auto-fix/SKILL.md)
+> (labelixa CPCL endpoint), [dpl-diff-auto-fix](../dpl-diff-auto-fix/SKILL.md)
+> (Evolabel layout view) — with per-language guardrails; consult the
+> relevant Language Matrix before cross-applying procedures.
 
 ## Purpose
 

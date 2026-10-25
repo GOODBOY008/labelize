@@ -240,9 +240,9 @@ Commands:
   serve    Start HTTP server for label conversion
 
 Convert Options:
-  <INPUT>               Input file path (.zpl, .epl, or .tspl)
+  <INPUT>               Input file path (.zpl, .epl, .tspl, .cpcl, or .dpl)
   -o, --output <PATH>   Output file path (default: input stem + .png/.pdf)
-  -f, --format <FMT>    Input format override: zpl | epl | tspl
+  -f, --format <FMT>    Input format override: zpl | epl | tspl | cpcl | dpl
   -t, --type <TYPE>     Output type: png | pdf [default: png]
   --width <MM>          Label width in mm [default: 102; TSPL: from SIZE, CPCL: from PAGE-WIDTH]
   --height <MM>         Label height in mm [default: 152; TSPL: from SIZE, CPCL: from header]
@@ -265,7 +265,7 @@ Serve Options:
 | `/health` | GET  | Health check → `{"status":"ok"}` |
 | `/convert` | POST | Convert label data → PNG or PDF |
 
-**POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl` / `application/tspl`); without one, the body is sniffed:
+**POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl` / `application/tspl` / `application/cpcl` / `application/dpl`); without one, the body is sniffed:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -333,7 +333,8 @@ magnification, `SCALE-TEXT` point sizing with `ROTATE`, `ML` multiline blocks,
 ASCII) / UPC-A / UPC-E / EAN-13 / EAN-8 / I2of5 (+C) with `BARCODE-TEXT` HRI,
 QR / PDF-417 / MaxiCode (mode 2 tags) / Aztec, `BOX`, `LINE`,
 `INVERSE-LINE`, and counted `EG`/`CG` graphics. Canvas comes from the header
-height and `PAGE-WIDTH`.
+height and `PAGE-WIDTH`. Real-provenance corpus and reference-renderer
+details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
 
 ### DPL (Datamax-O'Neil)
 
@@ -345,6 +346,8 @@ uppercase-HRI convention, QR (auto + manual payload forms), PDF-417,
 DataMatrix, MaxiCode (fixed-field form), Aztec, and `X` line/box records.
 Positions use the bottom-left home in hundredths of an inch (`m` = metric);
 DPL declares no in-band label size, so the canvas comes from the caller.
+Real-provenance corpus (manual Appendix B samples) and reference-renderer
+details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
 
 </details>
 
@@ -352,7 +355,7 @@ DPL declares no in-band label size, so the canvas comes from the caller.
 <summary><b>Architecture</b></summary>
 
 ```
-  ZPL/EPL input
+  ZPL / EPL / TSPL / CPCL / DPL input
        │
        ▼
   ┌─────────┐     ┌──────────┐     ┌─────────┐
