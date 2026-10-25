@@ -149,6 +149,7 @@ impl CpclSession {
             y: self.y(y),
             calculate_from_bottom: false,
             automatic_position: false,
+            from_bottom: false,
         }
     }
 
@@ -1132,6 +1133,7 @@ fn parse_line_graphic(s: &mut CpclSession, args: &[&str], inverse: bool) -> Resu
                 y: top,
                 calculate_from_bottom: false,
                 automatic_position: false,
+                from_bottom: false,
             },
             width: rw,
             height: rh,
@@ -1151,6 +1153,7 @@ fn parse_line_graphic(s: &mut CpclSession, args: &[&str], inverse: bool) -> Resu
                 y: top,
                 calculate_from_bottom: false,
                 automatic_position: false,
+                from_bottom: false,
             },
             width,
             height,
@@ -1171,6 +1174,7 @@ fn filled_box(x: i32, y: i32, width: i32, height: i32) -> GraphicBox {
             y,
             calculate_from_bottom: false,
             automatic_position: false,
+            from_bottom: false,
         },
         width: width.max(1),
         height: height.max(1),

@@ -772,6 +772,7 @@ impl ZplParser {
         let mut pos = LabelPosition {
             calculate_from_bottom: true,
             automatic_position: true,
+            from_bottom: false,
             ..Default::default()
         };
         if let Some(v) = parts

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DPL support (fifth language)** — Datamax-O'Neil (Honeywell) label
+  formats. `<STX>L` … `E`/`X` formats with 15-byte record headers and the
+  bottom-left home position (a new language-neutral
+  `LabelPosition.from_bottom` anchor the renderer resolves against the
+  canvas): bitmap fonts 0-8 with base-25 multipliers, the smooth font 9
+  point table, scalable `S`/`U` size fields, Code 128 / 39 (+HIBC) /
+  UCC-EAN 128 / UPC-A/E / EAN-13/8 / I2of5 (+mod-10) with the
+  uppercase-HRI convention, QR auto/manual payloads, PDF-417, DataMatrix,
+  MaxiCode (fixed-field form), Aztec, and `X` line/box records. Metric
+  mode, `C`/`R` offsets and the `T` terminator command included. Wired
+  through every surface like CPCL. Golden tests use the renderer baseline
+  (no public DPL reference renderer exists — EPL convention).
+
 - **CPCL support (fourth language)** — Zebra's mobile-printer language
   (QL/MZ series). `! {offset} {hdpi} {vdpi} {height} {qty}` sessions with
   `PRINT`/`END`/`ABORT` terminators; resident fonts 0-7 with `SETMAG`,

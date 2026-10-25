@@ -119,6 +119,9 @@ informational.
 | cpcl_2d_graphics | cpcl | 0.00 | 0.01 | Renderer baseline reference (labelixa skips QR/PDF-417/Aztec/EG/ML); header-driven canvas 576x480 |
 | cpcl_manual_examples | cpcl | 13.28 | 15.0 | labelixa CPCL reference; font substitute shapes + barcode geometry distance |
 | cpcl_shipping | cpcl | 16.12 | 17.5 | labelixa CPCL reference; magnified font 5 + barcode interpretation-line distance |
+| dpl_shipping | dpl | 0.00 | 0.01 | Renderer baseline reference (no public DPL reference renderer); unit canvas 812x1624 |
+| dpl_2d_graphics | dpl | 0.00 | 0.01 | Renderer baseline reference; QR/DataMatrix/PDF-417/MaxiCode/Aztec coverage |
+| dpl_text_styles | dpl | 0.00 | 0.01 | Renderer baseline reference; fonts 0-9, rotations, scalable sizes, C/R offsets |
 | ean13 | zpl | 0.71 | 2.0 | Module-centered interpretation line (bars pixel-perfect) |
 | edi_triangle | zpl | 0.02 | 2.0 | Sub-pixel |
 | encodings_013 | zpl | 1.37 | 2.5 | Character encoding |

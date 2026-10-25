@@ -194,6 +194,19 @@ impl Renderer {
         options: &DrawerOptions,
         state: &mut DrawerState,
     ) -> Result<(), String> {
+        // Bottom-of-label-anchored elements that are not drawn from an
+        // encoded image flip here, where the canvas height is known; the
+        // image-drawn elements (barcodes, 2-D codes) flip inside
+        // `adjust_image_typeset_position`, which sees the real bitmap
+        // extents.
+        let flipped;
+        let element = match flip_from_bottom(element, canvas.height()) {
+            Some(adjusted) => {
+                flipped = adjusted;
+                &flipped
+            }
+            None => element,
+        };
         match element {
             LabelElement::Text(text) => self.draw_text(canvas, text, state),
             LabelElement::GraphicBox(gb) => {
@@ -965,7 +978,12 @@ impl Renderer {
             }
         };
 
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
 
         if bc.barcode.line {
@@ -991,7 +1009,12 @@ impl Renderer {
     ) -> Result<(), String> {
         let sym = barcodes::ean13::encode(&bc.data, bc.barcode.height, bc.width)?;
         let img = sym.image.clone();
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         // For 90°/180° rotations the guard extension hangs on the far side of the
         // data block, keeping the data-block origin at the field origin (Labelary).
         let mut bar_pos = pos.clone();
@@ -1032,7 +1055,12 @@ impl Renderer {
     ) -> Result<(), String> {
         let sym = barcodes::ean8::encode(&bc.data, bc.barcode.height, bc.width)?;
         let img = sym.image.clone();
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         // 90°/180°: guard hangs on the far side; data origin stays at the field
         // origin (Labelary behavior).
         let mut bar_pos = pos.clone();
@@ -1073,7 +1101,12 @@ impl Renderer {
     ) -> Result<(), String> {
         let sym = barcodes::upca::encode(&bc.data, bc.barcode.height, bc.width)?;
         let img = sym.image.clone();
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         // 90°/180°: guard hangs on the far side; data origin stays at the field
         // origin (Labelary behavior).
         let mut bar_pos = pos.clone();
@@ -1121,7 +1154,12 @@ impl Renderer {
     ) -> Result<(), String> {
         let sym = barcodes::upce::encode(&bc.data, bc.barcode.height, bc.width)?;
         let img = sym.image.clone();
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         // 90°/180°: guard hangs on the far side; data origin stays at the field
         // origin (Labelary behavior).
         let guard = (img.height() - sym.data_height) as i32;
@@ -1171,7 +1209,12 @@ impl Renderer {
             bc.width,
             bc.barcode.check_digit,
         )?;
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
 
         if bc.barcode.line {
@@ -1196,7 +1239,12 @@ impl Renderer {
         bc: &crate::elements::barcode_39::Barcode39WithData,
     ) -> Result<(), String> {
         let img = barcodes::code39::encode(&bc.data, bc.barcode.height, bc.width_ratio, bc.width)?;
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
 
         if bc.barcode.line {
@@ -1244,7 +1292,12 @@ impl Renderer {
             img
         };
 
-        let pos = adjust_image_typeset_position(&scaled, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &scaled,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         overlay_with_rotation(canvas, &scaled, &pos, bc.barcode.orientation);
         Ok(())
     }
@@ -1256,7 +1309,12 @@ impl Renderer {
     ) -> Result<(), String> {
         let mag = bc.barcode.magnification.max(1);
         let img = barcodes::aztec::encode(&bc.data, mag, bc.barcode.size)?;
-        let pos = adjust_image_typeset_position(&img, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         overlay_with_rotation(canvas, &img, &pos, bc.barcode.orientation);
         Ok(())
     }
@@ -1338,7 +1396,12 @@ impl Renderer {
             image
         };
 
-        let pos = adjust_image_typeset_position(&img_raw, &bc.position, bc.barcode.orientation);
+        let pos = adjust_image_typeset_position(
+            &img_raw,
+            &bc.position,
+            bc.barcode.orientation,
+            canvas.height(),
+        );
         overlay_with_rotation(canvas, &img_raw, &pos, bc.barcode.orientation);
         Ok(())
     }
@@ -1368,13 +1431,23 @@ impl Renderer {
                 y: bc.position.y + bc.barcode.magnification,
                 ..bc.position.clone()
             };
-            let pos = adjust_image_typeset_position(&img, &adjusted, FieldOrientation::Normal);
+            let pos = adjust_image_typeset_position(
+                &img,
+                &adjusted,
+                FieldOrientation::Normal,
+                canvas.height(),
+            );
             (pos.x - quiet_zone_px, pos.y - quiet_zone_px)
         } else {
             // ^FO origin positioning: modules start at (FO_x, FO_y + by_height).
             // The image (with quiet zone on all sides) is drawn offset so that the
             // quiet zone falls outside the field origin.
-            let pos = adjust_image_typeset_position(&img, &bc.position, FieldOrientation::Normal);
+            let pos = adjust_image_typeset_position(
+                &img,
+                &bc.position,
+                FieldOrientation::Normal,
+                canvas.height(),
+            );
             (pos.x - quiet_zone_px, pos.y + bc.height - quiet_zone_px)
         };
 
@@ -1394,7 +1467,12 @@ impl Renderer {
             return Ok(());
         }
         let img = barcodes::maxicode::encode(&mc.data, mc.code.mode)?;
-        let pos = adjust_image_typeset_position(&img, &mc.position, FieldOrientation::Normal);
+        let pos = adjust_image_typeset_position(
+            &img,
+            &mc.position,
+            FieldOrientation::Normal,
+            canvas.height(),
+        );
         overlay_at(canvas, &img, pos.x, pos.y);
         Ok(())
     }
@@ -2295,11 +2373,96 @@ fn draw_filled_rect(canvas: &mut RgbaImage, x: i32, y: i32, w: i32, h: i32, colo
     }
 }
 
+fn element_from_bottom(element: &LabelElement) -> bool {
+    match element {
+        LabelElement::Text(e) => e.position.from_bottom,
+        LabelElement::GraphicBox(e) => e.position.from_bottom,
+        LabelElement::GraphicCircle(e) => e.position.from_bottom,
+        LabelElement::GraphicEllipse(e) => e.position.from_bottom,
+        LabelElement::DiagonalLine(e) => e.position.from_bottom,
+        LabelElement::InvertRegion(e) => e.position.from_bottom,
+        LabelElement::GraphicField(e) => e.position.from_bottom,
+        _ => false,
+    }
+}
+
+/// Re-anchor a bottom-of-label-origin element in top-down coordinates.
+/// Returns `None` when the element is not bottom-anchored (or is drawn
+/// from an encoded image, whose true extents only the image typesetter
+/// knows).
+fn flip_from_bottom(element: &LabelElement, canvas_h: u32) -> Option<LabelElement> {
+    fn shift(pos: &mut LabelPosition, height: i32, canvas_h: u32) {
+        pos.y = (canvas_h as i32 - pos.y - height).max(0);
+        pos.from_bottom = false;
+    }
+    if !element_from_bottom(element) {
+        return None;
+    }
+    let out = element.clone();
+    match out {
+        LabelElement::Text(t) => {
+            let mut t = t;
+            shift(&mut t.position, t.font.height as i32, canvas_h);
+            Some(LabelElement::Text(t))
+        }
+        LabelElement::GraphicBox(g) => {
+            let mut g = g;
+            shift(&mut g.position, g.height, canvas_h);
+            Some(LabelElement::GraphicBox(g))
+        }
+        LabelElement::GraphicCircle(g) => {
+            let mut g = g;
+            shift(&mut g.position, g.circle_diameter, canvas_h);
+            Some(LabelElement::GraphicCircle(g))
+        }
+        LabelElement::GraphicEllipse(g) => {
+            let mut g = g;
+            shift(&mut g.position, g.height, canvas_h);
+            Some(LabelElement::GraphicEllipse(g))
+        }
+        LabelElement::DiagonalLine(g) => {
+            let mut g = g;
+            shift(&mut g.position, g.height, canvas_h);
+            Some(LabelElement::DiagonalLine(g))
+        }
+        LabelElement::InvertRegion(g) => {
+            let mut g = g;
+            shift(&mut g.position, g.height, canvas_h);
+            Some(LabelElement::InvertRegion(g))
+        }
+        LabelElement::GraphicField(g) => {
+            let mut g = g;
+            let rows = if g.row_bytes > 0 {
+                (g.total_bytes / g.row_bytes).max(1)
+            } else {
+                1
+            };
+            shift(&mut g.position, rows * g.magnification_y.max(1), canvas_h);
+            Some(LabelElement::GraphicField(g))
+        }
+        _ => None,
+    }
+}
+
 fn adjust_image_typeset_position(
     img: &RgbaImage,
     pos: &LabelPosition,
     ori: FieldOrientation,
+    canvas_h: u32,
 ) -> LabelPosition {
+    if pos.from_bottom {
+        // Bottom-of-label origin (Datamax-style home): anchor the image's
+        // bottom edge at (x, canvas_h - y), then apply the rotation
+        // offsets below in top-down coordinates.
+        let flipped = LabelPosition {
+            x: pos.x,
+            y: (canvas_h as i32 - pos.y - img.height() as i32).max(0),
+            calculate_from_bottom: pos.calculate_from_bottom,
+            automatic_position: pos.automatic_position,
+            from_bottom: false,
+        };
+        return adjust_image_typeset_position(img, &flipped, ori, canvas_h);
+    }
     if !pos.calculate_from_bottom {
         return pos.clone();
     }
@@ -2324,6 +2487,7 @@ fn adjust_image_typeset_position(
         y,
         calculate_from_bottom: false,
         automatic_position: false,
+        from_bottom: false,
     }
 }
 

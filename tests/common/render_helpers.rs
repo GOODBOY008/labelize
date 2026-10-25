@@ -1,6 +1,8 @@
 use std::io::Cursor;
 
-use labelize::{CpclParser, DrawerOptions, EplParser, LabelInfo, Renderer, TsplParser, ZplParser};
+use labelize::{
+    CpclParser, DplParser, DrawerOptions, EplParser, LabelInfo, Renderer, TsplParser, ZplParser,
+};
 
 /// Label size (in inches) for every Labelary API request, yielding a native
 /// 813×1626 px canvas — exactly the `default_options()` canvas.
@@ -42,6 +44,11 @@ pub fn parse_tspl(tspl: &[u8]) -> Vec<LabelInfo> {
 /// Parse CPCL bytes and return the vector of `LabelInfo`.
 pub fn parse_cpcl(cpcl: &[u8]) -> Vec<LabelInfo> {
     CpclParser::new().parse(cpcl).expect("CPCL parse failed")
+}
+
+/// Parse DPL bytes and return the vector of `LabelInfo`.
+pub fn parse_dpl(dpl: &[u8]) -> Vec<LabelInfo> {
+    DplParser::new().parse(dpl).expect("DPL parse failed")
 }
 
 /// Parse ZPL and render the first label to PNG bytes.
@@ -91,6 +98,16 @@ pub fn render_cpcl_to_png(cpcl: &str, options: DrawerOptions) -> Vec<u8> {
         ..options
     };
     render_label_to_png(label, resolved)
+}
+
+/// Parse DPL and render the first label to PNG bytes. DPL declares no
+/// in-band label size (printer config does), so the canvas always comes
+/// from the given `options`.
+pub fn render_dpl_to_png(dpl: &[u8], options: DrawerOptions) -> Vec<u8> {
+    let parser = DplParser::new();
+    let labels = parser.parse(dpl).expect("DPL parse failed");
+    assert!(!labels.is_empty(), "no labels produced from DPL");
+    render_label_to_png(&labels[0], options)
 }
 
 /// Render a `LabelInfo` to PNG bytes using the given options.

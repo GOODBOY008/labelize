@@ -30,6 +30,9 @@
 ║ dein_ticket_packliste          │ zpl  │    1.23% │      813x1626 │      813x1626 │ MINOR(<5%)   ║
 ║ dhlparceluk_dhl_text           │ zpl  │    0.12% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ dhlparceluk_ver                │ zpl  │    0.05% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ dpl_2d_graphics                │ dpl  │    0.00% │      812x1624 │      812x1624 │ PERFECT      ║
+║ dpl_shipping                   │ dpl  │    0.00% │      812x1624 │      812x1624 │ PERFECT      ║
+║ dpl_text_styles                │ dpl  │    0.00% │      812x1624 │      812x1624 │ PERFECT      ║
 ║ ean13                          │ zpl  │    0.71% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ ean8_upca                      │ zpl  │    0.41% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ edi_triangle                   │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
@@ -104,5 +107,5 @@
 ║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 100 total │ 17 perfect │ 63 good │ 12 minor │ 7 moderate │ 1 high │ 0 skip │ 0 err
+║ Summary: 103 total │ 20 perfect │ 63 good │ 12 minor │ 7 moderate │ 1 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

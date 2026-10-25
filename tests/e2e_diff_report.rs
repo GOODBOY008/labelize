@@ -76,6 +76,10 @@ fn ensure_ref_png(path: &std::path::Path, content: &str, ext: &str) {
                 render_helpers::render_cpcl_to_png(content, opts)
             }
         }
+    } else if ext == "dpl" {
+        // DPL: renderer baseline (no public reference renderer exists).
+        eprintln!("[bootstrap] {}: DPL — renderer baseline", name);
+        render_helpers::render_dpl_to_png(content.as_bytes(), opts)
     } else if ext != "epl" {
         // Labelary renders this size natively at 813×1626 — the exact default_options
         // canvas (see LABELARY_LABEL_SIZE_IN for why the mm-derived inch values must
@@ -121,7 +125,7 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
                 .map(|x| x.to_string_lossy().to_string());
             matches!(
                 ext.as_deref(),
-                Some("zpl") | Some("epl") | Some("tspl") | Some("cpcl")
+                Some("zpl") | Some("epl") | Some("tspl") | Some("cpcl") | Some("dpl")
             )
         })
         .map(|e| e.path())
@@ -162,6 +166,11 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             }),
             "cpcl" => std::panic::catch_unwind(|| {
                 render_helpers::render_cpcl_to_png(&content, opts.clone())
+            }),
+            // DPL declares no label size; the golden refs use the unit
+            // canvas, so render at the same 812x1624 here.
+            "dpl" => std::panic::catch_unwind(|| {
+                render_helpers::render_dpl_to_png(content.as_bytes(), render_helpers::unit_options())
             }),
             _ => std::panic::catch_unwind(|| {
                 render_helpers::render_zpl_to_png(&content, opts.clone())

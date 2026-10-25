@@ -8,6 +8,7 @@
 use crate::elements::label_info::LabelInfo;
 use crate::error::LabelizeError;
 use crate::parsers::cpcl::parser::CpclParser;
+use crate::parsers::dpl::parser::DplParser;
 use crate::parsers::epl::parser::EplParser;
 use crate::parsers::tspl::parser::TsplParser;
 use crate::parsers::zpl::parser::ZplParser;
@@ -25,6 +26,8 @@ pub enum Language {
     Tspl,
     /// CPCL, Zebra's mobile-printer language (`! 0 200 200 …` sessions).
     Cpcl,
+    /// Datamax-O'Neil DPL (`<STX>L` … `E` label formats).
+    Dpl,
 }
 
 impl Language {
@@ -36,6 +39,7 @@ impl Language {
             Language::Epl => "epl",
             Language::Tspl => "tspl",
             Language::Cpcl => "cpcl",
+            Language::Dpl => "dpl",
         }
     }
 
@@ -46,6 +50,7 @@ impl Language {
             "epl" => Some(Language::Epl),
             "tspl" => Some(Language::Tspl),
             "cpcl" => Some(Language::Cpcl),
+            "dpl" => Some(Language::Dpl),
             _ => None,
         }
     }
@@ -64,6 +69,9 @@ impl Language {
                 .parse(bytes)
                 .map_err(LabelizeError::Parse),
             Language::Cpcl => CpclParser::with_dpmm(dpmm)
+                .parse(bytes)
+                .map_err(LabelizeError::Parse),
+            Language::Dpl => DplParser::with_dpmm(dpmm)
                 .parse(bytes)
                 .map_err(LabelizeError::Parse),
         }
@@ -119,6 +127,7 @@ pub fn format_source(bytes: &[u8], forced: Option<Language>) -> (Language, Vec<u
         Language::Epl => crate::parsers::epl::format::format_epl(bytes),
         Language::Tspl => crate::parsers::tspl::format::format_tspl(bytes),
         Language::Cpcl => crate::parsers::cpcl::format::format_cpcl(bytes),
+        Language::Dpl => crate::parsers::dpl::format::format_dpl(bytes),
     };
     (language, formatted)
 }
@@ -167,6 +176,14 @@ const TSPL_COMMAND_WORDS: &[&str] = &[
 /// input matches none (or is empty) the function falls back to ZPL,
 /// matching the historical CLI behavior.
 pub fn detect_language(bytes: &[u8]) -> Language {
+    // DPL streams begin with the <STX> control byte (0x02) — real DPL
+    // files carry system-level commands before the first <STX>L.
+    if let Some(first) = bytes.iter().find(|b| !b.is_ascii_whitespace()) {
+        if *first == 0x02 {
+            return Language::Dpl;
+        }
+    }
+
     let text = String::from_utf8_lossy(bytes);
     for line in text.lines() {
         let line = line.trim();
@@ -331,6 +348,7 @@ mod tests {
         }
         assert_eq!(Language::from_name("ZPL"), Some(Language::Zpl));
         assert_eq!(Language::from_name("CPCL"), Some(Language::Cpcl));
+        assert_eq!(Language::from_name("dpl"), Some(Language::Dpl));
         assert_eq!(Language::from_name("pdf"), None);
     }
 
