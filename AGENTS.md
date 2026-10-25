@@ -2,7 +2,7 @@
 
 ## Overview
 
-Labelize is a Rust engine that parses ZPL (Zebra Programming Language), EPL (Eltron Programming Language) and TSPL/TSC label data and renders it to PNG or PDF. It runs as a CLI tool, HTTP microservice, or library.
+Labelize is a Rust engine that parses ZPL (Zebra Programming Language), EPL (Eltron Programming Language), TSPL/TSC and CPCL (Zebra mobile) label data and renders it to PNG or PDF. It runs as a CLI tool, HTTP microservice, or library.
 
 ## Architecture
 
@@ -17,6 +17,8 @@ Input bytes + Language
   → src/parsers/epl/             — EPL: line parser, built-in font-number metrics
   → src/parsers/tspl/            — TSPL/TSC: line + raw-data commands, resident font cells,
                                     SIZE → per-label physical dims (LabelInfo::label_*_mm)
+  → src/parsers/cpcl/            — CPCL: ! header sessions, resident font cells, counted
+                                    EG/CG graphics, header height/PAGE-WIDTH → label dims
   → src/elements/                — language-neutral IR: Text, Barcode*, Graphic*, LabelInfo
   → src/drawers/                 — language-blind renderer (CI-guarded, see
                                     tests/unit_architecture.rs)
@@ -45,6 +47,7 @@ break them; CI enforces both):
 | `src/parsers/zpl/` | ZPL command parser, VirtualPrinter state machine, Zebra calibration |
 | `src/parsers/epl/` | EPL command parser, built-in font metrics |
 | `src/parsers/tspl/` | TSPL/TSC command parser, resident font cells |
+| `src/parsers/cpcl/` | CPCL command parser (Zebra mobile), Appendix-D font cells |
 | `src/elements/` | Language-neutral element structs (text, barcodes, graphics, stored formats) |
 | `src/drawers/renderer.rs` | Image canvas creation, element drawing, compositing |
 | `src/barcodes/` | Barcode encoders: Code128, Code39, EAN-13, 2of5, PDF417, Aztec, DataMatrix, QR, MaxiCode |
@@ -71,6 +74,16 @@ Individual command docs follow the pattern:
 **Content:** `TEXT`, `BAR`, `BOX`, `CIRCLE`, `ELLIPSE`, `ERASE`, `REVERSE`, `BARCODE` (128/128M/EAN128/EAN128M/39/39C/EAN13), `QRCODE` (ECC default M per TSC), `DMATRIX` (ECC200; `x#` = module size in dots, default 4 calibrated from the manual's result figure; width/height are an advisory area — the symbol is never scaled to fill it), `PDF417` (raw `L<len>`, incl. compound option tokens like `E30R4C4L26` — ECC is single-digit per its 0-8 domain), `BITMAP` (binary cursor, TSC polarity 0=black, modes 0/1/2 = overwrite/OR/XOR), `PRINT`
 **Unsupported (explicit error):** `MPDF417`, `PUTPCX`, `PUTBMP`, `AZTEC`
 **Semantics notes:** `DIRECTION` models 0 (inverted) / 1 (normal) per the common TSC usage; the 1-4 forms with mirror semantics are not arbitrated by any reference renderer and stay unimplemented. `REVERSE` is a print-time region inversion (white-on-black text). TSPL calibration references and open questions: [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md); corpus provenance: [docs/TSPL_CORPUS.md](docs/TSPL_CORPUS.md)
+
+## Supported CPCL Commands
+
+Zebra's mobile-printer language (QL/MZ series); sessions start with `! {offset} {hdpi} {vdpi} {height} {qty}` and end at `PRINT`/`END` (both render) or `ABORT` (discards). Coordinates are dots at the header dpi using the manual's own 8-dots/mm (203 dpi) and 12-dots/mm (300 dpi) classes, so a 203-dpi file renders dot-identical at the engine's 8 dpmm; `IN-INCHES`/`IN-CENTIMETERS`/`IN-MILLIMETERS`/`IN-DOTS` switch the session's unit.
+
+**Setup:** `PAGE-WIDTH` (label width), `UNITS` commands, `;` comments
+**Content:** `TEXT`/`T` (+ `VTEXT`/`TEXT90`/`TEXT180`/`TEXT270` rotations, 90° CCW), `SCALE-TEXT`/`ST` (+ vertical; 72 pt/inch, `ROTATE` in 90° steps), `ML`/`MULTILINE` blocks, resident fonts 0-7 (Appendix D cell metrics in `parsers/cpcl/fonts.rs`), `SETMAG {w} {h}`, justification (`LEFT`/`CENTER`/`RIGHT [end]` via one-line blocks), `BARCODE`/`B`/`VBARCODE` (128, UCCEAN128, 39/39C/F39/F39C, UPCA, UPCE, EAN13, EAN8, I2OF5/I2OF5C/I2OF5G; ratio codes 0-4 = 1.5-3.5:1, 20-30 = 2.0-3.0:1), `BARCODE-TEXT`/`BT` (HRI state), `B PDF-417 … ENDPDF` (XD/YD/C/S), `B QR … ENDQR` (`MA,`/`H0M,N…` payload conventions resolved parser-side), `B MAXICODE … ENDMAXICODE` (POST/CC/SC/MSG tags → mode-2 payload), `B AZTEC … ENDAZTEC` (XD/EC), `BOX`, `LINE`, `INVERSE-LINE` (region inversion of earlier objects), `EG`/`CG` (counted graphics payloads, set bits black)
+**No-op (device behaviour):** `CONTRAST`, `TONE`, `JOURNAL`, `PACE`, `AUTO-PACE`, `NO-PACE`, `WAIT`, `BEEP`, `CUT`, `PARTIAL-CUT`, `FORM`, `PREFEED`, `POSTFEED`, `ENCODING`, `COUNT` (inert serial state like `^SN`)
+**Unsupported (explicit error):** `CONCAT`/`VCONCAT`, `FG` font groups, `PCX`, `SCALE-TO-FIT`, `DEFINE-FORMAT`/`USE-FORMAT`, `VEG`/`VCG`, `PATTERN` ≠ 100, barcode types with addenda (`UPCA2/5`, `UPCE2/5`, `EAN132/5`, `EAN82/5`), `93`, `CODABAR`, `MSI*`, `POSTNET`, `FIM`
+**Reference renderer:** labelixa.com renders a CPCL subset (`POST /v1/cpcl/render`) and is the golden reference where it covers the commands; renderer-baseline otherwise (EPL/TSPL convention). Tolerances in [docs/DIFF_THRESHOLDS.md](docs/DIFF_THRESHOLDS.md).
 
 ## Supported ZPL Commands
 

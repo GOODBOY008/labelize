@@ -22,7 +22,7 @@ const DEFAULT_LABEL_HEIGHT_MM: f64 = 152.0;
 #[command(
     name = "labelize",
     version,
-    about = "Turn ZPL/EPL/TSPL into pixels — label rendering, simplified."
+    about = "Turn ZPL/EPL/TSPL/CPCL into pixels — label rendering, simplified."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -35,6 +35,7 @@ enum InputFormat {
     Zpl,
     Epl,
     Tspl,
+    Cpcl,
 }
 
 #[cfg(feature = "cli")]
@@ -47,9 +48,9 @@ enum OutputType {
 #[cfg(feature = "cli")]
 #[derive(Subcommand)]
 enum Commands {
-    /// Convert a ZPL/EPL/TSPL file to PNG or PDF
+    /// Convert a ZPL/EPL/TSPL/CPCL file to PNG or PDF
     Convert {
-        /// Input file path (.zpl, .epl, or .tspl)
+        /// Input file path (.zpl, .epl, .tspl, or .cpcl)
         input: PathBuf,
 
         /// Output file path (default: input stem + .png/.pdf)
@@ -146,6 +147,7 @@ impl InputFormat {
             InputFormat::Zpl => Language::Zpl,
             InputFormat::Epl => Language::Epl,
             InputFormat::Tspl => Language::Tspl,
+            InputFormat::Cpcl => Language::Cpcl,
         }
     }
 }
@@ -160,10 +162,12 @@ fn detect_format(path: &Path, override_fmt: Option<InputFormat>, content: &[u8])
         "zpl" => InputFormat::Zpl,
         "epl" => InputFormat::Epl,
         "tspl" => InputFormat::Tspl,
+        "cpcl" => InputFormat::Cpcl,
         // Unknown extension: sniff the content instead of assuming ZPL.
         _ => match labelize::detect_language(content) {
             Language::Epl => InputFormat::Epl,
             Language::Tspl => InputFormat::Tspl,
+            Language::Cpcl => InputFormat::Cpcl,
             Language::Zpl => InputFormat::Zpl,
         },
     }
@@ -364,6 +368,8 @@ async fn serve(host: String, port: u16) {
             Some(Language::Epl)
         } else if content_type.contains("tspl") {
             Some(Language::Tspl)
+        } else if content_type.contains("cpcl") {
+            Some(Language::Cpcl)
         } else if content_type.contains("zpl") {
             Some(Language::Zpl)
         } else {
@@ -417,9 +423,9 @@ async fn serve(host: String, port: u16) {
     fn forced_language(name: Option<&str>) -> Result<Option<Language>, String> {
         match name {
             None => Ok(None),
-            Some(name) => Language::from_name(name)
-                .map(Some)
-                .ok_or_else(|| format!("unknown language {name:?} — expected zpl, epl or tspl")),
+            Some(name) => Language::from_name(name).map(Some).ok_or_else(|| {
+                format!("unknown language {name:?} — expected zpl, epl, tspl or cpcl")
+            }),
         }
     }
 

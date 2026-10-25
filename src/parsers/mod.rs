@@ -8,12 +8,16 @@
 //! pre-reorganization layout; new code should use `parsers::zpl` /
 //! `parsers::epl` directly.
 
+pub mod cpcl;
 pub mod epl;
 pub mod tspl;
 pub mod zpl;
 
 pub mod command_utils {
     pub use crate::parsers::zpl::command_utils::*;
+}
+pub mod cpcl_parser {
+    pub use crate::parsers::cpcl::parser::*;
 }
 pub mod epl_parser {
     pub use crate::parsers::epl::parser::*;
@@ -31,6 +35,7 @@ pub mod zpl_parser {
     pub use crate::parsers::zpl::parser::*;
 }
 
+pub use cpcl::parser::CpclParser;
 pub use epl::parser::EplParser;
 pub use tspl::parser::TsplParser;
 pub use zpl::parser::ZplParser;

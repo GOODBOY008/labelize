@@ -4,7 +4,7 @@
 
 # Labelize
 
-**Parse and render ZPL / EPL / TSPL labels to PNG & PDF — fast, offline, open source.**
+**Parse and render ZPL / EPL / TSPL / CPCL labels to PNG & PDF — fast, offline, open source.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/ci.yml?branch=main&label=CI)](https://github.com/GOODBOY008/labelize/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/labelize)](https://crates.io/crates/labelize)
@@ -20,7 +20,7 @@
 
 ---
 
-Labelize is a Rust engine that parses **ZPL** (Zebra Programming Language), **EPL** (Eltron Programming Language), and **TSPL/TSC** label data and renders it to **PNG** or **PDF** — no printer hardware required. The same engine ships as a **CLI tool**, an **HTTP microservice**, a **WebAssembly package**, an **Android library**, and a plain **Rust crate**, producing identical output on every surface.
+Labelize is a Rust engine that parses **ZPL** (Zebra Programming Language), **EPL** (Eltron Programming Language), **TSPL/TSC**, and **CPCL** (Zebra mobile printers) label data and renders it to **PNG** or **PDF** — no printer hardware required. The same engine ships as a **CLI tool**, an **HTTP microservice**, a **WebAssembly package**, an **Android library**, and a plain **Rust crate**, producing identical output on every surface.
 
 A free public playground is hosted on Cloudflare Workers at **<https://labelize.764629910.workers.dev>** — paste a label, see it render, download PNG or PDF. No install, no signup, no data leaving the browser tab beyond the render call.
 
@@ -33,7 +33,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 | Offline / self-hosted | ✅ | ❌ | ✅ |
 | No hardware needed | ✅ | ✅ | ❌ |
 | Open source | ✅ | ❌ | ❌ |
-| EPL + TSPL support | ✅ | ❌ | ✅ (EPL) |
+| EPL + TSPL + CPCL support | ✅ | ❌ | ✅ (EPL) |
 | PDF output | ✅ | ❌ | ❌ |
 | Embeddable library | ✅ | ❌ | ❌ |
 | REST API | ✅ | ✅ | ❌ |
@@ -43,6 +43,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 
 - 🖨️ **38+ ZPL commands** — text & fonts, 12 barcode symbologies (Code 128, EAN-13/8, UPC-A/E, Code 39, Interleaved 2-of-5, PDF417, Aztec, DataMatrix, QR, MaxiCode), boxes/circles/diagonals/ellipses, graphic fields, stored formats (`^DF`/`^XF`), label rotation & inversion
 - 🏷️ **EPL2 support** — text, the full 1D/2D barcode command set (`B`/`b`), lines, diagonals, boxes, binary graphics (`GW`)
+- 📱 **CPCL support** — Zebra mobile-printer sessions (`! 0 203 203 …`): resident fonts 0-7, `SETMAG`, justification, Code 128/39/EAN/UPC/I2of5, QR/PDF-417/MaxiCode/Aztec, `BOX`/`LINE`/`INVERSE-LINE`, counted `EG`/`CG` graphics
 - 🖼️ **PNG & PDF output** — thermal-faithful 1-bit monochrome by default, optional antialiased greyscale
 - 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
@@ -67,6 +68,7 @@ cargo install labelize --features cli
 ```bash
 labelize convert label.zpl                    # → label.png (format auto-detected)
 labelize convert label.epl -t pdf             # EPL in, PDF out
+labelize convert label.cpcl                    # CPCL in (Zebra mobile)
 labelize convert label.zpl --width 100 --height 62 --dpmm 12
 ```
 
@@ -175,7 +177,7 @@ A complete runnable example lives at [`examples/render_label.rs`](examples/rende
 Every Labelize server serves an interactive UI at `GET /` — the same page running
 at the public instance:
 
-- Paste ZPL/EPL/TSPL or open a `.zpl` / `.epl` / `.tspl` file, pick a label size (4×6, 4×4, …)
+- Paste ZPL/EPL/TSPL/CPCL or open a `.zpl` / `.epl` / `.tspl` / `.cpcl` file, pick a label size (4×6, 4×4, …)
 - **Live preview** with debounced auto-render, zoom fit / percent, dark & light themes, English / 简体中文
 - One-click **PNG / PDF download**, copy-PNG to clipboard, `Ctrl+S`
 - **Compare with Labelary** (ZPL) — fetches the reference render and scores the diff on the same scale as CI
@@ -191,7 +193,9 @@ Labelize is calibrated against reference renderers with per-label pixel-diff
 tolerance thresholds — 151 real-world carrier and synthetic labels are compared
 on every push. ZPL/EPL labels are calibrated against Labelary (left = reference,
 right = Labelize); TSPL labels against the labelixa renderer with real-world
-captures (see [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md)).
+captures (see [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md)); CPCL labels
+against labelixa's CPCL renderer where it covers the commands, renderer
+baseline otherwise.
 
 | Label | Diff | Preview |
 |-------|------|---------|
@@ -230,7 +234,7 @@ Reference docs: [Usage](docs/USAGE.md) · [ZPL command matrix](docs/ZPL_COMMANDS
 Usage: labelize <COMMAND>
 
 Commands:
-  convert  Convert a ZPL/EPL/TSPL file to PNG or PDF
+  convert  Convert a ZPL/EPL/TSPL/CPCL file to PNG or PDF
   serve    Start HTTP server for label conversion
 
 Convert Options:
@@ -238,8 +242,8 @@ Convert Options:
   -o, --output <PATH>   Output file path (default: input stem + .png/.pdf)
   -f, --format <FMT>    Input format override: zpl | epl | tspl
   -t, --type <TYPE>     Output type: png | pdf [default: png]
-  --width <MM>          Label width in mm [default: 102; TSPL: from SIZE]
-  --height <MM>         Label height in mm [default: 152; TSPL: from SIZE]
+  --width <MM>          Label width in mm [default: 102; TSPL: from SIZE, CPCL: from PAGE-WIDTH]
+  --height <MM>         Label height in mm [default: 152; TSPL: from SIZE, CPCL: from header]
   --dpmm <N>            Dots per mm: 6, 8, 12, or 24 [default: 8]
   --antialias           8-bit grayscale output (default: 1-bit)
 
@@ -318,6 +322,17 @@ attribution. No independent overall validation is claimed.
 
 Unsupported TSPL commands (`MPDF417`, `PUTPCX`, `PUTBMP`, …) fail loudly with an explicit error rather than rendering wrong output. TSPL calibration baselines and open questions: [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md).
 
+### CPCL (Zebra mobile)
+
+`! {offset} {hdpi} {vdpi} {height} {qty}` sessions with `PRINT`/`END`/`ABORT`
+terminators. Resident fonts 0-7 (manual Appendix-D cell metrics) with `SETMAG`
+magnification, `SCALE-TEXT` point sizing with `ROTATE`, `ML` multiline blocks,
+`LEFT`/`CENTER`/`RIGHT` justification, Code 128 / UCCEAN128 / 39 (+C, full
+ASCII) / UPC-A / UPC-E / EAN-13 / EAN-8 / I2of5 (+C) with `BARCODE-TEXT` HRI,
+QR / PDF-417 / MaxiCode (mode 2 tags) / Aztec, `BOX`, `LINE`,
+`INVERSE-LINE`, and counted `EG`/`CG` graphics. Canvas comes from the header
+height and `PAGE-WIDTH`.
+
 </details>
 
 <details>
@@ -367,11 +382,11 @@ tools/build/build-windows.sh   # → target/windows-release/labelize.exe (via Do
 - **Warehouse management** — batch-convert label templates to PDF for archival
 - **E-commerce integrations** — generate label PNGs on the fly from a microservice
 - **Automated QA** — validate label content in CI/CD with golden-file tests
-- **Label design tools** — add real-time ZPL/TSPL preview with the library or wasm API
+- **Label design tools** — add real-time ZPL/TSPL/CPCL preview with the library or wasm API
 
 ## 🤝 Contributing
 
-Contributions are welcome! Bug reports, new ZPL/EPL/TSPL commands, rendering
+Contributions are welcome! Bug reports, new ZPL/EPL/TSPL/CPCL commands, rendering
 improvements, and docs fixes all count — see [AGENTS.md](AGENTS.md) for the
 development workflow, then open an issue or submit a pull request.
 
@@ -381,4 +396,4 @@ development workflow, then open an issue or submit a pull request.
 
 ---
 
-<sub>Looking for a <b>ZPL renderer</b>, <b>ZPL to PNG converter</b>, <b>ZPL to PDF</b>, <b>EPL parser</b>, <b>TSPL renderer</b>, <b>TSC label preview</b>, <b>Zebra label preview</b>, <b>thermal label rendering</b>, or a <b>Labelary alternative</b>? Labelize covers all of these.</sub>
+<sub>Looking for a <b>ZPL renderer</b>, <b>ZPL to PNG converter</b>, <b>ZPL to PDF</b>, <b>EPL parser</b>, <b>TSPL renderer</b>, <b>TSC label preview</b>, <b>CPCL converter</b>, <b>Zebra label preview</b>, <b>thermal label rendering</b>, or a <b>Labelary alternative</b>? Labelize covers all of these.</sub>

@@ -36,6 +36,19 @@ fn tspl_fixture_dims(path: &std::path::Path) -> Option<(u32, u32)> {
     None
 }
 
+/// Compute the canvas a `.cpcl` fixture implies from its header height and
+/// PAGE-WIDTH, at 8 dpmm — CPCL goldens are header-driven like TSPL's
+/// SIZE-driven ones.
+fn cpcl_fixture_dims(path: &std::path::Path) -> Option<(u32, u32)> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let labels = render_helpers::parse_cpcl(content.as_bytes());
+    let label = labels.first()?;
+    let dpmm = 8.0_f64;
+    let w = label.label_width_mm? * dpmm;
+    let h = label.label_height_mm? * dpmm;
+    Some((w.ceil() as u32, h.ceil() as u32))
+}
+
 /// Verify that every golden PNG has the expected dimensions for its directory.
 /// - `testdata/` and `testdata/labels/` → 813 × 1626 px (Labelary reference at 101.625mm × 203.25mm)
 /// - `testdata/unit/` → 812 × 1624 px (Labelary) OR 813 × 1626 px (renderer baseline)
@@ -101,6 +114,7 @@ fn all_golden_pngs_have_standard_dimensions() {
             .unwrap_or_else(|e| panic!("cannot decode {}: {}", name, e));
         let (w, h) = (img.width(), img.height());
         let tspl_source = path.with_extension("tspl");
+        let cpcl_source = path.with_extension("cpcl");
         let ok = if tspl_source.exists() {
             match tspl_fixture_dims(&tspl_source) {
                 Some((ew, eh)) => {
@@ -111,6 +125,20 @@ fn all_golden_pngs_have_standard_dimensions() {
                         ));
                     }
                     // Already validated; skip the standard-dims check.
+                    checked += 1;
+                    continue;
+                }
+                None => false,
+            }
+        } else if cpcl_source.exists() {
+            match cpcl_fixture_dims(&cpcl_source) {
+                Some((ew, eh)) => {
+                    if (ew, eh) != (w, h) {
+                        failures.push(format!(
+                            "  {} — {}×{} (CPCL header implies {}×{})",
+                            name, w, h, ew, eh
+                        ));
+                    }
                     checked += 1;
                     continue;
                 }

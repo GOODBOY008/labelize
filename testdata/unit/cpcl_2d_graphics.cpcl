@@ -1,0 +1,42 @@
+! 0 200 200 480 1
+PAGE-WIDTH 576
+; --- QR: automatic and manual payloads ---
+B QR 20 20 U 6
+MA,QR code ABC123
+ENDQR
+B QR 250 20 U 4
+H0M,N0123456789012345
+ENDQR
+; --- PDF-417 with XD/YD/C/S options ---
+B PDF-417 20 150 XD 3 YD 12 C 3 S 2
+PDF Data
+ABCDE12345
+ENDPDF
+; --- Aztec ---
+B AZTEC 300 150 XD 4 EC 47
+123456789012
+ENDAZTEC
+; --- EG hex graphics (2 bytes x 8 rows) ---
+EG 2 8 460 20 F0F0F0F0F0F0F0F00F0F0F0F0F0F0F0F
+; --- scalable text at point sizes, rotated ---
+SCALE-TEXT PLL_LAT.CSF 12 12 20 300 12 PT FONT
+ROTATE 90
+SCALE-TEXT PLL_LAT.CSF 10 10 550 300 ROTATED
+ROTATE 0
+; --- multiline block ---
+ML 30
+TEXT 5 0 20 360
+line one
+line two
+ENDML
+; --- inverse line over text ---
+T 4 2 20 430 $123.45
+IL 15 440 200 440 20
+; --- vertical text ---
+VTEXT 4 0 540 20 VERT
+; --- aborted session contributes nothing ---
+! 0 200 200 100 1
+TEXT 4 0 10 10 DROPPED
+ABORT
+FORM
+PRINT

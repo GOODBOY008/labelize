@@ -7,6 +7,7 @@
 
 use crate::elements::label_info::LabelInfo;
 use crate::error::LabelizeError;
+use crate::parsers::cpcl::parser::CpclParser;
 use crate::parsers::epl::parser::EplParser;
 use crate::parsers::tspl::parser::TsplParser;
 use crate::parsers::zpl::parser::ZplParser;
@@ -22,6 +23,8 @@ pub enum Language {
     Epl,
     /// TSPL/TSC command language (`SIZE`, `TEXT`, `PRINT`, …).
     Tspl,
+    /// CPCL, Zebra's mobile-printer language (`! 0 200 200 …` sessions).
+    Cpcl,
 }
 
 impl Language {
@@ -32,6 +35,7 @@ impl Language {
             Language::Zpl => "zpl",
             Language::Epl => "epl",
             Language::Tspl => "tspl",
+            Language::Cpcl => "cpcl",
         }
     }
 
@@ -41,6 +45,7 @@ impl Language {
             "zpl" => Some(Language::Zpl),
             "epl" => Some(Language::Epl),
             "tspl" => Some(Language::Tspl),
+            "cpcl" => Some(Language::Cpcl),
             _ => None,
         }
     }
@@ -56,6 +61,9 @@ impl Language {
                 .map_err(LabelizeError::Parse),
             Language::Epl => EplParser::new().parse(bytes).map_err(LabelizeError::Parse),
             Language::Tspl => TsplParser::with_dpmm(dpmm)
+                .parse(bytes)
+                .map_err(LabelizeError::Parse),
+            Language::Cpcl => CpclParser::with_dpmm(dpmm)
                 .parse(bytes)
                 .map_err(LabelizeError::Parse),
         }
@@ -110,6 +118,7 @@ pub fn format_source(bytes: &[u8], forced: Option<Language>) -> (Language, Vec<u
         Language::Zpl => crate::parsers::zpl::format::format_zpl(bytes),
         Language::Epl => crate::parsers::epl::format::format_epl(bytes),
         Language::Tspl => crate::parsers::tspl::format::format_tspl(bytes),
+        Language::Cpcl => crate::parsers::cpcl::format::format_cpcl(bytes),
     };
     (language, formatted)
 }
@@ -168,6 +177,19 @@ pub fn detect_language(bytes: &[u8]) -> Language {
         let first = chars.next().unwrap_or(' ');
         if first == '^' || first == '~' {
             return Language::Zpl;
+        }
+        // CPCL session header: `! {offset} {hdpi} {vdpi} {height} {qty}`
+        // with a numeric offset (`! 0 200 200 210 1`). SGD/utility
+        // headers (`! U1 setvar`, `! UTILITIES`) hold words, not numbers.
+        if first == '!' {
+            let rest = line[1..].trim_start();
+            let starts_numeric = rest
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_digit() || c == '.' || c == '-');
+            if starts_numeric {
+                return Language::Cpcl;
+            }
         }
         let word: String = line
             .chars()
@@ -245,6 +267,38 @@ mod tests {
     }
 
     #[test]
+    fn detects_cpcl_from_bang_header() {
+        assert_eq!(
+            detect_language(b"! 0 200 200 210 1\r\nTEXT 4 0 30 40 Hi\r\nPRINT\r\n"),
+            Language::Cpcl
+        );
+        assert_eq!(
+            detect_language(b"! 0.3937 200 200 1 1\nIN-INCHES\nT 4 0 0 0 cm\r\nPRINT"),
+            Language::Cpcl
+        );
+        // SGD/utility headers are not label sessions; the file falls
+        // through to the ZPL default.
+        assert_eq!(
+            detect_language(b"! U1 setvar \"device.friendly_name\" \"x\"\r\n"),
+            Language::Zpl
+        );
+    }
+
+    #[test]
+    fn parse_labels_dispatches_cpcl() {
+        let labels = parse_labels(
+            Language::Cpcl,
+            b"! 0 203 203 203 1\r\nPAGE-WIDTH 813\r\nTEXT 4 0 30 40 Hi\r\nPRINT\r\n",
+            8,
+        )
+        .unwrap();
+        assert_eq!(labels.len(), 1);
+        // 203 dots at the header's 203 dpi = the manual's 8 dots/mm →
+        // 25.375 mm, rendered dot-identical at the engine's 8 dpmm.
+        assert_eq!(labels[0].label_height_mm, Some(203.0 / 8.0));
+    }
+
+    #[test]
     fn parse_labels_dispatches_tspl() {
         let tspl = parse_labels(
             Language::Tspl,
@@ -272,10 +326,11 @@ mod tests {
 
     #[test]
     fn language_names_roundtrip() {
-        for lang in [Language::Zpl, Language::Epl, Language::Tspl] {
+        for lang in [Language::Zpl, Language::Epl, Language::Tspl, Language::Cpcl] {
             assert_eq!(Language::from_name(lang.name()), Some(lang));
         }
         assert_eq!(Language::from_name("ZPL"), Some(Language::Zpl));
+        assert_eq!(Language::from_name("CPCL"), Some(Language::Cpcl));
         assert_eq!(Language::from_name("pdf"), None);
     }
 

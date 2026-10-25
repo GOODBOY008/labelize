@@ -100,6 +100,43 @@ fn auto_bootstrap_tspl(content: &str, path: &std::path::Path, name: &str) {
     std::fs::write(path, &png).expect("write auto-generated golden PNG");
 }
 
+/// Auto-generate a missing golden reference PNG for a CPCL test.
+///
+/// labelixa.com renders a CPCL subset (203-dpi interpretation of the CPCL
+/// guide); its PNG pads to the fixture's declared header height /
+/// PAGE-WIDTH canvas. When the service is unavailable the renderer
+/// baseline is used (same convention as EPL/TSPL).
+fn auto_bootstrap_cpcl(content: &str, path: &std::path::Path, name: &str) {
+    let opts = render_helpers::unit_options();
+    let png = match common::labelixa_client::labelixa_render_cpcl(content) {
+        Some(fetched) => {
+            let labels = render_helpers::parse_cpcl(content.as_bytes());
+            let (w, h) = labels
+                .first()
+                .and_then(|l| l.label_width_mm.zip(l.label_height_mm))
+                .map(|(w, h)| {
+                    (
+                        (w * opts.dpmm as f64).ceil() as u32,
+                        (h * opts.dpmm as f64).ceil() as u32,
+                    )
+                })
+                .unwrap_or((576, 812));
+            let padded = common::labelary_client::pad_png_to_size(&fetched, w, h);
+            eprintln!(
+                "[bootstrap] '{}': fetched from labelixa (cpcl), padded to {}x{}",
+                name, w, h
+            );
+            padded
+        }
+        None => {
+            eprintln!("[bootstrap] '{}': using renderer baseline for CPCL", name);
+            render_helpers::render_cpcl_to_png(content, opts)
+        }
+    };
+    std::fs::create_dir_all(path.parent().unwrap()).ok();
+    std::fs::write(path, &png).expect("write auto-generated golden PNG");
+}
+
 /// Run a golden-file comparison for a ZPL test case.
 fn golden_zpl(name: &str) {
     golden_zpl_with_tolerance(name, LABEL_TOLERANCE);
@@ -974,4 +1011,93 @@ fn golden_tspl_real_sklad() {
 #[test]
 fn golden_tspl_graphics_doc_style() {
     golden_tspl_with_tolerance("tspl_graphics_doc_style", 0.01);
+}
+
+// ── CPCL golden tests ──────────────────────────────────────────────
+
+/// Run a golden-file comparison for a CPCL test case.
+///
+/// Canvas dimensions come from the fixture's own header height and
+/// PAGE-WIDTH via `render_cpcl_to_png` (falling back to `unit_options()`);
+/// the reference is labelixa's CPCL renderer when reachable and the
+/// renderer baseline otherwise, so the tolerance records the honest
+/// labelize-vs-labelixa distance where fetched and guards regressions
+/// where self-referenced.
+fn golden_cpcl_with_tolerance(name: &str, tolerance: f64) {
+    let dir = testdata_dir();
+    let input = if dir.join("unit").join(format!("{}.cpcl", name)).exists() {
+        dir.join("unit").join(format!("{}.cpcl", name))
+    } else {
+        dir.join(format!("{}.cpcl", name))
+    };
+    let expected = input.with_extension("png");
+
+    if !input.exists() {
+        eprintln!("SKIP {}: missing CPCL input", name);
+        return;
+    }
+
+    // Auto-generate the reference PNG if it doesn't exist yet.
+    if !expected.exists() {
+        let content = std::fs::read_to_string(&input).expect("read input");
+        auto_bootstrap_cpcl(&content, &expected, name);
+    }
+
+    let content = std::fs::read_to_string(&input).expect("read input");
+    let actual_png = render_helpers::render_cpcl_to_png(&content, render_helpers::unit_options());
+    let expected_png = std::fs::read(&expected).expect("read golden");
+    let result = image_compare::compare_images(&actual_png, &expected_png, tolerance);
+
+    if result.diff_percent > tolerance {
+        if let Some(ref diff_img) = result.diff_image {
+            image_compare::save_diff_image(name, diff_img);
+        }
+    }
+
+    if std::env::var("LABELIZE_UPDATE_GOLDEN").is_ok() && result.diff_percent > 0.0 {
+        std::fs::write(&expected, &actual_png).expect("update golden file");
+        return;
+    }
+
+    assert!(
+        result.diff_percent <= tolerance,
+        "CPCL golden test '{}' FAILED: {:.2}% pixel diff (tolerance: {:.2}%), dims: actual={:?}, expected={:?}",
+        name,
+        result.diff_percent,
+        tolerance,
+        result.actual_dims,
+        result.expected_dims,
+    );
+}
+
+/// Mobile shipping-label snippet: header-declared height with PAGE-WIDTH
+/// canvas, resident fonts 0/4/5/7 with SETMAG magnification, CENTER
+/// justification, BOX/LINE graphics and the 1-D symbologies (Code 128,
+/// 39, EAN-13) with BARCODE-TEXT HRI. Reference fetched from labelixa's
+/// CPCL renderer; the tolerance records the honest cross-engine distance
+/// (font substitute shapes + barcode geometry) and tightens as CPCL
+/// calibration lands.
+#[test]
+fn golden_cpcl_shipping() {
+    golden_cpcl_with_tolerance("cpcl_shipping", 17.5);
+}
+
+/// 2-D + unit coverage: QR with the CPCL payload conventions (`MA,`,
+/// manual segment lists), PDF-417 with XD/YD/C/S options, Aztec, EG hex
+/// graphics spanning lines, UNITS sessions, SCALE-TEXT point sizing,
+/// ML blocks, VTEXT orientations and an ABORT-ed session. Reference is
+/// the committed renderer baseline (labelixa skips these commands);
+/// 0.01% guards regressions only.
+#[test]
+fn golden_cpcl_2d_graphics() {
+    golden_cpcl_with_tolerance("cpcl_2d_graphics", 0.01);
+}
+
+/// Manual-session coverage exercising the manual's own examples
+/// (justification with explicit end points, ratio-code 1-D barcodes, T/B
+/// abbreviations). Reference fetched from labelixa; tolerance records the
+/// honest cross-engine distance.
+#[test]
+fn golden_cpcl_manual_examples() {
+    golden_cpcl_with_tolerance("cpcl_manual_examples", 15.0);
 }
