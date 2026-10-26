@@ -46,6 +46,40 @@ function htmlResponse() {
   });
 }
 
+// Canonical public origin of the hosted playground. Once a custom domain is
+// attached, set PUBLIC_BASE_URL (wrangler.toml [vars] or the dashboard) so
+// canonical/OG/JSON-LD URLs, robots.txt and the sitemap consolidate on it
+// and workers.dev 301-redirects to the domain.
+const DEFAULT_BASE_URL = "https://labelize.764629910.workers.dev";
+
+function baseUrl(env) {
+  const raw = String((env && env.PUBLIC_BASE_URL) || "").trim().replace(/\/+$/, "");
+  return raw || DEFAULT_BASE_URL;
+}
+
+// Mirrors labelize::playground::robots_txt / sitemap_xml.
+function robotsTxt(base) {
+  return `User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n`;
+}
+
+function sitemapXml(base) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${base}/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+`;
+}
+
+function textResponse(body, type) {
+  return new Response(body, {
+    headers: { "content-type": type, "cache-control": "max-age=86400" },
+  });
+}
+
 function jsonResponse(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -140,7 +174,27 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/") return htmlResponse();
+    const base = baseUrl(env);
+    if (request.method === "GET") {
+      if (url.pathname === "/") {
+        // Once PUBLIC_BASE_URL names a custom domain, send the workers.dev
+        // HTML page there so search engines index a single origin. API
+        // endpoints keep answering on both hosts.
+        if (base !== DEFAULT_BASE_URL && url.hostname !== new URL(base).hostname) {
+          return Response.redirect(base + "/", 301);
+        }
+        if (base !== DEFAULT_BASE_URL && !htmlPage.includes(base)) {
+          htmlPage = htmlPage.split(DEFAULT_BASE_URL).join(base);
+        }
+        return htmlResponse();
+      }
+      if (url.pathname === "/robots.txt") {
+        return textResponse(robotsTxt(base), "text/plain; charset=utf-8");
+      }
+      if (url.pathname === "/sitemap.xml") {
+        return textResponse(sitemapXml(base), "application/xml; charset=utf-8");
+      }
+    }
     if (request.method === "GET" && url.pathname === "/health") {
       return jsonResponse({ status: "ok" });
     }
