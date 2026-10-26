@@ -18,19 +18,19 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labelize — Free Online ZPL Viewer (ZPL, EPL &amp; TSPL to PNG)</title>
-<meta name="description" content="Render ZPL, EPL and TSPL/TSC thermal-label code to PNG or PDF right in your browser. Free online label preview with syntax validation, formatting and an optional Labelary diff — open source, no sign-up.">
+<title>Free ZPL Viewer — ZPL, EPL, TSPL, CPCL &amp; DPL to PNG | Labelize</title>
+<meta name="description" content="Render ZPL, EPL, TSPL, CPCL and DPL label code to PNG or PDF right in your browser. Free online thermal-label preview with syntax validation, formatting and an optional Labelary diff — open source, no sign-up.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://labelize.764629910.workers.dev/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Labelize">
-<meta property="og:title" content="Labelize — Free Online ZPL Viewer (ZPL, EPL &amp; TSPL to PNG)">
-<meta property="og:description" content="Render ZPL, EPL and TSPL/TSC label code to PNG or PDF in your browser — preview, validate and format thermal-label data for free.">
+<meta property="og:title" content="Free ZPL Viewer — ZPL, EPL, TSPL, CPCL &amp; DPL to PNG | Labelize">
+<meta property="og:description" content="Render ZPL, EPL, TSPL, CPCL and DPL label code to PNG or PDF in your browser — preview, validate and format thermal-label data for free.">
 <meta property="og:url" content="https://labelize.764629910.workers.dev/">
 <meta property="og:image" content="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/social-preview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Labelize — Free Online ZPL Viewer (ZPL, EPL &amp; TSPL to PNG)">
-<meta name="twitter:description" content="Render ZPL, EPL and TSPL/TSC label code to PNG or PDF in your browser — preview, validate and format thermal-label data for free.">
+<meta name="twitter:title" content="Free ZPL Viewer — ZPL, EPL, TSPL, CPCL &amp; DPL to PNG | Labelize">
+<meta name="twitter:description" content="Render ZPL, EPL, TSPL, CPCL and DPL label code to PNG or PDF in your browser — preview, validate and format thermal-label data for free.">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/GOODBOY008/labelize/main/docs/social-preview.png">
 <script type="application/ld+json">
 {
@@ -43,11 +43,13 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Any",
       "isAccessibleForFree": true,
-      "description": "Free online ZPL, EPL and TSPL/TSC label viewer. Render thermal-label code to PNG or PDF, validate syntax and format label data.",
+      "description": "Free online ZPL, EPL, TSPL, CPCL and DPL label viewer. Render thermal-label code to PNG or PDF, validate syntax and format label data.",
       "featureList": [
         "ZPL (Zebra) viewer and renderer",
         "EPL (Eltron) label preview",
         "TSPL/TSC label preview",
+        "CPCL (Zebra mobile) label preview",
+        "DPL (Datamax-O'Neil) label preview",
         "Render label code to PNG or PDF",
         "Syntax validation and one-command-per-line formatting",
         "Pixel diff against the Labelary reference renderer"
@@ -66,7 +68,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
         {
           "@type": "Question",
           "name": "Which label languages are supported?",
-          "acceptedAnswer": { "@type": "Answer", "text": "ZPL (Zebra), EPL (Eltron) and TSPL/TSC. Labels render to PNG or PDF at selectable sizes and resolutions." }
+          "acceptedAnswer": { "@type": "Answer", "text": "ZPL (Zebra), EPL (Eltron), TSPL/TSC, CPCL (Zebra mobile) and DPL (Datamax-O'Neil). Labels render to PNG or PDF at selectable sizes and resolutions." }
         },
         {
           "@type": "Question",
@@ -585,10 +587,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 <body>
 <noscript>
   <div style="max-width:760px;margin:0 auto;padding:24px 20px;font-family:system-ui,sans-serif;line-height:1.6;color:var(--text)">
-    <h1 style="font-size:20px">Labelize — free online ZPL, EPL &amp; TSPL label viewer</h1>
+    <h1 style="font-size:20px">Labelize — free online ZPL, EPL, TSPL, CPCL &amp; DPL label viewer</h1>
     <p>
       Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra),
-      <strong>EPL</strong> (Eltron) and <strong>TSPL/TSC</strong> — to PNG images or PDF documents.
+      <strong>EPL</strong> (Eltron), <strong>TSPL/TSC</strong>,
+      <strong>CPCL</strong> (Zebra mobile) and <strong>DPL</strong>
+      (Datamax-O'Neil) — to PNG images or PDF documents.
       This playground needs JavaScript for the live editor and preview; for headless use,
       call the free REST API instead:
     </p>
@@ -868,15 +872,15 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 <details class="about">
   <summary data-i18n="about.summary">About Labelize · FAQ · Open source (MIT)</summary>
   <div class="about-body">
-    <h1 data-i18n-html="about.h1">Labelize — free online ZPL, EPL &amp; TSPL label viewer</h1>
-    <p data-i18n-html="about.pitch">Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron) and <strong>TSPL/TSC</strong> — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.</p>
+    <h1 data-i18n-html="about.h1">Labelize — free online ZPL, EPL, TSPL, CPCL &amp; DPL label viewer</h1>
+    <p data-i18n-html="about.pitch">Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron), <strong>TSPL/TSC</strong>, <strong>CPCL</strong> (Zebra mobile) and <strong>DPL</strong> (Datamax-O'Neil) — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.</p>
     <ul data-i18n-html="about.features"></ul>
     <h2 data-i18n="about.faq">Frequently asked questions</h2>
     <dl>
       <dt data-i18n="about.q1">Is this ZPL viewer free?</dt>
       <dd data-i18n-html="about.a1">Yes. Labelize is free to use, MIT-licensed open source, and requires no sign-up.</dd>
       <dt data-i18n="about.q2">Which label languages are supported?</dt>
-      <dd data-i18n-html="about.a2">ZPL (Zebra), EPL (Eltron) and TSPL/TSC. Labels render to PNG or PDF at selectable sizes and resolutions.</dd>
+      <dd data-i18n-html="about.a2">ZPL (Zebra), EPL (Eltron), TSPL/TSC, CPCL (Zebra mobile) and DPL (Datamax-O'Neil). Labels render to PNG or PDF at selectable sizes and resolutions.</dd>
       <dt data-i18n="about.q3">Is there an API?</dt>
       <dd data-i18n-html="about.a3">Yes — <code>POST /convert</code>, <code>/validate</code> and <code>/format</code> on this host, or self-host the CLI, Rust crate, WebAssembly package or Docker image.</dd>
       <dt data-i18n="about.q4">Does my label data leave my browser?</dt>
@@ -910,17 +914,17 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
      go through t(key) and fmt(t(key), {placeholder: value}). */
   var I18N = {
     en: {
-      "app.title": "Labelize — Free Online ZPL Viewer (ZPL, EPL & TSPL to PNG)",
+      "app.title": "Free ZPL Viewer — ZPL, EPL, TSPL, CPCL & DPL to PNG | Labelize",
       "app.tagline": "ZPL, EPL, TSPL, CPCL & DPL Label Playground",
       "about.summary": "About Labelize · FAQ · Open source (MIT)",
-      "about.h1": "Labelize — free online ZPL, EPL &amp; TSPL label viewer",
-      "about.pitch": "Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron) and <strong>TSPL/TSC</strong> — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.",
+      "about.h1": "Labelize — free online ZPL, EPL, TSPL, CPCL &amp; DPL label viewer",
+      "about.pitch": "Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron), <strong>TSPL/TSC</strong>, <strong>CPCL</strong> (Zebra mobile) and <strong>DPL</strong> (Datamax-O'Neil) — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.",
       "about.features": "<li>Live preview with zoom, PNG/PDF download and shareable permalinks</li><li>Syntax validation and one-command-per-line formatting</li><li>Optional pixel diff against the Labelary reference renderer</li><li>Free REST API: <code>POST /convert</code>, <code>/validate</code>, <code>/format</code></li><li>Same engine as CLI, HTTP microservice, Rust crate, WebAssembly package or Docker image</li>",
       "about.faq": "Frequently asked questions",
       "about.q1": "Is this ZPL viewer free?",
       "about.a1": "Yes. Labelize is free to use, MIT-licensed open source, and requires no sign-up.",
       "about.q2": "Which label languages are supported?",
-      "about.a2": "ZPL (Zebra), EPL (Eltron) and TSPL/TSC. Labels render to PNG or PDF at selectable sizes and resolutions.",
+      "about.a2": "ZPL (Zebra), EPL (Eltron), TSPL/TSC, CPCL (Zebra mobile) and DPL (Datamax-O'Neil). Labels render to PNG or PDF at selectable sizes and resolutions.",
       "about.q3": "Is there an API?",
       "about.a3": "Yes — <code>POST /convert</code>, <code>/validate</code> and <code>/format</code> on this host, or self-host the CLI, Rust crate, WebAssembly package or Docker image.",
       "about.q4": "Does my label data leave my browser?",
@@ -1013,17 +1017,17 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "alt.diff": "Diff overlay"
     },
     zh: {
-      "app.title": "Labelize — 免费在线 ZPL / EPL / TSPL 标签查看器",
+      "app.title": "Labelize — 免费在线 ZPL/EPL/TSPL/CPCL/DPL 标签查看器",
       "app.tagline": "ZPL、EPL、TSPL、CPCL 与 DPL 标签在线预览",
       "about.summary": "关于 Labelize · FAQ · 开源（MIT）",
-      "about.h1": "Labelize — 免费在线 ZPL、EPL 与 TSPL 标签查看器",
-      "about.pitch": "Labelize 将热敏打印机标签代码 —— <strong>ZPL</strong>（Zebra）、<strong>EPL</strong>（Eltron）与 <strong>TSPL/TSC</strong> —— 渲染为 PNG 图片或 PDF 文档。把标签代码粘贴到上方，点击<strong>渲染</strong>，或直接试试内置示例。",
+      "about.h1": "Labelize — 免费在线 ZPL、EPL、TSPL、CPCL 与 DPL 标签查看器",
+      "about.pitch": "Labelize 将热敏打印机标签代码 —— <strong>ZPL</strong>（Zebra）、<strong>EPL</strong>（Eltron）、<strong>TSPL/TSC</strong>、<strong>CPCL</strong>（Zebra 移动打印机）与 <strong>DPL</strong>（Datamax-O'Neil）—— 渲染为 PNG 图片或 PDF 文档。把标签代码粘贴到上方，点击<strong>渲染</strong>，或直接试试内置示例。",
       "about.features": "<li>实时预览：缩放、下载 PNG/PDF、可分享的固定链接</li><li>语法校验与一键格式化（每行一条指令）</li><li>可选：与 Labelary 参考渲染器逐像素对比</li><li>免费 REST API：<code>POST /convert</code>、<code>/validate</code>、<code>/format</code></li><li>同一引擎提供 CLI、HTTP 服务、Rust 库、WebAssembly 包与 Docker 镜像</li>",
       "about.faq": "常见问题",
       "about.q1": "这个 ZPL 查看器免费吗？",
       "about.a1": "免费。Labelize 是 MIT 许可的开源项目，无需注册。",
       "about.q2": "支持哪些标签语言？",
-      "about.a2": "ZPL（Zebra）、EPL（Eltron）与 TSPL/TSC，可按选定尺寸和分辨率渲染为 PNG 或 PDF。",
+      "about.a2": "ZPL（Zebra）、EPL（Eltron）、TSPL/TSC、CPCL（Zebra 移动打印机）与 DPL（Datamax-O'Neil），可按选定尺寸和分辨率渲染为 PNG 或 PDF。",
       "about.q3": "有 API 吗？",
       "about.a3": "有 —— 在本站调用 <code>POST /convert</code>、<code>/validate</code> 与 <code>/format</code>，或自托管 CLI、Rust 库、WebAssembly 包或 Docker 镜像。",
       "about.q4": "我的标签数据会离开浏览器吗？",
