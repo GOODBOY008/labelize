@@ -799,12 +799,17 @@ impl ZplParser {
 
     fn parse_field_block(&mut self, command: &str) {
         let parts = split_command(command, "^FB");
+        // Labelary wraps oversized words at character boundaries and overprints
+        // excess lines in the final slot. Select these policies parser-side;
+        // other frontends also use field blocks for alignment alone.
         let mut block = FieldBlock {
             max_width: 0,
             max_lines: 1,
             line_spacing: 0,
             alignment: crate::elements::text_alignment::TextAlignment::Left,
             hanging_indent: 0,
+            wrap_long_words: true,
+            overwrite_last_line: true,
         };
         let scale = self.printer.unit_scale();
         if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {

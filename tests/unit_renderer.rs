@@ -522,6 +522,93 @@ fn text_block_center_alignment_centers_text() {
     );
 }
 
+#[test]
+fn text_block_overflow_matches_labelary_header() {
+    let zpl = include_str!("../testdata/unit/fb_single_line_overflow.zpl");
+    let actual = decode_png(&render_helpers::render_zpl_to_png(zpl, default_options()));
+    let expected = decode_png(include_bytes!(
+        "../testdata/unit/fb_single_line_overflow.png"
+    ));
+    // Compare the header itself: the surrounding blank canvas must not dilute
+    // a regression. The old unbroken identifier differs by 29% in this region.
+    let mut differences = 0;
+    for y in 20..100 {
+        for x in 20..440 {
+            if (actual.get_pixel(x, y)[0] as i16 - expected.get_pixel(x, y)[0] as i16)
+                .unsigned_abs()
+                > 32
+            {
+                differences += 1;
+            }
+        }
+    }
+    let percent = differences as f64 * 100.0 / (420.0 * 80.0);
+    assert!(
+        percent < 8.0,
+        "header differs from Labelary by {percent:.2}%"
+    );
+}
+
+#[test]
+fn text_block_overflow_overprints_last_slot_in_all_orientations() {
+    for orientation in ['N', 'R', 'I', 'B'] {
+        for (origin, alignment, spacing) in [("FO", "L", 3), ("FT", "R", -48)] {
+            for max_lines in [1, 2] {
+                let field = |data: &str| {
+                    format!(
+                        "^{origin}300,400^A0{orientation},32,32^FB150,{max_lines},{spacing},{alignment}^FD{data}^FS"
+                    )
+                };
+                let actual = format!("^XA^CI28{}^XZ", field("II\\&WW\\&ÁjgQ"));
+                // Independent fields put the excess text in the final slot.
+                // It must survive even when it has wider/taller/deeper ink than
+                // the earlier lines used to size a rotated field's buffer.
+                let expected = if max_lines == 1 {
+                    format!("^XA^CI28{}{}{}^XZ", field("II"), field("WW"), field("ÁjgQ"))
+                } else {
+                    format!("^XA^CI28{}{}^XZ", field("II\\&WW"), field("\\&ÁjgQ"))
+                };
+                let options = DrawerOptions {
+                    label_width_mm: 75.0,
+                    label_height_mm: 100.0,
+                    antialias: true,
+                    ..default_options()
+                };
+                let actual = render_helpers::render_zpl_to_png(&actual, options.clone());
+                let expected = render_helpers::render_zpl_to_png(&expected, options);
+                // Three independent fields round source-over coverage after
+                // each layer; one overflowing buffer rounds it on compositing.
+                // Compare coverage before thresholding to allow those two
+                // grey levels while still detecting shifted or clipped ink.
+                assert!(
+                    decode_png(&actual)
+                        .pixels()
+                        .zip(decode_png(&expected).pixels())
+                        .all(|(a, e)| (a[0] as i16 - e[0] as i16).unsigned_abs() <= 2),
+                    "overflow layout differs for {orientation}/{origin}/{max_lines}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn text_block_wraps_long_unicode_words_within_width() {
+    let zpl = "^XA^CI28^FO30,30^A0N,32,32^FB56,20,0,L^FDÄéÄéÄéÄéÄéÄé^FS^XZ";
+    let img = decode_png(&render_helpers::render_zpl_to_png(zpl, default_options()));
+    let mut last_y = 0;
+    for (x, y, pixel) in img.enumerate_pixels() {
+        if pixel[0] < 128 {
+            assert!(x < 90, "long word overflows the block at x={x}");
+            last_y = last_y.max(y);
+        }
+    }
+    assert!(
+        last_y > 120,
+        "long word was not wrapped over multiple lines"
+    );
+}
+
 // --- Issue #6: Font "0" width ratio is approximately 60% ---
 
 #[test]

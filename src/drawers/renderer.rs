@@ -389,15 +389,25 @@ impl Renderer {
 
         // Render text to a buffer, then rotate if needed
         let orientation = text.font.orientation;
+        // Overprinting blends glyph edges repeatedly. Use the same transparent
+        // buffer for every orientation in that case: blending directly onto
+        // white rounds coverage differently from accumulating alpha, which can
+        // change the final monochrome mask after several overlapping lines.
+        let buffer_overflow = orientation == FieldOrientation::Normal
+            && text.block.as_ref().is_some_and(|block| {
+                block.overwrite_last_line
+                    && word_wrap(&drawn_text, &font, scale, block, subst).len()
+                        > block.max_lines.max(1) as usize
+            });
 
-        if orientation == FieldOrientation::Normal {
+        if orientation == FieldOrientation::Normal && !buffer_overflow {
             // Normal: draw directly onto canvas (no rotation needed)
             if let Some(ref block) = text.block {
                 draw_text_block(
                     canvas,
                     &font,
                     scale,
-                    scale_x,
+                    0.0,
                     color,
                     x as f32 + pen_x_offset,
                     y as f32,
@@ -420,7 +430,7 @@ impl Renderer {
                 );
             }
         } else {
-            // Non-normal: render to transparent buffer, rotate, then overlay.
+            // Render to a transparent buffer, rotate as needed, then overlay.
             // Headroom above the ascent keeps marks that rise above it (Ä, É) from
             // being clipped at the buffer's top edge; a matching `bottom_pad`
             // below the descent keeps deep-extending glyphs (ˎ, j) from being
@@ -464,7 +474,7 @@ impl Renderer {
             };
             let (buf_w, buf_h, left_pad, delta_r, bottom_pad, top_pad) =
                 if let Some(ref block) = text.block {
-                    let lines = word_wrap(&drawn_text, &font, scale, block.max_width as f32, subst);
+                    let lines = word_wrap(&drawn_text, &font, scale, block, subst);
                     // Same pitch draw_text_block uses (cap-scaled em × factor).
                     // ^FB line spacing may be negative: line tops are
                     // (k−1)·pitch, so later lines then sit ABOVE the pen top and
@@ -478,16 +488,21 @@ impl Renderer {
                     let top_pad = (-min_top).ceil().max(0.0) as u32;
                     let h = (max_top - min_top + scale.y).ceil() as u32 + 2;
                     // Per-line ink extents at the block origin cover unbreakable
-                    // words wider than max_width (word_wrap keeps them whole) and
-                    // per-character overhangs past the advance edge. Centered and
-                    // right-aligned lines get draw_text_block's alignment offset —
+                    // words wider than max_width and per-character overhangs
+                    // past the advance edge. Centered and right-aligned lines
+                    // get draw_text_block's alignment offset —
                     // negative for lines wider than max_width, which is exactly
                     // the unbreakable-word case that must reach left of the
                     // origin. Justified lines stay within [0, max_width].
                     let mut ink_min = f32::MAX;
                     let mut ink_max = f32::MIN;
                     let mut ink_max_y = f32::MIN;
-                    for line in lines.iter().take(num_lines) {
+                    let drawn_lines = if block.overwrite_last_line {
+                        lines.len()
+                    } else {
+                        num_lines
+                    };
+                    for line in lines.iter().take(drawn_lines) {
                         let (a, b, y) =
                             measure_text_ink_bounds_with_superscript(line, &font, scale, subst);
                         if a <= b {
@@ -577,7 +592,11 @@ impl Renderer {
                     &mut buf,
                     &font,
                     scale,
-                    scale_x,
+                    if orientation == FieldOrientation::Normal {
+                        (y - y.trunc()) as f32
+                    } else {
+                        0.0
+                    },
                     color,
                     pen_x_offset,
                     headroom as f32 + top_pad as f32,
@@ -684,10 +703,17 @@ impl Renderer {
             //       left margin and the bottom pad extend away from the anchor
             //       (the top headroom is already rebased above).
             let (mut ox, oy) = match orientation {
+                FieldOrientation::Normal => {
+                    // Snap before subtracting padding so crossing zero cannot
+                    // shift a near-edge field by a pixel.
+                    (
+                        ox.trunc() - left_pad as f64,
+                        oy.trunc() - (headroom + top_pad) as f64,
+                    )
+                }
                 FieldOrientation::Rotated90 => (ox - bottom_pad as f64, oy - left_pad as f64),
                 FieldOrientation::Rotated180 => (ox - delta_r as f64, oy - bottom_pad as f64),
                 FieldOrientation::Rotated270 => (ox - top_pad as f64, oy - delta_r as f64),
-                _ => (ox, oy),
             };
             // Labelary reserves the full ^FB box (max_lines × pitch, signed —
             // negative line spacing flips the stacking direction) for rotated
@@ -2065,9 +2091,10 @@ fn word_wrap(
     text: &str,
     font: &FontRef,
     scale: PxScale,
-    max_width: f32,
+    block: &crate::elements::field_block::FieldBlock,
     m: SubstMetrics,
 ) -> Vec<String> {
+    let max_width = block.max_width as f32;
     let mut lines = Vec::new();
     for line in text.split('\n') {
         let words: Vec<&str> = line.split_whitespace().collect();
@@ -2075,15 +2102,30 @@ fn word_wrap(
             lines.push(String::new());
             continue;
         }
-        let mut current_line = words[0].to_string();
-        for word in &words[1..] {
-            let test = format!("{} {}", current_line, word);
-            let w = measure_text_width(&test, font, scale, m);
-            if w > max_width {
-                lines.push(current_line);
-                current_line = word.to_string();
+        let mut current_line = String::new();
+        for word in words {
+            if !current_line.is_empty() {
+                let test = format!("{} {}", current_line, word);
+                if measure_text_width(&test, font, scale, m) <= max_width {
+                    current_line = test;
+                    continue;
+                }
+                lines.push(std::mem::take(&mut current_line));
+            }
+            if block.wrap_long_words && measure_text_width(word, font, scale, m) > max_width {
+                for ch in word.chars() {
+                    let previous_len = current_line.len();
+                    current_line.push(ch);
+                    if previous_len > 0
+                        && measure_text_width(&current_line, font, scale, m) > max_width
+                    {
+                        current_line.truncate(previous_len);
+                        lines.push(std::mem::take(&mut current_line));
+                        current_line.push(ch);
+                    }
+                }
             } else {
-                current_line = test;
+                current_line.push_str(word);
             }
         }
         lines.push(current_line);
@@ -2096,7 +2138,7 @@ fn draw_text_block(
     canvas: &mut RgbaImage,
     font: &FontRef,
     scale: PxScale,
-    _scale_x: f32,
+    line_y_phase: f32,
     color: Rgba<u8>,
     x: f32,
     y: f32,
@@ -2107,7 +2149,7 @@ fn draw_text_block(
     pen_x_pad: i32,
 ) {
     let max_width = block.max_width as f32;
-    let lines = word_wrap(text, font, scale, max_width, m);
+    let lines = word_wrap(text, font, scale, block, m);
     let font_size = scale.y;
     let raw_line_height = font_size * line_height_factor + block.line_spacing as f32;
     // Bitmap fonts divide the cap-scaled em back down to the cell height, which
@@ -2129,14 +2171,17 @@ fn draw_text_block(
         if first || line_height_factor == 1.0 || integral_pitch {
             v
         } else {
-            v.round()
+            // Buffered normal fields subtract their integer page origin.
+            // Retain its fractional phase when snapping later line tops.
+            (v + line_y_phase).round()
         }
     };
     for (i, line) in lines.iter().enumerate() {
-        if i >= max_lines {
+        if i >= max_lines && !block.overwrite_last_line {
             break;
         }
-        let first = i == 0;
+        let slot = i.min(max_lines - 1);
+        let first = slot == 0;
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
                 let lw = measure_text_width(line, font, scale, m);
@@ -2164,7 +2209,9 @@ fn draw_text_block(
                     max_width,
                     pen_x_pad,
                 );
-                cy += line_height;
+                if i + 1 < max_lines {
+                    cy += line_height;
+                }
                 continue;
             }
             _ => x,
@@ -2189,7 +2236,9 @@ fn draw_text_block(
             line,
             m,
         );
-        cy += line_height;
+        if i + 1 < max_lines {
+            cy += line_height;
+        }
     }
 }
 
