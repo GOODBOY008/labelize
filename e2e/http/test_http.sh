@@ -192,6 +192,80 @@ HTTP_CODE=$(curl -sf -o "$WORK_DIR/dpl.png" -w "%{http_code}" -X POST \
 assert_eq "DPL POST status 200" "200" "$HTTP_CODE"
 assert_file_min_size "DPL response PNG has content" "$WORK_DIR/dpl.png" 300
 
+# 11. Reverse rendering: image → ZPL, then ZPL → PNG (closed loop through
+# the render produced by step 2, so no extra fixture is needed)
+echo "[11] POST /encode image → ZPL"
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/roundtrip.zpl" -w '%{http_code}' -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@$WORK_DIR/http_label.png" \
+  "http://127.0.0.1:$PORT/encode?dpmm=8&language=zpl")
+assert_eq "encode ZPL status 200" "200" "$HTTP_CODE"
+grep -q '\^GFA' "$WORK_DIR/roundtrip.zpl" \
+  && { echo "  ✓ encode output is a ^GFA graphic field"; pass=$((pass + 1)); } \
+  || { echo "  ✗ encode output is a ^GFA graphic field"; fail=$((fail + 1)); }
+
+ZPL_CT=$(curl -sf -o /dev/null -w '%{content_type}' -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@$WORK_DIR/http_label.png" \
+  "http://127.0.0.1:$PORT/encode?dpmm=8&language=zpl")
+echo "$ZPL_CT" | grep -qi "text/plain" \
+  && { echo "  ✓ encode ZPL content-type is text/plain"; pass=$((pass + 1)); } \
+  || { echo "  ✗ encode ZPL content-type is text/plain (got '$ZPL_CT')"; fail=$((fail + 1)); }
+
+# Generated ZPL leaves the size unset: render at the source image's dims (816×1216
+# @ 8 dpmm = the 102×152 default used in step 2).
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/roundtrip.png" -w '%{http_code}' -X POST \
+  -H "Content-Type: application/zpl" \
+  --data-binary "@$WORK_DIR/roundtrip.zpl" \
+  "http://127.0.0.1:$PORT/convert?width=102&height=152&dpmm=8")
+assert_eq "encode→convert round trip status 200" "200" "$HTTP_CODE"
+assert_file_min_size "round-trip PNG has content" "$WORK_DIR/roundtrip.png" 500
+cmp -s "$WORK_DIR/http_label.png" "$WORK_DIR/roundtrip.png" \
+  && { echo "  ✓ round trip is byte-identical"; pass=$((pass + 1)); } \
+  || { echo "  ✗ round trip is byte-identical"; fail=$((fail + 1)); }
+
+# 12. Reverse rendering: image → TSPL (binary octet-stream + declared SIZE)
+echo "[12] POST /encode image → TSPL"
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/roundtrip.tspl" -w '%{http_code}' -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@$WORK_DIR/http_label.png" \
+  "http://127.0.0.1:$PORT/encode?language=tspl")
+assert_eq "encode TSPL status 200" "200" "$HTTP_CODE"
+
+TSPL_CT=$(curl -sf -o /dev/null -w '%{content_type}' -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@$WORK_DIR/http_label.png" \
+  "http://127.0.0.1:$PORT/encode?language=tspl")
+assert_eq "encode TSPL content-type is octet-stream" "application/octet-stream" "$TSPL_CT"
+
+head -c 5 "$WORK_DIR/roundtrip.tspl" | grep -q '^SIZE' \
+  && { echo "  ✓ TSPL output starts with SIZE"; pass=$((pass + 1)); } \
+  || { echo "  ✗ TSPL output starts with SIZE"; fail=$((fail + 1)); }
+
+# The generated SIZE declares the canvas, so convert needs no dimensions.
+HTTP_CODE=$(curl -sf -o "$WORK_DIR/roundtrip_tspl.png" -w '%{http_code}' -X POST \
+  -H "Content-Type: text/tspl" \
+  --data-binary "@$WORK_DIR/roundtrip.tspl" \
+  "http://127.0.0.1:$PORT/convert?dpmm=8")
+assert_eq "TSPL encode→convert status 200" "200" "$HTTP_CODE"
+cmp -s "$WORK_DIR/http_label.png" "$WORK_DIR/roundtrip_tspl.png" \
+  && { echo "  ✓ TSPL round trip is byte-identical"; pass=$((pass + 1)); } \
+  || { echo "  ✗ TSPL round trip is byte-identical"; fail=$((fail + 1)); }
+
+# 13. /encode rejects bad input
+echo "[13] POST /encode rejects bad input"
+HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "definitely not an image" \
+  "http://127.0.0.1:$PORT/encode")
+assert_eq "garbage image returns 400" "400" "$HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@$WORK_DIR/http_label.png" \
+  "http://127.0.0.1:$PORT/encode?language=epl")
+assert_eq "unknown language returns 400" "400" "$HTTP_CODE"
+
 echo ""
 echo "=== Results: $pass passed, $fail failed ==="
 [[ "$fail" -eq 0 ]] || exit 1

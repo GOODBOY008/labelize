@@ -99,6 +99,26 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 **Unsupported (explicit error):** `Y` (stored images), polygons `P` and circles `C` in `X` records, `W1z`/`W1t`, Codabar `I`, Plessey `K`, Code 93 `O`, Telepen `T`, Postnet `p`, FIM `v`, addenda `M`/`N`, MaxiCode structured `[)>RS…` form
 **Reference renderer:** no printer-grade public renderer exists; the hosted Evolabel layout view (layoutview.evolabel.com, ~11.8 px/mm server preview) serves as the external comparison for the real-provenance corpus, renderer-baseline otherwise. Real-provenance corpus (manual Appendix B samples) and reference details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
 
+## Reverse Rendering (Image → Code)
+
+`src/reverse.rs` is the inverse of the render pipeline: a raster goes in, printer-language source comes out. It emits text/bytes directly and never touches `elements`/`drawers`, so the language-blind-IR invariants don't apply to it.
+
+- **Input limits:** at most 16 Mi pixels, 32000 dots per dimension and 128 MiB of decoded data, checked before decoding pixels. Encoded inputs honor EXIF orientation. `encode_image_bytes` and `ReverseLanguage` share language dispatch across CLI, HTTP and WASM; reject unknown targets and invalid options.
+- **Binarization contract:** pixels are composited over white, converted to Rec.601 luminance, and become ink when strictly below `ReverseOptions::threshold` (default 128). One image pixel = one dot at `ReverseOptions::dpmm` (default 8).
+- **ZPL** (`image_to_zpl`): `^FO0,0^GFA,total,total,row_bytes,` split on row boundaries into fields of at most 99999 bytes, with one uppercase-hex line per bitmap row (line breaks inside `^GF` data are ignored by the parser and by printers). Set bits print black. Generated ZPL leaves the canvas size unset, so callers render at `image dims / dpmm` mm.
+- **TSPL** (`image_to_tspl`): `SIZE {w} mm,{h} mm` + `CLS` + `BITMAP 0,0,row_bytes,height,0,<payload>` + `PRINT 1,1`. The payload is the bitwise complement of the ZPL packing (TSC polarity: cleared bit = ink) and must start **inline right after the fifth comma** — that is where `split_tspl_commands` begins the raw-data cursor, so a line break there breaks parsing. The return value is raw bytes, not text.
+- **Round-trip e2e:** `tests/e2e_reverse.rs` encodes real label fixtures,
+  renders them through the ordinary forward pipeline, and requires
+  pixel-identical output. Keep that property when touching this module.
+- **Surfaces:** besides the library and `labelize encode`, the feature is
+  exposed as `POST /encode` (`?dpmm&threshold&language=zpl|tspl`; zpl →
+  `text/plain`, tspl → `application/octet-stream`) on both the axum server
+  and `workers/worker.js` (wasm export `lz_encode`), and as the
+  playground's **Image → Code** button (ZPL loads into the editor with the
+  canvas sized to the image, TSPL downloads as a file). HTTP behaviour is
+  pinned by `tests/e2e_http_encode.rs` (`--features serve`) and the
+  encode→convert byte-identity cases in `e2e/http/test_http.sh`.
+
 ## Supported ZPL Commands
 
 **Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^LT` (label top), `^LS` (label shift), `^LL` (label length), `^PO`, `^PW`, `^CI`, `^CF`, `^PQ` (print quantity), `^FX` (comment), `^SN`/`^SF` (inert serial state)

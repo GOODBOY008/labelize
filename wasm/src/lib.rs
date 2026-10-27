@@ -149,6 +149,24 @@ pub fn lz_format(src: &[u8], lang: &str) -> Vec<u8> {
     labelize::format_source(src, labelize::Language::from_name(lang)).1
 }
 
+/// Reverse rendering (the worker's POST /encode): binarize a raster image
+/// (PNG/JPEG/GIF/BMP) and emit printer code — `lang` `"zpl"` returns ASCII
+/// text (a `^GFA` graphic field), `"tspl"` returns binary `SIZE`+`BITMAP`
+/// bytes. Failures (undecodable image, bad dpmm) carry the stage-1 prefix
+/// like parse errors: the worker maps them to HTTP 400.
+#[wasm_bindgen]
+pub fn lz_encode(src: &[u8], dpmm: i32, threshold: u8, lang: &str) -> Result<Vec<u8>, String> {
+    let options = labelize::ReverseOptions { dpmm, threshold };
+    let language = lang.parse::<labelize::ReverseLanguage>().map_err(encode_error)?;
+    labelize::encode_image_bytes(src, &options, language).map_err(encode_error)
+}
+
+/// Encode failures mean the caller handed us a non-image or an invalid
+/// option — user input, so the "1:" (400) prefix.
+fn encode_error(err: labelize::LabelizeError) -> String {
+    format!("1:{err}")
+}
+
 fn json_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -300,5 +318,33 @@ mod tests {
         assert_eq!(json_escape("a\"b\\c\nd\te"), "a\\\"b\\\\c\\nd\\te");
         assert_eq!(json_escape("\u{1}"), "\\u0001");
         assert_eq!(json_escape("plain text"), "plain text");
+    }
+
+    #[test]
+    fn lz_encode_emits_printer_code_from_a_png() {
+        use image::RgbaImage;
+        let img = RgbaImage::from_pixel(16, 8, image::Rgba([0, 0, 0, 255]));
+        let mut png = Vec::new();
+        labelize::encode_png(&img, &mut png).expect("PNG encode");
+
+        let zpl = lz_encode(&png, 8, 128, "zpl").expect("ZPL encode");
+        let text = String::from_utf8(zpl).expect("ZPL is ASCII text");
+        assert!(text.contains("^GFA,16,16,2,"), "got: {text}");
+        assert!(text.contains("FFFF"), "black rows pack to FF bytes: {text}");
+
+        let tspl = lz_encode(&png, 8, 128, "tspl").expect("TSPL encode");
+        let head = String::from_utf8_lossy(&tspl[..tspl.len().min(40)]).to_string();
+        assert!(head.starts_with("SIZE 2 mm,1 mm"), "got: {head:?}");
+        assert!(tspl.windows(6).any(|w| w == b"BITMAP"), "has BITMAP header");
+    }
+
+    #[test]
+    fn lz_encode_rejects_garbage_with_stage1() {
+        let err = lz_encode(b"x", 8, 128, "epl").expect_err("unsupported target");
+        assert!(err.contains("expected zpl or tspl"), "got: {err}");
+        let err = lz_encode(b"not an image", 8, 128, "zpl").expect_err("must fail");
+        assert!(err.starts_with("1:"), "input errors carry code 1: {err}");
+        let err = lz_encode(b"x", 0, 128, "zpl").expect_err("dpmm 0 must fail");
+        assert!(err.starts_with("1:"), "got: {err}");
     }
 }

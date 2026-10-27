@@ -34,3 +34,10 @@ export function lz_render_lang(
 
 /** The playground HTML page served by the labelize HTTP server. */
 export function lz_playground_html(): string;
+/** Encode a raster as ZPL text or binary TSPL. Invalid input throws a `1:` error. */
+export function lz_encode(
+  src: Uint8Array,
+  dpmm: number,
+  threshold: number,
+  lang: string,
+): Uint8Array;

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "cli")]
 use clap::{Parser, Subcommand, ValueEnum};
 #[cfg(any(feature = "cli", feature = "serve"))]
-use labelize::{parse_labels, DrawerOptions, LabelInfo, Language, Renderer};
+use labelize::{parse_labels, DrawerOptions, LabelInfo, Language, Renderer, ReverseLanguage};
 
 /// Historical default label dimensions, used when neither an explicit
 /// override nor the label's own declared size (TSPL SIZE) is available.
@@ -85,6 +85,28 @@ enum Commands {
         antialias: bool,
     },
 
+    /// Convert a raster image into ZPL or TSPL printer code (reverse rendering)
+    Encode {
+        /// Input image file path (PNG, JPEG, GIF, BMP, …)
+        input: PathBuf,
+
+        /// Output file path (default: input stem + .zpl/.tspl)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Target printer language (default: from the output extension, else ZPL)
+        #[arg(short, long)]
+        language: Option<ReverseLanguage>,
+
+        /// Positive dots per millimetre; one image pixel = one dot
+        #[arg(long, default_value_t = 8)]
+        dpmm: i32,
+
+        /// Luminance threshold (0-255): pixels darker than this print as ink
+        #[arg(long, default_value_t = 128)]
+        threshold: u8,
+    },
+
     /// Start HTTP server for label conversion
     #[cfg(feature = "serve")]
     Serve {
@@ -123,6 +145,18 @@ fn main() {
                 dpmm,
                 antialias,
             ) {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Encode {
+            input,
+            output,
+            language,
+            dpmm,
+            threshold,
+        } => {
+            if let Err(e) = encode_file(&input, output.as_deref(), language, dpmm, threshold) {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
             }
@@ -186,17 +220,52 @@ fn output_extension(output_type: OutputType) -> &'static str {
 }
 
 #[cfg(feature = "cli")]
-fn default_output_path(input: &Path, output_type: OutputType, index: Option<usize>) -> PathBuf {
+fn default_output_path(input: &Path, ext: &str, index: Option<usize>) -> PathBuf {
     let stem = input
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    let ext = output_extension(output_type);
     let parent = input.parent().unwrap_or_else(|| Path::new("."));
     match index {
         Some(i) => parent.join(format!("{}_{}.{}", stem, i + 1, ext)),
         None => parent.join(format!("{}.{}", stem, ext)),
     }
+}
+
+#[cfg(feature = "cli")]
+fn encode_file(
+    input: &Path,
+    output: Option<&Path>,
+    language: Option<ReverseLanguage>,
+    dpmm: i32,
+    threshold: u8,
+) -> Result<(), String> {
+    let image_bytes = fs::read(input).map_err(|e| format!("Failed to read input file: {}", e))?;
+
+    // Language resolves from the flag, else the output extension, else ZPL.
+    let language = language.or_else(|| {
+        let ext = output
+            .and_then(|p| p.extension())
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        match ext.as_str() {
+            "tspl" | "tsc" => Some(ReverseLanguage::Tspl),
+            "zpl" => Some(ReverseLanguage::Zpl),
+            _ => None,
+        }
+    });
+    let language = language.unwrap_or(ReverseLanguage::Zpl);
+    let options = labelize::ReverseOptions { dpmm, threshold };
+    let data = labelize::encode_image_bytes(&image_bytes, &options, language)
+        .map_err(|e| e.to_string())?;
+    let out_path = output
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| default_output_path(input, language.file_extension(), None));
+
+    fs::write(&out_path, data).map_err(|e| format!("Failed to write output file: {}", e))?;
+    println!("Encoded {} -> {}", input.display(), out_path.display());
+    Ok(())
 }
 
 #[cfg(feature = "cli")]
@@ -269,7 +338,11 @@ fn convert_file(
                 let parent = p.parent().unwrap_or_else(|| Path::new("."));
                 parent.join(format!("{}_{}.{}", stem, i + 1, ext))
             }
-            None => default_output_path(input, output_type, if multi { Some(i) } else { None }),
+            None => default_output_path(
+                input,
+                output_extension(output_type),
+                if multi { Some(i) } else { None },
+            ),
         };
 
         let data = render_label(label, &options, output_type)?;
@@ -348,7 +421,8 @@ async fn serve(host: String, port: u16) {
                 format!(
                     "{{\"service\":\"labelize\",\"version\":\"{}\",\"playground\":false,\
                      \"endpoints\":{{\"health\":\"GET /health\",\"convert\":\"POST /convert\",\
-                     \"validate\":\"POST /validate\",\"format\":\"POST /format\"}}}}",
+                     \"validate\":\"POST /validate\",\"format\":\"POST /format\",\
+                     \"encode\":\"POST /encode\"}}}}",
                     env!("CARGO_PKG_VERSION")
                 ),
             )
@@ -497,6 +571,52 @@ async fn serve(host: String, port: u16) {
             .into_response()
     }
 
+    #[derive(serde::Deserialize)]
+    struct EncodeParams {
+        #[serde(default = "default_dpmm")]
+        dpmm: i32,
+        #[serde(default = "default_threshold")]
+        threshold: u8,
+        /// Target language: `zpl` (ASCII text) or `tspl` (binary bytes)
+        #[serde(default = "default_encode_language")]
+        language: String,
+    }
+
+    fn default_threshold() -> u8 {
+        128
+    }
+
+    fn default_encode_language() -> String {
+        "zpl".to_string()
+    }
+
+    // Reverse rendering: raster image in, printer code out. Image-decode
+    // and option failures are user input → 400.
+    async fn encode_handler(Query(params): Query<EncodeParams>, body: Bytes) -> impl IntoResponse {
+        let language = match params.language.parse::<ReverseLanguage>() {
+            Ok(language) => language,
+            Err(e) => return (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+        };
+        let options = labelize::ReverseOptions {
+            dpmm: params.dpmm,
+            threshold: params.threshold,
+        };
+        let result = tokio::task::spawn_blocking(move || {
+            labelize::encode_image_bytes(&body, &options, language)
+        })
+        .await;
+        match result {
+            Ok(Ok(bytes)) => (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, language.content_type())],
+                bytes,
+            )
+                .into_response(),
+            Ok(Err(e)) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        }
+    }
+
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
@@ -504,7 +624,8 @@ async fn serve(host: String, port: u16) {
         .route("/sitemap.xml", get(sitemap))
         .route("/convert", post(convert_handler))
         .route("/validate", post(validate_handler))
-        .route("/format", post(format_handler));
+        .route("/format", post(format_handler))
+        .route("/encode", post(encode_handler));
 
     let addr = format!("{}:{}", host, port);
     println!("Starting server on {}", addr);
@@ -518,7 +639,7 @@ async fn serve(host: String, port: u16) {
             }
         );
     } else {
-        println!("Playground: disabled — API-only mode (GET /health, POST /convert, POST /validate, POST /format)");
+        println!("Playground: disabled — API-only mode (GET /health, POST /convert, POST /validate, POST /format, POST /encode)");
     }
     let listener = tokio::net::TcpListener::bind(&addr)
         .await

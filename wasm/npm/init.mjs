@@ -17,6 +17,7 @@ import {
   lz_render,
   lz_render_lang,
   lz_playground_html,
+  lz_encode,
   __wbindgen_init_externref_table,
   __wbindgen_generic_0000000000000001,
 } from "./labelize_wasm_bg.js";
@@ -34,4 +35,4 @@ const { instance } = await WebAssembly.instantiate(bytes, {
 __wbg_set_wasm(instance.exports);
 instance.exports.__wbindgen_start();
 
-export { lz_render, lz_render_lang, lz_playground_html };
+export { lz_render, lz_render_lang, lz_playground_html, lz_encode };
