@@ -30,11 +30,16 @@ curl http://localhost:8080/health
 Open <http://localhost:8080/> — no API key, no setup:
 
 1. Paste ZPL or EPL into the editor (or pick a built-in sample)
-2. Choose a label size (4×6, 4×4, …) — the preview renders live
+2. Choose a preset (4×6, 4×4, …), or edit the always-visible **Width** and
+   **Height** fields directly (for example, 100 × 60 mm). Dimensions default
+   to **mm**; the **Unit** selector also supports **in**. Editing either field
+   selects **Custom…** automatically. Switching units preserves the physical
+   size — the preview renders live
 3. Download **PNG** or **PDF**, copy the PNG to the clipboard, or share a
    permalink to the exact label + settings
-4. ZPL only: click **Compare with Labelary** to fetch the Labelary reference
-   render and get a diff score on the same scale as the project's CI tests
+4. ZPL only: click **Compare with Labelary** in the top toolbar to fetch the
+   Labelary reference render and get a diff score on the same scale as the
+   project's CI tests. For other formats, the button shows **ZPL only**
 
 ## 4. The API
 

@@ -11,8 +11,9 @@
 /// - Share permalink: label code + settings encoded in the URL hash
 /// - Built-in sample labels, preview zoom (fit/percent), copy PNG to
 ///   clipboard, caret Ln/Col indicator, Ctrl+S = download PNG
-/// - Dimensions follow Labelary convention (inches); converted to mm before
-///   calling POST /convert.  Render always produces PNG; PDF is lazy.
+/// - Inch presets and custom dimensions in inches or mm; dimensions stay in
+///   mm for POST /convert and convert to inches for Labelary comparison.
+///   Render always produces PNG; PDF is lazy.
 pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -110,477 +111,358 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   :root {
     color-scheme: dark;
-    --bg: #0f0f11;
-    --surface: #1a1a1f;
-    --surface2: #24242b;
-    --border: #2e2e38;
-    --accent: #5b8dee;
-    --accent-hover: #7aa3f5;
-    --text: #e2e2e8;
-    --text-dim: #888896;
-    --error: #e05555;
-    --success: #4dbd74;
-    --overlay: rgba(15,15,17,0.72);
-    --err-bg: rgba(224,85,85,0.10);
-    --sel: rgba(91,141,238,0.28);
-    --chip-bg: rgba(255,255,255,0.15);
-    --shadow: 0 4px 24px rgba(0,0,0,0.4);
-    --verdict-ok: #4dbd74;
-    --verdict-warn: #e0b84f;
-    --verdict-mod: #e0803c;
-    --verdict-bad: #e05555;
-    --badge-fg: #0f0f11;
-    --radius: 8px;
-    --font-mono: "JetBrains Mono","Fira Code","Cascadia Code",Consolas,monospace;
-    --font-ui: system-ui,-apple-system,"Segoe UI",sans-serif;
+    --bg: #101218;
+    --surface: #191c24;
+    --surface2: #222631;
+    --editor: #161920;
+    --canvas: #12151c;
+    --border: #2b303c;
+    --grid-dot: #2a303b;
+    --accent: #739aff;
+    --accent-hover: #8aabff;
+    --accent-soft: #222e49;
+    --text: #e8ebf2;
+    --text-dim: #a0a8b8;
+    --text-muted: #727d91;
+    --error: #f28b91;
+    --success: #75cba7;
+    --overlay: rgba(22,25,32,0.88);
+    --err-bg: #322229;
+    --sel: rgba(115,154,255,0.23);
+    --shadow: 0 12px 32px rgba(0,0,0,0.24), 0 1px 4px rgba(0,0,0,0.16);
+    --verdict-ok: #75cba7;
+    --verdict-warn: #e5c77a;
+    --verdict-mod: #e8ad7b;
+    --verdict-bad: #f28b91;
+    --badge-fg: #151820;
+    --radius: 12px;
+    --font-mono: "SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    --font-ui: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   }
 
   :root[data-theme="light"] {
     color-scheme: light;
-    --bg: #f6f8fa;
+    --bg: #f6f7f9;
     --surface: #ffffff;
-    --surface2: #eef1f5;
-    --border: #d8dee5;
-    --accent: #2f6fdd;
-    --accent-hover: #255fc2;
-    --text: #1f2430;
-    --text-dim: #606a78;
-    --error: #cf222e;
-    --success: #1a7f37;
-    --overlay: rgba(246,248,250,0.78);
-    --err-bg: rgba(207,34,46,0.07);
-    --sel: rgba(47,111,221,0.20);
-    --chip-bg: rgba(31,36,48,0.08);
-    --shadow: 0 4px 16px rgba(31,36,48,0.14);
-    --verdict-ok: #1a7f37;
-    --verdict-warn: #9a6700;
-    --verdict-mod: #bc4c00;
-    --verdict-bad: #cf222e;
-    --badge-fg: #ffffff;
+    --surface2: #f5f6f8;
+    --editor: #ffffff;
+    --canvas: #f2f4f7;
+    --border: #e2e6ed;
+    --grid-dot: #d7dde6;
+    --accent: #3568d4;
+    --accent-hover: #2856b7;
+    --accent-soft: #edf2ff;
+    --text: #202735;
+    --text-dim: #626e81;
+    --text-muted: #8792a4;
+    --error: #c13f4c;
+    --success: #20825d;
+    --overlay: rgba(246,248,251,0.9);
+    --err-bg: #fff1f2;
+    --sel: rgba(53,104,212,0.16);
+    --shadow: 0 12px 32px rgba(35,49,73,0.10), 0 1px 4px rgba(35,49,73,0.08);
+    --verdict-ok: #c4ead7;
+    --verdict-warn: #f7e5ac;
+    --verdict-mod: #f8d4b5;
+    --verdict-bad: #f8ccd0;
+    --badge-fg: #263445;
   }
 
   html, body { height: 100%; }
-
   body {
-    background: var(--bg); color: var(--text);
-    font-family: var(--font-ui); font-size: 14px;
     display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font: 14px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased;
   }
+  button, input, select, textarea { font: inherit; }
+  button, a, input, select { -webkit-tap-highlight-color: transparent; }
+  button, a, input, select { transition: background-color .15s, border-color .15s, color .15s; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button svg, a svg { flex-shrink: 0; }
+  ::selection { background: var(--sel); }
+  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-  /* ── Header ── */
-  header {
-    flex-shrink: 0; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 20px; display: flex; align-items: center; gap: 12px;
+  /* App navigation */
+  .app-header {
+    flex-shrink: 0; display: flex; align-items: center; gap: 24px;
+    min-height: 68px; padding: 12px 32px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
   }
-
-  .logo { display: flex; align-items: center; gap: 8px; }
-
-  .logo-icon {
-    height: 26px; width: auto; display: block; flex-shrink: 0;
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { display: block; width: 29px; height: 29px; }
+  .logo-text { font-size: 19px; font-weight: 700; letter-spacing: -.5px; }
+  .nav-label { border-left: 1px solid var(--border); padding-left: 24px; color: var(--text-dim); font-size: 13px; }
+  .header-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .header-link { color: var(--text-dim); text-decoration: none; padding: 7px 9px; font-size: 13px; }
+  .header-link:hover { color: var(--text); }
+  select {
+    appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23848c9b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    background-color: var(--surface); color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; height: 38px; padding: 0 34px 0 12px; font-size: 13px; cursor: pointer;
   }
-
-  .logo-text { font-size: 16px; font-weight: 700; color: var(--text); }
-
-  .tagline {
-    color: var(--text-dim); font-size: 13px;
-    border-left: 1px solid var(--border); padding-left: 12px;
-  }
-
-  .header-spacer { flex: 1; }
-
-  .hdr-select {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 4px; color: var(--text); font-size: 12px;
-    font-family: var(--font-ui); padding: 3px 6px; outline: none;
-    cursor: pointer; transition: border-color 0.15s; max-width: 150px;
-  }
-  .hdr-select:focus { border-color: var(--accent); }
-
+  select:hover, input[type="number"]:hover { border-color: var(--text-muted); }
+  .hdr-select { max-width: 190px; }
+  #lang { background-color: transparent; border-color: transparent; }
   #theme-btn {
-    width: 28px; height: 28px; display: inline-flex; align-items: center;
-    justify-content: center; background: var(--surface2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
-    transition: border-color 0.15s, color 0.15s; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 36px; width: 36px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--text-dim); cursor: pointer;
   }
-  #theme-btn:hover { border-color: var(--accent); color: var(--accent); }
-  #theme-btn svg { display: block; }
+  #theme-btn:hover { background: var(--surface2); color: var(--text); }
+  #theme-btn svg { width: 17px; height: 17px; }
   #theme-btn .icon-sun { display: none; }
-  :root[data-theme="dark"] #theme-btn .icon-sun  { display: block; }
+  :root[data-theme="dark"] #theme-btn .icon-sun { display: block; }
   :root[data-theme="dark"] #theme-btn .icon-moon { display: none; }
 
-  .github-link {
-    font-size: 12px; color: var(--text); background: var(--surface2);
-    border: 1px solid var(--border); border-radius: 4px; padding: 2px 10px;
-    text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
-    transition: border-color 0.15s, color 0.15s, background 0.15s; white-space: nowrap;
-  }
-
-  .github-link:hover {
-    color: #fff; background: var(--accent); border-color: var(--accent);
-  }
-
-  .badge {
-    font-size: 11px; color: var(--text-dim); background: var(--surface2);
-    border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
-    white-space: nowrap;
-  }
-
+  /* Workspace */
   main {
-    flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden;
-    min-height: 0;
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+    width: 100%; max-width: 1680px; margin: 0 auto; padding: 26px 32px 16px; gap: 20px;
   }
-
-  /* ── Editor panel ── */
-  .editor-panel {
-    display: flex; flex-direction: column;
-    border-right: 1px solid var(--border); overflow: hidden;
-  }
-
-  .panel-header {
-    flex-shrink: 0; padding: 7px 14px; background: var(--surface);
-    border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim);
-    display: flex; align-items: center; gap: 6px;
-  }
-
-  .panel-header .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-
-  .panel-header .hdr-side {
-    margin-left: auto; font-size: 11px; text-transform: none;
-    letter-spacing: 0; font-weight: 400; color: var(--text-dim);
-  }
-
-  /* Syntax badge: detected language + parse verdict for the editor content.
-     Sits right after the panel title; long error messages ellipsize with the
-     full text on hover (title attribute). */
-  .syntax-status {
-    font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0;
-    color: var(--text-dim); max-width: 55%; overflow: hidden;
-    white-space: nowrap; text-overflow: ellipsis; flex-shrink: 1; min-width: 0;
-  }
-  .syntax-status:empty { display: none; }
-  .syntax-status.syn-ok::before { content: "● "; color: #2ea043; }
-  .syntax-status.syn-err::before { content: "● "; color: #f85149; }
-
-  .fmt-btn {
-    font-size: 10px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.5px; color: var(--text-dim);
-    background: transparent; border: 1px solid var(--border);
-    border-radius: 4px; padding: 1px 8px; cursor: pointer; flex-shrink: 0;
-  }
-  .fmt-btn:hover { color: var(--text); border-color: var(--accent); }
-
-  #zpl-input {
-    flex: 1; background: var(--bg); color: var(--text);
-    font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
-    padding: 16px; border: none; outline: none; resize: none;
-    tab-size: 2; overflow: auto; caret-color: var(--accent);
-  }
-
-  #zpl-input::selection { background: var(--sel); }
-
-  /* ── Settings bar ── */
+  .workspace-intro { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .workspace-intro h1 { font-size: 26px; font-weight: 650; letter-spacing: -.8px; line-height: 1.3; }
+  .workspace-intro p { color: var(--text-dim); font-size: 13px; margin-top: 5px; }
+  .intro-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .settings-bar {
-    flex-shrink: 0; background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: 9px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px 20px; flex-shrink: 0;
+    padding: 17px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   }
-
-  .sg { display: flex; align-items: center; gap: 5px; }
-
-  .sg label {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.5px; color: var(--text-dim); white-space: nowrap;
+  .setting { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .setting > label { color: var(--text-dim); font-size: 12px; font-weight: 500; }
+  #fmt { min-width: 104px; }
+  #size-preset { min-width: 154px; }
+  #dpmm { min-width: 112px; }
+  #custom-size { display: flex; align-items: flex-end; gap: 10px; }
+  #custom-size .setting { width: 82px; }
+  #custom-size .unit-setting { width: 80px; }
+  #custom-size select { width: 100%; }
+  input[type="number"] {
+    min-width: 0; width: 100%; height: 38px; padding: 0 10px;
+    background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 7px; font-size: 13px;
   }
-
-  .sg input, .sg select {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 5px; color: var(--text); font-size: 12px;
-    font-family: var(--font-ui); padding: 4px 7px; outline: none;
-    transition: border-color 0.15s;
+  .size-sep { align-self: flex-end; height: 38px; display: flex; align-items: center; color: var(--text-muted); }
+  .settings-toggles { display: flex; align-items: center; gap: 20px; height: 38px; margin-left: auto; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
+  .toggle input {
+    appearance: none; position: relative; width: 30px; height: 18px; border-radius: 12px;
+    background: var(--text-muted); border: 0; cursor: pointer; flex-shrink: 0;
   }
-
-  .sg select { cursor: pointer; }
-  .sg input:focus, .sg select:focus { border-color: var(--accent); }
-  .sg input[type="number"] { width: 58px; }
-
-  .sg input[type="checkbox"] {
-    width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; padding: 0;
+  .toggle input::before {
+    content: ""; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; transition: transform .15s;
   }
-
-  .size-sep { color: var(--text-dim); font-size: 13px; }
-  .unit-label { font-size: 11px; color: var(--text-dim); }
-
-  .ghost-btn {
-    background: var(--surface2); color: var(--text-dim);
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 6px 13px; font-size: 12px; font-weight: 600;
-    font-family: var(--font-ui); cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: border-color 0.15s, color 0.15s; white-space: nowrap;
+  .toggle input:checked { background: var(--accent); }
+  .toggle input:checked::before { transform: translateX(12px); }
+  .workspace-panels { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+  .editor-panel, .preview-panel {
+    display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(20,30,48,.025);
   }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;
+    height: 58px; padding: 10px 18px; border-bottom: 1px solid var(--border);
+  }
+  .panel-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .panel-title svg { color: var(--text-muted); flex-shrink: 0; }
+  .panel-title h2 { font-size: 13px; font-weight: 600; white-space: nowrap; }
 
-  .ghost-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-  .ghost-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
+  /* Source editor */
+  .editor-body { flex: 1; min-height: 0; display: flex; background: var(--editor); overflow: hidden; }
+  #line-numbers, #zpl-input { font: 13px/22px var(--font-mono); padding-top: 20px; padding-bottom: 24px; tab-size: 2; }
+  #line-numbers {
+    flex-shrink: 0; min-width: 48px; padding-left: 14px; padding-right: 12px;
+    text-align: right; color: var(--text-muted); overflow: hidden; user-select: none;
+  }
+  #zpl-input {
+    display: block; flex: 1; min-width: 0; min-height: 0; width: 100%; padding-left: 4px; padding-right: 20px;
+    background: transparent; color: var(--text); border: 0; outline: none; resize: none; overflow: auto; caret-color: var(--accent);
+  }
+  .editor-body:focus-within { box-shadow: inset 0 0 0 2px var(--sel); }
+  .editor-meta {
+    display: flex; align-items: center; gap: 12px; min-height: 34px; padding: 6px 18px;
+    border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; flex-shrink: 0;
+  }
+  .syntax-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+  .syntax-status:empty { display: none; }
+  .syntax-status.syn-ok::before, .syntax-status.syn-err::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; }
+  .syntax-status.syn-ok::before { background: var(--success); }
+  .syntax-status.syn-err::before { background: var(--error); }
+  #caret-pos { margin-left: auto; white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .editor-actions { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--border); }
   #file-input { display: none; }
-
+  .ghost-btn, .fmt-btn, .compare-btn, .dl-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px;
+    padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text-dim); font-size: 12px; font-weight: 500;
+    text-decoration: none; white-space: nowrap; cursor: pointer;
+  }
+  .ghost-btn:hover:not(:disabled), .fmt-btn:hover:not(:disabled), .compare-btn:hover:not(:disabled), .dl-btn:hover:not(:disabled) {
+    color: var(--text); background: var(--surface2); border-color: var(--text-muted);
+  }
+  .fmt-btn { border-color: transparent; min-height: 32px; padding: 5px 8px; }
   #render-btn {
-    margin-left: auto; background: var(--accent); color: #fff;
-    border: none; border-radius: 6px; padding: 7px 18px;
-    font-size: 13px; font-weight: 600; font-family: var(--font-ui);
-    cursor: pointer; display: flex; align-items: center; gap: 6px;
-    transition: background 0.15s, transform 0.1s; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 16px;
+    border: 1px solid transparent; border-radius: 7px; background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
-
+  :root[data-theme="dark"] #render-btn { color: #101a30; }
   #render-btn:hover:not(:disabled) { background: var(--accent-hover); }
-  #render-btn:active:not(:disabled) { transform: scale(0.97); }
-  #render-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .shortcut { margin-left: 8px; font-size: 10px; font-weight: 400; opacity: .75; }
 
-  .shortcut {
-    font-size: 10px; opacity: 0.7;
-    background: var(--chip-bg); border-radius: 3px; padding: 1px 4px;
-  }
-
-  /* ── Preview panel ── */
-  .preview-panel {
-    display: flex; flex-direction: column;
-    background: var(--bg); overflow: hidden; position: relative;
-  }
-
+  /* Preview canvas and exports */
+  .preview-panel { position: relative; }
   #preview-scroll {
-    flex: 1; overflow: auto;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 20px 20px 0; gap: 16px;
+    display: flex; flex-direction: column; align-items: center; flex: 1; min-height: 0;
+    overflow: auto; padding: 24px; gap: 20px;
+    background: radial-gradient(var(--grid-dot) .8px, transparent .8px) 0 0 / 16px 16px, var(--canvas);
   }
-
   #preview-scroll.zoomed { align-items: flex-start; }
-
-  .empty-state { margin: auto; text-align: center; color: var(--text-dim); }
-  .empty-state svg { opacity: 0.2; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto; }
-  .empty-state p { font-size: 13px; }
-
-  /* ── Zoom control (floating, preview panel) ── */
-  #zoom-ctrl {
-    display: none; position: absolute; top: 10px; right: 12px; z-index: 5;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 6px; overflow: hidden; box-shadow: var(--shadow);
-  }
-  #zoom-ctrl.visible { display: flex; }
-
-  #zoom-ctrl button {
-    background: none; border: none; color: var(--text-dim);
-    font-family: var(--font-ui); font-size: 13px; padding: 5px 9px;
-    cursor: pointer; transition: color 0.15s, background 0.15s;
-  }
-  #zoom-ctrl button:hover { color: var(--accent); background: var(--surface2); }
-  #zoom-label {
-    font-size: 11px; color: var(--text-dim); padding: 5px 4px;
-    display: flex; align-items: center; min-width: 44px; justify-content: center;
-  }
-
-  #loading {
-    display: none; position: absolute; inset: 0;
-    background: var(--overlay); align-items: center;
-    justify-content: center; flex-direction: column; gap: 12px; z-index: 10;
-  }
-
-  #loading.active { display: flex; }
-
-  .spinner {
-    width: 32px; height: 32px; border: 3px solid var(--border);
-    border-top-color: var(--accent); border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-text { color: var(--text-dim); font-size: 13px; }
-
-  #error-banner {
-    display: none; width: 100%;
-    background: var(--err-bg); border: 1px solid var(--error);
-    border-radius: var(--radius); padding: 12px 16px;
-    color: var(--error); font-size: 12px; font-family: var(--font-mono);
-    word-break: break-word; white-space: pre-wrap;
-  }
-
-  #error-banner.visible { display: block; }
-
   #preview-img {
-    display: none; max-width: 100%;
-    border: 1px solid var(--border); border-radius: 4px;
-    box-shadow: var(--shadow); background: #fff;
+    display: none; max-width: none; flex-shrink: 0; height: auto; margin: auto;
+    border: 1px solid #d5dae2; border-radius: 2px; background: #fff; box-shadow: var(--shadow);
   }
-
   #preview-img.visible { display: block; }
-
-  /* ── Toast (preview panel bottom) ── */
-  #toast {
-    position: absolute; left: 50%; bottom: 46px;
-    transform: translateX(-50%) translateY(6px);
-    background: var(--surface); color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 8px 16px; font-size: 12px; font-family: var(--font-ui);
-    box-shadow: var(--shadow); opacity: 0; pointer-events: none;
-    transition: opacity 0.2s, transform 0.2s; z-index: 20; white-space: nowrap;
+  #preview-scroll.zoomed #preview-img { margin: 0; }
+  .empty-state { margin: auto; text-align: center; max-width: 300px; padding: 20px 0; }
+  .empty-art { display: block; margin: 0 auto 22px; color: var(--text-muted); }
+  .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 7px; }
+  .empty-state p { color: var(--text-dim); font-size: 13px; line-height: 1.7; }
+  .empty-shortcut { margin-top: 18px; }
+  kbd { color: var(--text-dim); font: 11px var(--font-ui); padding: 5px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); }
+  #zoom-ctrl { display: none; align-items: center; gap: 2px; }
+  #zoom-ctrl.visible { display: flex; }
+  #zoom-ctrl button {
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+    background: transparent; color: var(--text-dim); border: 0; border-radius: 5px; cursor: pointer; font-size: 16px;
   }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* ── Download bar (sticky — stays visible under a tall label) ── */
-  #download-bar {
-    display: none; width: 100%;
-    padding: 14px 0 16px; margin-top: 4px;
-    border-top: 1px solid var(--border);
-    gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;
-    position: sticky; bottom: 0; z-index: 6; background: var(--bg);
-  }
-
+  #zoom-ctrl button:hover { background: var(--surface2); color: var(--text); }
+  #zoom-label { color: var(--text-dim); font-size: 11px; min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
+  #loading { display: none; position: absolute; inset: 58px 0 0; z-index: 10; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: var(--overlay); }
+  #loading.active { display: flex; }
+  .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text-dim); font-size: 13px; }
+  #error-banner { display: none; width: 100%; color: var(--error); background: var(--err-bg); border: 1px solid var(--error); border-radius: 8px; padding: 14px; font: 12px/1.7 var(--font-mono); overflow-wrap: anywhere; white-space: pre-wrap; }
+  #error-banner.visible { display: block; }
+  .preview-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; flex-shrink: 0; padding: 12px 18px; border-top: 1px solid var(--border); }
+  .compare-btn { min-height: 38px; padding: 7px 12px; color: var(--accent); background: var(--accent-soft); }
+  .compare-btn:disabled { opacity: .65; }
+  .compare-note { font-size: 10px; padding: 2px 5px; background: var(--surface); border-radius: 4px; }
+  #download-bar { display: none; align-items: center; justify-content: flex-end; gap: 7px; width: 100%; }
   #download-bar.visible { display: flex; }
-
-  .dl-btn {
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 8px 20px; border-radius: 6px; font-size: 13px;
-    font-weight: 600; font-family: var(--font-ui);
-    cursor: pointer; border: none; transition: background 0.15s, opacity 0.15s;
-    text-decoration: none;
-  }
-
-  .dl-btn-png {
-    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
-  }
-
-  .dl-btn-png:hover { border-color: var(--accent); color: var(--accent); }
-
-  .dl-btn-pdf { background: var(--accent); color: #fff; }
-  .dl-btn-pdf:hover:not(:disabled) { background: var(--accent-hover); }
-  .dl-btn-pdf:disabled { opacity: 0.55; cursor: not-allowed; }
-
-  .icon-only { padding: 8px 11px; }
-
-  .mini-spinner {
-    display: none; width: 13px; height: 13px;
-    border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-    border-radius: 50%; animation: spin 0.7s linear infinite;
-  }
-
+  .dl-btn { color: var(--text); padding: 7px 10px; font-size: 11px; }
+  .dl-btn-pdf { background: var(--surface2); }
+  .icon-only { width: 34px; padding: 7px; }
+  .mini-spinner { display: none; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
   .dl-btn-pdf.loading .mini-spinner { display: inline-block; }
-  .dl-btn-pdf.loading .dl-icon-pdf  { display: none; }
+  .dl-btn-pdf.loading .dl-icon-pdf { display: none; }
+  .status-bar { display: flex; align-items: center; gap: 12px; min-height: 30px; padding: 6px 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
+  #status-size { margin-left: auto; }
+  .status-ok { color: var(--success); }
+  .status-err { color: var(--error); }
+  #status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #status-size, #status-time { flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #toast { position: fixed; left: 50%; bottom: 38px; z-index: 20; max-width: calc(100vw - 32px); width: max-content; padding: 11px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-size: 12px; text-align: center; opacity: 0; pointer-events: none; transform: translate(-50%,8px); transition: opacity .2s, transform .2s; }
+  #toast.show { opacity: 1; transform: translate(-50%,0); }
 
-  /* ── Compare with Labelary ── */
-  .compare-btn {
-    background: var(--surface2); color: var(--text-dim);
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 7px 14px; font-size: 12px; font-weight: 600;
-    font-family: var(--font-ui); cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: border-color 0.15s, color 0.15s; white-space: nowrap;
-  }
-
-  .compare-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-  .compare-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
+  /* Reference comparison */
   #compare-section { display: none; width: 100%; }
   #compare-section.visible { display: block; }
+  .verdict-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .verdict-badge { font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 4px 8px; border-radius: 4px; color: var(--badge-fg); }
+  .v-perfect, .v-good { background: var(--verdict-ok); }
+  .v-minor { background: var(--verdict-warn); }
+  .v-moderate { background: var(--verdict-mod); }
+  .v-high { background: var(--verdict-bad); }
+  .verdict-meta { color: var(--text-dim); font-size: 11px; }
+  .compare-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .compare-col { flex: 1 1 130px; min-width: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .col-title { display: block; padding: 9px 10px; color: var(--text-dim); font-size: 10px; border-bottom: 1px solid var(--border); }
+  .compare-col img { display: block; width: 100%; background: #fff; }
 
-  .verdict-row {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 10px 14px;
-  }
-
-  .verdict-badge {
-    font-size: 12px; font-weight: 800; letter-spacing: 0.6px;
-    padding: 3px 10px; border-radius: 4px; color: var(--badge-fg);
-  }
-
-  .v-perfect, .v-good  { background: var(--verdict-ok); }
-  .v-minor             { background: var(--verdict-warn); }
-  .v-moderate          { background: var(--verdict-mod); }
-  .v-high              { background: var(--verdict-bad); }
-
-  .verdict-meta { font-size: 12px; color: var(--text-dim); }
-
-  .compare-grid {
-    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px;
-  }
-
-  .compare-col {
-    flex: 1 1 150px; min-width: 0;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden;
-  }
-
-  .compare-col .col-title {
-    display: block; padding: 6px 12px; font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim);
-    background: var(--surface2); border-bottom: 1px solid var(--border);
-  }
-
-  .compare-col img {
-    display: block; width: 100%; background: #fff;
-  }
-
-  /* ── Status bar ── */
-  .status-bar {
-    flex-shrink: 0; background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: 4px 14px; font-size: 11px; color: var(--text-dim);
-    display: flex; gap: 16px; align-items: center;
-  }
-
-  .status-ok  { color: var(--success); }
-  .status-err { color: var(--error); }
-
-  /* ── About / FAQ disclosure ── */
-  details.about {
-    flex-shrink: 0; background: var(--surface);
-    border-top: 1px solid var(--border);
-    font-size: 12px; color: var(--text-dim);
-  }
-  details.about summary {
-    cursor: pointer; padding: 6px 16px; list-style: none;
-    user-select: none; display: flex; align-items: center; gap: 6px;
-  }
+  /* Quiet footer disclosure */
+  details.about { flex-shrink: 0; color: var(--text-dim); font-size: 11px; }
+  details.about summary { display: flex; align-items: center; justify-content: center; gap: 8px; list-style: none; padding: 6px 20px 14px; cursor: pointer; user-select: none; }
   details.about summary::-webkit-details-marker { display: none; }
-  details.about summary::before { content: "▸"; font-size: 10px; transition: transform 0.15s; }
-  details.about[open] summary::before { transform: rotate(90deg); }
-  details.about[open] summary { border-bottom: 1px solid var(--border); }
-  .about-body { padding: 12px 20px 16px; max-height: 42vh; overflow: auto; line-height: 1.55; }
-  .about-body h1 { font-size: 14px; color: var(--text); margin: 0 0 8px; }
-  .about-body h2 { font-size: 12px; color: var(--text); margin: 14px 0 4px; }
-  .about-body p { margin: 0 0 8px; max-width: 76ch; }
-  .about-body ul { margin: 0 0 8px 18px; padding: 0; }
-  .about-body li { margin: 2px 0; }
-  .about-body dl { margin: 0; }
-  .about-body dt { color: var(--text); font-weight: 600; margin-top: 8px; }
-  .about-body dd { margin: 2px 0 0; max-width: 76ch; }
-  .about-body code {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 3px; padding: 0 4px;
-  }
+  details.about summary::before { content: "+"; font-size: 14px; }
+  details.about[open] summary::before { content: "−"; }
+  details.about[open] { background: var(--surface); border-top: 1px solid var(--border); }
+  details.about[open] summary { padding: 10px 20px; border-bottom: 1px solid var(--border); }
+  .about-body { max-width: 1000px; margin: auto; padding: 20px 32px; max-height: 38vh; overflow: auto; font-size: 12px; line-height: 1.8; }
+  .about-body h1 { color: var(--text); font-size: 15px; margin-bottom: 8px; }
+  .about-body h2 { color: var(--text); font-size: 13px; margin: 16px 0 4px; }
+  .about-body p { margin-bottom: 8px; }
+  .about-body ul { margin: 8px 0 8px 20px; }
+  .about-body dt { color: var(--text); font-weight: 600; margin-top: 10px; }
+  .about-body code { background: var(--surface2); border-radius: 3px; padding: 2px 4px; }
   .about-body a { color: var(--accent); text-decoration: none; }
   .about-body a:hover { text-decoration: underline; }
-  .about-links { margin-top: 10px; }
+  .about-links { margin-top: 14px; }
 
-  /* ── Responsive: stack editor above preview on narrow screens ── */
-  @media (max-width: 880px) {
-    header { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
-    .tagline { display: none; }
-    .badge { display: none; }
-    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 44%) minmax(0, 56%); }
-    .editor-panel { border-right: none; border-bottom: 1px solid var(--border); }
-    #render-btn { margin-left: 0; }
+  @media (max-width: 1100px) {
+    .app-header { padding: 12px 24px; }
+    main { padding: 22px 24px 14px; gap: 16px; }
+    .workspace-panels { gap: 16px; }
+    .settings-bar { gap: 14px; }
+    .settings-toggles { gap: 14px; }
+    .preview-actions { padding: 12px; }
+    .dl-btn { padding: 7px 8px; }
   }
-
+  @media (max-width: 900px), (max-height: 640px) {
+    html, body { height: auto; min-height: 100%; }
+    body { overflow: auto; }
+    main { flex: none; }
+    .workspace-panels { flex: none; min-height: 540px; }
+  }
+  @media (max-width: 900px) {
+    .workspace-intro { align-items: flex-start; flex-direction: column; gap: 16px; }
+    .intro-actions { width: 100%; }
+    .workspace-panels { grid-template-columns: minmax(0,1fr); }
+    .editor-panel { height: 470px; }
+    .preview-panel { height: 620px; }
+    .settings-toggles { margin-left: 0; }
+  }
+  @media (max-width: 600px) {
+    .app-header { min-height: 60px; padding: 10px 16px; gap: 12px; }
+    .logo { gap: 7px; }
+    .logo-icon { width: 25px; height: 25px; }
+    .logo-text { font-size: 17px; }
+    .nav-label, .header-link { display: none; }
+    .header-actions { gap: 5px; }
+    #lang { max-width: 106px; padding-left: 8px; }
+    main { padding: 24px 16px 12px; }
+    .workspace-intro { align-items: flex-start; flex-direction: column; gap: 16px; }
+    .workspace-intro h1 { font-size: 24px; }
+    .intro-actions { flex-wrap: wrap; }
+    .intro-actions .compare-btn { flex: 1 1 100%; }
+    #samples { flex: 1; max-width: none; min-width: 0; }
+    .intro-actions .ghost-btn { min-height: 38px; }
+    .settings-bar { padding: 16px; gap: 14px 12px; }
+    .settings-bar > .setting { flex: 1 1 calc(50% - 12px); }
+    .settings-bar #fmt, .settings-bar #size-preset, .settings-bar #dpmm { min-width: 0; width: 100%; }
+    #custom-size { flex: 1 1 100%; gap: 8px; }
+    #custom-size .setting { flex: 1; width: auto; }
+    #custom-size .unit-setting { flex: 0 0 72px; }
+    .settings-toggles { flex: 1 1 100%; gap: 22px; }
+    .panel-header { padding: 10px 14px; }
+    .editor-actions { padding: 12px 14px; }
+    .editor-meta, .status-bar { padding-left: 14px; padding-right: 14px; }
+    .editor-panel { height: 430px; }
+    .preview-panel { height: 570px; }
+    #preview-scroll { padding: 20px; }
+    #line-numbers { min-width: 38px; padding-left: 8px; padding-right: 9px; }
+    #zpl-input { padding-right: 12px; }
+    .preview-actions { gap: 8px; }
+    #download-bar { margin-left: 0; }
+    .shortcut { display: none; }
+    details.about summary { font-size: 10px; }
+    .about-body { padding: 16px; }
+  }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      transition: none !important;
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-    }
+    *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   }
 </style>
 </head>
@@ -609,7 +491,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   </div>
 </noscript>
 
-<header>
+<header class="app-header">
   <div class="logo">
     <svg class="logo-icon" viewBox="374 246 520 471" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <defs>
@@ -623,23 +505,15 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     </svg>
     <span class="logo-text">Labelize</span>
   </div>
-  <span class="tagline" data-i18n="app.tagline">ZPL, EPL, TSPL, CPCL &amp; DPL Label Playground</span>
-  <span class="header-spacer"></span>
-  <select id="samples" class="hdr-select" aria-label="Samples" data-i18n-aria="hdr.samples">
-    <option value="" selected disabled data-i18n="hdr.samples">Samples</option>
-    <option value="shipping" data-i18n="sample.shipping">Shipping label</option>
-    <option value="barcodes" data-i18n="sample.barcodes">Barcodes &amp; 2D</option>
-    <option value="graphics" data-i18n="sample.graphics">Shapes &amp; graphics</option>
-    <option value="epl" data-i18n="sample.epl">EPL showcase</option>
-    <option value="tspl" data-i18n="sample.tspl">TSPL showcase</option>
-    <option value="cpcl" data-i18n="sample.cpcl">CPCL showcase</option>
-    <option value="dpl" data-i18n="sample.dpl">DPL showcase</option>
-  </select>
-  <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
+  <span class="nav-label" data-i18n="nav.playground">Playground</span>
+  <nav class="header-actions" aria-label="Resources and preferences" data-i18n-aria="nav.resources">
+    <a class="header-link" href="https://github.com/GOODBOY008/labelize/blob/main/docs/USAGE.md" target="_blank" rel="noopener" data-i18n="nav.docs">Documentation</a>
+    <a class="header-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
+    <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
     <option value="en">English</option>
     <option value="zh">简体中文</option>
   </select>
-  <button id="theme-btn" type="button" title="Toggle theme" aria-label="Toggle theme"
+    <button id="theme-btn" type="button" title="Toggle theme" aria-label="Toggle theme"
           data-i18n-title="hdr.theme" data-i18n-aria="hdr.theme">
     <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="5"/>
@@ -652,21 +526,111 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </svg>
   </button>
-  <a class="github-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
-  <span class="badge">main</span>
+  </nav>
 </header>
 
 <main>
-  <!-- ── Left: Editor + Settings ── -->
-  <div class="editor-panel">
-    <div class="panel-header">
-      <span class="dot"></span><span data-i18n="panel.code">ZPL / EPL Code</span>
-      <span id="syntax-status" class="syntax-status" aria-live="polite"></span>
-      <button id="format-btn" class="fmt-btn" data-i18n="btn.format" title="Reflow one command per line">Format</button>
-      <span id="caret-pos" class="hdr-side" aria-live="off"></span>
+  <section class="workspace-intro" aria-labelledby="workspace-title">
+    <div>
+      <h1 id="workspace-title" data-i18n="workspace.title">Label playground</h1>
+      <p data-i18n="workspace.description">Write, preview, and export your thermal labels.</p>
     </div>
+    <div class="intro-actions">
+      <select id="samples" class="hdr-select" aria-label="Samples" data-i18n-aria="hdr.samples">
+    <option value="" selected disabled data-i18n="hdr.samples">Samples</option>
+    <option value="shipping" data-i18n="sample.shipping">Shipping label</option>
+    <option value="barcodes" data-i18n="sample.barcodes">Barcodes &amp; 2D</option>
+    <option value="graphics" data-i18n="sample.graphics">Shapes &amp; graphics</option>
+    <option value="epl" data-i18n="sample.epl">EPL showcase</option>
+    <option value="tspl" data-i18n="sample.tspl">TSPL showcase</option>
+    <option value="cpcl" data-i18n="sample.cpcl">CPCL showcase</option>
+    <option value="dpl" data-i18n="sample.dpl">DPL showcase</option>
+  </select>
+      <input id="file-input" type="file" accept=".zpl,.epl,.tspl,.cpcl,.dpl">
+      <button id="open-file-btn" class="ghost-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span data-i18n="btn.open">Open File</span>
+      </button>
+      <button id="compare-btn" class="compare-btn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg> <span data-i18n="btn.compare">Compare with Labelary</span>
+        <span id="compare-note" class="compare-note" hidden data-i18n="compare.zplOnly">ZPL only</span>
+      </button>
+    </div>
+  </section>
 
-    <textarea id="zpl-input" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">^XA
+  <section class="settings-bar" aria-label="Label settings" data-i18n-aria="panel.settings">
+    <div class="setting">
+      <label for="fmt" data-i18n="field.format">Format</label>
+      <select id="fmt">
+          <option value="zpl" selected>ZPL</option>
+          <option value="epl">EPL</option>
+          <option value="tspl">TSPL</option>
+          <option value="cpcl">CPCL</option>
+          <option value="dpl">DPL</option>
+        </select>
+    </div>
+    <div class="setting">
+      <label for="size-preset" data-i18n="field.size">Label size</label>
+      <select id="size-preset">
+          <option value="4x6" selected data-i18n="size.4x6">4 &times; 6 in</option>
+          <option value="4x4" data-i18n="size.4x4">4 &times; 4 in</option>
+          <option value="4x3" data-i18n="size.4x3">4 &times; 3 in</option>
+          <option value="2x4" data-i18n="size.2x4">2 &times; 4 in</option>
+          <option value="2x2" data-i18n="size.2x2">2 &times; 2 in</option>
+          <option value="3.5x1.5" data-i18n="size.35x15">3.5 &times; 1.5 in</option>
+          <option value="custom" data-i18n="size.custom">Custom&hellip;</option>
+        </select>
+    </div>
+    <div id="custom-size">
+      <div class="setting">
+        <label for="label-width" data-i18n="field.width">Width</label>
+        <input id="label-width" type="number" value="101.6" min="0" step="any" required>
+      </div>
+      <span class="size-sep" aria-hidden="true">×</span>
+      <div class="setting">
+        <label for="label-height" data-i18n="field.height">Height</label>
+        <input id="label-height" type="number" value="152.4" min="0" step="any" required>
+      </div>
+      <div class="setting unit-setting">
+        <label for="size-unit" data-i18n="field.unit">Unit</label>
+        <select id="size-unit" aria-label="Size unit" data-i18n-aria="field.unit">
+          <option value="mm" selected data-i18n="unit.mm">mm</option>
+          <option value="in" data-i18n="unit.in">in</option>
+        </select>
+      </div>
+    </div>
+    <div class="setting">
+      <label for="dpmm" data-i18n="field.resolution">Resolution</label>
+      <select id="dpmm">
+          <option value="6">6 dpmm</option>
+          <option value="8" selected>8 dpmm</option>
+          <option value="12">12 dpmm</option>
+          <option value="24">24 dpmm</option>
+        </select>
+    </div>
+    <div class="settings-toggles">
+      <label class="toggle" for="auto-render" id="auto-wrap" title="Re-render automatically as you type" data-i18n-title="tip.auto">
+        <input type="checkbox" id="auto-render" checked>
+        <span data-i18n="btn.auto">Live preview</span>
+      </label>
+      <label class="toggle" for="antialias" id="aa-wrap" title="Emit 8-bit grayscale output instead of 1-bit black/white" data-i18n-title="tip.aa">
+        <input type="checkbox" id="antialias">
+        <span data-i18n="btn.aa">Antialias</span>
+      </label>
+    </div>
+  </section>
+
+  <div class="workspace-panels">
+    <section class="editor-panel" aria-labelledby="source-heading">
+      <div class="panel-header">
+        <div class="panel-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 16"/></svg><h2 id="source-heading" data-i18n="panel.code">Source code</h2></div>
+        <button id="format-btn" class="fmt-btn" type="button" data-i18n="btn.format" data-i18n-title="tip.format" title="Reflow one command per line">Format code</button>
+      </div>
+      <div class="editor-body">
+        <pre id="line-numbers" aria-hidden="true">1</pre>
+        <textarea id="zpl-input" aria-label="Label source code" data-i18n-aria="panel.sourceLabel" wrap="off" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">^XA
 ^FX Top section with logo, name and address.
 ^CF0,60
 ^FO50,50^GB100,100,100^FS
@@ -694,151 +658,54 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 ^FO100,550^BC^FD12345678^FS
 ^FO100,850^BY2,3,60^BQ,,2^FDQA,https://github.com/GOODBOY008/labelize^FS
 ^XZ</textarea>
-
-    <div class="settings-bar">
-      <div class="sg">
-        <label for="fmt" data-i18n="field.format">Format</label>
-        <select id="fmt">
-          <option value="zpl" selected>ZPL</option>
-          <option value="epl">EPL</option>
-          <option value="tspl">TSPL</option>
-          <option value="cpcl">CPCL</option>
-          <option value="dpl">DPL</option>
-        </select>
       </div>
-
-      <div class="sg">
-        <label for="size-preset" data-i18n="field.size">Size</label>
-        <select id="size-preset">
-          <option value="4x6" selected data-i18n="size.4x6">4 &times; 6 in</option>
-          <option value="4x4" data-i18n="size.4x4">4 &times; 4 in</option>
-          <option value="4x3" data-i18n="size.4x3">4 &times; 3 in</option>
-          <option value="2x4" data-i18n="size.2x4">2 &times; 4 in</option>
-          <option value="2x2" data-i18n="size.2x2">2 &times; 2 in</option>
-          <option value="3.5x1.5" data-i18n="size.35x15">3.5 &times; 1.5 in</option>
-          <option value="custom" data-i18n="size.custom">Custom&hellip;</option>
-        </select>
+      <div class="editor-meta">
+        <span id="syntax-status" class="syntax-status" aria-live="polite"></span>
+        <span id="caret-pos" aria-live="off"></span>
       </div>
-
-      <div class="sg" id="custom-size" style="display:none">
-        <label for="width-in">W</label>
-        <input id="width-in" type="number" value="4" min="0.5" max="15" step="0.1">
-        <span class="size-sep">&times;</span>
-        <label for="height-in">H</label>
-        <input id="height-in" type="number" value="6" min="0.5" max="15" step="0.1">
-        <span class="unit-label" data-i18n="unit.in">in</span>
-      </div>
-
-      <div class="sg">
-        <label for="dpmm">dpmm</label>
-        <select id="dpmm">
-          <option value="6">6</option>
-          <option value="8" selected>8</option>
-          <option value="12">12</option>
-          <option value="24">24</option>
-        </select>
-      </div>
-
-      <input id="file-input" type="file" accept=".zpl,.epl,.tspl,.cpcl,.dpl">
-      <button id="open-file-btn" class="ghost-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
-        <span data-i18n="btn.open">Open File</span>
-      </button>
-
-      <button id="compare-btn" class="compare-btn">
-        &#8646; <span data-i18n="btn.compare">Compare with Labelary</span>
-      </button>
-
-      <label class="sg" for="auto-render" id="auto-wrap" title="Re-render automatically as you type" data-i18n-title="tip.auto">
-        <input type="checkbox" id="auto-render" checked>
-        <span data-i18n="btn.auto">Auto</span>
-      </label>
-
-      <label class="sg" for="antialias" id="aa-wrap" title="Emit 8-bit grayscale output instead of 1-bit black/white" data-i18n-title="tip.aa">
-        <input type="checkbox" id="antialias">
-        <span data-i18n="btn.aa">Antialias</span>
-      </label>
-
-      <button id="share-btn" class="ghost-btn" title="Copy a permalink to this label" data-i18n-title="tip.share">
+      <div class="editor-actions">
+        <button id="share-btn" class="ghost-btn" title="Copy a permalink to this label" data-i18n-title="tip.share">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
         </svg>
         <span data-i18n="btn.share">Share</span>
       </button>
-
-      <button id="render-btn">
-        &#9654; <span data-i18n="btn.render">Render</span> <span class="shortcut">Ctrl+&#9166;</span>
+        <button id="render-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l14-8z"/></svg> <span data-i18n="btn.render">Render</span> <span class="shortcut">Ctrl+&#9166;</span>
       </button>
-    </div>
-  </div>
+      </div>
+    </section>
 
-  <!-- ── Right: Preview ── -->
-  <div class="preview-panel">
-    <div class="panel-header">
-      <span class="dot" style="background:var(--success)"></span><span data-i18n="panel.preview">Preview</span>
-      <span id="status-text" aria-live="polite" class="hdr-side"></span>
-    </div>
-
-    <div id="zoom-ctrl">
+    <section class="preview-panel" aria-labelledby="preview-heading">
+      <div class="panel-header">
+        <div class="panel-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h5M8 15v3m3-3v3m2-3v3m3-3v3"/></svg><h2 id="preview-heading" data-i18n="panel.preview">Label preview</h2></div>
+        <div id="zoom-ctrl">
       <button id="zoom-out" type="button" title="Zoom out" data-i18n-title="tip.zoomOut">&minus;</button>
       <span id="zoom-label">Fit</span>
       <button id="zoom-in" type="button" title="Zoom in" data-i18n-title="tip.zoomIn">+</button>
-      <button id="zoom-fit" type="button" title="Fit to panel width" data-i18n-title="tip.zoomFit">&#9974;</button>
+      <button id="zoom-fit" type="button" title="Fit label to preview" aria-label="Fit label to preview" data-i18n-title="tip.zoomFit" data-i18n-aria="tip.zoomFit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
     </div>
-
-    <div id="loading">
+      </div>
+      <div id="loading">
       <div class="spinner"></div>
       <span class="loading-text" id="loading-text" data-i18n="loading.render">Rendering&hellip;</span>
     </div>
-
-    <div id="preview-scroll">
-      <div class="empty-state" id="empty-state">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-          <rect x="3" y="3" width="18" height="18" rx="2"/>
-          <line x1="3" y1="9" x2="21" y2="9"/>
-          <line x1="9" y1="21" x2="9" y2="9"/>
-        </svg>
-        <p data-i18n-html="empty.title">Press <strong>Render</strong> to preview your label</p>
-        <p style="font-size:11px;margin-top:6px;opacity:0.55">Ctrl+Enter</p>
-      </div>
-
-      <div id="error-banner" role="alert"></div>
-      <img id="preview-img" alt="Rendered label" data-i18n-alt="alt.preview">
-
-      <!-- Download bar — appears after a successful render -->
-      <div id="download-bar">
-        <a id="dl-png" class="dl-btn dl-btn-png" href="#" download="label.png">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
+      <div id="preview-scroll">
+        <div class="empty-state" id="empty-state">
+          <svg class="empty-art" width="76" height="88" viewBox="0 0 76 88" fill="none" aria-hidden="true">
+            <rect x="10" y="4" width="56" height="76" rx="7" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+            <path d="M23 22h30M23 30h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M23 47v15m5-15v15m3-15v15m6-15v15m4-15v15m6-15v15m5-15v15" stroke="currentColor" stroke-width="2"/>
+            <path d="M27 70h22" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <span data-i18n="dl.png">Download PNG</span>
-        </a>
-
-        <button id="copy-img-btn" class="dl-btn dl-btn-png icon-only" title="Copy PNG to clipboard"
-                data-i18n-title="tip.copyImg" aria-label="Copy PNG to clipboard" data-i18n-aria="tip.copyImg">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <rect x="9" y="9" width="13" height="13" rx="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-        </button>
-
-        <button id="dl-pdf" class="dl-btn dl-btn-pdf">
-          <svg class="dl-icon-pdf" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          <span class="mini-spinner"></span>
-          <span data-i18n="dl.pdf">Download PDF</span>
-        </button>
-      </div>
-    <!-- Compare with Labelary — appears after a successful comparison -->
-      <div id="compare-section">
+          <h3 data-i18n="empty.heading">Preview your label</h3>
+          <p data-i18n-html="empty.title">Choose your settings, then press <strong>Render</strong> to see the result.</p>
+          <div class="empty-shortcut"><kbd>Ctrl + Enter</kbd></div>
+        </div>
+        <div id="error-banner" role="alert"></div>
+        <img id="preview-img" alt="Rendered label" data-i18n-alt="alt.preview">
+        <div id="compare-section">
         <div class="verdict-row">
           <span id="verdict-badge" class="verdict-badge"></span>
           <span id="verdict-meta" class="verdict-meta"></span>
@@ -858,14 +725,42 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
           </div>
         </div>
       </div>
-    </div><!-- /preview-scroll -->
+      </div>
+      <div id="download-bar" class="preview-actions">
+        <a id="dl-png" class="dl-btn dl-btn-png" href="#" download="label.png" title="Download PNG" aria-label="Download PNG" data-i18n-title="dl.png" data-i18n-aria="dl.png">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>PNG</span>
+        </a>
 
-    <div id="toast" role="status"></div>
+        <button id="copy-img-btn" class="dl-btn dl-btn-png icon-only" title="Copy PNG to clipboard"
+                data-i18n-title="tip.copyImg" aria-label="Copy PNG to clipboard" data-i18n-aria="tip.copyImg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+        </button>
 
-    <div class="status-bar">
-      <span id="status-size"></span>
-      <span id="status-time"></span>
-    </div>
+        <button id="dl-pdf" class="dl-btn dl-btn-pdf" title="Download PDF" aria-label="Download PDF" data-i18n-title="dl.pdf" data-i18n-aria="dl.pdf">
+          <svg class="dl-icon-pdf" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span class="mini-spinner"></span>
+          <span>PDF</span>
+        </button>
+      </div>
+      <div class="status-bar">
+        <span id="status-text" aria-live="polite"></span>
+        <span id="status-size"></span>
+        <span id="status-time"></span>
+      </div>
+      <div id="toast" role="status"></div>
+    </section>
   </div>
 </main>
 
@@ -914,6 +809,16 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
      go through t(key) and fmt(t(key), {placeholder: value}). */
   var I18N = {
     en: {
+      "nav.playground": "Playground",
+      "nav.resources": "Resources and preferences",
+      "nav.docs": "Documentation",
+      "workspace.title": "Label playground",
+      "workspace.description": "Write, preview, and export your thermal labels.",
+      "panel.settings": "Label settings",
+      "panel.sourceLabel": "Label source code",
+      "field.resolution": "Resolution",
+      "empty.heading": "Preview your label",
+      "tip.format": "Reflow one command per line",
       "app.title": "Free ZPL Viewer — ZPL, EPL, TSPL, CPCL & DPL to PNG | Labelize",
       "app.tagline": "ZPL, EPL, TSPL, CPCL & DPL Label Playground",
       "about.summary": "About Labelize · FAQ · Open source (MIT)",
@@ -932,14 +837,18 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "about.gh": "GitHub source",
       "about.npm": "npm package",
       "about.crates": "crates.io",
-      "hdr.samples": "Samples",
+      "hdr.samples": "Load a sample",
       "hdr.lang": "Language",
       "hdr.theme": "Toggle theme",
-      "panel.code": "ZPL / EPL / TSPL / CPCL / DPL Code",
-      "panel.preview": "Preview",
+      "panel.code": "Source code",
+      "panel.preview": "Label preview",
       "field.format": "Format",
-      "field.size": "Size",
+      "field.size": "Label size",
+      "field.width": "Width",
+      "field.height": "Height",
+      "field.unit": "Unit",
       "unit.in": "in",
+      "unit.mm": "mm",
       "size.4x6": "4 × 6 in",
       "size.4x4": "4 × 4 in",
       "size.4x3": "4 × 3 in",
@@ -954,18 +863,19 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "sample.tspl": "TSPL showcase",
       "sample.cpcl": "CPCL showcase",
       "sample.dpl": "DPL showcase",
-      "btn.format": "Format",
+      "btn.format": "Format code",
       "syn.ok": "syntax OK",
       "syn.bad": "syntax error",
       "syn.oneLabel": "1 label",
       "syn.nLabels": "{n} labels",
       "btn.open": "Open File",
       "btn.compare": "Compare with Labelary",
+      "compare.zplOnly": "ZPL only",
       "btn.render": "Render",
-      "btn.auto": "Auto",
+      "btn.auto": "Live preview",
       "btn.aa": "Antialias",
       "btn.share": "Share",
-      "empty.title": "Press <strong>Render</strong> to preview your label",
+      "empty.title": "Choose your settings, then press <strong>Render</strong> to see the result.",
       "loading.render": "Rendering…",
       "loading.compare": "Comparing…",
       "dl.png": "Download PNG",
@@ -985,13 +895,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "tip.copyImg": "Copy PNG to clipboard",
       "tip.zoomIn": "Zoom in",
       "tip.zoomOut": "Zoom out",
-      "tip.zoomFit": "Fit to panel width",
+      "tip.zoomFit": "Fit label to preview",
       "zoom.fit": "Fit",
       "caret": "Ln {ln}, Col {col}",
       "toast.urlCopied": "Share link copied to clipboard",
       "toast.imgCopied": "PNG copied to clipboard",
       "toast.copyFail": "Copy failed: {msg}",
       "err.empty": "Editor is empty — paste some ZPL, EPL, TSPL, CPCL or DPL first.",
+      "err.size": "Enter a positive number for both label width and height.",
       "err.server": "Server error {status}: {body}",
       "err.network": "Network error: {msg}",
       "err.epl": "Labelary does not support EPL — switch to ZPL to compare.",
@@ -1017,6 +928,16 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "alt.diff": "Diff overlay"
     },
     zh: {
+      "nav.playground": "在线预览",
+      "nav.resources": "资源与偏好设置",
+      "nav.docs": "使用文档",
+      "workspace.title": "标签工作台",
+      "workspace.description": "编写、预览并导出你的热敏标签。",
+      "panel.settings": "标签设置",
+      "panel.sourceLabel": "标签源代码",
+      "field.resolution": "分辨率",
+      "empty.heading": "预览你的标签",
+      "tip.format": "将每条指令整理为一行",
       "app.title": "Labelize — 免费在线 ZPL/EPL/TSPL/CPCL/DPL 标签查看器",
       "app.tagline": "ZPL、EPL、TSPL、CPCL 与 DPL 标签在线预览",
       "about.summary": "关于 Labelize · FAQ · 开源（MIT）",
@@ -1035,14 +956,18 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "about.gh": "GitHub 源码",
       "about.npm": "npm 包",
       "about.crates": "crates.io",
-      "hdr.samples": "示例",
+      "hdr.samples": "加载示例",
       "hdr.lang": "语言",
       "hdr.theme": "切换主题",
-      "panel.code": "ZPL / EPL / TSPL / CPCL / DPL 代码",
-      "panel.preview": "预览",
+      "panel.code": "源代码",
+      "panel.preview": "标签预览",
       "field.format": "格式",
-      "field.size": "尺寸",
+      "field.size": "标签尺寸",
+      "field.width": "宽度",
+      "field.height": "高度",
+      "field.unit": "单位",
       "unit.in": "英寸",
+      "unit.mm": "毫米",
       "size.4x6": "4 × 6 英寸",
       "size.4x4": "4 × 4 英寸",
       "size.4x3": "4 × 3 英寸",
@@ -1064,11 +989,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "syn.nLabels": "{n} 个标签",
       "btn.open": "打开文件",
       "btn.compare": "与 Labelary 对比",
+      "compare.zplOnly": "仅限 ZPL",
       "btn.render": "渲染",
-      "btn.auto": "自动",
+      "btn.auto": "实时预览",
       "btn.aa": "抗锯齿",
       "btn.share": "分享",
-      "empty.title": "点击<strong>渲染</strong>预览你的标签",
+      "empty.title": "设置好标签参数，点击<strong>渲染</strong>查看结果。",
       "loading.render": "渲染中…",
       "loading.compare": "对比中…",
       "dl.png": "下载 PNG",
@@ -1088,13 +1014,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "tip.copyImg": "复制 PNG 到剪贴板",
       "tip.zoomIn": "放大",
       "tip.zoomOut": "缩小",
-      "tip.zoomFit": "适应面板宽度",
+      "tip.zoomFit": "适应预览区域",
       "zoom.fit": "适应",
       "caret": "行 {ln}，列 {col}",
       "toast.urlCopied": "分享链接已复制到剪贴板",
       "toast.imgCopied": "PNG 已复制到剪贴板",
       "toast.copyFail": "复制失败：{msg}",
       "err.empty": "编辑器为空 — 请先粘贴 ZPL、EPL、TSPL、CPCL 或 DPL 代码。",
+      "err.size": "标签宽度和高度都必须是正数。",
       "err.server": "服务器错误 {status}：{body}",
       "err.network": "网络错误：{msg}",
       "err.epl": "Labelary 不支持 EPL — 请切换到 ZPL 后再对比。",
@@ -1285,6 +1212,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var openFileBtn  = document.getElementById("open-file-btn");
   var fileInput    = document.getElementById("file-input");
   var input        = document.getElementById("zpl-input");
+  var lineNumbers  = document.getElementById("line-numbers");
+  var editorLineCount = 0;
   var caretPos     = document.getElementById("caret-pos");
   var loading      = document.getElementById("loading");
   var loadingText  = document.getElementById("loading-text");
@@ -1298,14 +1227,15 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var copyImgBtn   = document.getElementById("copy-img-btn");
   var fmtSel       = document.getElementById("fmt");
   var sizePreset   = document.getElementById("size-preset");
-  var customSize   = document.getElementById("custom-size");
-  var widthIn      = document.getElementById("width-in");
-  var heightIn     = document.getElementById("height-in");
+  var widthInput   = document.getElementById("label-width");
+  var heightInput  = document.getElementById("label-height");
+  var sizeUnit     = document.getElementById("size-unit");
   var dpmmSel      = document.getElementById("dpmm");
   var statusText   = document.getElementById("status-text");
   var statusSize   = document.getElementById("status-size");
   var statusTime   = document.getElementById("status-time");
   var compareBtn     = document.getElementById("compare-btn");
+  var compareNote    = document.getElementById("compare-note");
   var compareSection = document.getElementById("compare-section");
   var verdictBadge   = document.getElementById("verdict-badge");
   var verdictMeta    = document.getElementById("verdict-meta");
@@ -1419,23 +1349,59 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     "3.5x1.5": [3.5, 1.5]
   };
 
-  sizePreset.addEventListener("change", function () {
-    var isCustom = this.value === "custom";
-    customSize.style.display = isCustom ? "flex" : "none";
-    if (!isCustom) {
-      var wh = SIZE_PRESETS[this.value];
-      widthIn.value  = wh[0];
-      heightIn.value = wh[1];
+  // Keep the physical size independent of the displayed unit. Converting the
+  // rounded input values back and forth would slowly change custom sizes.
+  var sizeMm = { width: 101.6, height: 152.4 };
+  var currentSizeUnit = "mm";
+
+  function displaySize() {
+    var scale = currentSizeUnit === "mm" ? 1 : 25.4;
+    widthInput.value  = +(sizeMm.width / scale).toFixed(6);
+    heightInput.value = +(sizeMm.height / scale).toFixed(6);
+  }
+
+  function validSize() {
+    return Number.isFinite(sizeMm.width) && sizeMm.width > 0 &&
+           Number.isFinite(sizeMm.height) && sizeMm.height > 0;
+  }
+
+  function sizeEdited() {
+    var scale = currentSizeUnit === "mm" ? 1 : 25.4;
+    if (this === widthInput) sizeMm.width = this.valueAsNumber * scale;
+    else sizeMm.height = this.valueAsNumber * scale;
+    sizePreset.value = "custom";
+    scheduleAutoRender();
+  }
+
+  widthInput.addEventListener("input", sizeEdited);
+  heightInput.addEventListener("input", sizeEdited);
+
+  sizeUnit.addEventListener("change", function () {
+    if (!validSize()) {
+      this.value = currentSizeUnit;
+      showToast(t("err.size"));
+      return;
     }
+    currentSizeUnit = this.value;
+    displaySize();
+  });
+
+  sizePreset.addEventListener("change", function () {
+    if (this.value !== "custom") {
+      var wh = SIZE_PRESETS[this.value];
+      sizeMm.width  = wh[0] * 25.4;
+      sizeMm.height = wh[1] * 25.4;
+      displaySize();
+    }
+    scheduleAutoRender();
   });
 
   function getParams() {
+    if (!validSize()) return null;
     var fmtVal = fmtSel.value;
     var dpmm  = parseInt(dpmmSel.value, 10) || 8;
-    var w_in  = parseFloat(widthIn.value)  || 4;
-    var h_in  = parseFloat(heightIn.value) || 6;
-    var w_mm  = +(w_in * 25.4).toFixed(2);
-    var h_mm  = +(h_in * 25.4).toFixed(2);
+    var w_mm  = +sizeMm.width.toFixed(6);
+    var h_mm  = +sizeMm.height.toFixed(6);
     return { fmt: fmtVal, dpmm: dpmm, w_mm: w_mm, h_mm: h_mm, aa: aaChk.checked };
   }
 
@@ -1481,7 +1447,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   function applyZoom() {
     if (zoomFit) {
-      previewImg.style.width = "";
+      var style = getComputedStyle(previewScroll);
+      var availableWidth = previewScroll.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      var availableHeight = previewScroll.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      var scale = Math.min(1, availableWidth / previewImg.naturalWidth, availableHeight / previewImg.naturalHeight);
+      previewImg.style.width = previewImg.naturalWidth ? Math.max(1, Math.floor(previewImg.naturalWidth * scale)) + "px" : "";
     } else {
       previewImg.style.width = Math.round(previewImg.naturalWidth * zoomLevel / 100) + "px";
     }
@@ -1507,6 +1477,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   zoomOutBtn.addEventListener("click", function () { zoomStep(-1); });
   zoomFitBtn.addEventListener("click", function () { zoomFit = true; applyZoom(); });
   previewImg.addEventListener("load", applyZoom);
+  if (window.ResizeObserver) {
+    new ResizeObserver(applyZoom).observe(previewScroll);
+  } else {
+    window.addEventListener("resize", applyZoom);
+  }
   previewImg.addEventListener("dblclick", function () {
     if (zoomFit) { zoomFit = false; zoomLevel = 100; } else { zoomFit = true; }
     applyZoom();
@@ -1523,6 +1498,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (!zpl) { if (!auto) showError(t("err.empty")); return; }
 
     var params = getParams();
+    if (!params) {
+      if (auto) setStatus(t("err.size"), "status-err");
+      else showError(t("err.size"));
+      return;
+    }
     if (!auto) {
       clearPreview();
       loadingText.textContent = t("loading.render");
@@ -1587,8 +1567,16 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var AUTO_DELAY = 600;
   var autoTimer = null;
 
+  function scheduleAutoRender() {
+    clearTimeout(autoTimer);
+    if (autoChk.checked) {
+      autoTimer = setTimeout(function () { render({ auto: true }); }, AUTO_DELAY);
+    }
+  }
+
   autoChk.checked = store.get("labelize-auto") !== "0";
   autoChk.addEventListener("change", function () {
+    clearTimeout(autoTimer);
     store.set("labelize-auto", this.checked ? "1" : "0");
     if (this.checked && input.value.trim()) render({ auto: true });
   });
@@ -1691,6 +1679,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (!zpl) { showError(t("err.empty")); return; }
 
     var params = getParams();
+    if (!params) { showError(t("err.size")); return; }
     var pxW = Math.ceil(params.w_mm * params.dpmm);
     var pxH = Math.ceil(params.h_mm * params.dpmm);
     if (pxW > 4096 || pxH > 4096) {
@@ -1712,7 +1701,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     // CORS-safelisted content type, so no preflight is triggered. Labelary does
     // not support EPL and rejects `application/epl` preflights, hence ZPL-only.
     var labelaryUrl = "https://api.labelary.com/v1/printers/" + params.dpmm +
-                      "dpmm/labels/" + widthIn.value + "x" + heightIn.value + "/0/";
+                      "dpmm/labels/" + (params.w_mm / 25.4) + "x" + (params.h_mm / 25.4) + "/0/";
 
     var ours = fetch(buildUrl(params, null), {
       method: "POST",
@@ -1774,6 +1763,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     var zpl = input.value.trim();
     if (!zpl) return;
     var params = getParams();
+    if (!params) { showError(t("err.size")); return; }
     dlPdf.classList.add("loading");
     dlPdf.disabled = true;
 
@@ -1821,8 +1811,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   });
 
   /* ── Share permalink (URL hash) ── */
-  // Format: #f=zpl&w=4&h=6&d=8&c=b<urlsafe-base64>  (or c=u<uri-component>
-  // when TextEncoder is unavailable).
+  // Format: #f=zpl&w=4&h=6&u=in&d=8&c=b<urlsafe-base64> (or
+  // c=u<uri-component> when TextEncoder is unavailable). Width/height stay
+  // in inches for compatibility; `u` selects the displayed unit (default in).
   function b64encode(str) {
     var bytes = new TextEncoder().encode(str);
     var bin = "";
@@ -1871,15 +1862,18 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     // must fully define render settings.
     aaChk.checked = q.a === "1";
     var w = parseFloat(q.w), h = parseFloat(q.h);
-    if (w > 0 && h > 0) {
-      widthIn.value = w;
-      heightIn.value = h;
+    if (Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0) {
+      currentSizeUnit = q.u === "mm" ? "mm" : "in";
+      sizeUnit.value = currentSizeUnit;
+      sizeMm.width = w * 25.4;
+      sizeMm.height = h * 25.4;
+      displaySize();
       var match = null;
       Object.keys(SIZE_PRESETS).forEach(function (k) {
-        if (SIZE_PRESETS[k][0] === w && SIZE_PRESETS[k][1] === h) match = k;
+        if (Math.abs(SIZE_PRESETS[k][0] * 25.4 - sizeMm.width) < 0.000001 &&
+            Math.abs(SIZE_PRESETS[k][1] * 25.4 - sizeMm.height) < 0.000001) match = k;
       });
       sizePreset.value = match || "custom";
-      customSize.style.display = match ? "none" : "flex";
     }
     return true;
   }
@@ -1887,10 +1881,13 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   shareBtn.addEventListener("click", function () {
     var code = input.value;
     if (!code.trim()) { showError(t("err.empty")); return; }
+    var params = getParams();
+    if (!params) { showError(t("err.size")); return; }
     var enc;
     try { enc = "b" + b64encode(code); }
     catch (e) { enc = "u" + encodeURIComponent(code); }
-    var hash = "f=" + fmtSel.value + "&w=" + widthIn.value + "&h=" + heightIn.value +
+    var hash = "f=" + fmtSel.value + "&w=" + (sizeMm.width / 25.4) + "&h=" + (sizeMm.height / 25.4) +
+               "&u=" + currentSizeUnit +
                "&d=" + dpmmSel.value + "&a=" + (aaChk.checked ? 1 : 0) + "&c=" + encodeURIComponent(enc);
     history.replaceState(null, "", "#" + hash);
     copyText(location.href)
@@ -1947,8 +1944,17 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     var ln = upto.split("\n").length;
     var col = pos - (upto.lastIndexOf("\n") + 1) + 1;
     caretPos.textContent = fmt(t("caret"), { ln: ln, col: col });
+    var count = input.value.split("\n").length;
+    if (count !== editorLineCount) {
+      var numbers = [];
+      for (var i = 1; i <= count; i++) numbers.push(i);
+      lineNumbers.textContent = numbers.join("\n");
+      editorLineCount = count;
+    }
+    lineNumbers.scrollTop = input.scrollTop;
   }
 
+  input.addEventListener("scroll", function () { lineNumbers.scrollTop = input.scrollTop; });
   input.addEventListener("keyup", updateCaret);
   input.addEventListener("click", updateCaret);
   input.addEventListener("select", updateCaret);
@@ -2057,6 +2063,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   function updateCompareState() {
     var noCompare = ["epl", "tspl", "cpcl", "dpl"].indexOf(fmtSel.value) >= 0;
     compareBtn.disabled = noCompare;
+    compareNote.hidden = !noCompare;
     compareBtn.title = noCompare ? t("tip.compareEpl") : t("tip.compare");
   }
   fmtSel.addEventListener("change", function () {
@@ -2077,10 +2084,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   });
 
   input.addEventListener("input", function () {
+    updateCaret();
     scheduleCheck();
-    if (!autoChk.checked) return;
-    clearTimeout(autoTimer);
-    autoTimer = setTimeout(function () { render({ auto: true }); }, AUTO_DELAY);
+    scheduleAutoRender();
   });
 
   input.addEventListener("keydown", function (e) {
@@ -2103,6 +2109,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   applyI18n();
   autoLoaded = input.value; // the baked-in demo counts as auto-loaded
   var loadedFromHash = loadFromHash();
+  updateCompareState();
   updateCaret();
   scheduleCheck();
   if (loadedFromHash) render();
