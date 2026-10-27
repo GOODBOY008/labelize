@@ -1,4 +1,6 @@
 mod common;
+#[path = "common/reverse_golden.rs"]
+mod reverse_golden;
 
 use labelize::DrawerOptions;
 
@@ -10,6 +12,49 @@ use common::render_helpers;
 const LABEL_TOLERANCE: f64 = 15.0;
 /// Tolerance for unit/synthetic tests — compared against Labelary reference at 813×1626.
 const UNIT_TOLERANCE: f64 = 8.0;
+
+fn assert_reverse_golden(case_index: usize, language: labelize::ReverseLanguage) {
+    let case = &reverse_golden::CASES[case_index];
+    let result = reverse_golden::compare(case, language);
+    assert!(
+        result.dimensions_match,
+        "{}: canvas dimensions changed",
+        case.name
+    );
+    assert!(
+        result.actual_image.as_ref().unwrap().as_raw()
+            == result.expected_image.as_ref().unwrap().as_raw(),
+        "{} {:?}: expected pixel-identical output, got {:.4}% diff",
+        case.name,
+        language,
+        result.diff_percent
+    );
+}
+
+#[test]
+fn golden_reverse_shipping_zpl() {
+    assert_reverse_golden(0, labelize::ReverseLanguage::Zpl);
+}
+#[test]
+fn golden_reverse_shipping_tspl() {
+    assert_reverse_golden(0, labelize::ReverseLanguage::Tspl);
+}
+#[test]
+fn golden_reverse_rgba_zpl() {
+    assert_reverse_golden(1, labelize::ReverseLanguage::Zpl);
+}
+#[test]
+fn golden_reverse_rgba_tspl() {
+    assert_reverse_golden(1, labelize::ReverseLanguage::Tspl);
+}
+#[test]
+fn golden_reverse_threshold_zpl() {
+    assert_reverse_golden(2, labelize::ReverseLanguage::Zpl);
+}
+#[test]
+fn golden_reverse_threshold_tspl() {
+    assert_reverse_golden(2, labelize::ReverseLanguage::Tspl);
+}
 
 fn testdata_dir() -> std::path::PathBuf {
     render_helpers::testdata_dir()

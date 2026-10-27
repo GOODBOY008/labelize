@@ -9,6 +9,8 @@
 /// Run with:
 ///   cargo test --test e2e_diff_report diff_report -- --nocapture
 mod common;
+#[path = "common/reverse_golden.rs"]
+mod reverse_golden;
 
 use common::image_compare;
 use common::labelary_client;
@@ -379,4 +381,43 @@ fn diff_report_unit() {
     println!("\n{}", report);
     save_report("diff_report_unit.txt", &report);
     check_high_diffs(&entries);
+}
+
+#[test]
+fn diff_report_reverse() {
+    let mut entries = Vec::new();
+    for case in reverse_golden::CASES {
+        for language in [
+            labelize::ReverseLanguage::Zpl,
+            labelize::ReverseLanguage::Tspl,
+        ] {
+            let result = reverse_golden::compare(case, language);
+            let name = format!("reverse_{}_{}", case.name, language.file_extension());
+            image_compare::save_diff_image(&name, result.diff_image.as_ref().unwrap());
+            image_compare::save_comparison_image(
+                &name,
+                result.expected_image.as_ref().unwrap(),
+                result.actual_image.as_ref().unwrap(),
+            );
+            entries.push(ReportEntry {
+                name,
+                ext: language.file_extension().to_string(),
+                diff_percent: result.diff_percent,
+                actual_dims: result.actual_dims,
+                expected_dims: result.expected_dims,
+                status: if result.diff_percent == 0.0 {
+                    "PERFECT"
+                } else {
+                    "ERR(reverse)"
+                },
+            });
+        }
+    }
+    let report = format_report("Reverse Rendering Diff Report (zero tolerance)", &entries);
+    println!("\n{report}");
+    save_report("diff_report_reverse.txt", &report);
+    assert!(
+        entries.iter().all(|e| e.diff_percent == 0.0),
+        "reverse goldens must match exactly"
+    );
 }

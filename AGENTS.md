@@ -110,6 +110,12 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 - **Round-trip e2e:** `tests/e2e_reverse.rs` encodes real label fixtures,
   renders them through the ordinary forward pipeline, and requires
   pixel-identical output. Keep that property when touching this module.
+- **Golden fixtures:** six `golden_reverse_*` tests in `tests/e2e_golden.rs`
+  pin the output bytes and exact rendered pixels for both languages against
+  `testdata/reverse/` snapshots and externally captured PNGs. Provenance and
+  explicit regeneration instructions: [testdata/reverse/README.md](testdata/reverse/README.md).
+  `e2e_diff_report` writes `testdata/diffs/diff_report_reverse.txt` and the
+  `reverse_*` comparison images; commit these alongside reverse changes.
 - **Surfaces:** besides the library and `labelize encode`, the feature is
   exposed as `POST /encode` (`?dpmm&threshold&language=zpl|tspl`; zpl →
   `text/plain`, tspl → `application/octet-stream`) on both the axum server
@@ -194,12 +200,13 @@ These sizes come from `render_helpers::default_options()` and `render_helpers::u
 
 When you modify any rendering-related logic (parsers, elements, drawers, barcodes, fonts, encoders), you **must**:
 
-1. Run `cargo test --test e2e_diff_report -- --nocapture` to regenerate all diff images and both diff reports:
+1. Run `cargo test --test e2e_diff_report -- --nocapture` to regenerate all diff images and reports:
    - `testdata/diffs/diff_report_labels.txt` — carrier/real-world labels (813×1626)
    - `testdata/diffs/diff_report_unit.txt` — unit/synthetic tests (812×1624)
+   - `testdata/diffs/diff_report_reverse.txt` — image-to-code golden fixtures (exact pixel identity)
 2. Run `cargo test --test e2e_golden` to verify diff percentages stay within per-label tolerance thresholds
-3. Review the updated `testdata/diffs/diff_report_labels.txt` and `diff_report_unit.txt` to confirm diff percentages stay within tolerance
-4. **Commit the changed files in `testdata/diffs/`** (including updated `*.png`, `diff_report_labels.txt`, and `diff_report_unit.txt`) as part of the same PR
+3. Review all three reports to confirm diff percentages stay within tolerance
+4. **Commit the changed files in `testdata/diffs/`** (including updated `*.png` and reports) as part of the same PR
 
 This ensures PR reviewers can visually inspect the before/after rendering impact directly in the diff — left side is Labelary reference, right side is the current Labelize output.
 

@@ -49,7 +49,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 🔄 **Reverse rendering (image → code)** — turn any raster (PNG/JPEG/GIF/BMP) into ZPL `^GFA` or TSPL `BITMAP` printer code; pixel-faithful, round-trip tested
 - 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
-- 🧪 **124 golden-file E2E tests** against Labelary reference renders on every push
+- 🧪 **Golden-file E2E tests** against reference renders on every push, including six image-to-code fixtures
 
 ## 🚀 Quick Start
 
@@ -192,6 +192,8 @@ std::fs::write("label.zpl", zpl)?;
 ```
 
 Image encoding applies EXIF orientation and accepts up to 16 Mi pixels, 32000 dots per dimension and 128 MiB of decoded data. Large ZPL images are split into graphic fields within Zebra’s 99999-byte limit. Generated ZPL leaves the canvas size to the printer or render options; use image dimensions divided by `dpmm` in millimetres for an exact preview. TSPL declares its own size.
+
+The [reverse golden fixtures](testdata/reverse/README.md) include committed ZPL/TSPL snapshots, independently checked Labelary PNGs, and [visual comparisons](testdata/diffs/diff_report_reverse.txt). Both languages must reproduce the expected raster with zero pixel differences.
 
 A complete runnable example lives at [`examples/render_label.rs`](examples/render_label.rs)
 (`cargo run --example render_label -- label.zpl`), with a walkthrough in the

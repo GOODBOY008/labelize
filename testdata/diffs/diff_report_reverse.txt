@@ -1,0 +1,14 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                Reverse Rendering Diff Report (zero tolerance)                ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Name                           │ Ext  │    Diff% │   Actual(WxH) │ Expected(WxH) │ Status       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ reverse_shipping_zpl           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ reverse_shipping_tspl          │ tspl │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ reverse_rgba_zpl               │ zpl  │    0.00% │       205x137 │       205x137 │ PERFECT      ║
+║ reverse_rgba_tspl              │ tspl │    0.00% │       205x137 │       205x137 │ PERFECT      ║
+║ reverse_threshold_zpl          │ zpl  │    0.00% │       205x137 │       205x137 │ PERFECT      ║
+║ reverse_threshold_tspl         │ tspl │    0.00% │       205x137 │       205x137 │ PERFECT      ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Summary: 6 total │ 6 perfect │ 0 good │ 0 minor │ 0 moderate │ 0 high │ 0 skip │ 0 err
+╚══════════════════════════════════════════════════════════════════════════════╝
