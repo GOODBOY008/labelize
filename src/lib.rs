@@ -16,6 +16,7 @@ pub mod parsers;
 #[cfg(feature = "playground")]
 pub mod playground;
 pub mod render;
+pub mod reverse;
 pub(crate) mod tuning;
 
 /// Font-0 characters Labelary blanks even though the substitute subset has
@@ -38,4 +39,8 @@ pub use parsers::{CpclParser, DplParser, EplParser, TsplParser, ZplParser};
 pub use render::{
     render_pdf, render_png, RenderOptions, Rendered, DEFAULT_LABEL_HEIGHT_MM,
     DEFAULT_LABEL_WIDTH_MM,
+};
+pub use reverse::{
+    encode_image_bytes, image_to_tspl, image_to_zpl, tspl_from_image_bytes, zpl_from_image_bytes,
+    ReverseLanguage, ReverseOptions,
 };

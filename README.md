@@ -46,9 +46,10 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 📱 **CPCL support** — Zebra mobile-printer sessions (`! 0 203 203 …`): resident fonts 0-7, `SETMAG`, justification, Code 128/39/EAN/UPC/I2of5, QR/PDF-417/MaxiCode/Aztec, `BOX`/`LINE`/`INVERSE-LINE`, counted `EG`/`CG` graphics
 - 🏭 **DPL support** — Datamax-O'Neil formats (`<STX>L … E`): bitmap fonts 0-8 + smooth font 9, bottom-left home coordinates, Code 128/39/UCC/EAN/UPC/I2of5, QR/PDF-417/DataMatrix/MaxiCode/Aztec, `X` line/box records
 - 🖼️ **PNG & PDF output** — thermal-faithful 1-bit monochrome by default, optional antialiased greyscale
+- 🔄 **Reverse rendering (image → code)** — turn any raster (PNG/JPEG/GIF/BMP) into ZPL `^GFA` or TSPL `BITMAP` printer code; pixel-faithful, round-trip tested
 - 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
-- 🧪 **124 golden-file E2E tests** against Labelary reference renders on every push
+- 🧪 **Golden-file E2E tests** against reference renders on every push, including eight image-to-code cases
 
 ## 🚀 Quick Start
 
@@ -72,6 +73,11 @@ labelize convert label.epl -t pdf             # EPL in, PDF out
 labelize convert label.cpcl                    # CPCL in (Zebra mobile)
 labelize convert label.dpl                     # DPL in (Datamax)
 labelize convert label.zpl --width 100 --height 62 --dpmm 12
+
+# Reverse rendering: image → printer code (one pixel = one dot)
+labelize encode logo.png                       # → logo.zpl (ZPL ^GFA graphic field)
+labelize encode logo.png -l tspl               # TSPL SIZE + BITMAP output
+labelize encode logo.png --dpmm 12 --threshold 160
 ```
 
 ### Docker
@@ -85,6 +91,11 @@ curl -X POST http://localhost:8080/convert \
   -H "Content-Type: application/zpl" \
   -d '^XA^FO50,50^A0N,40,40^FDHello Docker^FS^XZ' \
   -o label.png
+
+# Reverse rendering: image in, ZPL out (add ?language=tspl for binary TSPL)
+curl -X POST "http://localhost:8080/encode?dpmm=8" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @logo.png -o logo.zpl
 ```
 
 Open `http://localhost:8080/` for the interactive playground. Tags: `latest`, `1.6.0` / `1.6` / `1`, `edge` (current `main`).
@@ -170,6 +181,20 @@ Renderer::new().draw_label_as_png(&labels[0], &mut buf, DrawerOptions::default()
 std::fs::write("label.png", buf.into_inner())?;
 ```
 
+Reverse rendering runs the other way — raster in, printer code out:
+
+```rust
+use labelize::{zpl_from_image_bytes, ReverseOptions};
+
+let options = ReverseOptions::default(); // dpmm: 8, threshold: 128
+let zpl = zpl_from_image_bytes(&png_bytes, &options)?; // or tspl_from_image_bytes
+std::fs::write("label.zpl", zpl)?;
+```
+
+Image encoding applies EXIF orientation and accepts up to 16 Mi pixels, 32000 dots per dimension and 128 MiB of decoded data. Large ZPL images are split into graphic fields within Zebra’s 99999-byte limit. Generated ZPL leaves the canvas size to the printer or render options; use image dimensions divided by `dpmm` in millimetres for an exact preview. TSPL declares its own size.
+
+The [reverse golden fixtures](testdata/reverse/README.md) include committed ZPL/TSPL snapshots, independently checked Labelary PNGs, and [visual comparisons](testdata/diffs/diff_report_reverse.txt). Both languages must reproduce the expected raster with zero pixel differences.
+
 A complete runnable example lives at [`examples/render_label.rs`](examples/render_label.rs)
 (`cargo run --example render_label -- label.zpl`), with a walkthrough in the
 [Rust tutorial](docs/tutorials/rust-library.md).
@@ -180,6 +205,7 @@ Every Labelize server serves an interactive UI at `GET /` — the same page runn
 at the public instance:
 
 - Paste ZPL/EPL/TSPL/CPCL/DPL or open a `.zpl` / `.epl` / `.tspl` / `.cpcl` / `.dpl` file, pick a label size (4×6, 4×4, …)
+- **Image → Code** — turn a PNG/JPEG into ZPL printer code (loaded into the editor with a matching canvas) or download it as TSPL
 - **Live preview** with debounced auto-render, zoom fit / percent, dark & light themes, English / 简体中文
 - One-click **PNG / PDF download**, copy-PNG to clipboard, `Ctrl+S`
 - **Compare with Labelary** (ZPL) — fetches the reference render and scores the diff on the same scale as CI

@@ -53,6 +53,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
         "DPL (Datamax-O'Neil) label preview",
         "Render label code to PNG or PDF",
         "Syntax validation and one-command-per-line formatting",
+        "Convert images to ZPL or TSPL printer code",
         "Pixel diff against the Labelary reference renderer"
       ],
       "license": "https://github.com/GOODBOY008/labelize/blob/main/LICENSE",
@@ -74,7 +75,7 @@ pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
         {
           "@type": "Question",
           "name": "Is there an API?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. The hosted service exposes POST /convert, /validate and /format endpoints, and the same engine ships as a CLI, Rust library, WebAssembly package and Docker image for self-hosting." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. The hosted service exposes POST /convert, /validate, /format and /encode endpoints, and the same engine ships as a CLI, Rust library, WebAssembly package and Docker image for self-hosting." }
         },
         {
           "@type": "Question",
@@ -293,6 +294,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   #caret-pos { margin-left: auto; white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
   .editor-actions { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--border); }
   #file-input { display: none; }
+  #img-input { display: none; }
+
   .ghost-btn, .fmt-btn, .compare-btn, .dl-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px;
     padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px;
@@ -552,6 +555,15 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
         <span data-i18n="btn.open">Open File</span>
+      </button>
+      <input id="img-input" type="file" accept="image/png,image/jpeg,image/gif,image/bmp,image/webp">
+      <button id="img2code-btn" class="ghost-btn" title="Turn an image into printer code — ZPL loads into the editor, TSPL downloads as a file (follows the Format selector)" data-i18n-title="tip.img2code">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        <span data-i18n="btn.img2code">Image &rarr; Code</span>
       </button>
       <button id="compare-btn" class="compare-btn" type="button">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg> <span data-i18n="btn.compare">Compare with Labelary</span>
@@ -824,14 +836,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "about.summary": "About Labelize · FAQ · Open source (MIT)",
       "about.h1": "Labelize — free online ZPL, EPL, TSPL, CPCL &amp; DPL label viewer",
       "about.pitch": "Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron), <strong>TSPL/TSC</strong>, <strong>CPCL</strong> (Zebra mobile) and <strong>DPL</strong> (Datamax-O'Neil) — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.",
-      "about.features": "<li>Live preview with zoom, PNG/PDF download and shareable permalinks</li><li>Syntax validation and one-command-per-line formatting</li><li>Optional pixel diff against the Labelary reference renderer</li><li>Free REST API: <code>POST /convert</code>, <code>/validate</code>, <code>/format</code></li><li>Same engine as CLI, HTTP microservice, Rust crate, WebAssembly package or Docker image</li>",
+      "about.features": "<li>Live preview with zoom, PNG/PDF download and shareable permalinks</li><li>Syntax validation and one-command-per-line formatting</li><li>Reverse rendering: turn a PNG/JPEG into ZPL or TSPL printer code</li><li>Optional pixel diff against the Labelary reference renderer</li><li>Free REST API: <code>POST /convert</code>, <code>/validate</code>, <code>/format</code>, <code>/encode</code></li><li>Same engine as CLI, HTTP microservice, Rust crate, WebAssembly package or Docker image</li>",
       "about.faq": "Frequently asked questions",
       "about.q1": "Is this ZPL viewer free?",
       "about.a1": "Yes. Labelize is free to use, MIT-licensed open source, and requires no sign-up.",
       "about.q2": "Which label languages are supported?",
       "about.a2": "ZPL (Zebra), EPL (Eltron), TSPL/TSC, CPCL (Zebra mobile) and DPL (Datamax-O'Neil). Labels render to PNG or PDF at selectable sizes and resolutions.",
       "about.q3": "Is there an API?",
-      "about.a3": "Yes — <code>POST /convert</code>, <code>/validate</code> and <code>/format</code> on this host, or self-host the CLI, Rust crate, WebAssembly package or Docker image.",
+      "about.a3": "Yes — <code>POST /convert</code>, <code>/validate</code>, <code>/format</code> and <code>/encode</code> (image → ZPL/TSPL) on this host, or self-host the CLI, Rust crate, WebAssembly package or Docker image.",
       "about.q4": "Does my label data leave my browser?",
       "about.a4": "The playground renders labels server-side and stores nothing. The optional <em>Compare with Labelary</em> feature sends your code to the external labelary.com service and can be disabled.",
       "about.gh": "GitHub source",
@@ -869,6 +881,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "syn.oneLabel": "1 label",
       "syn.nLabels": "{n} labels",
       "btn.open": "Open File",
+      "btn.img2code": "Image → Code",
       "btn.compare": "Compare with Labelary",
       "compare.zplOnly": "ZPL only",
       "btn.render": "Render",
@@ -886,7 +899,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "status.err": "Error",
       "status.rendering": "Rendering…",
       "status.comparing": "Comparing…",
+      "status.encoding": "Encoding…",
       "status.diff": "Diff {pct}%",
+      "tip.img2code": "Turn an image into printer code — ZPL loads into the editor, TSPL downloads as a file (follows the Format selector)",
       "tip.compare": "Fetch the Labelary reference image and estimate the visual diff",
       "tip.compareEpl": "Labelary does not support EPL, TSPL, CPCL or DPL — ZPL only",
       "tip.auto": "Re-render automatically as you type",
@@ -900,8 +915,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "caret": "Ln {ln}, Col {col}",
       "toast.urlCopied": "Share link copied to clipboard",
       "toast.imgCopied": "PNG copied to clipboard",
+      "toast.zplFromImg": "ZPL generated from the image — canvas size follows it",
+      "toast.tsplDl": "TSPL file downloaded",
       "toast.copyFail": "Copy failed: {msg}",
       "err.empty": "Editor is empty — paste some ZPL, EPL, TSPL, CPCL or DPL first.",
+      "err.encode": "Image → code failed: {msg}",
+      "err.imageRead": "This browser could not read the image. Try PNG or JPEG.",
       "err.size": "Enter a positive number for both label width and height.",
       "err.server": "Server error {status}: {body}",
       "err.network": "Network error: {msg}",
@@ -943,14 +962,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "about.summary": "关于 Labelize · FAQ · 开源（MIT）",
       "about.h1": "Labelize — 免费在线 ZPL、EPL、TSPL、CPCL 与 DPL 标签查看器",
       "about.pitch": "Labelize 将热敏打印机标签代码 —— <strong>ZPL</strong>（Zebra）、<strong>EPL</strong>（Eltron）、<strong>TSPL/TSC</strong>、<strong>CPCL</strong>（Zebra 移动打印机）与 <strong>DPL</strong>（Datamax-O'Neil）—— 渲染为 PNG 图片或 PDF 文档。把标签代码粘贴到上方，点击<strong>渲染</strong>，或直接试试内置示例。",
-      "about.features": "<li>实时预览：缩放、下载 PNG/PDF、可分享的固定链接</li><li>语法校验与一键格式化（每行一条指令）</li><li>可选：与 Labelary 参考渲染器逐像素对比</li><li>免费 REST API：<code>POST /convert</code>、<code>/validate</code>、<code>/format</code></li><li>同一引擎提供 CLI、HTTP 服务、Rust 库、WebAssembly 包与 Docker 镜像</li>",
+      "about.features": "<li>实时预览：缩放、下载 PNG/PDF、可分享的固定链接</li><li>语法校验与一键格式化（每行一条指令）</li><li>反向渲染：把 PNG/JPEG 图片转换为 ZPL 或 TSPL 打印代码</li><li>可选：与 Labelary 参考渲染器逐像素对比</li><li>免费 REST API：<code>POST /convert</code>、<code>/validate</code>、<code>/format</code>、<code>/encode</code></li><li>同一引擎提供 CLI、HTTP 服务、Rust 库、WebAssembly 包与 Docker 镜像</li>",
       "about.faq": "常见问题",
       "about.q1": "这个 ZPL 查看器免费吗？",
       "about.a1": "免费。Labelize 是 MIT 许可的开源项目，无需注册。",
       "about.q2": "支持哪些标签语言？",
       "about.a2": "ZPL（Zebra）、EPL（Eltron）、TSPL/TSC、CPCL（Zebra 移动打印机）与 DPL（Datamax-O'Neil），可按选定尺寸和分辨率渲染为 PNG 或 PDF。",
       "about.q3": "有 API 吗？",
-      "about.a3": "有 —— 在本站调用 <code>POST /convert</code>、<code>/validate</code> 与 <code>/format</code>，或自托管 CLI、Rust 库、WebAssembly 包或 Docker 镜像。",
+      "about.a3": "有 —— 在本站调用 <code>POST /convert</code>、<code>/validate</code>、<code>/format</code> 与 <code>/encode</code>（图片转 ZPL/TSPL），或自托管 CLI、Rust 库、WebAssembly 包或 Docker 镜像。",
       "about.q4": "我的标签数据会离开浏览器吗？",
       "about.a4": "在线预览在服务端渲染且不存储任何数据。可选的「与 Labelary 对比」功能会把代码发送到外部 labelary.com 服务，可予关闭。",
       "about.gh": "GitHub 源码",
@@ -988,6 +1007,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "syn.oneLabel": "1 个标签",
       "syn.nLabels": "{n} 个标签",
       "btn.open": "打开文件",
+      "btn.img2code": "图片 → 代码",
       "btn.compare": "与 Labelary 对比",
       "compare.zplOnly": "仅限 ZPL",
       "btn.render": "渲染",
@@ -1005,7 +1025,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "status.err": "错误",
       "status.rendering": "渲染中…",
       "status.comparing": "对比中…",
+      "status.encoding": "转换中…",
       "status.diff": "差异 {pct}%",
+      "tip.img2code": "将图片转换为打印代码——ZPL 载入编辑器，TSPL 下载为文件（跟随「格式」选择器）",
       "tip.compare": "获取 Labelary 参考渲染图并估算视觉差异",
       "tip.compareEpl": "Labelary 不支持 EPL/TSPL/CPCL/DPL — 仅限 ZPL",
       "tip.auto": "输入时自动重新渲染",
@@ -1019,8 +1041,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "caret": "行 {ln}，列 {col}",
       "toast.urlCopied": "分享链接已复制到剪贴板",
       "toast.imgCopied": "PNG 已复制到剪贴板",
+      "toast.zplFromImg": "已从图片生成 ZPL——画布尺寸跟随图片",
+      "toast.tsplDl": "TSPL 文件已下载",
       "toast.copyFail": "复制失败：{msg}",
       "err.empty": "编辑器为空 — 请先粘贴 ZPL、EPL、TSPL、CPCL 或 DPL 代码。",
+      "err.encode": "图片转代码失败：{msg}",
+      "err.imageRead": "浏览器无法读取此图片，请尝试 PNG 或 JPEG。",
       "err.size": "标签宽度和高度都必须是正数。",
       "err.server": "服务器错误 {status}：{body}",
       "err.network": "网络错误：{msg}",
@@ -1400,8 +1426,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (!validSize()) return null;
     var fmtVal = fmtSel.value;
     var dpmm  = parseInt(dpmmSel.value, 10) || 8;
-    var w_mm  = +sizeMm.width.toFixed(6);
-    var h_mm  = +sizeMm.height.toFixed(6);
+    var w_mm  = sizeMm.width;
+    var h_mm  = sizeMm.height;
     return { fmt: fmtVal, dpmm: dpmm, w_mm: w_mm, h_mm: h_mm, aa: aaChk.checked };
   }
 
@@ -1913,6 +1939,80 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   /* ── Open File ── */
   openFileBtn.addEventListener("click", function () { fileInput.click(); });
+
+  /* ── Image → Code (reverse rendering) ──
+     The target language follows the Format selector: ZPL output is pure
+     ASCII hex, so it loads into the editor (canvas size follows the image);
+     TSPL output is binary and downloads as a .tspl file. */
+  var img2codeBtn = document.getElementById("img2code-btn");
+  var imgInput    = document.getElementById("img-input");
+  img2codeBtn.addEventListener("click", function () { imgInput.click(); });
+
+  imgInput.addEventListener("change", async function () {
+    var file = this.files && this.files[0];
+    this.value = "";
+    if (!file || img2codeBtn.disabled) return;
+    var lang = fmtSel.value === "tspl" ? "tspl" : "zpl";
+    var dpmm = parseInt(dpmmSel.value, 10) || 8;
+    img2codeBtn.disabled = true;
+    setStatus(t("status.encoding"), "");
+    var imgUrl;
+    try {
+      // Resolve dimensions before changing the editor. Keep full precision:
+      // rounding the physical size can add/drop dots or clip a small image.
+      var dimensions;
+      if (lang === "zpl") {
+        imgUrl = URL.createObjectURL(file);
+        dimensions = await new Promise(function (resolve, reject) {
+          var im = new Image();
+          im.onload = function () { resolve([im.naturalWidth, im.naturalHeight]); };
+          im.onerror = function () { reject(new Error(t("err.imageRead"))); };
+          im.src = imgUrl;
+        });
+      }
+      var res = await fetch("/encode?dpmm=" + dpmm + "&threshold=128&language=" + lang, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: file
+      });
+      if (!res.ok) throw new Error(fmt(t("err.encode"), { msg: await res.text() }));
+      if (lang === "tspl") {
+        var url = URL.createObjectURL(await res.blob());
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = (file.name.replace(/\.[^.]+$/, "") || "label") + ".tspl";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        showToast(t("toast.tsplDl"));
+        setStatus(t("status.ok"), "");
+      } else {
+        var code = await res.text();
+        sizePreset.value = "custom";
+        sizeMm.width = dimensions[0] / dpmm;
+        sizeMm.height = dimensions[1] / dpmm;
+        displaySize();
+        dpmmSel.value = String(dpmm);
+        fmtSel.value = "zpl";
+        fmtUserTouched = false;
+        autoLoaded = null;
+        updateCompareState();
+        input.value = code;
+        input.focus();
+        updateCaret();
+        scheduleCheck();
+        render();
+        showToast(t("toast.zplFromImg"));
+      }
+    } catch (err) {
+      setStatus(t("status.err"), "status-err");
+      showToast(String(err && err.message ? err.message : err));
+    } finally {
+      if (imgUrl) URL.revokeObjectURL(imgUrl);
+      img2codeBtn.disabled = false;
+    }
+  });
 
   fileInput.addEventListener("change", function () {
     var file = this.files && this.files[0];

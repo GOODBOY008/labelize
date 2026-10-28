@@ -1,4 +1,4 @@
-// Labelize Cloudflare Worker: / , /health, /convert, /validate, /format (mirrors the axum server).
+// Labelize Cloudflare Worker: / , /health, /convert, /validate, /format, /encode (mirrors the axum server).
 //
 // The wasm-bindgen thin entry (labelize_wasm.js) auto-initializes with the
 // bundler's wasm import, which workerd resolves to a module (not an instance),
@@ -10,6 +10,7 @@ import {
   lz_playground_html,
   lz_validate,
   lz_format,
+  lz_encode,
   __wbindgen_init_externref_table,
   __wbindgen_generic_0000000000000001,
 } from "../wasm/npm/labelize_wasm_bg.js";
@@ -156,6 +157,57 @@ async function formatLabel(request, url) {
   });
 }
 
+// Encode: reverse rendering — a raster image in, printer code out.
+// `language` picks the target: "zpl" → ASCII text, "tspl" → binary bytes.
+// Mirrors the axum server's POST /encode.
+async function encodeImage(request, url) {
+  // Defaults apply only when absent. parseInt()/|| would silently accept
+  // dpmm=0, 8junk, fractional values and overflowing wasm i32/u8 arguments.
+  function integerParam(name, fallback, min, max) {
+    const values = url.searchParams.getAll(name);
+    if (!values.length) return fallback;
+    const raw = values[0];
+    const value = Number(raw);
+    if (values.length !== 1 || !/^[+-]?\d+$/.test(raw) ||
+        !Number.isSafeInteger(value) || (min === 0 && raw.startsWith("-")) || value < min || value > max) {
+      throw new Error(`invalid ${name}`);
+    }
+    return value;
+  }
+  let dpmm, threshold;
+  try {
+    dpmm = integerParam("dpmm", 8, 1, 2147483647);
+    threshold = integerParam("threshold", 128, 0, 255);
+  } catch (err) {
+    return new Response(err.message, { status: 400 });
+  }
+  const languages = url.searchParams.getAll("language");
+  if (languages.length > 1) return new Response("duplicate language", { status: 400 });
+  const lang = (languages[0] ?? "zpl").toLowerCase();
+  if (lang !== "zpl" && lang !== "tspl") {
+    return new Response(`unknown language ${lang} — expected zpl or tspl`, {
+      status: 400,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  }
+  const body = new Uint8Array(await request.arrayBuffer());
+  if (body.length === 0) {
+    return new Response("empty body", { status: 400 });
+  }
+  try {
+    const out = lz_encode(body, dpmm, threshold, lang);
+    return new Response(out, {
+      headers: {
+        "content-type":
+          lang === "tspl" ? "application/octet-stream" : "text/plain; charset=utf-8",
+      },
+    });
+  } catch (err) {
+    const { status, text } = renderStatus(err);
+    return new Response(text, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+}
+
 function badLanguage(lang) {
   if (lang && !["zpl", "epl", "tspl", "cpcl", "dpl"].includes(lang.toLowerCase())) {
     return jsonResponse(
@@ -206,6 +258,9 @@ export default {
     }
     if (request.method === "POST" && url.pathname === "/format") {
       return formatLabel(request, url);
+    }
+    if (request.method === "POST" && url.pathname === "/encode") {
+      return encodeImage(request, url);
     }
     return jsonResponse({ error: "Not Found" }, 404);
   },

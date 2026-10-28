@@ -1,0 +1,38 @@
+[
+  {
+    "name": "shipping",
+    "dpmm": 8,
+    "threshold": 128,
+    "source": "../labels/amazon.png",
+    "url": "https://api.labelary.com/v1/printers/8dpmm/labels/4.007389163x8.012315271/0/",
+    "zpl_sha256": "984757ee951d5cb76e517a7179eca819d0844d1c6cdacec3de6f3c72eb318e89",
+    "reference_sha256": "4903e2037a1bbb9cd1d73e7f1864d706d9b83aed8c8db38882e5d11c870e6908"
+  },
+  {
+    "name": "rgba",
+    "dpmm": 8,
+    "threshold": 128,
+    "source": "rgba_input.png",
+    "url": "https://api.labelary.com/v1/printers/8dpmm/labels/1.012315271x0.677339901/0/",
+    "zpl_sha256": "3a761184886580e9d7d96591bc04917874653dc941517049e09b98fbc73cbffd",
+    "reference_sha256": "8d1b69835bbaf16cd586f68f5ba422a439f167d17406df94838470fb6b51cdb3"
+  },
+  {
+    "name": "threshold",
+    "dpmm": 12,
+    "threshold": 200,
+    "source": "rgba_input.png",
+    "url": "https://api.labelary.com/v1/printers/12dpmm/labels/0.675986842x0.452302632/0/",
+    "zpl_sha256": "03754fe0b59b0a2b560f76db78dea8e03777d82d966ebc31b8aba605cce02f82",
+    "reference_sha256": "fbcb124aff5b9c43c3a26ab498c33fae76511771656e39670db24d71b5a428fe"
+  },
+  {
+    "name": "field_block",
+    "dpmm": 8,
+    "threshold": 128,
+    "source": "../unit/fb_single_line_overflow.png",
+    "url": "https://api.labelary.com/v1/printers/8dpmm/labels/4.007389163x8.012315271/0/",
+    "zpl_sha256": "edcaa929664c408e6acf210e8ace6a69533ac0b49ac77fef5b40cf0118e3f7bf",
+    "reference_sha256": "767823f14e0b059fcd1599b9b1dde905ec2848fce9634034726f7e2ca865c1bd"
+  }
+]

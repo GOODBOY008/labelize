@@ -41,6 +41,26 @@ tolerance only guards against regressions in the covered EPL paths.
 
 ## Diff Categories
 
+### Reverse encoding (`testdata/reverse/`)
+
+All eight `golden_reverse_*` tests require **0% difference and identical dimensions**,
+and also compare generated ZPL/TSPL bytes to committed snapshots. References are
+Labelary captures of the generated ZPL, independently checked against the intended
+thresholded raster. TSPL uses that raster as its expected output, not a TSPL
+printer capture. See [fixture provenance and regeneration](../testdata/reverse/README.md).
+
+| Case | Languages | Dimensions | dpmm / threshold | Tolerance |
+|---|---|---|---|---|
+| shipping | ZPL, TSPL | 813×1626 | 8 / 128 | 0.00% |
+| rgba | ZPL, TSPL | 205×137 | 8 / 128 | 0.00% |
+| threshold | ZPL, TSPL | 205×137 | 12 / 200 | 0.00% |
+| field_block | ZPL, TSPL | 813×1626 | 8 / 128 | 0.00% |
+
+The report is `testdata/diffs/diff_report_reverse.txt`; side-by-side images and
+pixel-difference masks are `testdata/diffs/reverse_*`.
+
+### Categories for forward rendering
+
 | Category | Range | Meaning |
 |----------|-------|---------|
 | PERFECT | 0 % | Pixel-identical |

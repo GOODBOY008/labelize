@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reverse rendering (image → ZPL/TSPL)** — the inverse of the render
+  pipeline: binarize a raster (composited over white, Rec.601 luminance
+  below a configurable threshold = ink) and emit it 1:1, one dot per pixel.
+  Library: `image_to_zpl` (a `^FO0,0^GFA` hex graphic field, one line per
+  bitmap row, split at Zebra’s 99999-byte field limit), `image_to_tspl`
+  (`SIZE` + raw `BITMAP` in TSC polarity,
+  declaring its own canvas), `zpl_from_image_bytes`/`tspl_from_image_bytes`
+  for encoded input, and a `labelize encode` CLI subcommand. The TSPL
+  result is raw bytes because the BITMAP payload is binary. Also exposed
+  end to end: `POST /encode` on the HTTP server and the Cloudflare Worker
+  (`?dpmm&threshold&language=zpl|tspl`, mirrored by the wasm export
+  `lz_encode`), plus a playground **Image → Code** button (ZPL loads into
+  the editor with the canvas sized to the image; TSPL downloads as a
+  file). The generated code round-trips pixel-identically through the
+  forward pipeline — pinned by `tests/e2e_reverse.rs` (library), a
+  real-server `tests/e2e_http_encode.rs` (axum, `--features serve`) and
+  the HTTP e2e script's encode→convert byte-identity checks. Input dimensions
+  are checked before pixel decoding (16 Mi pixels / 32000 dots per side).
+  Native and worker endpoints reject invalid options consistently, and the
+  playground preserves the image’s exact dimensions and resolution.
+
 - **DPL support (fifth language)** — Datamax-O'Neil (Honeywell) label
   formats. `<STX>L` … `E`/`X` formats with 15-byte record headers and the
   bottom-left home position (a new language-neutral

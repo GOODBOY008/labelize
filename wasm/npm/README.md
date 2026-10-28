@@ -84,6 +84,27 @@ import { lz_format } from "@goodboy008/labelize-wasm/init";
 const pretty = new TextDecoder().decode(lz_format(src, "")); // "" = auto-detect
 ```
 
+`lz_encode(src, dpmm, threshold, lang) -> Uint8Array` converts an encoded image
+(PNG/JPEG/GIF/BMP) to printer code. `lang` must be `"zpl"` or `"tspl"` (case-insensitive);
+unsupported targets, invalid images and invalid options throw a `1:` input error.
+One image pixel becomes one printer dot. Threshold defaults are supplied by the caller:
+128 makes composited luminance below 128 print black; transparent pixels print white.
+Encoded inputs honor EXIF orientation. Images are limited to 16 Mi pixels, 32000
+dots per dimension and 128 MiB of decoded data.
+
+```js
+import { readFileSync, writeFileSync } from "node:fs";
+import { lz_encode } from "@goodboy008/labelize-wasm/init";
+
+const source = readFileSync("logo.png");
+writeFileSync("logo.zpl", lz_encode(source, 8, 128, "zpl"));
+writeFileSync("logo.tspl", lz_encode(source, 8, 128, "tspl")); // binary BITMAP payload
+```
+
+Generated ZPL uses multiple graphic fields when needed to stay within Zebra's
+99999-byte field limit. For a matching ZPL preview, set the canvas to the image
+width/height divided by `dpmm` in millimetres. TSPL declares that size itself.
+
 `lz_playground_html() -> string` returns the Labelize playground page (identical to the
 HTTP server's `/`).
 

@@ -951,3 +951,24 @@ fn bitmap_font_zero_dot_policy_matches_labelary() {
         );
     }
 }
+
+#[test]
+fn canvas_dimensions_tolerate_float_roundoff_and_keep_fractional_dots() {
+    for (mm, dpmm, expected) in [
+        (7.0 / 24000.0, 24000, 7),
+        (13.0 / 24.0, 24, 13),
+        (1.000001, 8, 9),
+        (1.01, 8, 9),
+    ] {
+        let png = render_label(
+            &empty_label(),
+            DrawerOptions {
+                label_width_mm: mm,
+                label_height_mm: mm,
+                dpmm,
+                ..Default::default()
+            },
+        );
+        assert_eq!(decode_png(&png).dimensions(), (expected, expected));
+    }
+}

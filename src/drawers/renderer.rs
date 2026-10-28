@@ -74,13 +74,25 @@ impl Renderer {
         let height_mm = options.label_height_mm;
         let dpmm = options.dpmm;
 
-        let label_width = (width_mm * dpmm as f64).ceil() as i32;
+        // A dot count converted through millimetres can land a few ULPs
+        // above an integer (e.g. 7 / 24000 * 24000). Preserve that integer
+        // canvas while still rounding genuine fractional dots upward.
+        let canvas_dots = |mm: f64| {
+            let dots = mm * dpmm as f64;
+            let nearest = dots.round();
+            if (dots - nearest).abs() <= dots.abs() * f64::EPSILON * 4.0 {
+                nearest as i32
+            } else {
+                dots.ceil() as i32
+            }
+        };
+        let label_width = canvas_dots(width_mm);
         let image_width = if label.print_width > 0 {
             label_width.min(label.print_width)
         } else {
             label_width
         };
-        let image_height = (height_mm * dpmm as f64).ceil() as i32;
+        let image_height = canvas_dots(height_mm);
 
         let mut canvas = RgbaImage::from_pixel(
             image_width as u32,
