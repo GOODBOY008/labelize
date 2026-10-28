@@ -666,8 +666,21 @@ fn umlaut_survives_rotation_in_all_font_classes() {
 // left of the block origin or below the last line's em box.
 // ---------------------------------------------------------------------------
 
-/// Right-aligned ^FB lines wider than max_width get a NEGATIVE alignment
-/// offset (word_wrap keeps unbreakable words whole) — the rotated buffer must
+/// Alignment-only blocks can keep oversized words whole (e.g. CPCL
+/// justification). Exercise that neutral IR policy explicitly: actual ZPL
+/// ^FB now wraps long words and has separate overflow regressions.
+fn render_unbreakable_block(zpl: &str, options: labelize::DrawerOptions) -> Vec<u8> {
+    let mut labels = render_helpers::parse_zpl(zpl.as_bytes());
+    for element in &mut labels[0].elements {
+        if let labelize::elements::label_element::LabelElement::Text(text) = element {
+            text.block.as_mut().expect("block fixture").wrap_long_words = false;
+        }
+    }
+    render_helpers::render_label_to_png(&labels[0], options)
+}
+
+/// Right-aligned unbreakable lines wider than max_width get a NEGATIVE
+/// alignment offset — the rotated buffer must
 /// still contain them. Regression case: ^FB20,1,0,R "WWWW" used to render
 /// 1725 px normally and 222 px rotated.
 #[test]
@@ -685,7 +698,7 @@ fn fb_right_aligned_unbreakable_word_survives_rotation() {
             ..Default::default()
         };
         let render = |o: char| {
-            let png = render_helpers::render_zpl_to_png(&zpl(o), opts.clone());
+            let png = render_unbreakable_block(&zpl(o), opts.clone());
             image::load_from_memory(&png)
                 .expect("decode png")
                 .to_rgba8()
@@ -842,7 +855,7 @@ fn fb_right_aligned_relative_line_positions_survive_rotation() {
         ..Default::default()
     };
     let render = |o: char| {
-        let png = render_helpers::render_zpl_to_png(&zpl(o), opts.clone());
+        let png = render_unbreakable_block(&zpl(o), opts.clone());
         image::load_from_memory(&png)
             .expect("decode png")
             .to_rgba8()

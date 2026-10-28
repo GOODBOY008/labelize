@@ -72,6 +72,7 @@ informational.
 | dhlparceluk_dhl_text | zpl | 0.12 | 5.5 | Font metrics |
 | dhlparceluk_ver | zpl | 0.05 | 5.5 | Font metrics |
 | empty_barcodes | zpl | 0.00 | 1.0 | Empty 2D barcode fields (QR/DM/MaxiCode skip, Aztec core) — pixel-identical |
+| fb_single_line_overflow | zpl | 0.12 | 0.2 | Shipping header: long identifier wraps at character boundaries and overprints the last ^FB line; residual font metrics |
 | fo_lenient_coord | zpl | 0.02 | 5.0 | ^FO coordinate parsing leniency |
 | lowercase_orientation | zpl | 0.24 | 1.0 | Lowercase single-letter params (^FWr, ^BCr, ^A0r, ^FB c, y/n) — issue #104 |
 | maxicode_default_mode2 | zpl | 0.59 | 1.0 | MaxiCode mode 2 module placement |
@@ -277,6 +278,18 @@ coordinate rounding.
 dominate its ^A0I text was fixed (see `tuning::ROTATED_ADVANCE_OFFSET`). The
 `^XG.GRF` (unnamed recall) does not match the stored `CMR.GRF` key — both our
 implementation and Labelary skip it.
+
+### Single-line field-block overflow
+
+`fb_single_line_overflow` isolates the `C2PQQ…` shipping-label header with
+`^A0,60,0^FB400,1,0,L,0`. Its independent Labelary reference was fetched on
+2026-10-28 using the standard 8 dpmm, 4.005 × 8.01 inch endpoint. Labelary
+breaks the oversized identifier at character boundaries and overlays the
+wrapped lines in the final line slot, as required for overflow by the
+[Zebra ^FB reference](https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-fb.html).
+The full-canvas diff fell from 1.36% to 0.12%. The renderer regression also
+checks the header's 420 × 80 pixel region directly (29.04% → 4.88%, ceiling
+8%) so blank surrounding pixels cannot hide a broken header.
 
 ## Updating References
 

@@ -557,6 +557,7 @@ fn apply_justify(s: &CpclSession, mut text: TextField) -> TextField {
                     TextAlignment::Right
                 },
                 hanging_indent: 0,
+                ..FieldBlock::default()
             });
             text
         }

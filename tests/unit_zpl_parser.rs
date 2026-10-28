@@ -330,6 +330,8 @@ fn fb_produces_field_block_on_text() {
     let block = text.block.as_ref().expect("expected FieldBlock");
     assert_eq!(block.max_width, 400);
     assert_eq!(block.max_lines, 3);
+    assert!(block.wrap_long_words);
+    assert!(block.overwrite_last_line);
 }
 
 // --- Field reversal ---

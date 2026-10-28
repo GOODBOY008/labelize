@@ -267,6 +267,10 @@ fn golden_amazon() {
     golden_zpl_with_tolerance("amazon", 3.5);
 }
 #[test]
+fn golden_fb_single_line_overflow() {
+    golden_zpl_with_tolerance("fb_single_line_overflow", 0.2);
+}
+#[test]
 fn golden_aztec_ec() {
     golden_zpl_with_tolerance("aztec_ec", 7.5);
 }
