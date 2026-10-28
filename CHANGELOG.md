@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-28
+
 ### Added
 
 - **Reverse rendering (image → ZPL/TSPL)** — the inverse of the render
@@ -74,6 +76,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attaching a custom domain, set it (worker: `PUBLIC_BASE_URL` var, also
   uncommented in `wrangler.toml`) so search engines consolidate on the domain
   and the workers.dev HTML page 301-redirects there.
+
+### Changed
+
+- **Playground layout and physical sizes** — refreshed the responsive
+  light/dark layout, added editor line numbers and full-label preview fitting,
+  and moved Labelary comparison into the top toolbar. Width, height, and
+  millimetre/inch controls stay visible alongside presets; existing share
+  links retain their physical dimensions.
+- **Dependency maintenance** — upgraded `lopdf` from 0.45 to 0.46 and
+  refreshed the Cargo dependency lockfile.
+- **Worker deployment** — engine changes now trigger playground worker
+  redeployment automatically.
+
+### Fixed
+
+- **ZPL field-block overflow** — oversized words wrap at character boundaries
+  and excess lines overprint the final line slot, matching Labelary. Rotated
+  fields retain all overflow ink, and compositing preserves overlapping text.
+- **Crate publishing metadata** — keep the five supported language keywords
+  within crates.io's five-keyword limit.
 
 ## [1.9.0] - 2026-10-21
 

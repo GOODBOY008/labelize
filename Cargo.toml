@@ -1,9 +1,9 @@
 [package]
 name = "labelize"
-version = "1.9.0"
+version = "1.10.0"
 edition = "2021"
 description = "Fast ZPL, EPL, TSPL/TSC, CPCL & DPL label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
-keywords = ["zpl", "epl", "tspl", "cpcl", "dpl", "label", "barcode"]
+keywords = ["zpl", "epl", "tspl", "cpcl", "dpl"]
 categories = ["graphics", "parsing"]
 repository = "https://github.com/GOODBOY008/labelize"
 homepage = "https://github.com/GOODBOY008/labelize"
