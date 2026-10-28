@@ -9,6 +9,8 @@
 ║ reverse_rgba_tspl              │ tspl │    0.00% │       205x137 │       205x137 │ PERFECT      ║
 ║ reverse_threshold_zpl          │ zpl  │    0.00% │       205x137 │       205x137 │ PERFECT      ║
 ║ reverse_threshold_tspl         │ tspl │    0.00% │       205x137 │       205x137 │ PERFECT      ║
+║ reverse_field_block_zpl        │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ reverse_field_block_tspl       │ tspl │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 6 total │ 6 perfect │ 0 good │ 0 minor │ 0 moderate │ 0 high │ 0 skip │ 0 err
+║ Summary: 8 total │ 8 perfect │ 0 good │ 0 minor │ 0 moderate │ 0 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

@@ -21,7 +21,11 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
 DEST = ROOT / "testdata/reverse"
-CASES = [("shipping", 8, 128), ("rgba", 8, 128), ("threshold", 12, 200)]
+CASES = [("shipping", 8, 128), ("rgba", 8, 128), ("threshold", 12, 200), ("field_block", 8, 128)]
+RASTER_INPUTS = {
+    "shipping": "../labels/amazon.png",
+    "field_block": "../unit/fb_single_line_overflow.png",
+}
 
 
 def swatches():
@@ -58,19 +62,21 @@ def swatches():
 
 def regenerate(binary):
     source, oracles = swatches()
-    shipping_path = ROOT / "testdata/labels/amazon.png"
-    shipping = Image.open(shipping_path).convert("RGBA")
-    assert all(r == g == b and a == 255 for r, g, b, a in shipping.getdata())
-    # The shipping reference is grayscale: its independent oracle is simply
-    # gray < 128, with no color/alpha implementation shared with the encoder.
-    shipping_oracle = shipping.convert("L").point(lambda gray: 0 if gray < 128 else 255).convert("RGBA")
     references = []
     with tempfile.TemporaryDirectory(prefix="labelize-reverse-") as tmp:
         stage = Path(tmp)
         source.save(stage / "rgba_input.png")
         for name, dpmm, threshold in CASES:
-            input_path = shipping_path if name == "shipping" else stage / "rgba_input.png"
-            oracle = shipping_oracle if name == "shipping" else oracles[threshold]
+            if name in RASTER_INPUTS:
+                input_path = DEST / RASTER_INPUTS[name]
+                raster = Image.open(input_path).convert("RGBA")
+                assert all(r == g == b and a == 255 for r, g, b, a in raster.getdata())
+                # Grayscale oracle: direct threshold, independent of the
+                # encoder's color/alpha implementation and forward renderer.
+                oracle = raster.convert("L").point(lambda gray: 0 if gray < threshold else 255).convert("RGBA")
+            else:
+                input_path = stage / "rgba_input.png"
+                oracle = oracles[threshold]
             for language in ("zpl", "tspl"):
                 subprocess.run([
                     str(binary), "encode", str(input_path), "--language", language,
@@ -95,7 +101,7 @@ def regenerate(binary):
             (stage / f"{name}.png").write_bytes(png)
             references.append({
                 "name": name, "dpmm": dpmm, "threshold": threshold,
-                "source": "../labels/amazon.png" if name == "shipping" else "rgba_input.png",
+                "source": RASTER_INPUTS.get(name, "rgba_input.png"),
                 "url": url, "zpl_sha256": hashlib.sha256(zpl).hexdigest(),
                 "reference_sha256": hashlib.sha256(png).hexdigest(),
             })

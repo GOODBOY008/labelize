@@ -41,6 +41,14 @@ pub const CASES: &[Case] = &[
         dpmm: 12,
         threshold: 200,
     },
+    Case {
+        name: "field_block",
+        source: "unit/fb_single_line_overflow.png",
+        width: 813,
+        height: 1626,
+        dpmm: 8,
+        threshold: 128,
+    },
 ];
 
 pub fn compare(case: &Case, language: ReverseLanguage) -> image_compare::CompareResult {

@@ -49,7 +49,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 🔄 **Reverse rendering (image → code)** — turn any raster (PNG/JPEG/GIF/BMP) into ZPL `^GFA` or TSPL `BITMAP` printer code; pixel-faithful, round-trip tested
 - 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
-- 🧪 **Golden-file E2E tests** against reference renders on every push, including six image-to-code fixtures
+- 🧪 **Golden-file E2E tests** against reference renders on every push, including eight image-to-code cases
 
 ## 🚀 Quick Start
 

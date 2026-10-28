@@ -96,6 +96,60 @@ fn tspl_round_trip_is_pixel_identical_on_real_labels() {
 }
 
 #[test]
+fn current_field_block_render_survives_image_to_code() {
+    use labelize::{encode_image_bytes, render_png, Language, RenderOptions, ReverseLanguage};
+
+    // Render with the current engine so incoming changes to long-word wrapping,
+    // final-line overprinting and transparent text buffers enter this pipeline.
+    // The fixed Labelary input is covered separately by the reverse goldens.
+    let fixture = include_str!("../testdata/unit/fb_single_line_overflow.zpl");
+    for orientation in ['N', 'R', 'I', 'B'] {
+        for origin in ["FO", "FT"] {
+            let zpl = fixture.replace(
+                "^FO30,30^A0,60,0",
+                &format!("^{origin}300,400^A0{orientation},32,32"),
+            );
+            for antialias in [false, true] {
+                let canvas = RenderOptions {
+                    language: Some(Language::Zpl),
+                    width_mm: Some(101.625),
+                    height_mm: Some(203.25),
+                    antialias,
+                    ..Default::default()
+                };
+                let input = render_png(zpl.as_bytes(), canvas.clone()).unwrap();
+                let source = image::load_from_memory(&input.bytes).unwrap().to_rgba8();
+                assert!(source.pixels().any(|p| p[0] < 128), "nonempty header");
+                for (target, language) in [
+                    (ReverseLanguage::Zpl, Language::Zpl),
+                    (ReverseLanguage::Tspl, Language::Tspl),
+                ] {
+                    let code = encode_image_bytes(&input.bytes, &ReverseOptions::default(), target)
+                        .expect("encode current field-block rendering");
+                    let output = render_png(
+                        &code,
+                        RenderOptions {
+                            language: Some(language),
+                            // Exercise SIZE for TSPL and the captured canvas for ZPL.
+                            width_mm: (target == ReverseLanguage::Zpl).then_some(101.625),
+                            height_mm: (target == ReverseLanguage::Zpl).then_some(203.25),
+                            antialias: false,
+                            ..canvas.clone()
+                        },
+                    )
+                    .unwrap();
+                    assert_round_trip(
+                        &source,
+                        &output.bytes,
+                        &format!("field-block {origin}/{orientation}/aa={antialias}/{target:?}"),
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn threshold_and_alpha_survive_the_round_trip() {
     // One row carrying every binarization boundary: pure black/white, the
     // strict-threshold pair (127/128), a color (red luma 76 → ink, light

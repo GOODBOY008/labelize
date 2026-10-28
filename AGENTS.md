@@ -110,12 +110,15 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 - **Round-trip e2e:** `tests/e2e_reverse.rs` encodes real label fixtures,
   renders them through the ordinary forward pipeline, and requires
   pixel-identical output. Keep that property when touching this module.
-- **Golden fixtures:** six `golden_reverse_*` tests in `tests/e2e_golden.rs`
+- **Golden fixtures:** eight `golden_reverse_*` tests in `tests/e2e_golden.rs`
   pin the output bytes and exact rendered pixels for both languages against
   `testdata/reverse/` snapshots and externally captured PNGs. Provenance and
   explicit regeneration instructions: [testdata/reverse/README.md](testdata/reverse/README.md).
   `e2e_diff_report` writes `testdata/diffs/diff_report_reverse.txt` and the
   `reverse_*` comparison images; commit these alongside reverse changes.
+  The field-block case covers the overflow header; a live render→encode→render
+  regression in `e2e_reverse` also checks all orientations, `^FO`/`^FT`, and
+  antialiased input against the current renderer.
 - **Surfaces:** besides the library and `labelize encode`, the feature is
   exposed as `POST /encode` (`?dpmm&threshold&language=zpl|tspl`; zpl →
   `text/plain`, tspl → `application/octet-stream`) on both the axum server

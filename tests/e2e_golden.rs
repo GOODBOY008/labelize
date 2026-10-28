@@ -55,6 +55,14 @@ fn golden_reverse_threshold_zpl() {
 fn golden_reverse_threshold_tspl() {
     assert_reverse_golden(2, labelize::ReverseLanguage::Tspl);
 }
+#[test]
+fn golden_reverse_field_block_zpl() {
+    assert_reverse_golden(3, labelize::ReverseLanguage::Zpl);
+}
+#[test]
+fn golden_reverse_field_block_tspl() {
+    assert_reverse_golden(3, labelize::ReverseLanguage::Tspl);
+}
 
 fn testdata_dir() -> std::path::PathBuf {
     render_helpers::testdata_dir()
