@@ -268,20 +268,79 @@ PRINT 1
 #[test]
 fn bitmap_reads_binary_data_by_byte_cursor() {
     let mut data = b"SIZE 4,2\nCLS\nBITMAP 10,10,4,4,0,".to_vec();
-    data.extend_from_slice(&[0xF0, 0x0F, 0xF0, 0x0F, 0xF0, 0x0F, 0xF0, 0x0F, 0x0A, 0x0D]);
-    data.extend_from_slice(b"PRINT 1\n");
+    let payload = [
+        0xF0, 0x0F, 0x80, 0xFF, 0, b'\n', b'\r', b' ', b'\t', b',', b'P', b'R', b'I', b'N', b'T',
+        b'1',
+    ];
+    data.extend_from_slice(&payload);
+    data.extend_from_slice(b"\nPRINT 1\nCLS\nBAR 0,0,1,1\nPRINT 1\n");
 
     let labels = parse(&data);
+    assert_eq!(labels.len(), 2, "commands after the binary payload survive");
     match &labels[0].elements[0] {
         LabelElement::GraphicField(gf) => {
             assert_eq!(gf.row_bytes, 4);
             assert_eq!(gf.data_bytes, 16);
-            // Exactly 16 bytes consumed — the trailing newline and PRINT
-            // stay in the command stream.
-            assert_eq!(gf.data.len(), 16);
+            assert_eq!(gf.data, payload);
         }
         other => panic!("expected GraphicField, got {:?}", other),
     }
+}
+
+#[test]
+fn bitmap_exact_hex_payloads_decode_without_consuming_following_commands() {
+    for payload in ["FF00aB7f", "FF 00\taB 7f \t"] {
+        for ending in ["\n", "\r\n", "\r", ""] {
+            let tail = if ending.is_empty() {
+                ""
+            } else {
+                "PRINT 1\nCLS\nBAR 0,0,1,1\nPRINT 1\n"
+            };
+            let src = format!("BITMAP 0,0,2,2,0,{payload}{ending}{tail}");
+            let labels = parse(src.as_bytes());
+            assert_eq!(labels.len(), if ending.is_empty() { 1 } else { 2 });
+            let LabelElement::GraphicField(gf) = &labels[0].elements[0] else {
+                panic!("expected bitmap")
+            };
+            assert_eq!(gf.data, [0xff, 0, 0xab, 0x7f]);
+            assert!(gf.zero_bits_black);
+        }
+    }
+}
+
+#[test]
+fn bitmap_ambiguous_or_malformed_hex_stays_binary() {
+    // All-hex binary, whitespace bytes, embedded line endings, short/odd/
+    // overlong hex, and a full hex prefix followed by non-hex are all raw.
+    for payload in [
+        "ABCD",
+        "A B\t",
+        "AB\nC",
+        "AB\rC",
+        "ABC",
+        "ABCDEF",
+        "ABCDEF0123",
+        "ABCDEF01Z",
+    ] {
+        let src = format!("BITMAP 0,0,4,1,0,{payload}\nPRINT 1\n");
+        let labels = parse(src.as_bytes());
+        let LabelElement::GraphicField(gf) = &labels[0].elements[0] else {
+            panic!("expected bitmap")
+        };
+        let expected = format!("{payload}\n");
+        assert_eq!(gf.data, &expected.as_bytes()[..4], "{payload:?}");
+    }
+    // The original issue has 32 ASCII digits but declares 32 bytes. It is
+    // indistinguishable from a complete binary payload: do not halve it.
+    let payload = b"FF00FF00FF00FF00FF00FF00FF00FF00";
+    let mut src = b"BITMAP 0,0,4,8,0,".to_vec();
+    src.extend_from_slice(payload);
+    src.extend_from_slice(b"\nPRINT 1\n");
+    let labels = parse(&src);
+    let LabelElement::GraphicField(gf) = &labels[0].elements[0] else {
+        panic!("expected bitmap")
+    };
+    assert_eq!(gf.data, payload);
 }
 
 #[test]

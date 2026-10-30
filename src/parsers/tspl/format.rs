@@ -2,14 +2,14 @@
 //! binary payloads.
 //!
 //! The boundary walk reuses the parser's command splitter helpers
-//! ([`first_token_end`], [`bitmap_payload_start`], [`pdf417_raw_layout`],
+//! ([`first_token_end`], [`bitmap_payload_start`], [`bitmap_hex_payload_end`], [`pdf417_raw_layout`],
 //! [`raw_content_end`], [`command_line_end`]) so formatter and parser can
 //! never disagree about where `BITMAP`/`PDF417 L<len>` raw data ends —
 //! reflowing those blocks with a line-based pass would corrupt the payload.
 
 use super::parser::{
-    bitmap_payload_start, command_args, command_line_end, first_token_end, parse_i32_arg,
-    pdf417_raw_layout, raw_content_end,
+    bitmap_hex_payload_end, bitmap_payload_start, command_args, command_line_end, first_token_end,
+    parse_i32_arg, pdf417_raw_layout, raw_content_end,
 };
 
 /// Format TSPL source as raw bytes (BITMAP payloads are not UTF-8). Never
@@ -30,7 +30,7 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         let token_end = first_token_end(data, line_start);
         let token = String::from_utf8_lossy(&data[line_start..token_end]).to_uppercase();
 
-        // BITMAP: header line plus `row_bytes * height` raw bytes, verbatim.
+        // BITMAP: complete hex line or `row_bytes * height` raw bytes, verbatim.
         if token == "BITMAP" {
             if let Some(payload_start) = bitmap_payload_start(data, line_start) {
                 let header = String::from_utf8_lossy(&data[line_start..payload_start]).to_string();
@@ -38,9 +38,13 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
                 if args.len() >= 4 {
                     let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1) as usize;
                     let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1) as usize;
-                    let payload_end = payload_start
-                        .saturating_add(row_bytes * height)
-                        .min(data.len());
+                    let payload_end =
+                        bitmap_hex_payload_end(data, payload_start, row_bytes * height)
+                            .unwrap_or_else(|| {
+                                payload_start
+                                    .saturating_add(row_bytes * height)
+                                    .min(data.len())
+                            });
                     out.extend_from_slice(&data[line_start..payload_end]);
                     out.push(b'\n');
                     idx = payload_end;
@@ -118,6 +122,45 @@ mod tests {
         let after_header = &formatted[expected_prefix.len()..];
         assert_eq!(&after_header[..2], &payload, "payload preserved byte-exact");
         assert!(formatted.ends_with(b"\nPRINT 1\n"));
+    }
+
+    #[test]
+    fn bitmap_hex_and_binary_payloads_round_trip() {
+        use crate::elements::label_element::LabelElement;
+        use crate::parsers::tspl::parser::TsplParser;
+
+        for payload in [
+            b"FF 00\taB 7f \t".as_slice(),
+            b"FF00aB7f",
+            b"ABCD",
+            b"AB\nC",
+            b"\x80\r\x00\xff",
+        ] {
+            let mut src = b"BITMAP 0,0,2,2,0,".to_vec();
+            src.extend_from_slice(payload);
+            src.extend_from_slice(b"\r\nPRINT 1\r\nCLS\r\nBAR 0,0,1,1\r\nPRINT 1\r\n");
+            let formatted = format_tspl(&src);
+            let mut expected = b"BITMAP 0,0,2,2,0,".to_vec();
+            expected.extend_from_slice(payload);
+            expected.extend_from_slice(b"\nPRINT 1\nCLS\nBAR 0,0,1,1\nPRINT 1\n");
+            assert_eq!(formatted, expected);
+            assert_eq!(
+                format_tspl(&formatted),
+                formatted,
+                "formatting is idempotent"
+            );
+            let before = TsplParser::new().parse(&src).unwrap();
+            let after = TsplParser::new().parse(&formatted).unwrap();
+            assert_eq!(before.len(), 2);
+            assert_eq!(after.len(), 2);
+            let LabelElement::GraphicField(a) = &before[0].elements[0] else {
+                panic!("expected bitmap")
+            };
+            let LabelElement::GraphicField(b) = &after[0].elements[0] else {
+                panic!("expected bitmap")
+            };
+            assert_eq!(a.data, b.data);
+        }
     }
 
     #[test]

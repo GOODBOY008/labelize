@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **TSPL `BITMAP` hex-text input** (#108): decode a complete line containing
+  exactly two hex digits per declared byte (spaces/tabs optional), and
+  preserve it when formatting. Short, odd, overlong and mixed payloads
+  retain the raw binary byte cursor, including ASCII-looking binary and
+  embedded line endings. Polarity remains 0 = black, verified against
+  TSC's published cell grid; no missing bytes are invented.
+
 ## [1.10.0] - 2026-10-28
 
 ### Added
