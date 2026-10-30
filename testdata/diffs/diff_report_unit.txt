@@ -99,6 +99,8 @@
 ║ text_ft_r                      │ zpl  │    0.02% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ text_multiline                 │ zpl  │    0.24% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ thick_rotated_fb_text          │ zpl  │    0.11% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
+║ tspl_bitmap_hex                │ tspl │    0.00% │          32x8 │          32x8 │ PERFECT      ║
+║ tspl_bitmap_manual             │ tspl │    0.00% │         16x16 │         16x16 │ PERFECT      ║
 ║ tspl_graphics                  │ tspl │    0.00% │       608x400 │       608x400 │ PERFECT      ║
 ║ tspl_graphics_doc_style        │ tspl │    0.00% │       608x400 │       608x400 │ PERFECT      ║
 ║ tspl_real_drybox               │ tspl │    6.75% │      800x1200 │      800x1200 │ MODERATE(<15%) ║
@@ -113,5 +115,5 @@
 ║ usps_priority_mail             │ zpl  │    0.43% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 109 total │ 20 perfect │ 64 good │ 12 minor │ 11 moderate │ 2 high │ 0 skip │ 0 err
+║ Summary: 111 total │ 22 perfect │ 64 good │ 12 minor │ 11 moderate │ 2 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

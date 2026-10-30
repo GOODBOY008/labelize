@@ -129,6 +129,8 @@ informational.
 | dpdpl | zpl | 3.76 | 5.5 | Font metrics (R-block ^FB anchor now reserves the max_lines box like Labelary) |
 | dpduk | epl | 3.80 | 6.5 | EPL reference from Go renderer |
 | epl2_showcase | epl | 0.01 | 1.5 | Renderer baseline reference (Labelary has no EPL); ECC auto table per EPL2 manual |
+| tspl_bitmap_hex | tspl | 0.00 | 0.0 | Analytical 32x8 stripe grid; full-length #108 repro; see TSPL_BASELINES.md |
+| tspl_bitmap_manual | tspl | 0.00 | 0.0 | Analytical transcription of TSC manual cell grid; 16x16; see TSPL_BASELINES.md |
 | tspl_graphics | tspl | 0.00 | 1.5 | Renderer baseline reference (no public TSPL reference renderer); SIZE-driven canvas 608x400 |
 | tspl_shipping | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 812x480 |
 | tspl_text_styles | tspl | 0.00 | 1.5 | Renderer baseline reference; SIZE-driven canvas 813x407 |

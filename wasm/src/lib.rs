@@ -230,6 +230,22 @@ mod tests {
     }
 
     #[test]
+    fn tspl_bitmap_hex_matches_binary_across_the_export_boundary() {
+        let hex = include_bytes!("../../testdata/unit/tspl_bitmap_hex.tspl");
+        let mut raw = b"SIZE 4 mm,1 mm\nDIRECTION 1\nCLS\nBITMAP 0,0,4,8,0,".to_vec();
+        raw.extend_from_slice(&[0xff, 0, 0xff, 0].repeat(8));
+        raw.extend_from_slice(b"\nPRINT 1,1\n");
+        let from_hex = lz_render_lang(hex, 4.0, 1.0, 8, false, false, "tspl").unwrap();
+        let from_raw = lz_render_lang(&raw, 4.0, 1.0, 8, false, false, "tspl").unwrap();
+        assert_eq!(from_hex, from_raw);
+        let pixels = image::load_from_memory(&from_hex).unwrap().to_luma8();
+        assert_eq!(pixels.dimensions(), (32, 8));
+        for (x, _, pixel) in pixels.enumerate_pixels() {
+            assert_eq!(pixel[0], if (x / 8) % 2 == 0 { 255 } else { 0 });
+        }
+    }
+
+    #[test]
     fn renders_to_pdf() {
         let out = render_payload(SAMPLE_ZPL.as_bytes(), 102.0, 152.0, 8, false, true, false)
             .expect("render ok");

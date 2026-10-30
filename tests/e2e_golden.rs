@@ -1001,6 +1001,18 @@ fn golden_epl2_showcase() {
 
 // ── TSPL golden tests ─────────────────────────────────────────────
 
+/// Exact pixel fixtures independently constructed from the corrected #108
+/// stripe pattern and TSC's published BITMAP cell grid, respectively.
+#[test]
+fn golden_tspl_bitmap_hex() {
+    golden_tspl_with_tolerance("tspl_bitmap_hex", 0.0);
+}
+
+#[test]
+fn golden_tspl_bitmap_manual() {
+    golden_tspl_with_tolerance("tspl_bitmap_manual", 0.0);
+}
+
 /// Shipping-label snippet: SIZE dims drive the canvas, TEXT with magnified
 /// bitmap fonts, BAR/BOX graphics, Code 128 and QR with raw payloads, and
 /// device-setup no-ops (GAP/DENSITY/SPEED/OFFSET). Reference is the renderer
@@ -1018,8 +1030,8 @@ fn golden_tspl_text_styles() {
     golden_tspl_with_tolerance("tspl_text_styles", 0.01);
 }
 
-/// Graphics + raw-payload coverage: BITMAP binary data through the byte
-/// cursor, PDF417 with the L<len> raw expression spanning lines, CIRCLE,
+/// Graphics + raw-payload coverage: BITMAP hex text, PDF417 with the
+/// L<len> raw expression spanning lines, CIRCLE,
 /// ELLIPSE and a rounded BOX.
 #[test]
 fn golden_tspl_graphics() {

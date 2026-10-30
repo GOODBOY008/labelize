@@ -2,7 +2,9 @@
 //!
 //! TSPL is a line-command language like EPL, with two raw-data commands
 //! (`BITMAP` and `PDF417 …,L<len>`) whose payloads are consumed by byte
-//! cursor rather than parsed as lines. State is minimal: label reference /
+//! cursor rather than parsed as lines. BITMAP also accepts a complete line
+//! of hex text as a compatibility extension (see [`bitmap_hex_payload_end`]).
+//! State is minimal: label reference /
 //! shift offsets, the inverted flag from `DIRECTION`, and the physical
 //! label size from `SIZE` (carried on `LabelInfo::label_*_mm` — entry
 //! points fall back to it behind explicit user overrides).
@@ -258,10 +260,30 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
             let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1) as usize;
             let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1) as usize;
             let data_len = row_bytes * height;
-            let payload_end = payload_start.saturating_add(data_len).min(data.len());
+            let (payload_end, payload) =
+                if let Some(end) = bitmap_hex_payload_end(data, payload_start, data_len) {
+                    let mut decoded = Vec::with_capacity(data_len);
+                    let mut digits = data[payload_start..end]
+                        .iter()
+                        .filter(|b| b.is_ascii_hexdigit())
+                        .map(|&b| {
+                            if b.is_ascii_digit() {
+                                b - b'0'
+                            } else {
+                                b.to_ascii_lowercase() - b'a' + 10
+                            }
+                        });
+                    while let (Some(hi), Some(lo)) = (digits.next(), digits.next()) {
+                        decoded.push((hi << 4) | lo);
+                    }
+                    (end, decoded)
+                } else {
+                    let end = payload_start.saturating_add(data_len).min(data.len());
+                    (end, data[payload_start..end].to_vec())
+                };
             commands.push(TsplCommand::Bitmap {
                 header,
-                data: data[payload_start..payload_end].to_vec(),
+                data: payload,
             });
             idx = payload_end;
             while idx < data.len() && matches!(data[idx], b'\r' | b'\n') {
@@ -322,6 +344,40 @@ pub(super) fn bitmap_payload_start(data: &[u8], start: usize) -> Option<usize> {
         idx += 1;
     }
     None
+}
+
+/// Recognize the hex-text compatibility form only when the entire payload
+/// line has exactly two hex digits per declared byte (spaces/tabs allowed).
+/// A raw bitmap can itself consist of ASCII hex digits or contain CR/LF:
+/// short, odd, overlong or mixed runs must retain the binary byte cursor.
+/// In particular, never pad/truncate an apparent hex line or accept a hex
+/// prefix followed by another command. The formatter shares this boundary
+/// check without allocating a decoded bitmap just to preserve source bytes.
+pub(super) fn bitmap_hex_payload_end(
+    data: &[u8],
+    start: usize,
+    expected_bytes: usize,
+) -> Option<usize> {
+    let expected_digits = expected_bytes.checked_mul(2)?;
+    if expected_digits == 0 || data.len().saturating_sub(start) < expected_digits {
+        return None;
+    }
+    let mut digits = 0;
+    let mut end = start;
+    while end < data.len() && !matches!(data[end], b'\r' | b'\n') {
+        match data[end] {
+            b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f' => {
+                digits += 1;
+                if digits > expected_digits {
+                    return None;
+                }
+            }
+            b' ' | b'\t' => {}
+            _ => return None,
+        }
+        end += 1;
+    }
+    (digits == expected_digits).then_some(end)
 }
 
 pub(super) fn command_line_end(data: &[u8], start: usize) -> usize {
