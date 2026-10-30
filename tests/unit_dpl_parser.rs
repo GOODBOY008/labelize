@@ -156,6 +156,7 @@ fn scalable_font_record_parses_point_sizes() {
     let dots = 15.0 / 72.307 * 25.4 * 8.0;
     assert_eq!(t.font.height, dots);
     assert_eq!(t.font.width, dots);
+    assert_eq!(t.text, "SCALABLE");
 }
 
 #[test]
@@ -312,7 +313,7 @@ fn pdf417_options_map_and_datamatrix_autosizes() {
     let label = parse_one(&dpl(&[
         "L",
         &rec(b'1', "z", b'0', b'0', 0, 150, 200, "F1000000PDF417 DATA"),
-        &rec(b'1', "W1c", b'3', b'3', 0, 150, 20, "0000000000DM DATA"),
+        &rec(b'1', "W1c", b'3', b'3', 0, 150, 20, "2000000000DM DATA"),
         "E",
     ]));
     match &label.elements[0] {
@@ -375,13 +376,149 @@ fn maxicode_fixed_field_form_builds_structured_payload() {
 
 #[test]
 fn terminator_command_reassigns_record_end() {
-    // T~ makes ~ the field terminator; the data stops at the first ~ and
-    // the remainder ("B") becomes a plain (ignored) line.
-    let src = b"\x02L\rT~\r191100000000100A~B\rE\r".to_vec();
+    // The two hexadecimal digits in T7E select '~' for one field only.
+    let src = b"\x02L\rT7E\r191100000000100A~B\rE\r".to_vec();
     let label = parse_one(&src);
     match &label.elements[0] {
         LabelElement::Text(t) => assert_eq!(t.text, "A"),
         other => panic!("expected Text, got {other:?}"),
+    }
+}
+
+#[test]
+fn short_records_return_errors_instead_of_panicking() {
+    for len in 1..15 {
+        let record = "100000000000000"[..len].to_string();
+        assert!(DplParser::new().parse(&dpl(&["L", &record, "E"])).is_err());
+    }
+    for len in 2..17 {
+        let record = "1W1c1100000000000"[..len].to_string();
+        assert!(DplParser::new().parse(&dpl(&["L", &record, "E"])).is_err());
+    }
+}
+
+#[test]
+fn alternate_terminator_is_hex_one_shot_and_preserves_newlines() {
+    let src = b"\x02L\rT00\rD11\r191100200000000A\r\nB  \0\r\n191100200100000NEXT\rE\r";
+    let (_, formatted) = labelize::format_source(src, Some(Language::Dpl));
+    for input in [src.as_slice(), formatted.as_slice()] {
+        let label = parse_one(input);
+        assert_eq!(label.elements.len(), 2);
+        assert_eq!(text_at(&label, 0).text, "A\r\nB  ");
+        assert_eq!(text_at(&label, 1).text, "NEXT");
+    }
+    for term in ["T", "T~", "TGG", "T000"] {
+        assert!(DplParser::new().parse(&dpl(&["L", term, "E"])).is_err());
+    }
+}
+
+#[test]
+fn scalable_fonts_apply_rotation_and_multipliers() {
+    let label = parse_one(&dpl(&["L", "2923S0100010000P015P010HELLO  ", "E"]));
+    let text = text_at(&label, 0);
+    assert_eq!(text.text, "HELLO  ");
+    assert_eq!(text.font.orientation, FieldOrientation::Rotated90);
+    assert_eq!(text.font.width, 10.0 / 72.307 * 25.4 * 8.0 * 2.0);
+    assert_eq!(text.font.height, 15.0 / 72.307 * 25.4 * 8.0 * 3.0);
+}
+
+#[test]
+fn counted_datamatrix_preserves_binary_options_and_following_fields() {
+    let payload: Vec<u8> = (0..=255).collect();
+    let mut src = dpl(&["L"]);
+    src.extend_from_slice(rec(b'1', "W1C", b'3', b'3', 0, 10, 10, "02662000000000").as_bytes());
+    src.extend_from_slice(&payload);
+    src.extend_from_slice(b"\r191100200100000NEXT\rE\r");
+    let (_, formatted) = labelize::format_source(&src, Some(Language::Dpl));
+    for input in [&src, &formatted] {
+        let label = parse_one(input);
+        assert_eq!(label.elements.len(), 2);
+        match &label.elements[0] {
+            LabelElement::BarcodeDatamatrix(dm) => {
+                assert_eq!(dm.data_bytes.as_deref(), Some(payload.as_slice()))
+            }
+            other => panic!("expected DataMatrix, got {other:?}"),
+        }
+        assert_eq!(text_at(&label, 1).text, "NEXT");
+    }
+}
+
+#[test]
+fn counted_pdf417_includes_options_in_count_and_keeps_embedded_cr() {
+    let src = b"\x02L\r1Z00000001501000015F1000000pdf\r417\r191100200100000NEXT\rE\r";
+    let (_, formatted) = labelize::format_source(src, Some(Language::Dpl));
+    for input in [src.as_slice(), formatted.as_slice()] {
+        let label = parse_one(input);
+        match &label.elements[0] {
+            LabelElement::BarcodePdf417(pdf) => assert_eq!(pdf.data, "pdf\r417"),
+            other => panic!("expected PDF417, got {other:?}"),
+        }
+        assert_eq!(text_at(&label, 1).text, "NEXT");
+    }
+}
+
+#[test]
+fn malformed_non_ascii_fixed_fields_do_not_panic() {
+    for (kind, data) in [("X", "é123456"), ("u", "12345678é840001MSG")] {
+        let src = dpl(&["L", &rec(b'1', kind, b'1', b'1', 0, 10, 10, data), "E"]);
+        assert!(DplParser::new().parse(&src).is_err());
+    }
+}
+
+#[test]
+fn qr_binary_counts_preserve_commas_and_reject_unrepresentable_modes() {
+    use labelize::parsers::dpl::qr_payload::resolve_dpl_qr_payload as resolve;
+    for (source, expected) in [
+        ("M,hello  ", "hello  "),
+        ("2,HM,B0005a,b c,N12", "a,b c12"),
+        ("MM,B0002é,AEND", "éEND"),
+    ] {
+        assert_eq!(resolve(source).unwrap().0, expected);
+    }
+    for bad in [
+        "MM,B0008short",
+        "MM,B0001é",
+        "D010203,MA,x",
+        "Ma,4142",
+        "Mm,B00024142",
+    ] {
+        assert!(resolve(bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn unsupported_datamatrix_options_fail_instead_of_changing_the_symbol() {
+    for (c, d, options) in [
+        (b'3', b'3', "0000000000DATA"),
+        (b'2', b'3', "2000000000DATA"),
+        (b'3', b'3', "2000xxx000DATA"),
+    ] {
+        let src = dpl(&["L", &rec(b'1', "W1c", c, d, 0, 10, 10, options), "E"]);
+        assert!(DplParser::new().parse(&src).is_err());
+    }
+}
+
+#[test]
+fn counted_maxicode_and_truncated_counts_are_handled_explicitly() {
+    let data = "327895555840611MSG\rNEXT";
+    let counted = format!("{:04}{data}", data.len());
+    let src = dpl(&["L", &rec(b'1', "U", b'0', b'0', 0, 10, 10, &counted), "E"]);
+    let (_, formatted) = labelize::format_source(&src, Some(Language::Dpl));
+    for input in [&src, &formatted] {
+        let label = parse_one(input);
+        match &label.elements[0] {
+            LabelElement::Maxicode(code) => assert!(code.data.ends_with("MSG\rNEXT")),
+            other => panic!("expected MaxiCode, got {other:?}"),
+        }
+    }
+    for record in [
+        "1W1C33000000000009999short",
+        "1Z0000000000000abcdF1000000",
+        "1U00000000000009999short",
+    ] {
+        let src = dpl(&["L", record]);
+        assert!(DplParser::new().parse(&src).is_err());
+        assert_eq!(labelize::format_source(&src, Some(Language::Dpl)).1, src);
     }
 }
 

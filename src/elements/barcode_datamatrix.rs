@@ -29,8 +29,8 @@ pub struct BarcodeDatamatrixWithData {
     pub barcode: BarcodeDatamatrix,
     pub position: LabelPosition,
     pub data: String,
-    /// Raw bytes the producer decoded (e.g. ZPL ^FH hex), pre-escape.
-    /// The legacy ECC 000-140 encoders consume these without a Unicode
-    /// round trip; `None` falls back to `data`'s bytes.
+    /// Raw bytes the producer decoded, pre-escape. Legacy encoders and
+    /// literal ECC 200 fields (`escape == 0`) consume these without a
+    /// Unicode round trip; `None` falls back to `data`'s bytes.
     pub data_bytes: Option<Vec<u8>>,
 }
