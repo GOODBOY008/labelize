@@ -6,7 +6,7 @@
 //! boundaries the parser does so the two can never disagree about where
 //! raw data ends. Comments (`;` lines) are preserved verbatim.
 
-use super::parser::CpclLines;
+use super::parser::{CpclCommand, CpclLines};
 
 /// Format CPCL source as raw bytes (EG/CG payloads are not UTF-8). Never
 /// fails — malformed lines are passed through unchanged rather than
@@ -15,112 +15,67 @@ pub fn format_cpcl(data: &[u8]) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(data.len() + 8);
     let mut lines = CpclLines::new(data);
 
-    while let Some(line) = lines.next_line() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if trimmed.starts_with(';') {
-            out.extend_from_slice(trimmed.as_bytes());
-            out.push(b'\n');
-            continue;
-        }
-
-        let (cmd_word, rest) = split_first(trimmed);
-        let cmd = cmd_word.to_ascii_uppercase();
-        match cmd.as_str() {
-            // Counted graphics payloads: header plus the declared raw
-            // bytes, verbatim (hex digits for EG, raw bytes for CG). The
-            // payload may already start on the command line; the rest runs
-            // across following lines exactly like the parser reads it.
-            "EG" | "CG" => {
-                let mut remainder = rest.trim_start();
-                let mut params: [&str; 4] = [""; 4];
-                let mut ok = true;
-                for slot in params.iter_mut() {
-                    let ws = remainder.len() - remainder.trim_start().len();
-                    let after = &remainder[ws..];
-                    let end = after.find(char::is_whitespace).unwrap_or(after.len());
-                    *slot = &after[..end];
-                    if slot.is_empty() || slot.parse::<f64>().is_err() {
-                        ok = false;
-                        break;
+    loop {
+        let command = match lines.next_command() {
+            Ok(Some(command)) => command,
+            Ok(None) => break,
+            Err(_) => return data.to_vec(),
+        };
+        match command {
+            CpclCommand::Graphic {
+                header, data, hex, ..
+            } => {
+                out.extend_from_slice(header.trim_ascii_start());
+                if hex {
+                    const DIGITS: &[u8] = b"0123456789ABCDEF";
+                    for byte in data {
+                        out.push(DIGITS[(byte >> 4) as usize]);
+                        out.push(DIGITS[(byte & 15) as usize]);
                     }
-                    remainder = &after[end..];
+                } else {
+                    out.extend_from_slice(&data);
                 }
-                if ok {
-                    let row_bytes = params[0].parse::<usize>().unwrap_or(1).max(1);
-                    let height = params[1].parse::<usize>().unwrap_or(1).max(1);
-                    let total = row_bytes * height;
-                    let need = if cmd == "EG" { total * 2 } else { total };
-                    let mut payload: Vec<u8> = remainder
-                        .strip_prefix(' ')
-                        .map(|s| s.as_bytes().to_vec())
-                        .unwrap_or_default();
-                    payload = finish_counted(&mut lines, need, cmd == "EG", payload);
-                    out.extend_from_slice(cmd_word.as_bytes());
-                    for arg in params {
-                        out.push(b' ');
-                        out.extend_from_slice(arg.as_bytes());
-                    }
-                    if !payload.is_empty() {
-                        out.push(b' ');
-                        out.extend_from_slice(&payload);
-                    }
-                    out.push(b'\n');
+                out.push(b'\n');
+            }
+            CpclCommand::Line(line) => {
+                let trimmed = line.trim_ascii_start();
+                if trimmed.is_empty() {
                     continue;
                 }
-            }
-            _ => {}
-        }
-
-        out.extend_from_slice(trimmed.as_bytes());
-        out.push(b'\n');
-    }
-
-    out
-}
-
-/// Extend `seed` (the command line's own payload prefix) with exactly
-/// `need` hex digits (EG) or raw bytes (CG) from the cursor. Hex digits
-/// re-emit as parsed; raw payloads stay verbatim. A short payload returns
-/// whatever was collected (the header re-emits with a partial payload).
-fn finish_counted(lines: &mut CpclLines, need: usize, hex: bool, seed: Vec<u8>) -> Vec<u8> {
-    let mut collected = seed;
-    if hex {
-        collected.retain(|b| b.is_ascii_hexdigit());
-        collected.truncate(need);
-        while collected.len() < need {
-            let Some(line) = lines.next_line() else {
-                return collected;
-            };
-            for b in line.bytes() {
-                if b.is_ascii_hexdigit() {
-                    collected.push(b);
-                    if collected.len() == need {
-                        return collected;
+                out.extend_from_slice(trimmed);
+                out.push(b'\n');
+                let text = String::from_utf8_lossy(trimmed);
+                let mut words = text.split_whitespace();
+                let name = words.next().unwrap_or("").to_ascii_uppercase();
+                let end_tags: &[&str] = match name.as_str() {
+                    "ML" | "MULTILINE" => &["ENDML", "ENDMULTILINE"],
+                    "B" | "BARCODE" | "VB" | "VBARCODE" => {
+                        match words.next().unwrap_or("").to_ascii_uppercase().as_str() {
+                            "QR" => &["ENDQR"],
+                            "PDF-417" | "PDF417" => &["ENDPDF"],
+                            "AZTEC" => &["ENDAZTEC"],
+                            "MAXICODE" => &["ENDMAXICODE"],
+                            _ => &[],
+                        }
+                    }
+                    _ => &[],
+                };
+                if !end_tags.is_empty() {
+                    while let Some(raw) = lines.next_line_bytes() {
+                        out.extend_from_slice(raw);
+                        out.push(b'\n');
+                        if end_tags
+                            .iter()
+                            .any(|tag| raw.trim_ascii().eq_ignore_ascii_case(tag.as_bytes()))
+                        {
+                            break;
+                        }
                     }
                 }
             }
         }
-        collected
-    } else {
-        while collected.len() < need {
-            let Some(line) = lines.next_line() else {
-                return collected;
-            };
-            collected.extend_from_slice(line.as_bytes());
-        }
-        collected.truncate(need);
-        collected
     }
-}
-
-fn split_first(line: &str) -> (&str, &str) {
-    match line.find(char::is_whitespace) {
-        Some(end) => (&line[..end], &line[end..]),
-        None => (line, ""),
-    }
+    out
 }
 
 #[cfg(test)]

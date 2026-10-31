@@ -503,3 +503,129 @@ fn formatter_round_trips_fixtures() {
     assert_eq!(before.len(), after.len());
     assert_eq!(before[0].elements.len(), after[0].elements.len());
 }
+
+#[test]
+fn counted_graphics_preserve_every_byte_and_following_commands() {
+    let payload: Vec<u8> = (0..=255).collect();
+    for command in ["CG", "COMPRESSED-GRAPHICS"] {
+        let mut src = format!("! 0 203 203 400 1\r\n{command} 16 16 0 0 ").into_bytes();
+        src.extend_from_slice(&payload);
+        src.extend_from_slice(b"\r\nTEXT 0 0 0 20 after  \r\nPRINT\r\n");
+        let (_, formatted) = labelize::format_source(&src, Some(Language::Cpcl));
+        for input in [&src, &formatted] {
+            let label = parse_one(input);
+            assert_eq!(label.elements.len(), 2);
+            match &label.elements[0] {
+                LabelElement::GraphicField(g) => assert_eq!(g.data, payload),
+                other => panic!("expected graphic, got {other:?}"),
+            }
+            assert_eq!(text_at(&label, 1).text, "after  ");
+        }
+    }
+}
+
+#[test]
+fn graphic_sizes_are_checked_before_allocating() {
+    for command in [
+        "CG -1 2 0 0 x",
+        "EG 1 0 0 0 FF",
+        "CG 999999999999 999999999999 0 0 x",
+        "EG 1 2 0 0 FF",
+        "CG NaN 1 0 0 x",
+    ] {
+        let src = format!("! 0 203 203 100 1\n{command}\n");
+        assert!(
+            CpclParser::new().parse(src.as_bytes()).is_err(),
+            "{command}"
+        );
+        assert_eq!(
+            labelize::format_source(src.as_bytes(), Some(Language::Cpcl)).1,
+            src.as_bytes()
+        );
+    }
+}
+
+#[test]
+fn physical_units_do_not_resize_resident_fonts() {
+    let dots = parse_one(b"! 0 203 203 100 1\nTEXT 0 0 8 16 X\nPRINT\n");
+    let mm = parse_one(b"! 0 203 203 12.5 1\nIN-MILLIMETERS\nTEXT 0 0 1 2 X\nPRINT\n");
+    assert_eq!(text_at(&dots, 0).font.width, text_at(&mm, 0).font.width);
+    assert_eq!(text_at(&dots, 0).font.height, text_at(&mm, 0).font.height);
+}
+
+#[test]
+fn multiline_accepts_inline_text_and_preserves_blank_rows_and_spaces() {
+    let src = b"! 0 203 203 100 1\nML 10 TEXT 0 0 3 5\n first  \n\nthird\nENDML\nPRINT\n";
+    let (_, formatted) = labelize::format_source(src, Some(Language::Cpcl));
+    for input in [src.as_slice(), formatted.as_slice()] {
+        let label = parse_one(input);
+        assert_eq!(label.elements.len(), 2);
+        assert_eq!(text_at(&label, 0).text, " first  ");
+        assert_eq!(text_at(&label, 0).position.y, 5);
+        assert_eq!(text_at(&label, 1).text, "third");
+        assert_eq!(text_at(&label, 1).position.y, 25);
+    }
+}
+
+#[test]
+fn multiline_accepts_scalable_text() {
+    let label = parse_one(
+        b"! 0 203 203 100 1\nML 10 ST PLL_LAT.CSF 10 12 3 5\nfirst\nsecond\nENDML\nPRINT\n",
+    );
+    assert_eq!(
+        text_at(&label, 0).font.height,
+        (12.0_f64 * 25.4 / 72.0 * 8.0).round()
+    );
+    assert_eq!(text_at(&label, 1).position.y, 15);
+}
+
+#[test]
+fn unterminated_data_blocks_are_errors() {
+    for block in [
+        "ML 10 TEXT 0 0 0 0\nhello",
+        "B QR 0 0\nMA,hello",
+        "B PDF-417 0 0\nhello",
+        "B AZTEC 0 0\nhello",
+        "B MAXICODE 0 0\nPOST 12345",
+    ] {
+        let src = format!("! 0 203 203 100 1\n{block}\n");
+        assert!(CpclParser::new().parse(src.as_bytes()).is_err(), "{block}");
+    }
+}
+
+#[test]
+fn qr_binary_counts_preserve_commas_unicode_and_trailing_spaces() {
+    use labelize::parsers::cpcl::qr_payload::resolve_cpcl_qr_payload as resolve;
+    for (source, expected) in [
+        ("M,hello  ", "hello  "),
+        ("MA,,hello", ",hello"),
+        ("HM,B0005a,b c,N12", "a,b c12"),
+        ("MM,B0002é,AEND", "éEND"),
+    ] {
+        assert_eq!(resolve(source).unwrap().0, expected);
+    }
+    for bad in [
+        "MM,B0008short",
+        "MM,B0001é",
+        "MM,Babcddata",
+        "MM,B0001ab",
+        "D010203,MA,x",
+    ] {
+        assert!(resolve(bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn graphics_height_honors_units_and_formatter_keeps_payload_spaces() {
+    let src =
+        b"! 0 203 203 20 1\nIN-MILLIMETERS\nCG 1 0.5 0 0 \xff\n\r \nTEXT 0 0 0 1 after\nPRINT\n";
+    let (_, formatted) = labelize::format_source(src, Some(Language::Cpcl));
+    for input in [src.as_slice(), formatted.as_slice()] {
+        let label = parse_one(input);
+        match &label.elements[0] {
+            LabelElement::GraphicField(g) => assert_eq!(g.data, b"\xff\n\r "),
+            other => panic!("expected graphic, got {other:?}"),
+        }
+        assert_eq!(text_at(&label, 1).text, "after");
+    }
+}

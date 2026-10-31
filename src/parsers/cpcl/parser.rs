@@ -205,9 +205,26 @@ impl CpclParser {
         let mut session: Option<CpclSession> = None;
         let mut line_no = 0usize;
 
-        while let Some(raw) = lines.next_line() {
+        while let Some(command) = lines.next_command()? {
             line_no += 1;
-            let line = raw.trim();
+            let raw = match command {
+                CpclCommand::Graphic {
+                    row_bytes,
+                    data,
+                    x,
+                    y,
+                    hex,
+                    ..
+                } => {
+                    if let Some(s) = session.as_mut() {
+                        s.resolve_header_units();
+                        push_graphic(s, row_bytes, data, x, y, hex);
+                    }
+                    continue;
+                }
+                CpclCommand::Line(raw) => String::from_utf8_lossy(raw),
+            };
+            let line = raw.trim_start();
             if line.is_empty() || line.starts_with(';') {
                 continue;
             }
@@ -356,9 +373,9 @@ fn parse_line(
         "BOX" => parse_box(s, &args).map(|_| Flow::Continue),
         "LINE" | "L" => parse_line_graphic(s, &args, false).map(|_| Flow::Continue),
         "INVERSE-LINE" | "IL" => parse_line_graphic(s, &args, true).map(|_| Flow::Continue),
-        "EG" => parse_expanded_graphics(s, rest, lines, true).map(|_| Flow::Continue),
-        "CG" => parse_expanded_graphics(s, rest, lines, false).map(|_| Flow::Continue),
-        "VEG" | "VCG" => Err("vertical CPCL graphics are not supported".to_string()),
+        "VEG" | "VCG" | "VEXPANDED-GRAPHICS" | "VCOMPRESSED-GRAPHICS" => {
+            Err("vertical CPCL graphics are not supported".to_string())
+        }
         "PCX" => Err("CPCL PCX graphics are not supported".to_string()),
         "PATTERN" => match args.first().and_then(|v| v.parse::<i32>().ok()) {
             Some(100) | None => Ok(Flow::Continue),
@@ -456,7 +473,7 @@ fn parse_text(
     let (size, r) = next_token(r);
     let (x_tok, r) = next_token(r);
     let (y_tok, r) = next_token(r);
-    let data = r.trim();
+    let data = field_data(r);
     if data.is_empty() {
         return Ok(());
     }
@@ -471,8 +488,8 @@ fn parse_text(
             face: font_id.face,
             advance_mult: 1.0,
             dedot_zero: false,
-            width: s.w(font_id.width * s.mag_w) as f64,
-            height: s.h(font_id.height * s.mag_h) as f64,
+            width: (font_id.width * s.mag_w * s.dpmm / header_dpmm(s.hdpi)).round(),
+            height: (font_id.height * s.mag_h * s.dpmm / header_dpmm(s.vdpi)).round(),
             orientation,
         },
         position: s.position(x, y),
@@ -496,7 +513,7 @@ fn parse_scale_text(
     let (h_pt, r) = next_token(r);
     let (x_tok, r) = next_token(r);
     let (y_tok, r) = next_token(r);
-    let data = r.trim();
+    let data = field_data(r);
     if data.is_empty() {
         return Ok(());
     }
@@ -564,54 +581,53 @@ fn apply_justify(s: &CpclSession, mut text: TextField) -> TextField {
     }
 }
 
-/// `ML {height}` / `{TEXT…} {font} {size} {x} {y}` / data lines / ENDML.
+/// The text command normally follows the pitch on the same line. Also
+/// accept the legacy two-line spelling used by existing source files.
 fn parse_multiline(s: &mut CpclSession, rest: &str, lines: &mut CpclLines) -> Result<Flow, String> {
-    let (pitch_tok, _) = next_token(rest);
+    let (pitch_tok, header) = next_token(rest);
     let pitch = parse_num(pitch_tok)?;
-
-    let Some(header) = lines.next_line().map(|l| l.trim().to_string()) else {
-        return Err("CPCL MULTILINE missing its text command".to_string());
+    let header = if header.trim().is_empty() {
+        lines
+            .next_line()
+            .ok_or("CPCL MULTILINE missing its text command")?
+    } else {
+        header.trim().to_string()
     };
     let (text_cmd, header_rest) = next_token(&header);
-    let orientation = match text_cmd.to_ascii_uppercase().as_str() {
-        "VTEXT" | "VT" | "TEXT90" | "T90" => FieldOrientation::Rotated270,
+    let command = text_cmd.to_ascii_uppercase();
+    let orientation = match command.as_str() {
+        "TEXT" | "T" | "SCALE-TEXT" | "ST" => FieldOrientation::Normal,
+        "VTEXT" | "VT" | "TEXT90" | "T90" | "VSCALE-TEXT" | "VST" => FieldOrientation::Rotated270,
         "TEXT180" | "T180" => FieldOrientation::Rotated180,
         "TEXT270" | "T270" => FieldOrientation::Rotated90,
-        _ => FieldOrientation::Normal,
+        _ => return Err(format!("unsupported CPCL MULTILINE text command {command}")),
     };
-
-    let mut data_lines: Vec<String> = Vec::new();
-    while let Some(raw) = lines.next_line() {
-        let trimmed = raw.trim();
-        if trimmed.eq_ignore_ascii_case("ENDML") || trimmed.eq_ignore_ascii_case("ENDMULTILINE") {
-            break;
-        }
-        if !trimmed.is_empty() {
-            data_lines.push(trimmed.to_string());
-        }
-    }
-    let Some(first) = data_lines.first() else {
-        return Ok(Flow::Continue);
-    };
-
-    // Render the first row through the normal TEXT path, then re-emit the
-    // element at y + k*pitch for the remaining rows.
-    let mut row_cmd = String::with_capacity(header_rest.len() + first.len() + 1);
-    row_cmd.push_str(header_rest.trim_start());
-    row_cmd.push(' ');
-    row_cmd.push_str(first);
-    parse_text(s, &row_cmd, orientation)?;
-    let Some(LabelElement::Text(template)) = s.elements.last().cloned() else {
-        return Ok(Flow::Continue);
-    };
+    let scalable = matches!(
+        command.as_str(),
+        "SCALE-TEXT" | "ST" | "VSCALE-TEXT" | "VST"
+    );
     let pitch_dots = (s.y_mm(pitch) * s.dpmm).round() as i32;
-    for (k, data) in data_lines.iter().enumerate().skip(1) {
-        let mut t = template.clone();
-        t.text = data.clone();
-        t.position.y += pitch_dots * k as i32;
-        s.elements.push(LabelElement::Text(t));
+    let mut row = 0i32;
+    while let Some(data) = lines.next_line() {
+        if data.trim().eq_ignore_ascii_case("ENDML")
+            || data.trim().eq_ignore_ascii_case("ENDMULTILINE")
+        {
+            return Ok(Flow::Continue);
+        }
+        if !data.is_empty() {
+            let row_cmd = format!("{} {}", header_rest.trim(), data);
+            if scalable {
+                parse_scale_text(s, &row_cmd, orientation)?;
+            } else {
+                parse_text(s, &row_cmd, orientation)?;
+            }
+            if let Some(LabelElement::Text(t)) = s.elements.last_mut() {
+                t.position.y = t.position.y.saturating_add(pitch_dots.saturating_mul(row));
+            }
+        }
+        row = row.saturating_add(1);
     }
-    Ok(Flow::Continue)
+    Err("CPCL MULTILINE missing ENDML".to_string())
 }
 
 /// BARCODE dispatch: the two-dimensional types (`PDF-417`, `QR`,
@@ -749,9 +765,11 @@ fn parse_2d_maxicode(
     let mut country = "840".to_string();
     let mut class = "001".to_string();
     let mut secondary = String::new();
+    let mut terminated = false;
     while let Some(raw) = lines.next_line() {
         let line = raw.trim();
         if line.eq_ignore_ascii_case("ENDMAXICODE") {
+            terminated = true;
             break;
         }
         let (tag, value) = next_token(line);
@@ -768,6 +786,10 @@ fn parse_2d_maxicode(
             }
             _ => {}
         }
+    }
+
+    if !terminated {
+        return Err("CPCL MAXICODE missing ENDMAXICODE".to_string());
     }
 
     // The IR's MaxiCode payload: class(3) + country(3) + postal followed
@@ -846,7 +868,7 @@ fn parse_linear_barcode(s: &mut CpclSession, rest: &str, vertical: bool) -> Resu
     let (h_tok, r) = next_token(r);
     let (x_tok, r) = next_token(r);
     let (y_tok, r) = next_token(r);
-    let data = r.trim();
+    let data = field_data(r);
     if data.is_empty() {
         return Ok(());
     }
@@ -1185,86 +1207,9 @@ fn filled_box(x: i32, y: i32, width: i32, height: i32) -> GraphicBox {
     }
 }
 
-/// `EG {byte-width} {dot-height} {x} {y} {hex…}` (expanded) or `CG` with
-/// the same shape in binary. The payload starts on the command line right
-/// after the fourth parameter's separator space and is counted, not
-/// line-delimited: hex digits / raw bytes run across line breaks until
-/// the declared size is met. Set bits print black (the manual's F0…/0F…
-/// checkerboard example), matching the ^GF polarity.
-fn parse_expanded_graphics(
-    s: &mut CpclSession,
-    rest: &str,
-    lines: &mut CpclLines,
-    hex: bool,
-) -> Result<(), String> {
-    let name = if hex { "EG" } else { "CG" };
-    let mut remainder = rest.trim_start();
-    let mut params = [0.0f64; 4];
-    for slot in params.iter_mut() {
-        let (tok, r) = next_token(remainder);
-        *slot = parse_num(tok)
-            .map_err(|_| format!("CPCL {name} command requires 4 numeric parameters"))?;
-        remainder = r;
-    }
-    let row_bytes = params[0].max(1.0) as usize;
-    let height = params[1].max(1.0) as usize;
-    let x = params[2];
-    let y = params[3];
-    let total_bytes = row_bytes * height;
-
-    // The payload begins right after the single separator space; anything
-    // beyond it (including further spaces in CG binary data) is payload.
-    let mut data: Vec<u8> = Vec::with_capacity(total_bytes);
-    if let Some(after_sep) = remainder.strip_prefix(' ') {
-        data.extend_from_slice(after_sep.as_bytes());
-    }
-
-    let data = if hex {
-        let need = total_bytes * 2;
-        let mut hex_digits: Vec<u8> = data
-            .iter()
-            .copied()
-            .filter(|b| b.is_ascii_hexdigit())
-            .collect();
-        hex_digits.truncate(need);
-        while hex_digits.len() < need {
-            let Some(raw) = lines.next_line() else {
-                break;
-            };
-            for b in raw.bytes() {
-                if b.is_ascii_hexdigit() {
-                    hex_digits.push(b);
-                    if hex_digits.len() == need {
-                        break;
-                    }
-                }
-            }
-        }
-        if hex_digits.len() < need {
-            return Err("CPCL EG graphics data shorter than declared".to_string());
-        }
-        hex_digits
-            .chunks(2)
-            .map(|pair| {
-                let hi = (pair[0] as char).to_digit(16).unwrap_or(0) as u8;
-                let lo = pair.get(1).copied().unwrap_or(b'0') as char;
-                (hi << 4) | lo.to_digit(16).unwrap_or(0) as u8
-            })
-            .collect()
-    } else {
-        while data.len() < total_bytes {
-            let Some(raw) = lines.next_line() else {
-                break;
-            };
-            data.extend_from_slice(raw.as_bytes());
-        }
-        data.truncate(total_bytes);
-        if data.len() < total_bytes {
-            return Err("CPCL CG graphics data shorter than declared".to_string());
-        }
-        data
-    };
-
+/// The byte cursor resolves counted payloads before any UTF-8 conversion.
+fn push_graphic(s: &mut CpclSession, row_bytes: i32, data: Vec<u8>, x: f64, y: f64, hex: bool) {
+    let total_bytes = data.len() as i32;
     s.elements.push(LabelElement::GraphicField(GraphicField {
         reverse_print: ReversePrint::default(),
         position: s.position(x, y),
@@ -1273,16 +1218,15 @@ fn parse_expanded_graphics(
         } else {
             GraphicFieldFormat::Raw
         },
-        data_bytes: total_bytes as i32,
-        total_bytes: total_bytes as i32,
-        row_bytes: row_bytes as i32,
+        data_bytes: total_bytes,
+        total_bytes,
+        row_bytes,
         data,
         magnification_x: 1,
         magnification_y: 1,
         mode: GraphicFieldMode::Overwrite,
         zero_bits_black: false,
     }));
-    Ok(())
 }
 
 /// Collect 2-D data lines until one of the END tags. Lines join with `\n`.
@@ -1291,11 +1235,11 @@ fn collect_until(lines: &mut CpclLines, end_tags: &[&str]) -> Result<String, Str
     while let Some(raw) = lines.next_line() {
         let trimmed = raw.trim();
         if end_tags.iter().any(|tag| trimmed.eq_ignore_ascii_case(tag)) {
-            break;
+            return Ok(out.join("\n"));
         }
-        out.push(raw.trim_end().to_string());
+        out.push(raw);
     }
-    Ok(out.join("\n"))
+    Err(format!("CPCL data block missing {}", end_tags[0]))
 }
 
 /// Split off the first whitespace-delimited token and the remainder.
@@ -1307,43 +1251,193 @@ fn next_token(rest: &str) -> (&str, &str) {
     }
 }
 
+fn field_data(rest: &str) -> &str {
+    rest.strip_prefix(' ')
+        .or_else(|| rest.strip_prefix('\t'))
+        .unwrap_or(rest)
+}
+
 fn parse_num(token: &str) -> Result<f64, String> {
     token
         .trim()
         .parse::<f64>()
-        .map_err(|_| format!("invalid numeric parameter {token:?}"))
+        .ok()
+        .filter(|v| v.is_finite())
+        .ok_or_else(|| format!("invalid numeric parameter {token:?}"))
 }
 
 // ── line cursor ─────────────────────────────────────────────────────
 
+pub(super) enum CpclCommand<'a> {
+    Line(&'a [u8]),
+    Graphic {
+        header: &'a [u8],
+        row_bytes: i32,
+        data: Vec<u8>,
+        x: f64,
+        y: f64,
+        hex: bool,
+    },
+}
+
 pub(super) struct CpclLines<'a> {
     data: &'a [u8],
     pos: usize,
+    units: Units,
+    vdpi: f64,
 }
 
 impl<'a> CpclLines<'a> {
     pub(super) fn new(data: &'a [u8]) -> Self {
-        CpclLines { data, pos: 0 }
+        Self {
+            data,
+            pos: 0,
+            units: Units::Dots,
+            vdpi: 203.0,
+        }
     }
 
-    /// Next physical line without its terminator (CR, LF, or CRLF).
-    pub(super) fn next_line(&mut self) -> Option<String> {
+    /// Command headers are text; counted graphic data is always raw bytes.
+    /// This scanner is shared with the formatter so both honor the same
+    /// payload boundaries, including dimensions expressed in physical units.
+    pub(super) fn next_command(&mut self) -> Result<Option<CpclCommand<'a>>, String> {
+        let start = self.pos;
+        let Some(line) = self.next_line_bytes() else {
+            return Ok(None);
+        };
+        let trimmed = line.trim_ascii_start();
+        let name = trimmed
+            .split(u8::is_ascii_whitespace)
+            .next()
+            .unwrap_or_default();
+        let name = String::from_utf8_lossy(name).to_ascii_uppercase();
+        let hex = matches!(name.as_str(), "EG" | "EXPANDED-GRAPHICS");
+        if hex || matches!(name.as_str(), "CG" | "COMPRESSED-GRAPHICS") {
+            let mut pos = start + line.len() - trimmed.len() + name.len();
+            let mut params = [0.0; 4];
+            for value in &mut params {
+                while self
+                    .data
+                    .get(pos)
+                    .is_some_and(|b| matches!(b, b' ' | b'\t'))
+                {
+                    pos += 1;
+                }
+                let begin = pos;
+                while self.data.get(pos).is_some_and(|b| !b.is_ascii_whitespace()) {
+                    pos += 1;
+                }
+                let token = std::str::from_utf8(&self.data[begin..pos])
+                    .map_err(|_| "invalid CPCL graphics header")?;
+                *value = parse_num(token)?;
+            }
+            if !matches!(self.data.get(pos), Some(b' ' | b'\t')) {
+                return Err("CPCL graphics payload requires a separator space".to_string());
+            }
+            pos += 1; // exactly one separator; additional spaces are binary data
+            let header = &self.data[start..pos];
+            let row_bytes = params[0];
+            let unit_scale = match self.units {
+                Units::Dots => 1.0,
+                Units::Millimeters => header_dpmm(self.vdpi),
+                Units::Centimeters => 10.0 * header_dpmm(self.vdpi),
+                Units::Inches => 25.4 * header_dpmm(self.vdpi),
+            };
+            let height = (params[1] * unit_scale).round();
+            if row_bytes.fract() != 0.0
+                || !(1.0..=999.0).contains(&row_bytes)
+                || !(1.0..=65535.0).contains(&height)
+            {
+                return Err("CPCL graphic dimensions are out of range".to_string());
+            }
+            let total = (row_bytes as usize)
+                .checked_mul(height as usize)
+                .ok_or("CPCL graphic dimensions overflow")?;
+            let need = total
+                .checked_mul(if hex { 2 } else { 1 })
+                .ok_or("CPCL graphic dimensions overflow")?;
+            if need > self.data.len() - pos {
+                return Err("CPCL graphics data shorter than declared".to_string());
+            }
+            let data = if hex {
+                let mut data = Vec::with_capacity(total);
+                let mut high = None;
+                while data.len() < total {
+                    let b = *self
+                        .data
+                        .get(pos)
+                        .ok_or("CPCL EG graphics data shorter than declared")?;
+                    pos += 1;
+                    if b.is_ascii_whitespace() {
+                        continue;
+                    }
+                    let digit = (b as char)
+                        .to_digit(16)
+                        .ok_or("invalid CPCL EG hexadecimal data")?
+                        as u8;
+                    if let Some(hi) = high.take() {
+                        data.push((hi << 4) | digit);
+                    } else {
+                        high = Some(digit);
+                    }
+                }
+                data
+            } else {
+                let data = self.data[pos..pos + total].to_vec();
+                pos += total;
+                data
+            };
+            self.pos = pos;
+            return Ok(Some(CpclCommand::Graphic {
+                header,
+                row_bytes: row_bytes as i32,
+                data,
+                x: params[2],
+                y: params[3],
+                hex,
+            }));
+        }
+        match name.as_str() {
+            "!" => {
+                self.units = Units::Dots;
+                self.vdpi = std::str::from_utf8(trimmed)
+                    .ok()
+                    .and_then(|s| s.split_whitespace().nth(3))
+                    .and_then(|s| parse_num(s).ok())
+                    .filter(|v| *v > 0.0)
+                    .unwrap_or(203.0);
+            }
+            "IN-DOTS" => self.units = Units::Dots,
+            "IN-INCHES" => self.units = Units::Inches,
+            "IN-CENTIMETERS" => self.units = Units::Centimeters,
+            "IN-MILLIMETERS" => self.units = Units::Millimeters,
+            _ => {}
+        }
+        Ok(Some(CpclCommand::Line(line)))
+    }
+
+    /// Raw physical lines are used inside text/barcode blocks; their data
+    /// must not be mistaken for commands or stripped by the formatter.
+    pub(super) fn next_line_bytes(&mut self) -> Option<&'a [u8]> {
         if self.pos >= self.data.len() {
             return None;
         }
         let start = self.pos;
-        let mut end = self.pos;
-        while end < self.data.len() && self.data[end] != b'\n' && self.data[end] != b'\r' {
-            end += 1;
-        }
-        let line = String::from_utf8_lossy(&self.data[start..end]).to_string();
-        self.pos = end;
-        if self.pos < self.data.len() && self.data[self.pos] == b'\r' {
+        while self.pos < self.data.len() && !matches!(self.data[self.pos], b'\r' | b'\n') {
             self.pos += 1;
         }
-        if self.pos < self.data.len() && self.data[self.pos] == b'\n' {
+        let line = &self.data[start..self.pos];
+        if self.data.get(self.pos) == Some(&b'\r') {
+            self.pos += 1;
+        }
+        if self.data.get(self.pos) == Some(&b'\n') {
             self.pos += 1;
         }
         Some(line)
+    }
+
+    pub(super) fn next_line(&mut self) -> Option<String> {
+        self.next_line_bytes()
+            .map(|line| String::from_utf8_lossy(line).into_owned())
     }
 }

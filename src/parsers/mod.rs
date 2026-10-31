@@ -11,6 +11,7 @@
 pub mod cpcl;
 pub mod dpl;
 pub mod epl;
+mod qr_segments;
 pub mod tspl;
 pub mod zpl;
 

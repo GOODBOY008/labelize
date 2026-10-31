@@ -18,6 +18,38 @@ back to the renderer baseline when offline — the golden tolerances record
 the honest cross-engine distance where a reference was fetched and guard
 regressions where the baseline was used.
 
+## Parser and payload regression coverage
+
+The language review also checks behavior that a visual corpus cannot reliably
+detect. `tests/unit_cpcl_parser.rs`, `tests/unit_dpl_parser.rs` and
+`tests/unit_cpcl_dpl_robustness.rs` cover counted payload boundaries, all byte
+values, malformed records, formatter round trips and arbitrary input. The
+forward-render tests in `tests/e2e_cpcl_dpl_payloads.rs` compare every CPCL
+bitmap pixel with its input bit and independently decode DPL DataMatrix output
+at 8 and 12 dpmm, before and after source formatting.
+
+The command semantics come from Zebra's
+[CPCL Programming Guide](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/software/cpcl-link-os-pg-en.pdf)
+(sections 3.3.2, 6.7, 6.11, 6.19 and 6.34) and Honeywell's
+[DPL Command Reference](https://applog.se/storage/B31B01F8DF5B7C3BA38F0A91D9493A5D9D2EE0047E4127279FEC9D22BBD08659/eafb4bac400147bc8931418ea6f25c88/pdf/media/b092b1e119d540c49e214c88e4649039/DPL%20Command%20Reference%20Guide.pdf)
+(`T`, `W1C`, `Z`, `U` and scalable font records). DPL byte counts include
+the barcode option fields after the count; they override record terminators.
+`Tnn` takes two hexadecimal digits and changes only the next format record.
+
+The existing `dpl_2d_graphics` fixture now specifies `200` explicitly for its
+ECC 200 symbol, correcting the previous `000` command without replacing its
+reference PNG. Legacy DPL DataMatrix qualities and unequal horizontal/vertical
+modules remain unsupported and now fail explicitly. QR structured append and
+DPL QR hex-ASCII modes also fail explicitly. PDF417 accepts UTF-8 and embedded
+control characters; non-UTF-8 PDF417 payloads are rejected because its shared
+encoder currently takes text. Font substitution and the previously documented
+printer-only/unsupported commands remain limitations of these frontends.
+
+The `dpl_text_styles` renderer baseline was regenerated after removing the
+erroneously printed scalable-size fields (`P015P015`). Its 0.01% tolerance is
+unchanged. External reference PNGs are unchanged; the scalable-text assertions
+and independent box-edge pixel check cover the intended semantic corrections.
+
 ## CPCL fixtures — Labelixa/thermal-printer-examples
 
 Source: <https://github.com/Labelixa/thermal-printer-examples> (MIT,

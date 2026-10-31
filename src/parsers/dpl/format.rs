@@ -2,7 +2,7 @@
 //! byte-counted payloads.
 //!
 //! Records split on the field-data terminator (CR by default — the `T`
-//! command reassigns it), exactly like the parser's cursor, so the two can
+//! command reassigns it for one field), exactly like the parser's cursor, so the two can
 //! never disagree about where binary-safe data (PDF-417 `Z` byte counts,
 //! DataMatrix `W1C`) ends. `<STX>` system lines pass through verbatim.
 
@@ -14,25 +14,21 @@ pub fn format_dpl(data: &[u8]) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(data.len() + 8);
     let mut cursor = DplCursor::new(data);
 
-    while let Some(line) = cursor.next_record(b'\r') {
-        if line.is_empty() {
-            continue;
-        }
-        let trimmed: &[u8] = {
-            // Trim trailing whitespace only: a record's data field may in
-            // principle carry leading spaces, and the leading bytes are
-            // structural (rotation digit / command letter).
-            let mut end = line.len();
-            while end > 0 && line[end - 1].is_ascii_whitespace() {
-                end -= 1;
-            }
-            &line[..end]
+    loop {
+        let record = match cursor.next_record() {
+            Ok(Some(record)) => record,
+            Ok(None) => break,
+            // Formatting malformed input must never discard or rewrite data.
+            Err(_) => return data.to_vec(),
         };
-        if trimmed.is_empty() {
-            continue;
+        out.extend_from_slice(record.data);
+        match record.terminator {
+            Some(b'\r' | b'\n') | None => out.push(b'\n'),
+            Some(terminator) => {
+                out.push(terminator);
+                out.push(b'\n');
+            }
         }
-        out.extend_from_slice(trimmed);
-        out.push(b'\n');
     }
 
     out

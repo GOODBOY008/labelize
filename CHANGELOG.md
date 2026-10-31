@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CPCL and DPL parser/formatter correctness**: preserve counted binary
+  graphics and barcode fields, payload whitespace, and subsequent commands.
+  CPCL now accepts full graphics command names, inline/scalable `MULTILINE`
+  text and blank rows; physical coordinate units no longer resize resident
+  fonts. DPL now handles hexadecimal one-field `Tnn` terminators, counted
+  `W1C`/`Z`/`U` fields, scalable-font data, rotation and multipliers, and
+  independent horizontal/vertical box border thicknesses.
+  Short records and malformed graphics return errors instead of panicking.
+  QR binary segments honor byte counts even when the payload contains commas.
+  Literal ECC 200 rendering preserves raw bytes; unsupported DPL DataMatrix
+  qualities, unequal module dimensions, QR hex input and structured append
+  now report errors instead of silently producing a different symbol.
 - **TSPL `BITMAP` hex-text input** (#108): decode a complete line containing
   exactly two hex digits per declared byte (spaces/tabs optional), and
   preserve it when formatting. Short, odd, overlong and mixed payloads

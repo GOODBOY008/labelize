@@ -1375,7 +1375,7 @@ impl Renderer {
         }
         // Skip empty fields, preserving upstream's label-level behavior.
         // Legacy bytes are authoritative even when the display text differs.
-        let is_empty = if bc.barcode.quality == 200 {
+        let is_empty = if bc.barcode.quality == 200 && bc.barcode.escape != 0 {
             bc.data.is_empty()
         } else {
             bc.data_bytes
@@ -1420,8 +1420,13 @@ impl Renderer {
             )?
             .to_image(scale as usize, scale as usize)
         } else {
+            let input = if bc.barcode.escape == 0 {
+                bc.data_bytes.as_deref().unwrap_or(bc.data.as_bytes())
+            } else {
+                bc.data.as_bytes()
+            };
             let image = barcodes::datamatrix::render_field(
-                bc.data.as_bytes(),
+                input,
                 scale,
                 bc.barcode.rows,
                 bc.barcode.columns,

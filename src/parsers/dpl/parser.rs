@@ -11,7 +11,7 @@
 //!
 //! The home position is the label's **bottom-left** corner and the row
 //! coordinate grows upward — positions land on the IR's
-//! `calculate_from_bottom` anchor. Coordinates are hundredths of an inch
+//! `from_bottom` anchor. Coordinates are hundredths of an inch
 //! (`m` switches to tenths of a millimetre) and are resolved to
 //! millimetres here. Unsupported constructs error out instead of
 //! misrendering; device-only commands are no-ops like the TSPL/CPCL
@@ -73,7 +73,8 @@ impl DplParser {
         let mut in_format = false;
         let mut record_no = 0usize;
 
-        while let Some(line) = cursor.next_record(state.terminator) {
+        while let Some(record) = cursor.next_record()? {
+            let line = record.data;
             if line.is_empty() {
                 continue;
             }
@@ -93,6 +94,7 @@ impl DplParser {
                     // System commands may not appear inside a format; treat
                     // as leaving it (matches "must be issued outside").
                     in_format = false;
+                    elements.clear();
                 }
                 continue;
             }
@@ -105,7 +107,7 @@ impl DplParser {
                 // Print records start with a rotation digit.
                 b'1'..=b'4' => {
                     record_no += 1;
-                    parse_record(&mut state, &mut elements, &line)
+                    parse_record(&mut state, &mut elements, line)
                         .map_err(|e| format!("DPL record {record_no}: {e}"))?;
                 }
                 b'E' | b'e' => {
@@ -122,7 +124,7 @@ impl DplParser {
                     in_format = false;
                 }
                 _ => {
-                    parse_config(&mut state, &line)?;
+                    parse_config(&mut state, line)?;
                 }
             }
         }
@@ -140,8 +142,6 @@ struct DplState {
     /// Column offset (`Cnnnn`) and row offset (`Rnnnn`), in units.
     column_offset: f64,
     row_offset: f64,
-    /// Field-data line terminator (the `T` command; CR by default).
-    terminator: u8,
 }
 
 impl DplState {
@@ -151,7 +151,6 @@ impl DplState {
             metric: false,
             column_offset: 0.0,
             row_offset: 0.0,
-            terminator: b'\r',
         }
     }
 
@@ -198,6 +197,12 @@ fn parse_record(
     elements: &mut Vec<LabelElement>,
     line: &[u8],
 ) -> Result<(), String> {
+    let header_len = if line.get(1) == Some(&b'W') { 17 } else { 15 };
+    if line.len() < header_len {
+        return Err(format!(
+            "DPL record header is too short (expected {header_len} bytes)"
+        ));
+    }
     let orientation = match line[0] {
         b'2' => FieldOrientation::Rotated90,
         b'3' => FieldOrientation::Rotated180,
@@ -206,33 +211,39 @@ fn parse_record(
     };
 
     let b = line[1];
-    let eee = std::str::from_utf8(&line[4..7])
-        .unwrap_or("000")
+    let shift = if b == b'W' { 2 } else { 0 };
+    let eee = std::str::from_utf8(&line[4 + shift..7 + shift])
+        .map_err(|_| "invalid DPL font or height field")?
         .to_string();
-    let row = parse_units(&line[7..11])?;
-    let col = parse_units(&line[11..15])?;
+    let row = parse_units(&line[7 + shift..11 + shift])?;
+    let col = parse_units(&line[11 + shift..15 + shift])?;
     let position = LabelPosition {
         x: state.dots(col + state.column_offset),
         y: state.dots(row + state.row_offset),
         calculate_from_bottom: false,
         automatic_position: false,
-        // DPL home position is the label's bottom-left corner; rows grow up.
         from_bottom: true,
     };
+    let counted = matches!(b, b'Z' | b'U') || line.get(1..4) == Some(b"W1C");
     let ctx = RecordCtx {
         orientation,
-        c: line[2],
-        d: line[3],
+        c: line[2 + shift],
+        d: line[3 + shift],
         eee: eee.clone(),
         position: position.clone(),
-        rest: &line[15..],
+        rest: line
+            .get(header_len + if counted { 4 } else { 0 }..)
+            .ok_or("DPL record missing byte count")?,
     };
     let rest = ctx.rest;
 
     // Scalable fonts carry two optional 4-char size fields before data.
     if b == b'9' && starts_with_scalable_id(&eee) {
-        let font = scalable_size_fields(state, &eee, rest)?;
-        let data = record_data(rest, state.terminator, false);
+        let mut font = scalable_size_fields(state, &eee, rest)?;
+        font.orientation = orientation;
+        font.width *= super::fonts::multiplier(ctx.c).max(1.0);
+        font.height *= super::fonts::multiplier(ctx.d).max(1.0);
+        let data = record_data(&rest[8..]);
         if data.is_empty() {
             return Ok(());
         }
@@ -247,35 +258,13 @@ fn parse_record(
         return Ok(());
     }
 
-    // W-expansion records (2-D set): `b` is `W` plus a two-char type ID,
-    // so their header runs 17 bytes before the data.
+    // W-expansion records insert a two-character type after W.
     if b == b'W' {
-        if line.len() < 17 {
-            return Err("DPL W record header is too short".to_string());
-        }
-        let expansion = line[2..4].to_vec();
-        let w_ctx = RecordCtx {
-            orientation,
-            c: line[4],
-            d: line[5],
-            eee: std::str::from_utf8(&line[6..9])
-                .unwrap_or("000")
-                .to_string(),
-            position: LabelPosition {
-                x: state.dots(parse_units(&line[13..17])? + state.column_offset),
-                y: state.dots(parse_units(&line[9..13])? + state.row_offset),
-                calculate_from_bottom: false,
-                automatic_position: false,
-                from_bottom: true,
-            },
-            rest: &line[17..],
-        };
-        return match expansion.as_slice() {
-            b"1c" => parse_datamatrix(state, elements, &w_ctx, false),
-            b"1C" => parse_datamatrix(state, elements, &w_ctx, true),
-            b"1d" => parse_qr(state, elements, &w_ctx, false),
-            b"1D" => parse_qr(state, elements, &w_ctx, true),
-            b"1f" | b"1F" => parse_aztec(state, elements, &w_ctx),
+        return match &line[2..4] {
+            b"1c" | b"1C" => parse_datamatrix(state, elements, &ctx),
+            b"1d" => parse_qr(state, elements, &ctx, false),
+            b"1D" => parse_qr(state, elements, &ctx, true),
+            b"1f" | b"1F" => parse_aztec(state, elements, &ctx),
             other => Err(format!(
                 "unsupported DPL expanded bar code W{}",
                 String::from_utf8_lossy(other)
@@ -290,13 +279,13 @@ fn parse_record(
 
     // MaxiCode: fixed-field form `zip5 zip4 country class message`.
     if b == b'u' || b == b'U' {
-        return parse_maxicode(elements, &ctx, state.terminator);
+        return parse_maxicode(elements, &ctx);
     }
 
     match b {
         b'0'..=b'8' => {
             let font = bitmap_text_font(state, b, ctx.c, ctx.d, orientation);
-            let data = record_data(rest, state.terminator, false);
+            let data = record_data(rest);
             if data.is_empty() {
                 return Ok(());
             }
@@ -312,7 +301,7 @@ fn parse_record(
         }
         b'9' => {
             let font = smooth_text_font(state, &eee, ctx.c, ctx.d, orientation);
-            let data = record_data(rest, state.terminator, false);
+            let data = record_data(rest);
             if data.is_empty() {
                 return Ok(());
             }
@@ -416,13 +405,10 @@ fn smooth_text_font(
     }
 }
 
-/// Strip the record terminator from the data tail.
-fn record_data(rest: &[u8], terminator: u8, _double: bool) -> String {
-    let end = rest
-        .iter()
-        .position(|&b| b == terminator)
-        .unwrap_or(rest.len());
-    String::from_utf8_lossy(&rest[..end]).trim_end().to_string()
+/// The cursor has already removed the terminator or honored the byte count.
+/// Whitespace and control bytes inside the payload are data.
+fn record_data(rest: &[u8]) -> String {
+    String::from_utf8_lossy(rest).into_owned()
 }
 
 fn parse_units(field: &[u8]) -> Result<f64, String> {
@@ -442,9 +428,12 @@ fn parse_graphic(
     elements: &mut Vec<LabelElement>,
     ctx: &RecordCtx,
 ) -> Result<(), String> {
-    let data = record_data(ctx.rest, state.terminator, false);
+    let data = record_data(ctx.rest);
     if data.is_empty() {
         return Ok(());
+    }
+    if !data.is_ascii() {
+        return Err("DPL graphics require ASCII drawing parameters".to_string());
     }
     let (kind, dims) = data.split_at(1);
     let mut position = ctx.position.clone();
@@ -484,14 +473,40 @@ fn parse_graphic(
             let v = parse_units(&dims.as_bytes()[h_len..h_len + v_len])?;
             let top_bot = parse_units(&dims.as_bytes()[h_len + v_len..h_len + v_len + b_len])?;
             let sides = parse_units(&dims.as_bytes()[h_len + v_len + b_len..need])?;
+            let width = state.dots(h).max(1);
+            let height = state.dots(v).max(1);
+            let horizontal = state.dots(top_bot).max(1).min(height);
+            let vertical = state.dots(sides).max(1).min(width);
+            if horizontal != vertical {
+                // Resolve independent edge thicknesses into four filled
+                // rectangles. The renderer needs no language-specific box mode.
+                for (dx, dy, w, h) in [
+                    (0, 0, width, horizontal),
+                    (0, height - horizontal, width, horizontal),
+                    (0, 0, vertical, height),
+                    (width - vertical, 0, vertical, height),
+                ] {
+                    let mut edge_position = ctx.position.clone();
+                    edge_position.x = edge_position.x.saturating_add(dx);
+                    edge_position.y = edge_position.y.saturating_add(dy);
+                    elements.push(LabelElement::GraphicBox(GraphicBox {
+                        reverse_print: ReversePrint::default(),
+                        position: edge_position,
+                        width: w,
+                        height: h,
+                        border_thickness: w.min(h),
+                        corner_rounding: 0,
+                        line_color: LineColor::Black,
+                    }));
+                }
+                return Ok(());
+            }
             elements.push(LabelElement::GraphicBox(GraphicBox {
                 reverse_print: ReversePrint::default(),
                 position: ctx.position.clone(),
-                width: state.dots(h).max(1),
-                height: state.dots(v).max(1),
-                // Manual sample uses the bottom/top thickness for both
-                // axes when they match; keep them independent.
-                border_thickness: state.dots(top_bot.max(sides)).max(1),
+                width,
+                height,
+                border_thickness: horizontal,
                 corner_rounding: 0,
                 line_color: LineColor::Black,
             }));
@@ -580,7 +595,7 @@ fn parse_barcode_record(
         (narrow, ratio.max(1.0))
     };
 
-    let data_raw = record_data(rest, state.terminator, false);
+    let data_raw = record_data(rest);
     if data_raw.is_empty() {
         return Ok(());
     }
@@ -728,17 +743,7 @@ fn parse_pdf417(
         module_h = 6;
     }
 
-    let mut idx = 0usize;
-    let specified = std::str::from_utf8(rest)
-        .ok()
-        .and_then(|s| s.get(..4))
-        .and_then(|s| s.parse::<usize>().ok());
-    if let Some(count) = specified {
-        idx = 4;
-        let _ = count; // byte-count form: the terminator still bounds us
-    }
-
-    let tail = &rest[idx..];
+    let tail = rest;
     if tail.len() < 8 {
         return Err("DPL PDF417 record missing option fields".to_string());
     }
@@ -753,7 +758,9 @@ fn parse_pdf417(
         .ok()
         .and_then(|s| s.parse::<i32>().ok())
         .unwrap_or(0);
-    let data = record_data(&tail[8..], state.terminator, false);
+    let data = std::str::from_utf8(&tail[8..])
+        .map_err(|_| "DPL PDF417 non-UTF-8 binary payloads are not supported")?
+        .to_string();
     if data.is_empty() {
         return Ok(());
     }
@@ -761,12 +768,12 @@ fn parse_pdf417(
         reverse_print: ReversePrint::default(),
         barcode: BarcodePdf417 {
             orientation,
-            row_height: module_h,
+            row_height: (module_h as f64 * state.dpmm / 8.0).round().max(1.0) as i32,
             security,
             columns,
             rows,
             truncate,
-            module_width: module_w,
+            module_width: (module_w as f64 * state.dpmm / 8.0).round().max(1.0) as i32,
             by_height: 0,
         },
         position,
@@ -778,13 +785,9 @@ fn parse_pdf417(
 /// `u`/`U` MaxiCode, fixed-field form: `zip5 zip4 country class message`
 /// builds the mode-2 structured payload the shared encoder consumes. The
 /// `[)>RS01GS` UPS-structured form is rejected explicitly.
-fn parse_maxicode(
-    elements: &mut Vec<LabelElement>,
-    ctx: &RecordCtx,
-    terminator: u8,
-) -> Result<(), String> {
+fn parse_maxicode(elements: &mut Vec<LabelElement>, ctx: &RecordCtx) -> Result<(), String> {
     let position = ctx.position.clone();
-    let data = record_data(ctx.rest, terminator, false);
+    let data = record_data(ctx.rest);
     if data.is_empty() {
         return Ok(());
     }
@@ -797,16 +800,13 @@ fn parse_maxicode(
     if data.len() < 15 {
         return Err("DPL MaxiCode fixed-field data is too short".to_string());
     }
+    if !data.as_bytes()[..15].iter().all(u8::is_ascii_digit) {
+        return Err("DPL MaxiCode postal/country/class fields must be digits".to_string());
+    }
     let zip = &data[..9];
     let country = &data[9..12];
     let class = &data[12..15];
     let message = &data[15..];
-    if !zip.bytes().all(|b| b.is_ascii_digit())
-        || !country.bytes().all(|b| b.is_ascii_digit())
-        || !class.bytes().all(|b| b.is_ascii_digit())
-    {
-        return Err("DPL MaxiCode postal/country/class fields must be digits".to_string());
-    }
     let payload = if message.is_empty() {
         format!("{class}{country}{zip}[)>\x1e\x1d")
     } else {
@@ -822,35 +822,30 @@ fn parse_maxicode(
 }
 
 /// `W1c` DataMatrix: `c d eee ffff gggg` already consumed by the generic
-/// header; `after` holds `[count] iii j kkk lll data`.
+/// header and byte count; `after` holds `iii j kkk lll data`.
 fn parse_datamatrix(
-    _state: &mut DplState,
+    state: &mut DplState,
     elements: &mut Vec<LabelElement>,
     ctx: &RecordCtx,
-    specified: bool,
 ) -> Result<(), String> {
     let orientation = ctx.orientation;
     let position = ctx.position.clone();
     let after = ctx.rest;
     let module = super::fonts::multiplier(ctx.c).max(1.0) as i32;
-    let _v_module = super::fonts::multiplier(ctx.d).max(1.0);
-    let mut idx = 0usize;
-    // The byte-count specifier exists only in the uppercase W1C form —
-    // the lowercase `iii` ECC field is numeric too, so the forms must not
-    // be guessed from the digits.
-    let mut byte_count: Option<usize> = None;
-    if specified && after.len() > 4 && after[..4].iter().all(u8::is_ascii_digit) {
-        byte_count = std::str::from_utf8(&after[..4])
-            .ok()
-            .and_then(|s| s.parse().ok());
-        if byte_count.is_some() {
-            idx = 4;
-        }
+    let v_module = super::fonts::multiplier(ctx.d).max(1.0) as i32;
+    if module != v_module {
+        return Err("DPL DataMatrix unequal module dimensions are not supported".to_string());
     }
-    let tail = &after[idx..];
+    let tail = after;
     // iii (ECC level, 3 digits), j (format), kkk rows, lll columns.
     if tail.len() < 10 {
         return Err("DPL DataMatrix record missing option fields".to_string());
+    }
+    if &tail[..3] != b"200" {
+        return Err("DPL DataMatrix supports ECC 200 only".to_string());
+    }
+    if !tail[..10].iter().all(u8::is_ascii_digit) {
+        return Err("invalid DPL DataMatrix option fields".to_string());
     }
     let rows = std::str::from_utf8(&tail[4..7])
         .ok()
@@ -860,11 +855,8 @@ fn parse_datamatrix(
         .ok()
         .and_then(|s| s.parse::<i32>().ok())
         .unwrap_or(0);
-    let mut data_bytes = tail[10..].to_vec();
-    if let Some(count) = byte_count {
-        data_bytes.truncate(count);
-    }
-    let data = String::from_utf8_lossy(&data_bytes).trim_end().to_string();
+    let data_bytes = tail[10..].to_vec();
+    let data = String::from_utf8_lossy(&data_bytes).into_owned();
     if data.is_empty() {
         return Ok(());
     }
@@ -872,7 +864,7 @@ fn parse_datamatrix(
         reverse_print: ReversePrint::default(),
         barcode: BarcodeDatamatrix {
             orientation,
-            height: module,
+            height: (module as f64 * state.dpmm / 8.0).round().max(1.0) as i32,
             quality: 200,
             columns,
             rows,
@@ -882,7 +874,7 @@ fn parse_datamatrix(
         },
         position,
         data,
-        data_bytes: None,
+        data_bytes: Some(data_bytes),
     }));
     Ok(())
 }
@@ -907,7 +899,7 @@ fn parse_qr(
     };
     let magnification = (module_mm * state.dpmm).round().max(1.0) as i32;
     let tail: &[u8] = after;
-    let data = record_data(tail, state.terminator, false);
+    let data = record_data(tail);
     if data.is_empty() {
         return Ok(());
     }
@@ -940,7 +932,7 @@ fn parse_aztec(
     let after = ctx.rest;
     let module_mm = state.mm(super::fonts::multiplier(ctx.c));
     let magnification = (module_mm * state.dpmm).round().max(1.0) as i32;
-    let data = record_data(after, state.terminator, false);
+    let data = record_data(after);
     if data.is_empty() {
         return Ok(());
     }
@@ -981,11 +973,7 @@ fn parse_config(state: &mut DplState, line: &[u8]) -> Result<(), String> {
                 state.row_offset = v;
             }
         }
-        b'T' => {
-            if let Some(ch) = line.get(1).copied() {
-                state.terminator = ch;
-            }
-        }
+        // Tnn is handled by the shared byte cursor.
         // Device behaviour / printer state with no drawable effect:
         // D (dot size), Q (quantity), speeds P/S/f/p, heat H, cut :/c,
         // mirror M (not modeled per-field), format attribute A (XOR/
@@ -998,38 +986,107 @@ fn parse_config(state: &mut DplState, line: &[u8]) -> Result<(), String> {
 
 // ── byte cursor ─────────────────────────────────────────────────────
 
+/// One record, with its actual terminator retained for lossless formatting.
+pub(super) struct DplRecord<'a> {
+    pub(super) data: &'a [u8],
+    pub(super) terminator: Option<u8>,
+}
+
 pub(super) struct DplCursor<'a> {
     data: &'a [u8],
     pos: usize,
+    in_format: bool,
+    field_terminator: u8,
 }
 
 impl<'a> DplCursor<'a> {
     pub(super) fn new(data: &'a [u8]) -> Self {
-        DplCursor { data, pos: 0 }
+        Self {
+            data,
+            pos: 0,
+            in_format: false,
+            field_terminator: b'\r',
+        }
     }
 
-    /// Next record: bytes up to (and excluding) the terminator. CR/LF both
-    /// end records; the terminator byte itself is consumed. A trailing
-    /// chunk without a terminator is returned as the final record.
-    pub(super) fn next_record(&mut self, terminator: u8) -> Option<Vec<u8>> {
-        if self.pos >= self.data.len() {
-            return None;
+    /// Configuration commands remain CR/LF-delimited. Tnn changes only the
+    /// next format record; uppercase counted barcodes take precedence over
+    /// every terminator, including embedded CR, LF, NUL and STX bytes.
+    pub(super) fn next_record(&mut self) -> Result<Option<DplRecord<'a>>, String> {
+        while self
+            .data
+            .get(self.pos)
+            .is_some_and(|b| matches!(b, b'\r' | b'\n'))
+        {
+            self.pos += 1;
+        }
+        if self.pos == self.data.len() {
+            return Ok(None);
         }
         let start = self.pos;
-        let mut end = self.pos;
-        while end < self.data.len() && self.data[end] != terminator && self.data[end] != b'\n' {
-            end += 1;
-        }
-        let line = self.data[start..end].to_vec();
+        let remaining = &self.data[start..];
+        let field = self.in_format && matches!(remaining[0], b'1'..=b'4');
+        let terminator = if field { self.field_terminator } else { b'\r' };
+        let counted_header = if field && remaining.get(1..4) == Some(b"W1C") {
+            Some(17)
+        } else if field && matches!(remaining.get(1), Some(b'Z' | b'U')) {
+            Some(15)
+        } else {
+            None
+        };
+        let end = if let Some(header) = counted_header {
+            let count = remaining
+                .get(header..header + 4)
+                .filter(|s| s.iter().all(u8::is_ascii_digit))
+                .ok_or("DPL counted record requires a four-digit byte count")?;
+            let count = count
+                .iter()
+                .fold(0usize, |n, b| n * 10 + (b - b'0') as usize);
+            let length = header + 4 + count;
+            if length > remaining.len() {
+                return Err("DPL counted record data shorter than declared".to_string());
+            }
+            start + length
+        } else {
+            let length = remaining
+                .iter()
+                .position(|&b| b == terminator || (terminator == b'\r' && b == b'\n'));
+            if field && terminator != b'\r' && length.is_none() {
+                return Err("DPL record missing its alternate terminator".to_string());
+            }
+            start + length.unwrap_or(remaining.len())
+        };
+        let line = &self.data[start..end];
         self.pos = end;
-        if self.pos < self.data.len() {
-            self.pos += 1; // consume the terminator
-                           // Treat CRLF as one terminator.
-            if self.data[end] == b'\r' && self.pos < self.data.len() && self.data[self.pos] == b'\n'
-            {
+        let actual_terminator = self
+            .data
+            .get(end)
+            .copied()
+            .filter(|&b| b == terminator || (terminator == b'\r' && b == b'\n'));
+        if actual_terminator.is_some() {
+            self.pos += 1;
+            if actual_terminator == Some(b'\r') && self.data.get(self.pos) == Some(&b'\n') {
                 self.pos += 1;
             }
         }
-        Some(line)
+        if field {
+            self.field_terminator = b'\r';
+        } else if line.starts_with(b"\x02") {
+            self.in_format = matches!(line.get(1), Some(b'L' | b'l'));
+            self.field_terminator = b'\r';
+        } else if self.in_format && line.first() == Some(&b'T') {
+            if line.len() != 3 || !line[1..].iter().all(u8::is_ascii_hexdigit) {
+                return Err("DPL T requires two hexadecimal digits".to_string());
+            }
+            self.field_terminator =
+                u8::from_str_radix(std::str::from_utf8(&line[1..]).unwrap(), 16).unwrap();
+        } else if self.in_format && matches!(line.first(), Some(b'E' | b'X' | b'e' | b'x')) {
+            self.in_format = false;
+            self.field_terminator = b'\r';
+        }
+        Ok(Some(DplRecord {
+            data: line,
+            terminator: actual_terminator,
+        }))
     }
 }
