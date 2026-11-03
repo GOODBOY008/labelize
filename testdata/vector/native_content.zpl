@@ -1,0 +1,7 @@
+^XA
+^CI28
+^FO20,20^A0N,32,28^FDVector 123^FS
+^FO20,75^GC80,3^FS
+^FO125,90^GE120,55,2^FS
+^FO280,80^BQN,2,3^FDLA,https://labelize.dev^FS
+^XZ

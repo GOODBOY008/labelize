@@ -1,0 +1,386 @@
+{
+  "labels-fedex-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          288.0709,
+          576.1417
+        ],
+        "painted_text_runs": 366,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 10,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 988,
+          "l": 2964,
+          "m": 988
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono-Bold",
+            "painted_runs": 223,
+            "nonpainting_runs": 0
+          },
+          {
+            "name": "RobotoCondensed-Bold",
+            "painted_runs": 143,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "labels-bpost-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          288.0709,
+          576.1417
+        ],
+        "painted_text_runs": 471,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 11,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 453,
+          "l": 1359,
+          "m": 453
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono",
+            "painted_runs": 23,
+            "nonpainting_runs": 0
+          },
+          {
+            "name": "RobotoCondensed-Bold",
+            "painted_runs": 448,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "labels-canadapost-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          288.0709,
+          576.1417
+        ],
+        "painted_text_runs": 481,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 11,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 787,
+          "l": 2361,
+          "m": 787
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono",
+            "painted_runs": 20,
+            "nonpainting_runs": 0
+          },
+          {
+            "name": "RobotoCondensed-Bold",
+            "painted_runs": 461,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "labels-epl2_showcase-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          288.0709,
+          576.1417
+        ],
+        "painted_text_runs": 325,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 22,
+        "curved_paths": 4,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "c": 3008,
+          "h": 1238,
+          "l": 2595,
+          "m": 1238
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono",
+            "painted_runs": 67,
+            "nonpainting_runs": 0
+          },
+          {
+            "name": "RobotoCondensed-Bold",
+            "painted_runs": 258,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "unit-tspl_real_probe_full-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          283.4645,
+          425.1968
+        ],
+        "painted_text_runs": 257,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 7,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 335,
+          "l": 1005,
+          "m": 335
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono",
+            "painted_runs": 257,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "unit-tspl_graphics-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          215.4331,
+          141.7323
+        ],
+        "painted_text_runs": 0,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 5,
+        "curved_paths": 3,
+        "image_draws": 1,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "c": 104,
+          "h": 150,
+          "l": 440,
+          "m": 150
+        },
+        "fonts": [],
+        "images": [
+          {
+            "width": 32,
+            "height": 16,
+            "inline": false
+          }
+        ]
+      }
+    ]
+  },
+  "unit-cpcl_manual_examples-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          204.0945,
+          85.0394
+        ],
+        "painted_text_runs": 15,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 5,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 167,
+          "l": 501,
+          "m": 167
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono-Bold",
+            "painted_runs": 15,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "unit-dpl_2d_graphics-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          287.7165,
+          575.433
+        ],
+        "painted_text_runs": 0,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 9,
+        "curved_paths": 4,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "c": 3136,
+          "h": 775,
+          "l": 1158,
+          "m": 775
+        },
+        "fonts": [],
+        "images": []
+      }
+    ]
+  },
+  "regression-one_dot_diagonals-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          159.4488,
+          159.4488
+        ],
+        "painted_text_runs": 0,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 1,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 6,
+          "l": 18,
+          "m": 6
+        },
+        "fonts": [],
+        "images": []
+      }
+    ]
+  },
+  "unicode-text": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          226.7716,
+          226.7716
+        ],
+        "painted_text_runs": 74,
+        "nonpainting_text_runs": 6,
+        "painted_paths": 6,
+        "curved_paths": 5,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "c": 80,
+          "h": 10,
+          "l": 26,
+          "m": 10
+        },
+        "fonts": [
+          {
+            "name": "DejaVuSansMono",
+            "painted_runs": 0,
+            "nonpainting_runs": 6
+          },
+          {
+            "name": "RobotoCondensed-Bold",
+            "painted_runs": 74,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "native-content": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          141.7323,
+          70.8661
+        ],
+        "painted_text_runs": 10,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 3,
+        "curved_paths": 2,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "c": 64,
+          "h": 124,
+          "l": 360,
+          "m": 124
+        },
+        "fonts": [
+          {
+            "name": "RobotoCondensed-Bold",
+            "painted_runs": 10,
+            "nonpainting_runs": 0
+          }
+        ],
+        "images": []
+      }
+    ]
+  },
+  "regression-multi_dot_diagonals-001": {
+    "pages": [
+      {
+        "size_pt": [
+          0.0,
+          0.0,
+          141.7323,
+          56.6929
+        ],
+        "painted_text_runs": 0,
+        "nonpainting_text_runs": 0,
+        "painted_paths": 12,
+        "curved_paths": 0,
+        "image_draws": 0,
+        "inline_image_draws": 0,
+        "path_segments": {
+          "h": 64,
+          "l": 192,
+          "m": 64
+        },
+        "fonts": [],
+        "images": []
+      }
+    ]
+  }
+}

@@ -28,14 +28,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Unit & integration tests
-        run: cargo test --lib --test 'unit_*' --features skill -- --test-threads=4
+        run: cargo test --lib --test 'unit_*' --features skill,vector -- --test-threads=4
         timeout-minutes: 8
       - name: Golden diff regression
-        run: cargo test --test 'e2e_*' -- --test-threads=4
+        run: cargo test --test 'e2e_*' --features vector -- --test-threads=4
         timeout-minutes: 8
       # CLI/HTTP process tests need the feature-gated binary.
-      - name: Reverse-render CLI and HTTP e2e
-        run: cargo test --test e2e_cli_encode --test e2e_http_encode --features serve -- --test-threads=4
+      - name: CLI and HTTP output e2e
+        run: cargo test --test e2e_cli_encode --test e2e_http_encode --test e2e_vector_output --features serve,vector -- --test-threads=4
         timeout-minutes: 8
       # e2e_diff_report regenerates testdata/diffs/* and auto-bootstraps missing
       # reference PNGs; anything left dirty means the author forgot to commit
@@ -49,6 +49,56 @@ jobs:
             printf '%s\n' "$dirty"
             exit 1
           fi
+
+  vector-output:
+    name: Vector PDF structure and visual regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: e2e/vector/requirements.txt
+      - name: Install independent PDF readers and barcode decoder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install -r e2e/vector/requirements.txt
+      - name: Render fixed visual cases and export PDF fixtures through the public API
+        run: cargo test --locked --features vector --test e2e_vector_visual
+      - name: Reject raster and hidden-text negative controls
+        run: python -m unittest discover -s e2e/vector -p 'test_*.py' -v
+      - name: Verify PDF structural goldens and searchable text
+        run: python e2e/vector/verify_pdf.py --check structure
+      - name: Compare independent PDF renderings and persisted barcode payloads
+        run: python e2e/vector/verify_pdf.py --check visual
+      - name: Export the complete five-language corpus
+        run: cargo run --locked --features vector,serde --example vector_audit -- output/pdf/vector-audit
+      - name: Verify corpus in PDFium and Poppler at 1x and 3x
+        run: python e2e/vector/verify_corpus.py output/pdf/vector-audit
+      - name: Verify golden references were not changed
+        run: test -z "$(git status --porcelain -- testdata/vector)"
+      - name: Upload vector PDFs, actual pixels and diff diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vector-output-verification
+          retention-days: 7
+          path: |
+            output/vector-golden/
+            output/pdf/vector-audit/manifest.json
+            output/pdf/vector-audit/verification.json
+      - name: Upload full corpus on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vector-output-failed-corpus
+          retention-days: 3
+          path: output/pdf/vector-audit/
 
   wasm-worker:
     name: WASM and worker
@@ -79,23 +129,28 @@ jobs:
   test-windows:
     name: Test (Windows)
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
       # ── Rust tests ──────────────────────────────────────────────
+      # A cold vector build plus the complete font-character sweeps exceeds
+      # eight minutes on Windows; retain the full suite with a bounded budget.
       - name: Unit & integration tests
-        run: cargo test --lib --test 'unit_*' --features skill -- --test-threads=4
-        timeout-minutes: 8
+        run: cargo test --lib --test 'unit_*' --features skill,vector -- --test-threads=4
+        timeout-minutes: 12
       - name: Golden diff regression
-        run: cargo test --test 'e2e_*' -- --test-threads=4
+        run: cargo test --test 'e2e_*' --features vector -- --test-threads=4
+        timeout-minutes: 8
+      - name: CLI and HTTP vector output e2e
+        run: cargo test --locked --test e2e_vector_output --features serve,vector -- --test-threads=4
         timeout-minutes: 8
 
       # ── Build binary for e2e scripts ────────────────────────────
       - name: Build labelize binary
-        run: cargo build --release --features serve
+        run: cargo build --release --features serve,vector
 
       - name: Add labelize to PATH
         shell: bash
@@ -171,7 +226,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --features serve --target ${{ matrix.target }}
+      - run: cargo build --release --features serve,vector --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v7
         with:
           name: labelize-${{ matrix.target }}

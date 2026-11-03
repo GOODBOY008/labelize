@@ -1,0 +1,121 @@
+{
+  "labels-fedex-001": {
+    "1": [
+      "BarcodeFormat.Code128:9632080400200044387500271053820000",
+      "BarcodeFormat.PDF417:[)>␞01␝0211111␝840␝804␝271053820000␝FDEG␝200044387␝047␝␝1/1␝0.23LB␝N␝5000␠S␠160th␠St␝Des␠Moines␝WA␝Test␠Receiver␞06␝10ZGH007␝12Z13602284998␝20Z␜␝31Z9632080400200044387500271053820000␝9K23414445␝␞␄"
+    ],
+    "3": [
+      "BarcodeFormat.Code128:9632080400200044387500271053820000",
+      "BarcodeFormat.PDF417:[)>␞01␝0211111␝840␝804␝271053820000␝FDEG␝200044387␝047␝␝1/1␝0.23LB␝N␝5000␠S␠160th␠St␝Des␠Moines␝WA␝Test␠Receiver␞06␝10ZGH007␝12Z13602284998␝20Z␜␝31Z9632080400200044387500271053820000␝9K23414445␝␞␄"
+    ]
+  },
+  "labels-bpost-001": {
+    "1": [
+      "BarcodeFormat.QRCode:323201234567890123456982000LUCJANSSENS"
+    ],
+    "3": [
+      "BarcodeFormat.QRCode:323201234567890123456982000LUCJANSSENS"
+    ]
+  },
+  "labels-canadapost-001": {
+    "1": [
+      "BarcodeFormat.Code128:70232100001234567898",
+      "BarcodeFormat.PDF417:[)>_1E01_1DM5B2H4_1D70232100001234567898_1DCP_1DXPRESSPOST_1D_1E_04",
+      "BarcodeFormat.QRCode:70232100001234567898M5B2H4SARAHJOHNSON"
+    ],
+    "3": [
+      "BarcodeFormat.Code128:70232100001234567898",
+      "BarcodeFormat.PDF417:[)>_1E01_1DM5B2H4_1D70232100001234567898_1DCP_1DXPRESSPOST_1D_1E_04",
+      "BarcodeFormat.QRCode:70232100001234567898M5B2H4SARAHJOHNSON"
+    ]
+  },
+  "labels-epl2_showcase-001": {
+    "1": [
+      "BarcodeFormat.Aztec:041788417",
+      "BarcodeFormat.Code128:%00184093065123456",
+      "BarcodeFormat.DataMatrix:62704-0417-88417",
+      "BarcodeFormat.ITF:0012345678",
+      "BarcodeFormat.PDF417:17 0417 88417 SPFD IL 62704",
+      "BarcodeFormat.QRCode:https://acme.example/t/00184093065123456",
+      "BarcodeFormat.UPCA:012345678905"
+    ],
+    "3": [
+      "BarcodeFormat.Aztec:041788417",
+      "BarcodeFormat.Code128:%00184093065123456",
+      "BarcodeFormat.DataMatrix:62704-0417-88417",
+      "BarcodeFormat.ITF:0012345678",
+      "BarcodeFormat.PDF417:17 0417 88417 SPFD IL 62704",
+      "BarcodeFormat.QRCode:https://acme.example/t/00184093065123456",
+      "BarcodeFormat.UPCA:012345678905"
+    ]
+  },
+  "unit-tspl_real_probe_full-001": {
+    "1": [
+      "BarcodeFormat.Code128:FDB-PROBE-128",
+      "BarcodeFormat.QRCode:fdb://probe/qrcode-test"
+    ],
+    "3": [
+      "BarcodeFormat.Code128:FDB-PROBE-128",
+      "BarcodeFormat.QRCode:fdb://probe/qrcode-test"
+    ]
+  },
+  "unit-tspl_graphics-001": {
+    "1": [
+      "BarcodeFormat.PDF417:COMMA FORM"
+    ],
+    "3": [
+      "BarcodeFormat.PDF417:COMMA FORM"
+    ]
+  },
+  "unit-cpcl_manual_examples-001": {
+    "1": [
+      "BarcodeFormat.Code128:HORIZ.",
+      "BarcodeFormat.Code39:ACME-991",
+      "BarcodeFormat.UPCA:401234567848"
+    ],
+    "3": [
+      "BarcodeFormat.Code128:HORIZ.",
+      "BarcodeFormat.Code39:ACME-991",
+      "BarcodeFormat.UPCA:401234567848"
+    ]
+  },
+  "unit-dpl_2d_graphics-001": {
+    "1": [
+      "BarcodeFormat.Aztec:AZTEC DATA",
+      "BarcodeFormat.DataMatrix:DATAMATRIX DATA",
+      "BarcodeFormat.PDF417:PDF417 DATA",
+      "BarcodeFormat.QRCode:0123456789012345",
+      "BarcodeFormat.QRCode:This is the data portion"
+    ],
+    "3": [
+      "BarcodeFormat.Aztec:AZTEC DATA",
+      "BarcodeFormat.DataMatrix:DATAMATRIX DATA",
+      "BarcodeFormat.PDF417:PDF417 DATA",
+      "BarcodeFormat.QRCode:0123456789012345",
+      "BarcodeFormat.QRCode:This is the data portion"
+    ]
+  },
+  "regression-one_dot_diagonals-001": {
+    "1": [],
+    "3": []
+  },
+  "unicode-text": {
+    "1": [],
+    "3": []
+  },
+  "native-content": {
+    "1": [
+      "BarcodeFormat.QRCode:https://labelize.dev"
+    ],
+    "3": [
+      "BarcodeFormat.QRCode:https://labelize.dev"
+    ],
+    "8": [
+      "BarcodeFormat.QRCode:https://labelize.dev"
+    ]
+  },
+  "regression-multi_dot_diagonals-001": {
+    "1": [],
+    "3": []
+  }
+}
