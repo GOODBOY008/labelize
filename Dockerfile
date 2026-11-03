@@ -8,9 +8,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --locked --features serve --recipe-path recipe.json
+RUN cargo chef cook --release --locked --features serve,vector --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --locked --features serve --bin labelize
+RUN cargo build --release --locked --features serve,vector --bin labelize
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \

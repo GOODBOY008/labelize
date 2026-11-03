@@ -244,7 +244,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 7px; font-size: 13px;
   }
   .size-sep { align-self: flex-end; height: 38px; display: flex; align-items: center; color: var(--text-muted); }
-  .settings-toggles { display: flex; align-items: center; gap: 20px; height: 38px; margin-left: auto; }
+  .settings-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; min-height: 38px; margin-left: auto; }
   .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
   .toggle input {
     appearance: none; position: relative; width: 30px; height: 18px; border-radius: 12px;
@@ -510,7 +510,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   </div>
   <span class="nav-label" data-i18n="nav.playground">Playground</span>
   <nav class="header-actions" aria-label="Resources and preferences" data-i18n-aria="nav.resources">
-    <a class="header-link" href="https://github.com/GOODBOY008/labelize/blob/main/docs/USAGE.md" target="_blank" rel="noopener" data-i18n="nav.docs">Documentation</a>
+    <a class="header-link" href="https://github.com/GOODBOY008/labelize/blob/main/docs/README.md" target="_blank" rel="noopener" data-i18n="nav.docs">Documentation</a>
     <a class="header-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
     <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
     <option value="en">English</option>
@@ -622,12 +622,29 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
           <option value="24">24 dpmm</option>
         </select>
     </div>
+    <div class="setting" id="output-mode-wrap">
+      <label for="output-mode" data-i18n="field.outputMode">Output</label>
+      <select id="output-mode">
+        <option value="raster" data-i18n="mode.raster">Raster</option>
+        <option value="vector" data-i18n="mode.vector">Vector PDF / scalable PNG</option>
+      </select>
+    </div>
+    <div class="setting" id="output-scale-wrap">
+      <label for="output-scale" data-i18n="field.outputScale">PNG scale</label>
+      <select id="output-scale" disabled>
+        <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option>
+      </select>
+    </div>
     <div class="settings-toggles">
+      <label class="toggle" for="all-pdf-pages" id="all-pages-wrap">
+        <input type="checkbox" id="all-pdf-pages" disabled>
+        <span data-i18n="field.allPages">All PDF pages</span>
+      </label>
       <label class="toggle" for="auto-render" id="auto-wrap" title="Re-render automatically as you type" data-i18n-title="tip.auto">
         <input type="checkbox" id="auto-render" checked>
         <span data-i18n="btn.auto">Live preview</span>
       </label>
-      <label class="toggle" for="antialias" id="aa-wrap" title="Emit 8-bit grayscale output instead of 1-bit black/white" data-i18n-title="tip.aa">
+      <label class="toggle" for="antialias" id="aa-wrap" title="Preserve grayscale antialiasing instead of thresholding to black/white" data-i18n-title="tip.aa">
         <input type="checkbox" id="antialias">
         <span data-i18n="btn.aa">Antialias</span>
       </label>
@@ -814,6 +831,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   /* ── Deployment config (server-injected; see window.__LABELIZE_CONFIG__) ── */
   var CFG = window.__LABELIZE_CONFIG__ || {};
   var labelaryCompare = CFG.labelaryCompare !== false;
+  var vectorEnabled = /*__VECTOR__*/false;
 
   /* ── i18n ──
      Static text is tagged with data-i18n / data-i18n-html / data-i18n-title /
@@ -893,6 +911,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "loading.compare": "Comparing…",
       "dl.png": "Download PNG",
       "dl.pdf": "Download PDF",
+      "field.outputMode": "Output",
+      "mode.raster": "Raster",
+      "mode.vector": "Vector PDF / scalable PNG",
+      "field.outputScale": "PNG scale",
+      "field.allPages": "All PDF pages",
+      "err.compareScale": "Set PNG scale to 1× for comparison at printer resolution.",
       "compare.ref": "Labelary — reference",
       "compare.diff": "Diff — red = differing pixels",
       "status.ok": "OK",
@@ -905,7 +929,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "tip.compare": "Fetch the Labelary reference image and estimate the visual diff",
       "tip.compareEpl": "Labelary does not support EPL, TSPL, CPCL or DPL — ZPL only",
       "tip.auto": "Re-render automatically as you type",
-      "tip.aa": "Emit 8-bit grayscale output instead of 1-bit black/white",
+      "tip.aa": "Preserve grayscale antialiasing instead of thresholding to black/white",
       "tip.share": "Copy a permalink to this label",
       "tip.copyImg": "Copy PNG to clipboard",
       "tip.zoomIn": "Zoom in",
@@ -1019,6 +1043,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "loading.compare": "对比中…",
       "dl.png": "下载 PNG",
       "dl.pdf": "下载 PDF",
+      "field.outputMode": "输出方式",
+      "mode.raster": "栅格",
+      "mode.vector": "矢量 PDF / 可缩放 PNG",
+      "field.outputScale": "PNG 倍率",
+      "field.allPages": "PDF 包含全部标签",
+      "err.compareScale": "请将 PNG 倍率设为 1×，以打印机分辨率进行对比。",
       "compare.ref": "Labelary — 参考图",
       "compare.diff": "差异图 — 红色为不同像素",
       "status.ok": "完成",
@@ -1031,7 +1061,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "tip.compare": "获取 Labelary 参考渲染图并估算视觉差异",
       "tip.compareEpl": "Labelary 不支持 EPL/TSPL/CPCL/DPL — 仅限 ZPL",
       "tip.auto": "输入时自动重新渲染",
-      "tip.aa": "输出 8 位灰度（替代 1 位黑白）",
+      "tip.aa": "保留灰度抗锯齿，不转换为纯黑白",
       "tip.share": "复制此标签的分享链接",
       "tip.copyImg": "复制 PNG 到剪贴板",
       "tip.zoomIn": "放大",
@@ -1273,6 +1303,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var samplesSel   = document.getElementById("samples");
   var autoChk      = document.getElementById("auto-render");
   var aaChk        = document.getElementById("antialias");
+  var outputMode   = document.getElementById("output-mode");
+  var outputScale  = document.getElementById("output-scale");
+  var allPdfPages  = document.getElementById("all-pdf-pages");
+  if (!vectorEnabled) {
+    ["output-mode-wrap", "output-scale-wrap", "all-pages-wrap"].forEach(function(id) { document.getElementById(id).style.display = "none"; });
+  }
   var shareBtn     = document.getElementById("share-btn");
   var toastEl      = document.getElementById("toast");
   var zoomCtrl     = document.getElementById("zoom-ctrl");
@@ -1428,13 +1464,18 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     var dpmm  = parseInt(dpmmSel.value, 10) || 8;
     var w_mm  = sizeMm.width;
     var h_mm  = sizeMm.height;
-    return { fmt: fmtVal, dpmm: dpmm, w_mm: w_mm, h_mm: h_mm, aa: aaChk.checked };
+    return { fmt: fmtVal, dpmm: dpmm, w_mm: w_mm, h_mm: h_mm, aa: aaChk.checked,
+      mode: outputMode.value, scale: outputMode.value === "vector" ? Number(outputScale.value) : 1,
+      allPages: outputMode.value === "vector" && allPdfPages.checked };
   }
 
   function buildUrl(p, output) {
     var u = "/convert?width=" + p.w_mm + "&height=" + p.h_mm + "&dpmm=" + p.dpmm;
     if (p.aa) u += "&antialias=true";
     if (output) u += "&output=" + output;
+    if (p.mode === "vector") u += "&mode=vector";
+    if (output !== "pdf" && p.scale !== 1) u += "&scale=" + p.scale;
+    if (output === "pdf" && p.allPages) u += "&pages=all";
     return u;
   }
 
@@ -1613,6 +1654,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     if (input.value.trim()) render({ auto: true });
   });
 
+  outputMode.addEventListener("change", function () {
+    outputScale.disabled = outputMode.value !== "vector";
+    allPdfPages.disabled = outputMode.value !== "vector";
+    updateCompareState();
+    scheduleAutoRender();
+  });
+  outputScale.addEventListener("change", function () { updateCompareState(); scheduleAutoRender(); });
+
   /* ── Compare with Labelary ── */
   // Verdict scale mirrors docs/DIFF_THRESHOLDS.md; the pixel rule (any channel
   // differs by more than 32) mirrors tests/common/image_compare.rs so the
@@ -1706,6 +1755,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
     var params = getParams();
     if (!params) { showError(t("err.size")); return; }
+    if (params.scale !== 1) { showError(t("err.compareScale")); return; }
     var pxW = Math.ceil(params.w_mm * params.dpmm);
     var pxH = Math.ceil(params.h_mm * params.dpmm);
     if (pxW > 4096 || pxH > 4096) {
@@ -1887,6 +1937,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     // fall back to false rather than the viewer's localStorage: shared links
     // must fully define render settings.
     aaChk.checked = q.a === "1";
+    outputMode.value = vectorEnabled && q.m === "vector" ? "vector" : "raster";
+    outputScale.value = ["1", "2", "3", "4"].indexOf(q.s) >= 0 ? q.s : "1";
+    allPdfPages.checked = q.p === "all";
+    outputScale.disabled = outputMode.value !== "vector";
+    allPdfPages.disabled = outputMode.value !== "vector";
     var w = parseFloat(q.w), h = parseFloat(q.h);
     if (Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0) {
       currentSizeUnit = q.u === "mm" ? "mm" : "in";
@@ -1914,6 +1969,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     catch (e) { enc = "u" + encodeURIComponent(code); }
     var hash = "f=" + fmtSel.value + "&w=" + (sizeMm.width / 25.4) + "&h=" + (sizeMm.height / 25.4) +
                "&u=" + currentSizeUnit +
+               "&m=" + outputMode.value + "&s=" + outputScale.value + "&p=" + (allPdfPages.checked ? "all" : "first") +
                "&d=" + dpmmSel.value + "&a=" + (aaChk.checked ? 1 : 0) + "&c=" + encodeURIComponent(enc);
     history.replaceState(null, "", "#" + hash);
     copyText(location.href)
@@ -2162,9 +2218,10 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   // Labelary does not support EPL (404), so the compare tool is ZPL-only.
   function updateCompareState() {
     var noCompare = ["epl", "tspl", "cpcl", "dpl"].indexOf(fmtSel.value) >= 0;
-    compareBtn.disabled = noCompare;
+    var scaled = outputMode.value === "vector" && outputScale.value !== "1";
+    compareBtn.disabled = noCompare || scaled;
     compareNote.hidden = !noCompare;
-    compareBtn.title = noCompare ? t("tip.compareEpl") : t("tip.compare");
+    compareBtn.title = scaled ? t("err.compareScale") : noCompare ? t("tip.compareEpl") : t("tip.compare");
   }
   fmtSel.addEventListener("change", function () {
     fmtUserTouched = true;
@@ -2321,15 +2378,15 @@ const CONFIG_MARKER: &str = "/*__CONFIG__*/";
 /// Renders the playground page with `config` applied.
 ///
 /// Returns the static [`PLAYGROUND_HTML`] unchanged (borrowed) unless the
-/// Labelary compare is disabled or `public_base_url` differs from
-/// [`DEFAULT_PUBLIC_BASE_URL`], so default deployments pay nothing.
+/// Labelary compare is disabled, the vector feature is enabled, or
+/// `public_base_url` differs from [`DEFAULT_PUBLIC_BASE_URL`].
 pub fn page_html(config: &PlaygroundConfig) -> std::borrow::Cow<'static, str> {
     // `enabled` never reaches the page: the server declines to serve it.
     // The injected payload is boolean-only; if a string-valued option is
     // ever added, escape `<` as \u003c so the value cannot close the
     // script element.
     let base_changed = config.public_base_url != DEFAULT_PUBLIC_BASE_URL;
-    if !base_changed && config.labelary_compare {
+    if !base_changed && config.labelary_compare && !cfg!(feature = "vector") {
         return std::borrow::Cow::Borrowed(PLAYGROUND_HTML);
     }
     // NB: the marker sits *inside* the braces (`= {/*__CONFIG__*/};`), so the
@@ -2339,6 +2396,9 @@ pub fn page_html(config: &PlaygroundConfig) -> std::borrow::Cow<'static, str> {
     } else {
         PLAYGROUND_HTML.to_string()
     };
+    if cfg!(feature = "vector") {
+        html = html.replacen("/*__VECTOR__*/false", "true", 1);
+    }
     if !config.labelary_compare {
         html = html.replacen(CONFIG_MARKER, r#""labelaryCompare":false"#, 1);
     }
@@ -2381,16 +2441,19 @@ mod tests {
 
     #[test]
     fn default_and_api_only_serve_the_static_page() {
-        assert!(matches!(
-            page_html(&PlaygroundConfig::default()),
-            Cow::Borrowed(_)
-        ));
+        assert_eq!(
+            matches!(page_html(&PlaygroundConfig::default()), Cow::Borrowed(_)),
+            !cfg!(feature = "vector")
+        );
         // `enabled` is server-side only; the page HTML is untouched.
         let api_only = PlaygroundConfig {
             enabled: false,
             ..Default::default()
         };
-        assert!(matches!(page_html(&api_only), Cow::Borrowed(_)));
+        assert_eq!(
+            matches!(page_html(&api_only), Cow::Borrowed(_)),
+            !cfg!(feature = "vector")
+        );
     }
 
     #[test]

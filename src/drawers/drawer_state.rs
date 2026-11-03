@@ -1,6 +1,7 @@
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::text_field::TextField;
 
+#[derive(Clone)]
 pub struct DrawerState {
     pub auto_pos_x: f64,
     pub auto_pos_y: f64,

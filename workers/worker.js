@@ -4,16 +4,8 @@
 // bundler's wasm import, which workerd resolves to a module (not an instance),
 // so we skip it: import the core glue functions and instantiate the engine
 // manually. Workerd gives us the .wasm as bytes via esbuild's binary loader.
-import {
-  __wbg_set_wasm,
-  lz_render_lang,
-  lz_playground_html,
-  lz_validate,
-  lz_format,
-  lz_encode,
-  __wbindgen_init_externref_table,
-  __wbindgen_generic_0000000000000001,
-} from "../wasm/npm/labelize_wasm_bg.js";
+import * as engine from "../wasm/npm/labelize_wasm_bg.js";
+const { lz_render_output, lz_playground_html, lz_validate, lz_format, lz_encode } = engine;
 import wasmBytes from "../wasm/npm/labelize_wasm_bg.wasm";
 
 let ready = null;
@@ -22,16 +14,13 @@ let htmlPage = null;
 function ensureEngine() {
   if (!ready) {
     ready = WebAssembly.instantiate(wasmBytes, {
-      "./labelize_wasm_bg.js": {
-        __wbindgen_init_externref_table,
-        __wbindgen_generic_0000000000000001,
-      },
+      "./labelize_wasm_bg.js": engine,
     }).then((result) => {
       // Wrangler resolves the .wasm import to a WebAssembly.Module, so
       // instantiate() returns the plain instance; for byte-based loaders it
       // returns { module, instance }.
       const instance = result instanceof WebAssembly.Instance ? result : result.instance;
-      __wbg_set_wasm(instance.exports);
+      engine.__wbg_set_wasm(instance.exports);
       instance.exports.__wbindgen_start();
     });
   }
@@ -98,14 +87,45 @@ function renderStatus(err) {
 }
 
 async function convert(request, url) {
-  const ct = request.headers.get("content-type") || "application/zpl";
-  const width = parseFloat(url.searchParams.get("width")) || 102.0;
-  const height = parseFloat(url.searchParams.get("height")) || 152.0;
-  const dpmm = parseInt(url.searchParams.get("dpmm"), 10) || 8;
-  const antialias = url.searchParams.get("antialias") === "true";
-  const wantPdf = url.searchParams.get("output") === "pdf";
-  // Content-Type names the language (zpl/epl/tspl); anything else falls
-  // through to ZPL, matching lz_render_lang's unknown-value fallback.
+  const ct = request.headers.get("content-type") || "";
+  let width, height, dpmm, scale, antialias, wantPdf, mode, allPages;
+  try {
+    const parameter = (name, fallback) => {
+      const values = url.searchParams.getAll(name);
+      if (values.length > 1) throw new Error(`duplicate ${name}`);
+      return values.length ? values[0] : fallback;
+    };
+    const positive = (name, fallback) => {
+      const value = parameter(name, String(fallback));
+      if (!/^(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(value)) throw new Error(`invalid ${name}`);
+      const number = Number(value);
+      if (!Number.isFinite(number) || number <= 0) throw new Error(`invalid ${name}`);
+      return number;
+    };
+    mode = parameter("mode", "raster");
+    // The new mode uses each label's declared dimensions unless overridden.
+    // Preserve the existing Worker's fixed defaults for raster requests.
+    const dimension = (name, fallback) => mode.toLowerCase() === "vector" && !url.searchParams.has(name)
+      ? 0 : positive(name, fallback);
+    width = dimension("width", 102);
+    height = dimension("height", 152);
+    dpmm = positive("dpmm", 8);
+    if (!Number.isInteger(dpmm) || dpmm > 2147483647) throw new Error("invalid dpmm");
+    scale = positive("scale", 1);
+    const output = parameter("output", "png");
+    if (!["png", "pdf"].includes(output)) throw new Error("output must be png or pdf");
+    wantPdf = output === "pdf";
+    const aa = parameter("antialias", "false");
+    if (!["true", "false"].includes(aa)) throw new Error("antialias must be true or false");
+    antialias = aa === "true";
+    const pages = parameter("pages", "first");
+    if (!["first", "all"].includes(pages)) throw new Error("pages must be first or all");
+    allPages = pages === "all";
+  } catch (err) {
+    return new Response(err.message, { status: 400 });
+  }
+  // The new API can detect a language from bytes; preserve the historical
+  // ZPL fallback for raster requests with an unspecified Content-Type.
   const lang = ct.includes("epl")
     ? "epl"
     : ct.includes("tspl")
@@ -114,7 +134,9 @@ async function convert(request, url) {
         ? "cpcl"
         : ct.includes("dpl")
           ? "dpl"
-          : "zpl";
+          : ct.includes("zpl") || mode.toLowerCase() !== "vector"
+            ? "zpl"
+            : "";
 
   const body = new Uint8Array(await request.arrayBuffer());
   if (body.length === 0) {
@@ -122,7 +144,7 @@ async function convert(request, url) {
   }
 
   try {
-    const png = lz_render_lang(body, width, height, dpmm, antialias, wantPdf, lang);
+    const png = lz_render_output(body, width, height, dpmm, antialias, wantPdf, lang, mode, scale, allPages);
     return new Response(png, {
       headers: { "content-type": wantPdf ? "application/pdf" : "image/png" },
     });

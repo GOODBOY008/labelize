@@ -26,7 +26,11 @@ fn render_payload_lang(
     let options = labelize::RenderOptions {
         language: Some(language),
         width_mm: if width_mm > 0.0 { Some(width_mm) } else { None },
-        height_mm: if height_mm > 0.0 { Some(height_mm) } else { None },
+        height_mm: if height_mm > 0.0 {
+            Some(height_mm)
+        } else {
+            None
+        },
         dpmm,
         antialias,
     };
@@ -67,19 +71,9 @@ pub fn lz_render(
     want_pdf: bool,
     is_epl: bool,
 ) -> Result<Vec<u8>, String> {
-    let language = if is_epl {
-        Language::Epl
-    } else {
-        Language::Zpl
-    };
+    let language = if is_epl { Language::Epl } else { Language::Zpl };
     render_payload_lang(
-        src,
-        width_mm,
-        height_mm,
-        dpmm,
-        antialias,
-        want_pdf,
-        language,
+        src, width_mm, height_mm, dpmm, antialias, want_pdf, language,
     )
     .map_err(|(stage, msg)| render_error(&stage, msg))
 }
@@ -104,8 +98,54 @@ pub fn lz_render_lang(
         "dpl" => Language::Dpl,
         _ => Language::Zpl,
     };
-    render_payload_lang(src, width_mm, height_mm, dpmm, antialias, want_pdf, language)
-        .map_err(|(stage, msg)| render_error(&stage, msg))
+    render_payload_lang(
+        src, width_mm, height_mm, dpmm, antialias, want_pdf, language,
+    )
+    .map_err(|(stage, msg)| render_error(&stage, msg))
+}
+
+/// Explicit backend and output scale. Zero width/height selects label-declared
+/// dimensions. Source `dpmm` is never changed by output scaling.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn lz_render_output(
+    src: &[u8],
+    width_mm: f64,
+    height_mm: f64,
+    dpmm: i32,
+    antialias: bool,
+    want_pdf: bool,
+    lang: &str,
+    mode: &str,
+    scale: f64,
+    all_pages: bool,
+) -> Result<Vec<u8>, String> {
+    let language = if lang.is_empty() {
+        None
+    } else {
+        Some(Language::from_name(lang).ok_or_else(|| "1:unknown label language".to_owned())?)
+    };
+    let options = labelize::RenderOptions {
+        language,
+        width_mm: (width_mm != 0.0).then_some(width_mm),
+        height_mm: (height_mm != 0.0).then_some(height_mm),
+        dpmm,
+        antialias,
+    };
+    let output = labelize::OutputOptions {
+        mode: mode.parse().map_err(|e| format!("1:{e}"))?,
+        scale,
+        all_pages,
+    };
+    let result = if want_pdf {
+        labelize::render_pdf_with_output(src, options, output)
+    } else {
+        labelize::render_png_with_output(src, options, output)
+    };
+    result.map(|out| out.bytes).map_err(|e| match e {
+        labelize::LabelizeError::Parse(msg) => format!("1:{msg}"),
+        e => format!("2:{e}"),
+    })
 }
 
 /// The playground HTML page — single source of truth in labelize's
@@ -113,7 +153,7 @@ pub fn lz_render_lang(
 /// identical markup.
 #[wasm_bindgen]
 pub fn lz_playground_html() -> String {
-    labelize::playground::PLAYGROUND_HTML.to_string()
+    labelize::playground::page_html(&Default::default()).into_owned()
 }
 
 /// Validate label source without rendering (the worker's POST /validate):
@@ -157,7 +197,9 @@ pub fn lz_format(src: &[u8], lang: &str) -> Vec<u8> {
 #[wasm_bindgen]
 pub fn lz_encode(src: &[u8], dpmm: i32, threshold: u8, lang: &str) -> Result<Vec<u8>, String> {
     let options = labelize::ReverseOptions { dpmm, threshold };
-    let language = lang.parse::<labelize::ReverseLanguage>().map_err(encode_error)?;
+    let language = lang
+        .parse::<labelize::ReverseLanguage>()
+        .map_err(encode_error)?;
     labelize::encode_image_bytes(src, &options, language).map_err(encode_error)
 }
 
@@ -275,8 +317,8 @@ mod tests {
 
     #[test]
     fn exports_report_parse_error() {
-        let err = lz_render(b"NOPE", 102.0, 152.0, 8, false, false, false)
-            .expect_err("parse must fail");
+        let err =
+            lz_render(b"NOPE", 102.0, 152.0, 8, false, false, false).expect_err("parse must fail");
         assert!(err.starts_with("1:"), "parse error carries code 1: {err}");
     }
 
@@ -284,15 +326,17 @@ mod tests {
     fn exports_playground_html() {
         let html = lz_playground_html();
         assert!(html.contains("<textarea"), "playground page has editor");
-        assert!(html.contains("compare-btn"), "playground page has compare tool");
+        assert!(
+            html.contains("compare-btn"),
+            "playground page has compare tool"
+        );
     }
 
     #[test]
     fn lz_validate_reports_ok_json() {
         let json = lz_validate(SAMPLE_ZPL.as_bytes(), 8, "");
         assert_eq!(
-            json,
-            r#"{"language":"zpl","ok":true,"labels":1}"#,
+            json, r#"{"language":"zpl","ok":true,"labels":1}"#,
             "got: {json}"
         );
     }
@@ -310,8 +354,7 @@ mod tests {
         // Forced language beats detection.
         let json = lz_validate(b"A50,50,0,1,1,1,N,\"Hi\"\nP1\n", 8, "epl");
         assert_eq!(
-            json,
-            r#"{"language":"epl","ok":true,"labels":1}"#,
+            json, r#"{"language":"epl","ok":true,"labels":1}"#,
             "got: {json}"
         );
     }

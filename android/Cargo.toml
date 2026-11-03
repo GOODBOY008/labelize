@@ -11,6 +11,10 @@ name = "labelize_android"
 # rlib:   lets `cargo test` run the host-side unit tests on the desktop
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[features]
+default = ["vector"]
+vector = ["labelize/vector"]
+
 [dependencies]
 labelize = { path = ".." }
 image = "0.25"

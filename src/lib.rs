@@ -12,6 +12,7 @@ pub mod error;
 pub mod hex;
 pub mod images;
 pub mod lang;
+pub mod output;
 pub mod parsers;
 #[cfg(feature = "playground")]
 pub mod playground;
@@ -26,6 +27,10 @@ pub use tuning::FONT0_LABELARY_BLANKED;
 #[cfg(feature = "skill")]
 pub mod skill;
 
+#[cfg(feature = "vector")]
+pub use drawers::renderer::scene::{
+    encode_scenes_pdf, LabelScene, RasterFallback, ScenePngOptions, SceneStats,
+};
 pub use drawers::renderer::Renderer;
 pub use elements::drawer_options::DrawerOptions;
 pub use elements::label_info::LabelInfo;
@@ -34,6 +39,10 @@ pub use images::monochrome::encode_png;
 pub use images::pdf::encode_pdf;
 pub use lang::{
     detect_language, format_source, parse_labels, validate, Language, ValidationReport,
+};
+pub use output::{
+    render_label_with_output, render_pdf_with_output, render_png_with_output, OutputMode,
+    OutputOptions,
 };
 pub use parsers::{CpclParser, DplParser, EplParser, TsplParser, ZplParser};
 pub use render::{

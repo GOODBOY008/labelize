@@ -41,3 +41,11 @@ export function lz_encode(
   threshold: number,
   lang: string,
 ): Uint8Array;
+
+/** Shared-layout output. Zero dimensions use declared sizes; unknown languages/modes fail.
+ * scale applies only to vector PNG; all_pages applies only to vector PDF. */
+export function lz_render_output(
+  src: Uint8Array, width_mm: number, height_mm: number, dpmm: number,
+  antialias: boolean, want_pdf: boolean, lang: string, mode: string,
+  scale: number, all_pages: boolean,
+): Uint8Array;

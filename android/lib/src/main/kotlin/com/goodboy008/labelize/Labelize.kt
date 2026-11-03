@@ -53,6 +53,27 @@ object Labelize {
         lang: String,
     ): ByteArray
 
+    /** Explicit output backend ("raster" / "vector"). Zero dimensions use label sizes.
+     * [scale] changes PNG resolution without changing printer dpmm. [allPages]
+     * combines all parsed labels and is available only for vector PDF. */
+    external fun renderOutput(
+        src: ByteArray, widthMm: Double, heightMm: Double, dpmm: Int,
+        antialias: Boolean, pdf: Boolean, lang: String, mode: String,
+        scale: Double, allPages: Boolean,
+    ): ByteArray
+
+    /** Searchable vector/hybrid PDF. Source bitmaps and local inversions remain images. */
+    fun renderVectorPdf(
+        src: ByteArray, lang: String = "zpl", widthMm: Double = 0.0,
+        heightMm: Double = 0.0, dpmm: Int = 8, allPages: Boolean = false,
+    ): ByteArray = renderOutput(src, widthMm, heightMm, dpmm, false, true, lang, "vector", 1.0, allPages)
+
+    /** Shared-layout PNG at [scale] output pixels per source dot. */
+    fun renderScaledPng(
+        src: ByteArray, scale: Double, lang: String = "zpl", widthMm: Double = 0.0,
+        heightMm: Double = 0.0, dpmm: Int = 8, antialias: Boolean = false,
+    ): ByteArray = renderOutput(src, widthMm, heightMm, dpmm, antialias, false, lang, "vector", scale, false)
+
     /** Engine version string, e.g. `labelize-android 0.1.0`. */
     external fun version(): String
 

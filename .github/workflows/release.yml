@@ -44,7 +44,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --features serve --target ${{ matrix.target }}
+      - run: cargo build --release --features serve,vector --target ${{ matrix.target }}
       - name: Package (tar.gz)
         if: matrix.package == 'tar'
         run: |
