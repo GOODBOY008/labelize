@@ -12,7 +12,7 @@
 [![Docker](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/docker.yml?branch=main&label=docker)](https://github.com/GOODBOY008/labelize/actions/workflows/docker.yml)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 
-[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Tutorials](docs/tutorials/README.md) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
+[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](docs/README.md) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
 
 <img src="docs/playground.png" alt="The Labelize web playground rendering a shipping label" width="860"/>
 
@@ -45,7 +45,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 🏷️ **EPL2 support** — text, the full 1D/2D barcode command set (`B`/`b`), lines, diagonals, boxes, binary graphics (`GW`)
 - 📱 **CPCL support** — Zebra mobile-printer sessions (`! 0 203 203 …`): resident fonts 0-7, `SETMAG`, justification, Code 128/39/EAN/UPC/I2of5, QR/PDF-417/MaxiCode/Aztec, `BOX`/`LINE`/`INVERSE-LINE`, counted `EG`/`CG` graphics
 - 🏭 **DPL support** — Datamax-O'Neil formats (`<STX>L … E`): bitmap fonts 0-8 + smooth font 9, bottom-left home coordinates, Code 128/39/UCC/EAN/UPC/I2of5, QR/PDF-417/DataMatrix/MaxiCode/Aztec, `X` line/box records
-- 🖼️ **PNG & PDF output** — thermal-faithful 1-bit monochrome by default, optional antialiased greyscale
+- 🖼️ **PNG & PDF output** — black/white by default, optional grayscale. Opt-in [vector PDF and scalable PNG](docs/VECTOR_OUTPUT.md) share one layout and preserve searchable text
 - 🔄 **Reverse rendering (image → code)** — turn any raster (PNG/JPEG/GIF/BMP) into ZPL `^GFA` or TSPL `BITMAP` printer code; pixel-faithful, round-trip tested
 - 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
@@ -240,7 +240,8 @@ thresholds: [`docs/DIFF_THRESHOLDS.md`](docs/DIFF_THRESHOLDS.md)
 
 ## 📚 Documentation
 
-Step-by-step tutorials for every platform live in [`docs/tutorials/`](docs/tutorials/README.md):
+The [documentation index](docs/README.md) organizes platform tutorials, output
+options, architecture, testing and renderer references. Start with a tutorial:
 
 | Guide | For |
 |-------|-----|
@@ -251,7 +252,7 @@ Step-by-step tutorials for every platform live in [`docs/tutorials/`](docs/tutor
 | [Android](docs/tutorials/android.md) | Rendering inside an app |
 | [Rust Library](docs/tutorials/rust-library.md) | Embedding the engine in Rust |
 
-Reference docs: [Usage](docs/USAGE.md) · [ZPL command matrix](docs/ZPL_COMMANDS_REFERENCE.md) · [Diff thresholds](docs/DIFF_THRESHOLDS.md) · [Changelog](CHANGELOG.md)
+References: [Usage](docs/USAGE.md) · [Vector output](docs/VECTOR_OUTPUT.md) · [ZPL commands](docs/ZPL_COMMANDS_REFERENCE.md) · [Testing](docs/TESTING.md) · [Architecture](docs/ARCHITECTURE.md)
 
 ## 📖 Reference
 
@@ -301,7 +302,7 @@ Serve Options:
 | `output`  | png     | Output format: png/pdf |
 | `antialias` | false | Preserve antialiased greys instead of 1-bit |
 
-Status codes: `200` success (body is PNG/PDF bytes) · `400` parse error (bad label data) · `500` render error. Only the first label in the body is rendered — split multi-label files, or use the CLI.
+Status codes: `200` success (body is PNG/PDF bytes) · `400` parse error (bad label data) · `500` render error. The first label is rendered by default; `mode=vector&output=pdf&pages=all` combines all labels in one PDF.
 
 </details>
 
@@ -311,7 +312,7 @@ Status codes: `200` success (body is PNG/PDF bytes) · `400` parse error (bad la
 ### ZPL
 
 DataMatrix ECC 200 field-data escapes and firmware defaults are described in
-[DataMatrix field data](docs/DATAMATRIX_FIELD_DATA.md).
+[DataMatrix field data](docs/DATAMATRIX.md#ecc-200-field-data).
 
 | Category | Commands |
 |----------|----------|
@@ -330,7 +331,7 @@ recalls. Backslashes and pipes remain literal, matching the recorded CI13/CI27
 printer probes; control bytes can be supplied through `^FH`.
 Numeric records above 511 remain explicitly unsupported.
 They never silently become ECC 200. The raw Legacy encoder API accepts bytes.
-EPL DataMatrix continues to use ECC 200. See [Legacy scope and evidence](docs/DATAMATRIX_LEGACY.md)
+EPL DataMatrix continues to use ECC 200. See [Legacy scope and evidence](docs/DATAMATRIX.md#legacy-ecc-000-140)
 for the norm-based implementation, printer observations, limitations and source
 attribution. No independent overall validation is claimed.
 
@@ -360,7 +361,7 @@ ASCII) / UPC-A / UPC-E / EAN-13 / EAN-8 / I2of5 (+C) with `BARCODE-TEXT` HRI,
 QR / PDF-417 / MaxiCode (mode 2 tags) / Aztec, `BOX`, `LINE`,
 `INVERSE-LINE`, and counted `EG`/`CG` graphics. Canvas comes from the header
 height and `PAGE-WIDTH`. Real-provenance corpus and reference-renderer
-details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
+details: [CPCL/DPL corpus](docs/TEST_CORPUS.md#cpcl-and-dpl).
 
 ### DPL (Datamax-O'Neil)
 
@@ -373,7 +374,7 @@ DataMatrix, MaxiCode (fixed-field form), Aztec, and `X` line/box records.
 Positions use the bottom-left home in hundredths of an inch (`m` = metric);
 DPL declares no in-band label size, so the canvas comes from the caller.
 Real-provenance corpus (manual Appendix B samples) and reference-renderer
-details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
+details: [CPCL/DPL corpus](docs/TEST_CORPUS.md#cpcl-and-dpl).
 
 </details>
 
@@ -393,7 +394,7 @@ details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
 
 - **Parser** (`src/parsers/`) — tokenizes input, maintains `VirtualPrinter` state, produces typed `LabelElement`s
 - **Renderer** (`src/drawers/`) — rasterizes elements onto an `RgbaImage` canvas (text, graphics, barcodes, reverse print, label inversion)
-- **Encoder** (`src/images/`) — emits 1-bit monochrome PNG or a single-page PDF
+- **Encoder** (`src/images/`) — emits eight-bit grayscale PNG (black/white by default) or a raster PDF; the optional scene backend emits searchable vector/hybrid PDF and scaled PNG
 
 </details>
 

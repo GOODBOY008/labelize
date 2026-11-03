@@ -1,9 +1,13 @@
 # TSPL Baseline Renderers
 
+[Documentation index](README.md)
+
 TSPL has no equivalent of Labelary (which is ZPL-only and the golden
 reference for the ZPL side). Two independent baseline renderers are used for
 TSPL calibration, with a strict triangulation policy so we never overfit one
-approximation.
+approximation. The service capabilities below are dated observations; recheck
+coverage before using either service for a new fixture. Source provenance lives
+in [Test corpus](TEST_CORPUS.md#tspl).
 
 | Baseline | Type | Access | License | Role |
 |---|---|---|---|---|
@@ -118,7 +122,7 @@ both. Per the manual, `wide` applies to discrete two-width codes (39, ITF);
 continuous codes like 128 use `narrow` only — labelize follows that.
 Needs hardware arbitration to close (low priority).
 
-### `REVERSE` — resolved (see this PR's fix)
+### `REVERSE` — print-time inversion
 
 Manual + corpus intent: print-time region inversion (white-on-black
 text). labelize now inverts the region; labelixa skips the command

@@ -1,6 +1,8 @@
 # Labelize Architecture
 
-Labelize turns label-printer data (ZPL, EPL, TSPL, CPCL, DPL) into pixels. The design goal is
+[Documentation index](README.md)
+
+Labelize turns label-printer data (ZPL, EPL, TSPL, CPCL, DPL) into PNG or PDF. The design goal is
 **N languages, one renderer**: each language gets a self-contained frontend
 that compiles its commands into a shared, language-neutral IR; a single
 language-blind renderer draws whatever the IR describes.
@@ -37,14 +39,22 @@ src/elements/ ── language-neutral IR
   │   BEFORE the element exists (see "Calibration lives parser-side").
   │
   ▼
-src/drawers/ ── language-blind renderer
+src/drawers/ ── language-blind layout and rendering
   │   dispatches per element type; keys text off FontFace (asset +
   │   substitute calibration), never off a printer's font names.
   │   CI-guarded by tests/unit_architecture.rs.
   │
-  ▼
-src/images/ ── PNG (monochrome 1-bit) or PDF encoding
+  ├─ raster (default) ─► src/images/ ─► PNG or image-backed PDF
+  │
+  └─ vector (opt-in) ──► renderer/scene.rs ─► krilla PDF or tiny-skia PNG
 ```
+
+Text and barcode layout are shared by the raster renderer and the scene.
+`src/output.rs` validates output options and selects the backend. A `LabelScene`
+can be reused for PDF and scaled PNG; local pixel regions preserve operations
+such as inversion and XOR. PNG encoders store 8-bit grayscale samples, with
+black/white thresholding by default. See [Vector output](VECTOR_OUTPUT.md) for
+searchable text, multipage output and fidelity limits.
 
 ## The two invariants
 
@@ -127,12 +137,14 @@ Example: TSPL (shipped — see `parsers/tspl/`).
 4. **Tests** —
    - `tests/unit_tspl_parser.rs` (inline strings, no fixtures required);
    - `tests/common/render_helpers.rs`: `parse_tspl` / `render_tspl_to_png`;
-   - golden tests in `tests/e2e_golden.rs` with a renderer-baseline
-     bootstrap (no public TSPL reference renderer exists, mirroring the EPL
-     convention) — tolerance guards regressions only;
+   - golden tests in `tests/e2e_golden.rs` with documented reference provenance
+     (see [Test corpus](TEST_CORPUS.md) and [TSPL baselines](TSPL_BASELINES.md));
+     identify renderer baselines explicitly when external coverage is absent;
    - `tests/e2e_diff_report.rs` `scan_dirs`: accept the `.tspl` extension;
    - a row in `docs/DIFF_THRESHOLDS.md`.
-5. **Docs** — a command table in `AGENTS.md` and a CHANGELOG entry.
+5. **Docs** — update language coverage, corpus provenance and relevant tutorials,
+   plus the command table in `AGENTS.md` and a CHANGELOG entry. Add new reference
+   documents to the [documentation index](README.md).
 
 Do **not** touch `drawers/`, `elements/` semantics, or another language's
 module. If the renderer lacks something your language needs, add a neutral

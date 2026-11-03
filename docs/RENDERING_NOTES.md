@@ -1,4 +1,97 @@
-# QR mask selection: exact N4 balance penalty
+# Rendering behavior and evidence
+
+[Documentation index](README.md)
+
+Focused semantics and reference measurements that complement the
+[ZPL command matrix](ZPL_COMMANDS_REFERENCE.md) and
+[diff thresholds](DIFF_THRESHOLDS.md). Dated measurements describe the named
+renderer or device; they are not universal printer conformance claims.
+
+- [Print mirror](#print-mirror): persistent state, transforms and geometry.
+- [QR mask selection](#qr-mask-selection): scoring, independent matrices and
+  observed firmware differences.
+
+DataMatrix has a separate [reference](DATAMATRIX.md); TSPL calibration and
+open questions are in [TSPL baselines](TSPL_BASELINES.md).
+
+## Print mirror
+
+`^PMY` mirrors the whole label horizontally. The setting persists across
+`^XA`/`^XZ` and subsequent calls to the same `ZplParser`. `^PMN` disables it;
+constructing a new parser starts with mirroring disabled. Missing or invalid
+parameters leave the current state unchanged. The last valid setting in a
+format applies to every field and every `^PQ` copy of that label.
+
+The completed image is mirrored after print-width clipping/centering and `^PO`
+rotation. `DrawerOptions::enable_inverted_labels` controls `^PO` only; disabling
+that option does not disable `^PM`.
+
+Downloaded formats store an optional explicit mirror instruction. Defining a
+format does not change the printer's mirror setting. Recalling a format replays
+its instruction, if present; a format without `^PM` inherits the printer's state
+at recall time. A later `^PMN` in the calling format takes precedence.
+
+### Sources and comparison (September 10, 2026)
+
+- The authoritative [Zebra Programming Guide, ^PM section](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/software/zpl-zbi2-pg-en.pdf)
+  specifies horizontal reflection, persistence until explicit disable/power-off,
+  and ignoring missing/invalid parameters.
+- [Labelary lists ^PM as supported](https://labelary.com/docs.html). Live requests
+  confirmed persistence, reset, ignored invalid/missing parameters, whole-label
+  application, print-width/rotation composition, and stored-format behavior.
+- The inspected [ZPLR interpreter at 590f03c](https://github.com/le2ni/zplr/blob/590f03c58c79663be37708cd97f8cff5eb0d797e/src/core/interpreter.ts)
+  initializes mirror state per label and uses `yesNo(args[0], true)` for `^PM`.
+  Its [raster transform](https://github.com/le2ni/zplr/blob/590f03c58c79663be37708cd97f8cff5eb0d797e/src/core/raster.ts)
+  implements horizontal reflection composed with 180-degree rotation. Its
+  parameter/state handling is not used as the authority for this implementation.
+
+The Labelary HTTP endpoint also ignored a `^PMY` placed before the first `^XA`.
+That observation does not establish physical-printer behavior outside formats.
+Like other existing printer settings in Labelize, `^PM` is interpreted wherever
+the command parser receives it; the conformance cases below use complete formats.
+
+### Independent geometry measurements
+
+Requests used `POST https://api.labelary.com/v1/printers/8dpmm/labels/1x0.5/0/`
+with `Accept: image/png` and the synthetic field
+`^FO10,20^GB20,10,10^FS` inside `^XA`/`^XZ`. The returned canvas was 203 x 101
+dots. Coordinates below are inclusive black-pixel bounds.
+
+| Settings | Left, top, right, bottom |
+|---|---|
+| Default | 10, 20, 29, 29 |
+| `^PMY` | 173, 20, 192, 29 |
+| `^PW100` | 61, 20, 80, 29 |
+| `^PW100^PMY` | 122, 20, 141, 29 |
+| `^PW100^POI` | 122, 71, 141, 80 |
+| `^PW100^PMY^POI` | 61, 71, 80, 80 |
+| `^PW300^PMY` | 173, 20, 192, 29 |
+
+The odd 103-dot margin for `^PW100` distinguishes mirroring the completed canvas
+from mirroring the narrower printable region before centering.
+
+### Regression fixtures
+
+`testdata/unit/print_mirror{,_width,_inverted}.zpl` have independent PNG references
+downloaded from Labelary at `8dpmm/labels/4.005x8.01/0/` (813 x 1626 pixels).
+These contain only asymmetric filled graphics, including print-width clipping,
+so font rasterization does not require a tolerance. `unit_print_mirror` compares
+all three decoded images pixel-for-pixel; the normal golden suite also runs them.
+Reference generation has no local-renderer fallback in this investigation.
+
+Other tests cover persistent state, separate parser instances, invalid inputs,
+stored formats containing only settings, rotated text, QR codes, clipping,
+antialiasing, and the inversion option. No physical printer was used.
+
+### Library data model
+
+`LabelInfo::mirrored` is the resolved per-label snapshot. Code constructing
+`LabelInfo` with a struct literal must supply `mirrored: false` for normal output.
+`StoredFormat::mirrored` and `RecalledFormat::mirrored` are `Option<bool>`:
+`None` inherits the current setting, while `Some(false)` explicitly disables it.
+EPL labels initialize the flag to false.
+
+## QR mask selection
 
 `qrcode 0.14.1` evaluates N4 (dark/light balance) with an approximately linear
 score. ISO/IEC 18004:2015 section 7.8.3.1, Table 11 requires ten points for each
@@ -6,13 +99,12 @@ complete five-percentage-point deviation from 50%. The approximation can change
 the winning mask, even when segmentation, version, correction level and
 codewords are identical.
 
-## Reproduced counterexamples
+### Reproduced counterexamples
 
 The following inputs use one Byte segment and no ECI. The H case requires
 version 2; the other four fit version 1. The automatic Labelize API is tested;
 these lowercase payloads are encoded as Byte by the existing optimizer.
-Mask numbers are zero-based. This PR now retains main's automatic segmentation
-and has no dependency on the reverted explicit-character-mode PR #52.
+Mask numbers are zero-based. Automatic segmentation is unchanged.
 
 | Payload | EC | Previous mask | Corrected mask | Standard score, previous -> corrected |
 |---|---|---|---|---|
@@ -29,10 +121,10 @@ The first regression failed against the unmodified renderer: `mask-24 L
 Automatic: must select standard mask 1`. A valid, decodable QR symbol alone
 does not establish correct mask selection.
 
-## Implementation and scope
+### Implementation and scope
 
 Labelize continues using the dependency's public `Bits`, Reed-Solomon codeword
-construction and `Canvas` mask application. It now evaluates the eight completed
+construction and `Canvas` mask application. It evaluates the eight completed
 candidate matrices itself, including format information. Lowest score wins;
 ties choose the lowest mask number. This avoids vendoring the dependency or
 modifying the local Cargo registry.
@@ -49,7 +141,7 @@ implement the ZPL `^BQ` explicit mask parameter, Micro QR, Model 1, or change
 segment selection, correction levels, padding, or symbol sizes. It is not a
 certification of every aspect of QR compliance or physical print quality.
 
-## Independent references and verification
+### Independent references and verification
 
 The five text fixtures in `testdata/qr-mask/` were generated on September 10,
 2026 from the existing JavaScript toolkit at `096b5d42fc6ed50ba49b8e3a2fb6ab98171b1d7a`.
@@ -76,15 +168,7 @@ Sources:
 - [ISO/IEC 18004:2015, section 7.8.3.1, Table 11](https://nuintun.github.io/qrcode/spec/ISO-IEC-18004-2015.pdf)
 - [qrcode-rust canvas implementation](https://docs.rs/qrcode/0.14.1/src/qrcode/canvas.rs.html)
 - Toolkit: `src/barcodes/qr-core.js`, `src/barcodes/qr-mask-penalty.js`
-## Original corpus check (2026-09-10)
-
-Both complete diff reports were regenerated after the fix: 51 label cases and
-76 unit cases, with no skipped/error cases. All 127 comparison images and both
-reports are byte-for-byte unchanged from the character-mode branch. Thus this
-fix neither reduces nor increases the current corpus's Labelary differences.
-The five original independent counterexamples exercise inputs absent from that corpus.
-
-## Labelary and printer study, 2026-10-06
+### Labelary and printer study, 2026-10-06
 
 Five new lowercase, seven-byte EC-H inputs isolate mask selection: their version,
 Byte segment, error correction, and unmasked data codewords are identical across
@@ -111,14 +195,3 @@ was independently decoded with the same payload and data codewords. This is
 evidence of a separate firmware-mask-selection difference; the correction
 improves Labelary compatibility on the five verified cases and does not claim
 universal Zebra matrix identity.
-
-The branch is updated against main `6465f51`, preserving the PR52 revert. Only
-automatic mask selection changes; QR parser, character-mode interpretation,
-segmentation and error correction selection remain main's behavior. The
-explicit-mode work can be considered separately for a future Zebra profile.
-
-Current validation against main `6465f51`: 127 library/QR/barcode/property
-regressions passed, as did 130 goldens and both diff reports (134 fixtures,
-no HIGH/SKIP/ERR). The new five-symbol golden is pixel-identical to Labelary;
-all existing comparison images and scores remain unchanged relative to main.
-Formatting and all-feature Clippy with warnings denied also passed.

@@ -1,5 +1,7 @@
 # Tutorial: Rust Library
 
+[All tutorials](README.md) · [Documentation index](../README.md)
+
 Use Labelize as a crate when the caller is already Rust — a batch converter,
 a print spooler, an HTTP endpoint of your own, or a test harness that must
 assert on rendered labels.
@@ -145,7 +147,7 @@ let options = DrawerOptions {
     label_height_mm: 152.0,    // default 203.2 (8") — set to your stock size
     dpmm: 8,                   // 6 / 8 / 12 / 24
     enable_inverted_labels: true, // honor ^PO I (default true)
-    antialias: false,          // true → 8-bit greys instead of 1-bit
+    antialias: false,          // true → grayscale coverage instead of black/white
 };
 ```
 
@@ -170,7 +172,8 @@ let options = DrawerOptions {
 
 ## 7. PDF output
 
-PDF wraps the rendered pixels in a single-page document:
+The default raster PDF wraps the rendered pixels in a single-page document.
+For native searchable text and multipage output, see [Vector output](../VECTOR_OUTPUT.md).
 
 ```rust
 use labelize::encode_pdf;

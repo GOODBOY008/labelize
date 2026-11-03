@@ -1,5 +1,7 @@
 # Tutorial: Command Line (macOS · Linux · Windows)
 
+[All tutorials](README.md) · [Documentation index](../README.md)
+
 Convert `.zpl` / `.epl` / `.tspl` files to PNG or PDF from a shell. Format is
 auto-detected from the file extension.
 
@@ -58,6 +60,9 @@ labelize convert label.zpl -t pdf            # → label.pdf (single-page PDF)
 labelize convert label.zpl -o out/label.png  # explicit output path
 ```
 
+For searchable vector PDF, multipage PDF or larger PNG exports, see
+[Vector output](../VECTOR_OUTPUT.md).
+
 ## 4. Get the size right
 
 The default canvas is 102 × 152 mm (4″ × 6″) at 8 dpmm. If your label looks
@@ -74,8 +79,8 @@ the dpmm to get millimetres — e.g. `^PW812` at 8 dpmm ≈ 101.5 mm.
 
 ## 5. Antialiased output (optional)
 
-By default the PNG is 1-bit black/white, which is what a thermal printer
-actually prints. To keep antialiased greys (closer to Labelary's preview):
+By default the PNG stores black/white pixels in an 8-bit grayscale image.
+To keep antialiased greys (closer to Labelary's preview):
 
 ```bash
 labelize convert label.zpl --antialias

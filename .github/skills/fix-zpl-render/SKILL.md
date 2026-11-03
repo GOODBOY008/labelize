@@ -44,7 +44,7 @@ diff, never raise it to paper over a regression.
 ### Phase 1: Identify the Problem
 
 1. **Get the label source** — Read the ZPL file from `testdata/labels/<name>.zpl` or `testdata/unit/<name>.zpl`
-2. **Check current diff** — Look up the label in [docs/DIFF_THRESHOLDS.md](../../docs/DIFF_THRESHOLDS.md) for the current diff percentage and known cause
+2. **Check current diff** — Look up the label in [docs/DIFF_THRESHOLDS.md](../../../docs/DIFF_THRESHOLDS.md) for the current diff percentage and known cause
 3. **Run the golden test** for the specific label:
    ```bash
    cargo test --test e2e -- <label_name> --nocapture
@@ -155,5 +155,5 @@ diff, never raise it to paper over a regression.
 - [ZPL Command Index](https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands.html)
 - [Field Interactions](https://docs.zebra.com/us/en/printers/software/zpl-pg/r-zpl-interactions-field-interactions.html)
 - [Fonts and Barcodes](https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-font-barcodes-fonts-andbar-codes.html)
-- [Diff Thresholds](../../docs/DIFF_THRESHOLDS.md)
-- [Rendering Fixes History](/memories/repo/labelize-rendering-fixes.md)
+- [Diff Thresholds](../../../docs/DIFF_THRESHOLDS.md)
+- [Rendering behavior and evidence](../../../docs/RENDERING_NOTES.md)

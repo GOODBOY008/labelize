@@ -7,6 +7,9 @@ Labelize is a Rust engine that parses ZPL (Zebra Programming Language), EPL (Elt
 ## Architecture
 
 Full details and the new-language checklist live in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The documentation map and placement rules live in [docs/README.md](docs/README.md):
+keep maintained references at the root of `docs/`, with `tutorials/` as its only
+subdirectory. Test commands and golden policies are in [docs/TESTING.md](docs/TESTING.md).
 
 ```
 Input bytes + Language
@@ -24,7 +27,8 @@ Input bytes + Language
   → src/elements/                — language-neutral IR: Text, Barcode*, Graphic*, LabelInfo
   → src/drawers/                 — language-blind renderer (CI-guarded, see
                                     tests/unit_architecture.rs)
-  → src/images/                  — PNG (monochrome 1-bit) or PDF encoding
+  → src/images/                  — grayscale PNG (black/white by default) or raster PDF
+    src/drawers/renderer/scene.rs — opt-in vector PDF and scalable PNG
 ```
 
 Two invariants hold the three-language boundary clean (a new frontend must not
@@ -76,7 +80,7 @@ Individual command docs follow the pattern:
 **Setup:** `SIZE` (mm/dot/inch → per-label canvas dims), `DIRECTION`, `REFERENCE`, `SHIFT`, `CLS`, `GAP`/`DENSITY`/`SPEED`/`OFFSET`/`CODEPAGE` (no-op)
 **Content:** `TEXT`, `BAR`, `BOX`, `CIRCLE`, `ELLIPSE`, `ERASE`, `REVERSE`, `BARCODE` (128/128M/EAN128/EAN128M/39/39C/EAN13), `QRCODE` (ECC default M per TSC), `DMATRIX` (ECC200; `x#` = module size in dots, default 4 calibrated from the manual's result figure; width/height are an advisory area — the symbol is never scaled to fill it), `PDF417` (raw `L<len>`, incl. compound option tokens like `E30R4C4L26` — ECC is single-digit per its 0-8 domain), `BITMAP` (binary cursor or exact-length hex-text line with optional spaces/tabs; TSC polarity 0=black; ambiguous/short hex stays binary; modes 0/1/2 = overwrite/OR/XOR), `PRINT`
 **Unsupported (explicit error):** `MPDF417`, `PUTPCX`, `PUTBMP`, `AZTEC`
-**Semantics notes:** `DIRECTION` models 0 (inverted) / 1 (normal) per the common TSC usage; the 1-4 forms with mirror semantics are not arbitrated by any reference renderer and stay unimplemented. `REVERSE` is a print-time region inversion (white-on-black text). TSPL calibration references and open questions: [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md); corpus provenance: [docs/TSPL_CORPUS.md](docs/TSPL_CORPUS.md)
+**Semantics notes:** `DIRECTION` models 0 (inverted) / 1 (normal) per the common TSC usage; the 1-4 forms with mirror semantics are not arbitrated by any reference renderer and stay unimplemented. `REVERSE` is a print-time region inversion (white-on-black text). TSPL calibration references and open questions: [docs/TSPL_BASELINES.md](docs/TSPL_BASELINES.md); corpus provenance: [TSPL corpus](docs/TEST_CORPUS.md#tspl)
 
 ## Supported CPCL Commands
 
@@ -86,7 +90,7 @@ Zebra's mobile-printer language (QL/MZ series); sessions start with `! {offset} 
 **Content:** `TEXT`/`T` (+ `VTEXT`/`TEXT90`/`TEXT180`/`TEXT270` rotations, 90° CCW), `SCALE-TEXT`/`ST` (+ vertical; 72 pt/inch, `ROTATE` in 90° steps), `ML`/`MULTILINE` blocks (inline text command, scalable text, blank rows), resident fonts 0-7 (Appendix D cell metrics in `parsers/cpcl/fonts.rs`), `SETMAG {w} {h}`, justification (`LEFT`/`CENTER`/`RIGHT [end]` via one-line blocks), `BARCODE`/`B`/`VBARCODE` (128, UCCEAN128, 39/39C/F39/F39C, UPCA, UPCE, EAN13, EAN8, I2OF5/I2OF5C/I2OF5G; ratio codes 0-4 = 1.5-3.5:1, 20-30 = 2.0-3.0:1), `BARCODE-TEXT`/`BT` (HRI state), `B PDF-417 … ENDPDF` (XD/YD/C/S), `B QR … ENDQR` (`MA,`/`H0M,N…` payload conventions resolved parser-side), `B MAXICODE … ENDMAXICODE` (POST/CC/SC/MSG tags → mode-2 payload), `B AZTEC … ENDAZTEC` (XD/EC), `BOX`, `LINE`, `INVERSE-LINE` (region inversion of earlier objects), `EG`/`CG` and their full `EXPANDED-GRAPHICS`/`COMPRESSED-GRAPHICS` names (byte-safe counted payloads, set bits black)
 **No-op (device behaviour):** `CONTRAST`, `TONE`, `JOURNAL`, `PACE`, `AUTO-PACE`, `NO-PACE`, `WAIT`, `BEEP`, `CUT`, `PARTIAL-CUT`, `FORM`, `PREFEED`, `POSTFEED`, `ENCODING`, `COUNT` (inert serial state like `^SN`)
 **Unsupported (explicit error):** `CONCAT`/`VCONCAT`, `FG` font groups, `PCX`, `SCALE-TO-FIT`, `DEFINE-FORMAT`/`USE-FORMAT`, `VEG`/`VCG`, `PATTERN` ≠ 100, barcode types with addenda (`UPCA2/5`, `UPCE2/5`, `EAN132/5`, `EAN82/5`), `93`, `CODABAR`, `MSI*`, `POSTNET`, `FIM`
-**Reference renderer:** labelixa.com renders a CPCL subset (`POST /v1/cpcl/render`) and is the golden reference where it covers the commands; renderer-baseline otherwise (EPL/TSPL convention). Real-provenance corpus (the MIT-licensed Labelixa example collection) and reference details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md); tolerances in [docs/DIFF_THRESHOLDS.md](docs/DIFF_THRESHOLDS.md).
+**Reference renderer:** labelixa.com renders a CPCL subset (`POST /v1/cpcl/render`) and is the golden reference where it covers the commands; renderer-baseline otherwise (EPL/TSPL convention). Real-provenance corpus (the MIT-licensed Labelixa example collection) and reference details: [CPCL/DPL corpus](docs/TEST_CORPUS.md#cpcl-and-dpl); tolerances in [docs/DIFF_THRESHOLDS.md](docs/DIFF_THRESHOLDS.md).
 
 ## Supported DPL Commands
 
@@ -97,7 +101,7 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 **Barcodes:** `A` (39), `H` (HIBC 39 + mod-43), `B` (UPC-A), `C` (UPC-E), `D` (I2of5), `J`/`L` (I2of5 + mod-10), `E` (Code 128), `Q`/`R`/`S` (UCC/EAN 128), `F` (EAN-13), `G` (EAN-8) — uppercase prints the HRI line; `z`/`Z` (PDF-417 with T/F, security, aspect, rows, columns), `u`/`U` (MaxiCode fixed-field zip+4/country/class/message), `W1c`/`W1C` (ECC 200 DataMatrix, raw bytes; the uppercase form counts all following option and data bytes), `W1d`/`W1D` (QR auto/manual — manual carries the EC/mask/segment payload conventions), `W1f`/`W1F` (Aztec)
 **Graphics:** `X` records with `L`/`l` lines and `B`/`b` boxes (dimensions in units)
 **Unsupported (explicit error):** `Y` (stored images), polygons `P` and circles `C` in `X` records, `W1z`/`W1t`, legacy DataMatrix qualities and unequal module dimensions, QR structured append/hex-ASCII, non-UTF-8 PDF417 payloads, Codabar `I`, Plessey `K`, Code 93 `O`, Telepen `T`, Postnet `p`, FIM `v`, addenda `M`/`N`, MaxiCode structured `[)>RS…` form
-**Reference renderer:** no printer-grade public renderer exists; the hosted Evolabel layout view (layoutview.evolabel.com, ~11.8 px/mm server preview) serves as the external comparison for the real-provenance corpus, renderer-baseline otherwise. Real-provenance corpus (manual Appendix B samples) and reference details: [docs/CPCL_DPL_CORPUS.md](docs/CPCL_DPL_CORPUS.md).
+**Reference renderer:** no printer-grade public renderer exists; the hosted Evolabel layout view (layoutview.evolabel.com, ~11.8 px/mm server preview) serves as the external comparison for the real-provenance corpus, renderer-baseline otherwise. Real-provenance corpus (manual Appendix B samples) and reference details: [CPCL/DPL corpus](docs/TEST_CORPUS.md#cpcl-and-dpl).
 
 ## Reverse Rendering (Image → Code)
 
@@ -170,6 +174,7 @@ cargo test --test e2e_diff_report -- --nocapture
 ## Testing Conventions
 
 - **Golden tests** compare rendered PNGs pixel-by-pixel against reference images from Labelary
+- **Vector PDF tests** additionally compare normalized PDF structure in `testdata/vector/pdf-structure.json`, verify viewer text search, and reject raster/hidden-text negative controls. PNG snapshots in `tests/e2e_vector_visual.rs` check appearance only; run the independent PDF checks described in [testdata/vector/README.md](testdata/vector/README.md).
 - Reference images live in `testdata/labels/*.png` and `testdata/unit/*.png`; diff outputs go to `testdata/diffs/`
 - Each label has a tolerance threshold documented in `docs/DIFF_THRESHOLDS.md`
 - After any rendering change, run `cargo test --test e2e_golden` to verify diff percentages stay within tolerance

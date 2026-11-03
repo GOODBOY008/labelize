@@ -1,5 +1,7 @@
 # ZPL Commands Reference
 
+[Documentation index](README.md)
+
 Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands.html
 
 ## Label Control Commands

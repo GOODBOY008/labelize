@@ -3,7 +3,7 @@
 //
 // Ported from Streetblock/QR-Atelier (MIT option of MIT OR Apache-2.0):
 // libs/DMlegacy.js and libs/DMlegacyPlacementGenerator.js, commit
-// 432aa76de2116adc055062f91ef622f4dc9568cb. See licenses/QR-Atelier-MIT.txt and docs/DATAMATRIX_LEGACY.md.
+// 432aa76de2116adc055062f91ef622f4dc9568cb. See licenses/QR-Atelier-MIT.txt and docs/DATAMATRIX.md#legacy-ecc-000-140.
 // Rust adaptation: byte input, bounded lazy cache, BitMatrix output. The
 // random-stream byte at index 211 uses the norm-confirmed BC value.
 

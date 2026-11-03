@@ -13,6 +13,6 @@ retained in `licenses/QR-Atelier-MIT.txt`, and the source file identifies its
 origin and adaptation. This attribution applies to the listed implementation,
 not ownership of the underlying standard, mathematical rules or reference data.
 
-See `docs/DATAMATRIX_LEGACY.md` for the historical norm sources and the distinction
+See [Legacy DataMatrix](docs/DATAMATRIX.md#legacy-ecc-000-140) for the historical norm sources and the distinction
 between norm-derived tests, recorded printer examples and same-author port tests.
 The implementation has not received independent overall verification.
