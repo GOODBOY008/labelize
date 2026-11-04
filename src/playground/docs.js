@@ -18,12 +18,14 @@
       if (!groups[page.group]) {
         var section = document.createElement("section");
         var heading = document.createElement("h2");
+        heading.className = "subheader";
         heading.textContent = page.group;
         section.appendChild(heading);
         docsNav.appendChild(section);
         groups[page.group] = section;
       }
       var link = document.createElement("a");
+      link.className = activeDoc && activeDoc.id === page.id ? "nav-link active bg-primary text-white" : "nav-link";
       link.href = "#docs/" + page.id;
       link.textContent = page.title;
       if (activeDoc && activeDoc.id === page.id) link.setAttribute("aria-current", "page");
@@ -45,6 +47,11 @@
     document.getElementById("nav-docs").setAttribute("aria-current", visible ? "page" : "false");
     document.getElementById("nav-api").setAttribute("aria-current", apiVisible ? "page" : "false");
     document.getElementById("nav-playground").setAttribute("aria-current", visible || apiVisible ? "false" : "page");
+    ["nav-playground", "nav-api", "nav-docs"].forEach(function (id) {
+      var link = document.getElementById(id);
+      var selected = link.getAttribute("aria-current") === "page";
+      ["active", "bg-primary", "text-white"].forEach(function (name) { link.classList.toggle(name, selected); });
+    });
     if (apiVisible) { apiConsole.show(focus); return; }
     if (!visible) { document.title = t("app.title"); if (focus) input.focus(); return; }
     var page = docsPages.find(function (p) { return p.id === (parts[1] || "getting-started"); });
@@ -59,11 +66,13 @@
         activeDoc = page;
         // HTML is compiled from repository Markdown, never user input or network data.
         docsArticle.innerHTML = page.html;
+        docsArticle.querySelectorAll("table").forEach(function (table) { table.classList.add("table", "table-vcenter"); });
+        docsArticle.querySelectorAll(".doc-try").forEach(function (button) { button.classList.add("btn", "btn-primary", "btn-sm"); });
         docsArticle.querySelector("h1").tabIndex = -1;
         docsArticle.querySelectorAll("pre").forEach(function (pre) {
           var button = document.createElement("button");
           button.type = "button";
-          button.className = "doc-copy";
+          button.className = "doc-copy btn btn-outline-secondary btn-sm";
           button.textContent = docsText("Copy code", "复制代码");
           button.addEventListener("click", function () {
             copyText(pre.textContent).then(function () {
@@ -83,11 +92,13 @@
         docsArticle.appendChild(source);
         docsOutline.replaceChildren();
         var title = document.createElement("h2");
+        title.className = "subheader";
         title.textContent = docsText("On this page", "本页内容");
         docsOutline.appendChild(title);
         page.headings.forEach(function (heading) {
           if (heading[0] !== "2") return;
           var link = document.createElement("a");
+          link.className = "nav-link";
           link.href = "#docs/" + page.id + "/" + heading[1];
           link.textContent = heading[2];
           docsOutline.appendChild(link);
