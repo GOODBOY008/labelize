@@ -112,7 +112,7 @@ editing docs, [regenerate the bundle](README.md#update-the-built-in-docs), then 
 
 ```sh
 python tools/docs/build.py --check
-node --test workers/playground.test.mjs
+node --test workers/playground.test.mjs workers/api.test.mjs
 cargo test --lib --features playground playground::
 ```
 
@@ -128,3 +128,10 @@ that switching views preserves the editor draft and that share-link reloads
 restore source and settings. Check both themes, English/Chinese navigation,
 PDF downloads and widths from 320 to 1440 pixels. Documentation content is
 English; the surrounding controls follow the playground's language setting.
+
+Also check `#api` deep links, draft preservation across all three views,
+request cancellation, image previews, binary file downloads and copied
+examples. The API tests exercise the shipped request/response code and run
+the generated cURL, Node.js and Python examples against an HTTP byte echo.
+Worker tests use the actual WASM for conversions and separately inject an
+initialization failure to prove preflights/schema work without the engine.

@@ -1,4 +1,4 @@
-// Labelize Cloudflare Worker: / , /health, /convert, /validate, /format, /encode (mirrors the axum server).
+// Labelize Cloudflare Worker: shared playground and public synchronous API.
 //
 // The wasm-bindgen thin entry (labelize_wasm.js) auto-initializes with the
 // bundler's wasm import, which workerd resolves to a module (not an instance),
@@ -7,6 +7,7 @@
 import * as engine from "../wasm/npm/labelize_wasm_bg.js";
 const { lz_render_output, lz_playground_html, lz_validate, lz_format, lz_encode } = engine;
 import wasmBytes from "../wasm/npm/labelize_wasm_bg.wasm";
+import openapi from "../src/playground/openapi.json";
 
 let ready = null;
 let htmlPage = null;
@@ -240,50 +241,68 @@ function badLanguage(lang) {
   return null;
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    await ensureEngine();
-    if (!htmlPage) {
-      htmlPage = lz_playground_html();
-    }
+// CORS is limited to API routes. No cookies or credentials are needed.
+const API_METHODS = new Map([
+  ...Object.entries(openapi.paths).map(([path, operation]) => [path, operation.post ? "POST" : "GET"]),
+  ["/openapi.json", "GET"],
+]);
+function corsResponse(response, method) {
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", "*");
+  headers.set("access-control-allow-methods", `${method}, OPTIONS`);
+  headers.set("access-control-allow-headers", "Content-Type");
+  headers.set("access-control-max-age", "86400");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
+async function route(request, env, url) {
+  if (request.method === "GET" && url.pathname === "/openapi.json") return jsonResponse(openapi);
+  if (request.method === "GET" && url.pathname === "/health") return jsonResponse({ status: "ok" });
+  // Static API metadata and OPTIONS must work without initializing WASM.
+  await ensureEngine();
+  if (request.method === "GET" && url.pathname === "/" && !htmlPage) htmlPage = lz_playground_html();
+  const base = baseUrl(env);
+  if (request.method === "GET") {
+    if (url.pathname === "/") {
+      // Once PUBLIC_BASE_URL names a custom domain, send the workers.dev
+      // HTML page there so search engines index a single origin. API
+      // endpoints keep answering on both hosts.
+      if (base !== DEFAULT_BASE_URL && url.hostname !== new URL(base).hostname) {
+        return Response.redirect(base + "/", 301);
+      }
+      if (base !== DEFAULT_BASE_URL && !htmlPage.includes(base)) {
+        htmlPage = htmlPage.split(DEFAULT_BASE_URL).join(base);
+      }
+      return htmlResponse();
+    }
+    if (url.pathname === "/robots.txt") {
+      return textResponse(robotsTxt(base), "text/plain; charset=utf-8");
+    }
+    if (url.pathname === "/sitemap.xml") {
+      return textResponse(sitemapXml(base), "application/xml; charset=utf-8");
+    }
+  }
+  if (request.method === "POST" && url.pathname === "/convert") return convert(request, url);
+  if (request.method === "POST" && url.pathname === "/validate") return validate(request, url);
+  if (request.method === "POST" && url.pathname === "/format") return formatLabel(request, url);
+  if (request.method === "POST" && url.pathname === "/encode") return encodeImage(request, url);
+  return jsonResponse({ error: "Not Found" }, 404);
+}
+
+export default {
+  async fetch(request, env) {
     const url = new URL(request.url);
-    const base = baseUrl(env);
-    if (request.method === "GET") {
-      if (url.pathname === "/") {
-        // Once PUBLIC_BASE_URL names a custom domain, send the workers.dev
-        // HTML page there so search engines index a single origin. API
-        // endpoints keep answering on both hosts.
-        if (base !== DEFAULT_BASE_URL && url.hostname !== new URL(base).hostname) {
-          return Response.redirect(base + "/", 301);
-        }
-        if (base !== DEFAULT_BASE_URL && !htmlPage.includes(base)) {
-          htmlPage = htmlPage.split(DEFAULT_BASE_URL).join(base);
-        }
-        return htmlResponse();
-      }
-      if (url.pathname === "/robots.txt") {
-        return textResponse(robotsTxt(base), "text/plain; charset=utf-8");
-      }
-      if (url.pathname === "/sitemap.xml") {
-        return textResponse(sitemapXml(base), "application/xml; charset=utf-8");
-      }
+    const method = API_METHODS.get(url.pathname);
+    if (!method) return route(request, env, url);
+    if (request.method === "OPTIONS") return corsResponse(new Response(null, { status: 204 }), method);
+    try {
+      return corsResponse(await route(request, env, url), method);
+    } catch (error) {
+      // Unexpected errors (including WASM initialization failures) must also
+      // be readable by callers in other browsers, rather than look like CORS.
+      return corsResponse(new Response("Internal server error", {
+        status: 500, headers: { "content-type": "text/plain; charset=utf-8" },
+      }), method);
     }
-    if (request.method === "GET" && url.pathname === "/health") {
-      return jsonResponse({ status: "ok" });
-    }
-    if (request.method === "POST" && url.pathname === "/convert") {
-      return convert(request, url);
-    }
-    if (request.method === "POST" && url.pathname === "/validate") {
-      return validate(request, url);
-    }
-    if (request.method === "POST" && url.pathname === "/format") {
-      return formatLabel(request, url);
-    }
-    if (request.method === "POST" && url.pathname === "/encode") {
-      return encodeImage(request, url);
-    }
-    return jsonResponse({ error: "Not Found" }, 404);
   },
 };

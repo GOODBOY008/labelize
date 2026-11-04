@@ -1,0 +1,83 @@
+<main id="api-view" hidden aria-labelledby="api-title">
+  <div class="api-shell">
+    <header class="api-heading">
+      <div>
+        <p class="api-eyebrow" data-i18n="api.eyebrow">Developer tools</p>
+        <h1 id="api-title" tabindex="-1" data-i18n="api.title">API console</h1>
+        <p data-i18n="api.intro">Test a request, inspect the result, then use the same call in your script.</p>
+      </div>
+      <div class="api-links">
+        <a href="#docs/api" data-i18n="api.guide">API guide &amp; automation</a>
+        <a href="/openapi.json" download="labelize-openapi.json" data-i18n="api.spec">OpenAPI JSON ↓</a>
+      </div>
+    </header>
+    <div class="api-workspace">
+      <section class="api-card" aria-labelledby="api-request-heading">
+        <h2 id="api-request-heading" data-i18n="api.request">Request</h2>
+        <form id="api-form">
+          <label for="api-endpoint" data-i18n="api.endpoint">Endpoint</label>
+          <select id="api-endpoint"></select>
+          <p id="api-description" class="api-help" lang="en"></p>
+          <div id="api-parameters" class="api-parameters"></div>
+          <div id="api-body-section">
+            <div class="api-row">
+              <div><label for="api-content-type">Content-Type</label><select id="api-content-type"></select></div>
+              <div><label for="api-body-mode" data-i18n="api.input">Input</label><select id="api-body-mode"><option value="text" data-i18n="api.text">Text</option><option value="file" data-i18n="api.file">File (raw bytes)</option></select></div>
+            </div>
+            <div class="api-body-heading">
+              <label for="api-body" data-i18n="api.body">Request body</label>
+              <button id="api-use-source" class="api-button" type="button" data-i18n="api.useSource">Use playground source</button>
+            </div>
+            <textarea id="api-body" spellcheck="false" wrap="off" autocomplete="off" aria-label="Request body" data-i18n-aria="api.body"></textarea>
+            <div id="api-file-section" hidden>
+              <label for="api-file" data-i18n="api.chooseFile">Choose a file to send unchanged</label>
+              <input id="api-file" type="file">
+            </div>
+            <p class="api-help" data-i18n="api.raw">The body is sent as raw bytes, without JSON or a multipart wrapper.</p>
+          </div>
+          <div class="api-send-row">
+            <button id="api-send" class="api-button api-primary" type="submit" data-i18n="api.send">Send request</button>
+            <button id="api-cancel" class="api-button" type="button" hidden data-i18n="api.cancel">Cancel</button>
+            <span class="api-help" data-i18n="api.access">Public API · No signup</span>
+          </div>
+          <label for="api-request-url" data-i18n="api.url">Request URL</label>
+          <code id="api-request-url" role="status"></code>
+        </form>
+      </section>
+      <section class="api-card api-response" aria-labelledby="api-response-heading">
+        <div class="api-card-heading">
+          <h2 id="api-response-heading" data-i18n="api.response">Response</h2>
+          <a id="api-download" class="api-button" hidden data-i18n="api.download">Download response ↓</a>
+        </div>
+        <p id="api-message" role="status" aria-live="polite" data-i18n="api.ready">Ready when you are. Send a request to see the response.</p>
+        <p id="api-response-request" class="api-help"></p>
+        <dl id="api-response-meta" hidden>
+          <div><dt data-i18n="api.status">HTTP status</dt><dd id="api-status"></dd></div>
+          <div><dt data-i18n="api.elapsed">Elapsed</dt><dd id="api-elapsed"></dd></div>
+          <div><dt data-i18n="api.bytes">Size</dt><dd id="api-bytes"></dd></div>
+        </dl>
+        <details id="api-headers-section" hidden>
+          <summary data-i18n="api.headers">Response headers</summary>
+          <pre id="api-response-headers"></pre>
+        </details>
+        <div id="api-image-frame" hidden><img id="api-response-image" alt="API PNG response" data-i18n-aria="api.image"></div>
+        <div id="api-pdf-frame" hidden>
+          <div class="api-pdf-heading">
+            <h3 data-i18n="api.pdfPreview">PDF preview</h3>
+            <a id="api-open-pdf" target="_blank" rel="noopener" data-i18n="api.openPdf">Open PDF in new tab ↗</a>
+          </div>
+          <iframe id="api-response-pdf" title="PDF preview" data-i18n-title="api.pdfPreview"></iframe>
+          <p class="api-help" data-i18n="api.pdfFallback">If the preview is unavailable, open the PDF in a new tab or download it.</p>
+        </div>
+        <pre id="api-response-body" hidden></pre>
+      </section>
+    </div>
+    <section class="api-card api-examples" aria-labelledby="api-examples-heading">
+      <div class="api-card-heading">
+        <div><h2 id="api-examples-heading" data-i18n="api.examples">Take it to your script</h2><p class="api-help" data-i18n="api.examplesHelp">Examples follow the request above. JavaScript uses Node.js 20+; Python uses the standard library.</p></div>
+        <div class="api-example-actions"><select id="api-example-language" aria-label="Example language" data-i18n-aria="api.exampleLanguage"><option value="curl">cURL</option><option value="javascript">JavaScript</option><option value="python">Python</option></select><button id="api-copy" class="api-button" type="button" data-i18n="api.copy">Copy example</button></div>
+      </div>
+      <pre id="api-example-code"></pre>
+    </section>
+  </div>
+</main>

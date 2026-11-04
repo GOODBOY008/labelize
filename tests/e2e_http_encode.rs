@@ -38,9 +38,14 @@ fn free_port() -> u16 {
 }
 
 fn start_server() -> (ServerGuard, reqwest::blocking::Client, String) {
+    start_server_with_playground(true)
+}
+
+fn start_server_with_playground(enabled: bool) -> (ServerGuard, reqwest::blocking::Client, String) {
     let port = free_port();
     let child = std::process::Command::new(env!("CARGO_BIN_EXE_labelize"))
         .args(["serve", "--host", "127.0.0.1", "--port", &port.to_string()])
+        .env("LABELIZE_PLAYGROUND_ENABLED", enabled.to_string())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
@@ -66,6 +71,41 @@ fn start_server() -> (ServerGuard, reqwest::blocking::Client, String) {
 fn fixture_png() -> Vec<u8> {
     std::fs::read(render_helpers::testdata_dir().join("labels/amazon.png"))
         .expect("amazon.png fixture")
+}
+
+#[test]
+fn http_openapi_is_shared_with_the_console_and_available_without_the_playground() {
+    let expected: serde_json::Value =
+        serde_json::from_str(labelize::playground::OPENAPI_JSON).expect("shared OpenAPI");
+    for enabled in [true, false] {
+        let (_guard, client, base) = start_server_with_playground(enabled);
+        let response = client
+            .get(format!("{base}/openapi.json"))
+            .send()
+            .expect("GET /openapi.json");
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.headers()["content-type"], "application/json");
+        let actual: serde_json::Value =
+            serde_json::from_str(&response.text().unwrap()).expect("schema JSON");
+        assert_eq!(actual, expected);
+        let root = client.get(&base).send().unwrap().text().unwrap();
+        if enabled {
+            assert!(root.contains("id=\"nav-api\" href=\"#api\""));
+            let embedded = root
+                .split("<script id=\"api-data\" type=\"application/json\">")
+                .nth(1)
+                .unwrap()
+                .split("</script>")
+                .next()
+                .unwrap();
+            let embedded: serde_json::Value = serde_json::from_str(embedded).unwrap();
+            assert_eq!(embedded, expected);
+        } else {
+            let listing: serde_json::Value = serde_json::from_str(&root).unwrap();
+            assert_eq!(listing["playground"], false);
+            assert_eq!(listing["endpoints"]["openapi"], "GET /openapi.json");
+        }
+    }
 }
 
 #[test]

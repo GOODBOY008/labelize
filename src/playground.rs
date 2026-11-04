@@ -1,3 +1,6 @@
+/// Shared specification served at `GET /openapi.json` and embedded in the console.
+pub const OPENAPI_JSON: &str = include_str!("playground/openapi.json");
+
 /// Self-contained HTML playground page served at `GET /`.
 /// All HTML/CSS/JS is inlined — no external dependencies.
 ///
@@ -470,6 +473,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   }
 "##,
     include_str!("playground/docs.css"),
+    include_str!("playground/api.css"),
     r##"
 </style>
 </head>
@@ -515,6 +519,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   <nav class="app-nav" aria-label="Main navigation">
     <a id="nav-playground" href="#playground" aria-current="page" data-i18n="nav.playground">Playground</a>
     <a id="nav-docs" href="#docs/getting-started" data-i18n="nav.docs">Documentation</a>
+    <a id="nav-api" href="#api" data-i18n="nav.api">API</a>
   </nav>
   <nav class="header-actions" aria-label="Resources and preferences" data-i18n-aria="nav.resources">
     <a class="header-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
@@ -811,6 +816,10 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 </main>
 "##,
     include_str!("playground/docs.html"),
+    include_str!("playground/api.html"),
+    r##"<script id="api-data" type="application/json">"##,
+    include_str!("playground/openapi.json"),
+    r##"</script>"##,
     r##"
 <details class="about">
   <summary data-i18n="about.summary">About Labelize · FAQ · Open source (MIT)</summary>
@@ -2276,12 +2285,17 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   // Ctrl/Cmd+S downloads the current PNG (render first if none yet).
   document.addEventListener("keydown", function (e) {
+    if (document.getElementById("playground-view").hidden) return;
     if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
       e.preventDefault();
       if (pngBlobUrl) dlPng.click();
     }
   });
 
+"##,
+    include_str!("playground/api-core.js"),
+    include_str!("playground/api.js"),
+    r##"
   /* ── Init ── */
   langSel.value = lang;
   applyI18n();

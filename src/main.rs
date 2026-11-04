@@ -447,7 +447,7 @@ async fn serve(host: String, port: u16) {
                     "{{\"service\":\"labelize\",\"version\":\"{}\",\"playground\":false,\
                      \"endpoints\":{{\"health\":\"GET /health\",\"convert\":\"POST /convert\",\
                      \"validate\":\"POST /validate\",\"format\":\"POST /format\",\
-                     \"encode\":\"POST /encode\"}}}}",
+                     \"encode\":\"POST /encode\",\"openapi\":\"GET /openapi.json\"}}}}",
                     env!("CARGO_PKG_VERSION")
                 ),
             )
@@ -673,6 +673,15 @@ async fn serve(host: String, port: u16) {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
+        .route(
+            "/openapi.json",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    labelize::playground::OPENAPI_JSON,
+                )
+            }),
+        )
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
         .route("/convert", post(convert_handler))

@@ -6,7 +6,8 @@ import test from 'node:test';
 // Execute the shipped upload handler and parameter builder with browser APIs
 // supplied by a small DOM harness. No copy of the conversion logic lives here.
 const source = readFileSync(new URL('../src/playground.rs', import.meta.url), 'utf8')
-  .replace(/"##,\s*include_str!\("([^"]+)"\),\s*r##"/g, (_, path) => readFileSync(new URL('../src/' + path, import.meta.url), 'utf8'));
+  .replace(/"##,\s*((?:include_str!\("[^"]+"\),\s*)+)r##"/g, (_, includes) =>
+    [...includes.matchAll(/include_str!\("([^"]+)"\)/g)].map(([, path]) => readFileSync(new URL('../src/' + path, import.meta.url), 'utf8')).join(''));
 const upload = source.slice(source.indexOf('  /* ── Image → Code'), source.indexOf('  fileInput.addEventListener("change"'));
 const params = source.slice(source.indexOf('  var SIZE_PRESETS ='), source.indexOf('  function buildUrl('));
 function element(value = '') {
