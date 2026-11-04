@@ -1,7 +1,18 @@
 # Labelize documentation
 
-Start with a [platform tutorial](tutorials/README.md) to convert your first label.
-Use the references below for options, renderer behavior and development work.
+Start with [your first label](GETTING_STARTED.md): render a small example,
+understand its coordinates, and export an 800 × 480 PNG. These guides are also
+available inside the playground under **Documentation**, with search, section
+links, copyable code and examples that load directly into the editor.
+
+## Learn in the playground
+
+| Guide | What you will learn |
+| --- | --- |
+| [Your first label](GETTING_STARTED.md) | Render, edit, export and call the API |
+| [Playground guide](PLAYGROUND.md) | Sizing, resolution, sharing, image import and data handling |
+| [Languages and examples](LANGUAGES.md) | Choose a parser and try small labels |
+| [Troubleshooting](TROUBLESHOOTING.md) | Diagnose clipping, font differences, barcodes and API errors |
 
 ## Use Labelize
 
@@ -47,3 +58,23 @@ details stay beside their code: [Android](../android/README.md),
 
 The SVG logos and preview PNGs at this root are shared documentation assets;
 their paths are also used by package READMEs and playground metadata.
+
+## Update the built-in docs
+
+Markdown in this directory is the source for the playground documentation.
+The page manifest and compiler live in `tools/docs/build.py`. To regenerate:
+
+```sh
+python3 -m venv /tmp/labelize-docs
+/tmp/labelize-docs/bin/pip install -r tools/docs/requirements.txt
+/tmp/labelize-docs/bin/python tools/docs/build.py
+/tmp/labelize-docs/bin/python tools/docs/build.py --check
+```
+
+Commit the Markdown and generated `src/playground/docs.html` together. CI checks
+for stale output and broken internal page/section links. Native, Worker and
+WASM playgrounds embed the same bundle; runtime builds need neither Python
+nor a documentation server. Add runnable examples with a fenced-code info
+string such as `zpl playground width=100 height=60 dpmm=8`; the dimensions and
+resolution must match the surrounding explanation. Only mark complete,
+renderable examples this way. Other code blocks are copyable references.

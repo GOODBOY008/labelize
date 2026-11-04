@@ -36,7 +36,7 @@ A few terms shared by every tutorial:
   omitted dimensions to 102 × 152 mm; its vector mode uses declared dimensions
   before that fallback. Send explicit dimensions when needed.
 - **dpmm** — dots per millimetre, i.e. print resolution. 8 dpmm = 203 dpi
-  (most common), 6 dpmm = 152 dpi, 12 dpmm = 300 dpi, 24 dpmm = 600 dpi.
+  (most common), 6 dpmm = 152 dpi, 12 dpmm ≈ 305 dpi, 24 dpmm ≈ 610 dpi (often called 300/600 dpi classes).
   Higher dpmm → larger pixel dimensions for the same physical size.
 - **PNG vs PDF** — raster output is the default: PNG is black/white unless
   antialiasing is enabled, and PDF embeds the rendered image. Both PNG modes

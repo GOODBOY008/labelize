@@ -10,6 +10,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  documentation:
+    name: Playground documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: python -m pip install -r tools/docs/requirements.txt
+      - run: python tools/docs/build.py --check
+      - run: node --test workers/playground.test.mjs
+
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -28,7 +43,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Unit & integration tests
-        run: cargo test --lib --test 'unit_*' --features skill,vector -- --test-threads=4
+        run: cargo test --lib --test 'unit_*' --features skill,vector,playground -- --test-threads=4
         timeout-minutes: 8
       - name: Golden diff regression
         run: cargo test --test 'e2e_*' --features vector -- --test-threads=4
@@ -139,7 +154,7 @@ jobs:
       # A cold vector build plus the complete font-character sweeps exceeds
       # eight minutes on Windows; retain the full suite with a bounded budget.
       - name: Unit & integration tests
-        run: cargo test --lib --test 'unit_*' --features skill,vector -- --test-threads=4
+        run: cargo test --lib --test 'unit_*' --features skill,vector,playground -- --test-threads=4
         timeout-minutes: 12
       - name: Golden diff regression
         run: cargo test --test 'e2e_*' --features vector -- --test-threads=4

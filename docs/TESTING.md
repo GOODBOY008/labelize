@@ -104,3 +104,27 @@ Software comparisons do not establish physical printer or device behavior.
   Host JNI checks are separate from tests on an Android device.
 - [HTTP E2E script](../e2e/http/test_http.sh) exercises a running service.
   [Docker publishing](DOCKER_PUBLISHING.md) describes container smoke checks.
+
+## Playground documentation
+
+The Markdown guides are compiled into the self-contained playground. After
+editing docs, [regenerate the bundle](README.md#update-the-built-in-docs), then run:
+
+```sh
+python tools/docs/build.py --check
+node --test workers/playground.test.mjs
+cargo test --lib --features playground playground::
+```
+
+The compiler verifies internal page and section links and detects stale
+bundles. JavaScript checks cover the embedded scripts and example metadata;
+the Rust suite renders every runnable documentation example and checks its
+pixel dimensions and nonempty output. CI enables `playground` alongside `vector` for these tests. The command
+above also checks a raster-only build locally.
+
+For navigation changes, serve locally and check docs search, empty results,
+deep-link reloads, browser back, copying code and loading examples. Confirm
+that switching views preserves the editor draft and that share-link reloads
+restore source and settings. Check both themes, English/Chinese navigation,
+PDF downloads and widths from 320 to 1440 pixels. Documentation content is
+English; the surrounding controls follow the playground's language setting.

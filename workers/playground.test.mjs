@@ -5,7 +5,8 @@ import test from 'node:test';
 
 // Execute the shipped upload handler and parameter builder with browser APIs
 // supplied by a small DOM harness. No copy of the conversion logic lives here.
-const source = readFileSync(new URL('../src/playground.rs', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/playground.rs', import.meta.url), 'utf8')
+  .replace(/"##,\s*include_str!\("([^"]+)"\),\s*r##"/g, (_, path) => readFileSync(new URL('../src/' + path, import.meta.url), 'utf8'));
 const upload = source.slice(source.indexOf('  /* ── Image → Code'), source.indexOf('  fileInput.addEventListener("change"'));
 const params = source.slice(source.indexOf('  var SIZE_PRESETS ='), source.indexOf('  function buildUrl('));
 function element(value = '') {
@@ -104,7 +105,7 @@ test('merged playground markup has unique IDs and a visible upload entry point',
     assert.ok(ids.includes(id), `missing ${id}`);
   }
   for (const [, attributes, script] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
-    if (!attributes.includes('application/ld+json')) new Script(script);
+    if (!attributes.includes('application/ld+json') && !attributes.includes('application/json')) new Script(script);
   }
 });
 
@@ -123,4 +124,27 @@ test('output controls keep source dpmm and omit PNG scaling from PDF requests', 
   h.context.outputMode.value = 'raster';
   assert.equal(h.context.getParams().scale, 1);
   assert.equal(h.context.getParams().allPages, false);
+});
+
+test('bundled documentation is self-contained, with resolvable routes and runnable examples', () => {
+  const raw = /<script id="docs-data" type="application\/json">([\s\S]*?)<\/script>/.exec(source)[1];
+  const pages = JSON.parse(raw);
+  assert.ok(pages.length >= 20);
+  assert.equal(new Set(pages.map(page => page.id)).size, pages.length);
+  for (const page of pages) {
+    assert.ok(page.title && page.file && page.html && page.search);
+    for (const [, id, anchor] of page.html.matchAll(/href="#docs\/([^"/]+)(?:\/([^"]+))?"/g)) {
+      const target = pages.find(page => page.id === id);
+      assert.ok(target, `${page.id} links to missing page ${id}`);
+      if (anchor) assert.ok(target.html.includes(`id="${anchor}"`), `missing ${id}/${anchor}`);
+    }
+  }
+  const examples = pages.flatMap(page => [...page.html.matchAll(/class="doc-try" data-language="([^"]+)" data-width="([^"]+)" data-height="([^"]+)" data-dpmm="([^"]+)"/g)]);
+  assert.deepEqual(examples.map(match => match[1]), ['zpl', 'epl', 'tspl', 'cpcl']);
+  for (const [, , width, height, dpmm] of examples) {
+    assert.ok(Number(width) > 0 && Number(height) > 0);
+    assert.ok([6, 8, 12, 24].includes(Number(dpmm)));
+  }
+  // The JSON container must not let HTML/code examples terminate its script.
+  assert.ok(!raw.includes('<'));
 });

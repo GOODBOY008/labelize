@@ -14,7 +14,8 @@
 /// - Inch presets and custom dimensions in inches or mm; dimensions stay in
 ///   mm for POST /convert and convert to inches for Labelary comparison.
 ///   Render always produces PNG; PDF is lazy.
-pub const PLAYGROUND_HTML: &str = r##"<!DOCTYPE html>
+pub const PLAYGROUND_HTML: &str = concat!(
+    r##"<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
@@ -467,6 +468,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   }
+"##,
+    include_str!("playground/docs.css"),
+    r##"
 </style>
 </head>
 <body>
@@ -508,9 +512,11 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     </svg>
     <span class="logo-text">Labelize</span>
   </div>
-  <span class="nav-label" data-i18n="nav.playground">Playground</span>
+  <nav class="app-nav" aria-label="Main navigation">
+    <a id="nav-playground" href="#playground" aria-current="page" data-i18n="nav.playground">Playground</a>
+    <a id="nav-docs" href="#docs/getting-started" data-i18n="nav.docs">Documentation</a>
+  </nav>
   <nav class="header-actions" aria-label="Resources and preferences" data-i18n-aria="nav.resources">
-    <a class="header-link" href="https://github.com/GOODBOY008/labelize/blob/main/docs/README.md" target="_blank" rel="noopener" data-i18n="nav.docs">Documentation</a>
     <a class="header-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
     <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
     <option value="en">English</option>
@@ -532,7 +538,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   </nav>
 </header>
 
-<main>
+<main id="playground-view">
   <section class="workspace-intro" aria-labelledby="workspace-title">
     <div>
       <h1 id="workspace-title" data-i18n="workspace.title">Label playground</h1>
@@ -793,6 +799,19 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   </div>
 </main>
 
+<main id="docs-view" hidden aria-label="Documentation">
+  <aside class="docs-sidebar">
+    <label for="docs-search" data-i18n="docs.search">Search documentation</label>
+    <input id="docs-search" type="search" placeholder="Size, barcode, HTTP…" autocomplete="off">
+    <p id="docs-results" role="status"></p>
+    <nav id="docs-nav" aria-label="Documentation guides"></nav>
+  </aside>
+  <div><p id="docs-message" role="status"></p><article id="docs-article" class="docs-article" lang="en"></article></div>
+  <nav id="docs-outline" class="docs-outline" aria-label="On this page"></nav>
+</main>
+"##,
+    include_str!("playground/docs.html"),
+    r##"
 <details class="about">
   <summary data-i18n="about.summary">About Labelize · FAQ · Open source (MIT)</summary>
   <div class="about-body">
@@ -842,6 +861,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "nav.playground": "Playground",
       "nav.resources": "Resources and preferences",
       "nav.docs": "Documentation",
+      "docs.search": "Search documentation",
       "workspace.title": "Label playground",
       "workspace.description": "Write, preview, and export your thermal labels.",
       "panel.settings": "Label settings",
@@ -971,6 +991,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "alt.diff": "Diff overlay"
     },
     zh: {
+      "docs.search": "搜索文档",
       "nav.playground": "在线预览",
       "nav.resources": "资源与偏好设置",
       "nav.docs": "使用文档",
@@ -2270,11 +2291,15 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   updateCaret();
   scheduleCheck();
   if (loadedFromHash) render();
+"##,
+    include_str!("playground/docs.js"),
+    r##"
 })();
 </script>
 </body>
 </html>
-"##;
+"##
+);
 
 /// Deployment configuration for the playground page.
 ///
@@ -2432,6 +2457,46 @@ mod tests {
     use std::borrow::Cow;
 
     #[test]
+    fn documentation_examples_render_at_documented_size() {
+        // Exercise the exact source/settings shipped to the example buttons.
+        let data = PLAYGROUND_HTML
+            .split(r#"<script id="docs-data" type="application/json">"#)
+            .nth(1)
+            .unwrap()
+            .split("</script>")
+            .next()
+            .unwrap();
+        let pages: serde_json::Value = serde_json::from_str(data).unwrap();
+        let mut count = 0;
+        for page in pages.as_array().unwrap() {
+            for example in page["examples"].as_array().unwrap() {
+                let width = example["width"].as_f64().unwrap();
+                let height = example["height"].as_f64().unwrap();
+                let dpmm = example["dpmm"].as_i64().unwrap() as i32;
+                let options = crate::RenderOptions {
+                    language: crate::Language::from_name(example["language"].as_str().unwrap()),
+                    width_mm: Some(width),
+                    height_mm: Some(height),
+                    dpmm,
+                    antialias: false,
+                };
+                let result =
+                    crate::render_png(example["source"].as_str().unwrap().as_bytes(), options)
+                        .unwrap_or_else(|err| panic!("{}: {err}", page["id"]));
+                let image = image::load_from_memory(&result.bytes).unwrap();
+                assert_eq!(image.width(), (width * dpmm as f64) as u32);
+                assert_eq!(image.height(), (height * dpmm as f64) as u32);
+                assert!(image.to_luma8().pixels().any(|pixel| pixel.0[0] == 0));
+                count += 1;
+            }
+        }
+        assert!(
+            count >= 4,
+            "keep runnable examples for the documented languages"
+        );
+    }
+
+    #[test]
     fn marker_parses_as_empty_config_when_unreplaced() {
         // Served verbatim (npm lz_playground_html, workers), the page must
         // remain valid JS with every feature enabled by default.
@@ -2470,7 +2535,12 @@ mod tests {
     fn seo_metadata_ships_with_the_default_base_url() {
         // canonical link + og:url + JSON-LD WebApplication url
         assert_eq!(
-            PLAYGROUND_HTML.matches(DEFAULT_PUBLIC_BASE_URL).count(),
+            PLAYGROUND_HTML
+                .split("</head>")
+                .next()
+                .unwrap()
+                .matches(DEFAULT_PUBLIC_BASE_URL)
+                .count(),
             3,
             "canonical/og:url/JSON-LD must all carry the default origin"
         );
@@ -2486,7 +2556,10 @@ mod tests {
             public_base_url: "https://labelize.dev".to_string(),
             ..Default::default()
         });
-        assert_eq!(html.matches("https://labelize.dev").count(), 3);
+        assert_eq!(
+            html.matches("https://labelize.dev").count(),
+            PLAYGROUND_HTML.matches(DEFAULT_PUBLIC_BASE_URL).count()
+        );
         assert!(!html.contains(DEFAULT_PUBLIC_BASE_URL));
         // default config still leaves the compare feature untouched
         assert!(html.contains(CONFIG_MARKER));
