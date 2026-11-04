@@ -2,7 +2,7 @@
 
 [All tutorials](README.md) · [Documentation index](../README.md)
 
-Convert `.zpl` / `.epl` / `.tspl` files to PNG or PDF from a shell. Format is
+Convert `.zpl` / `.epl` / `.tspl` / `.cpcl` / `.dpl` files to PNG or PDF from a shell. Format is
 auto-detected from the file extension.
 
 ## 1. Install
@@ -65,7 +65,8 @@ For searchable vector PDF, multipage PDF or larger PNG exports, see
 
 ## 4. Get the size right
 
-The default canvas is 102 × 152 mm (4″ × 6″) at 8 dpmm. If your label looks
+The canvas uses explicit dimensions, then supported label-declared dimensions,
+then 102 × 152 mm at 8 dpmm. If your label looks
 cropped or has excess whitespace, override:
 
 ```bash

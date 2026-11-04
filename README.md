@@ -12,7 +12,7 @@
 [![Docker](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/docker.yml?branch=main&label=docker)](https://github.com/GOODBOY008/labelize/actions/workflows/docker.yml)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 
-[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](docs/README.md) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
+[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](https://labelize.764629910.workers.dev/#docs/getting-started) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
 
 <img src="docs/playground.png" alt="The Labelize web playground rendering a shipping label" width="860"/>
 
@@ -20,7 +20,7 @@
 
 ---
 
-Labelize is a Rust engine that parses **ZPL** (Zebra Programming Language), **EPL** (Eltron Programming Language), **TSPL/TSC**, and **CPCL** (Zebra mobile printers), and **DPL** (Datamax-O'Neil) label data and renders it to **PNG** or **PDF** — no printer hardware required. The same engine ships as a **CLI tool**, an **HTTP microservice**, a **WebAssembly package**, an **Android library**, and a plain **Rust crate**, producing identical output on every surface.
+Labelize is a Rust engine that parses **ZPL** (Zebra Programming Language), **EPL** (Eltron Programming Language), **TSPL/TSC**, and **CPCL** (Zebra mobile printers), and **DPL** (Datamax-O'Neil) label data and renders it to **PNG** or **PDF** — no printer hardware required. The same engine ships as a **CLI tool**, an **HTTP microservice**, a **WebAssembly package**, an **Android library**, and a plain **Rust crate**, sharing the same rendering engine across these surfaces. Match input bytes, dimensions and output options when comparing results.
 
 A free public playground is hosted on Cloudflare Workers at **<https://labelize.764629910.workers.dev>** — paste a label, see it render, download PNG or PDF. No install, no signup, no data leaving the browser tab beyond the render call.
 

@@ -47,7 +47,7 @@ The `Content-Type` header selects the parser (`application/zpl`,
 `application/epl`, or `application/tspl`; without one, the body is sniffed).
 Query parameters (`width`, `height`, `dpmm`, `output`,
 `antialias`) are the same as the native service — see the
-[HTTP service tutorial](http-service.md#post-convert) for the full table.
+[HTTP service tutorial](http-service.md#convert-label-bytes) for the full table.
 
 ## 4. Run with Compose
 
