@@ -11,3 +11,6 @@ testdata/labelary_cache/
 *.env
 .playwright-mcp/
 testdata/labelixa_cache/
+# Local viewer output and generated corpus comparisons (scripts are versioned).
+/output/
+/.playwright-cli/

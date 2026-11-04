@@ -904,7 +904,7 @@ fn golden_font0_symbols() {
 }
 
 // ── Real-provenance carrier labels ────────────────────────────────
-// Sourced from real production captures (see docs/CARRIER_LABELS.md
+// Sourced from real production captures (see docs/TEST_CORPUS.md#zpl-and-epl
 // for per-label provenance). cjlogistics/correiosbr are real
 // production templates adapted; the rest are anonymized real captures.
 
@@ -1039,7 +1039,7 @@ fn golden_tspl_graphics() {
 }
 
 // ── TSPL real-world corpus goldens ─────────────────────────────────
-// References fetched from labelixa.com (docs/TSPL_CORPUS.md has provenance);
+// References fetched from labelixa.com (docs/TEST_CORPUS.md#tspl has provenance);
 // tolerances record the current honest labelize-vs-labelixa distance and are
 // tightened as calibration lands.
 
@@ -1371,7 +1371,7 @@ fn golden_dpl_real_manual_component() {
 }
 
 /// DPL manual Appendix B VB order-picking label (adapted: field values
-/// filled in, the stored-image record dropped — see docs/CPCL_DPL_CORPUS.md).
+/// filled in, the stored-image record dropped — see docs/TEST_CORPUS.md#cpcl-and-dpl).
 #[test]
 fn golden_dpl_real_manual_order() {
     golden_dpl_real_with_tolerance("dpl_real_manual_order", 13.0, 80, 115);

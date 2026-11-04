@@ -639,27 +639,15 @@ pub fn encode_codewords(data: &str, mode: i32) -> Result<[u8; 144], String> {
     Ok(codewords)
 }
 
-/// Encode a MaxiCode symbol and return a 200x193 RGBA image.
-pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
-    let codewords = encode_codewords(data, mode)?;
+pub(crate) const SYMBOL_WIDTH: u32 = 200;
+pub(crate) const SYMBOL_HEIGHT: u32 = 193;
+pub(crate) const BULLSEYE_RINGS: [(u32, u32); 3] = [(4, 9), (14, 19), (24, 29)];
 
-    // --- Render -----------------------------------------------------------
-    let img_width = 200u32;
-    let img_height = 193u32;
-    let col_pitch = img_width as f32 / 30.0;
-    let row_pitch = img_height as f32 / 33.0;
-
-    let mut img = RgbaImage::from_pixel(img_width, img_height, Rgba([0, 0, 0, 0]));
-    let black = Rgba([0u8, 0, 0, 255]);
-
-    // Bullseye rings (radii calibrated to Labelary reference)
-    let cx = img_width / 2;
-    let cy = img_height / 2;
-    draw_ring(&mut img, cx, cy, 4, 9, black);
-    draw_ring(&mut img, cx, cy, 14, 19, black);
-    draw_ring(&mut img, cx, cy, 24, 29, black);
-
-    // Hex module grid
+/// Calibrated module centers shared by pixel and vector consumers.
+pub(crate) fn module_positions(codewords: &[u8; 144]) -> Vec<(u32, u32)> {
+    let col_pitch = SYMBOL_WIDTH as f32 / 30.0;
+    let row_pitch = SYMBOL_HEIGHT as f32 / 33.0;
+    let mut centers = Vec::new();
     for (row_idx, bitnr_row) in BITNR.iter().enumerate() {
         let x_half_off = if row_idx % 2 == 1 {
             col_pitch / 2.0
@@ -667,27 +655,42 @@ pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
             0.0
         };
         for (col_idx, &bit_nr) in bitnr_row.iter().enumerate() {
-            let px = (col_idx as f32 * col_pitch + x_half_off + col_pitch / 2.0).round() as u32;
-            let py = (row_idx as f32 * row_pitch + row_pitch / 2.0).round() as u32;
-            match bit_nr {
-                -3 => {}                                        // bullseye area — skip
-                -1 => {}                                        // always white
-                -2 => draw_hexagon(&mut img, px, py, 3, black), // orientation mark
-                n if n >= 0 => {
+            let black = match bit_nr {
+                -2 => true,
+                n if (0..864).contains(&n) => {
                     let n = n as usize;
-                    if n < 864 {
-                        let cw = codewords[n / 6];
-                        let bit_pos = 5 - (n % 6);
-                        if (cw >> bit_pos) & 1 != 0 {
-                            draw_hexagon(&mut img, px, py, 3, black);
-                        }
-                    }
+                    (codewords[n / 6] >> (5 - n % 6)) & 1 != 0
                 }
-                _ => {}
+                _ => false,
+            };
+            if black {
+                let px = (col_idx as f32 * col_pitch + x_half_off + col_pitch / 2.0).round() as u32;
+                let py = (row_idx as f32 * row_pitch + row_pitch / 2.0).round() as u32;
+                centers.push((px, py));
             }
         }
     }
+    centers
+}
 
+/// Encode a MaxiCode symbol and return a 200x193 RGBA image.
+pub fn encode(data: &str, mode: i32) -> Result<RgbaImage, String> {
+    let codewords = encode_codewords(data, mode)?;
+    let mut img = RgbaImage::from_pixel(SYMBOL_WIDTH, SYMBOL_HEIGHT, Rgba([0, 0, 0, 0]));
+    let black = Rgba([0, 0, 0, 255]);
+    for (inner, outer) in BULLSEYE_RINGS {
+        draw_ring(
+            &mut img,
+            SYMBOL_WIDTH / 2,
+            SYMBOL_HEIGHT / 2,
+            inner,
+            outer,
+            black,
+        );
+    }
+    for (x, y) in module_positions(&codewords) {
+        draw_hexagon(&mut img, x, y, 3, black);
+    }
     Ok(img)
 }
 

@@ -1,0 +1,8 @@
+^XA
+^CI28
+^FO30,30^A0N,30,26^FDCafé Straße 123^FS
+^FO30,100^AEN,56,30^FD100200^FS
+^FO30,200^A0N,26,24^FB180,3,0,J,0^FDOne two three four five six^FS
+^FO360,30^A0R,30,26^FDROTATED^FS
+^FO30,400^A0N,30,26^FDRegistered® and copyright©^FS
+^XZ

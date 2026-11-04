@@ -7,6 +7,10 @@ publish = false
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+default = ["vector"]
+vector = ["labelize/vector"]
+
 [dependencies]
 labelize = { path = "..", features = ["playground"] }
 image = "0.25"

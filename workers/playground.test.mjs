@@ -16,6 +16,7 @@ function harness({ width = 813, height = 1626, lang = 'zpl', dpmm = 8, fetch, re
   const revoked = [], downloads = [], calls = [];
   const context = {
     fmtSel: element(lang), dpmmSel: element(String(dpmm)), widthInput: element('101.6'), heightInput: element('152.4'), sizeUnit: element('mm'),
+    outputMode: element('raster'), outputScale: element('1'), allPdfPages: { checked: false },
     sizePreset: element('4x6'), input: element('existing code'), aaChk: { checked: false },
     fmtUserTouched: true, autoLoaded: null,
     document: { getElementById: id => id === 'img2code-btn' ? button : fileInput,
@@ -105,4 +106,21 @@ test('merged playground markup has unique IDs and a visible upload entry point',
   for (const [, attributes, script] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
     if (!attributes.includes('application/ld+json')) new Script(script);
   }
+});
+
+test('output controls keep source dpmm and omit PNG scaling from PDF requests', () => {
+  const h = harness();
+  const build = source.slice(source.indexOf('  function buildUrl('), source.indexOf('  function ctFor('));
+  runInNewContext(build, h.context);
+  h.context.outputMode.value = 'vector';
+  h.context.outputScale.value = '3';
+  h.context.allPdfPages.checked = true;
+  const p = h.context.getParams();
+  assert.equal(p.dpmm, 8);
+  assert.match(h.context.buildUrl(p, null), /mode=vector&scale=3/);
+  assert.match(h.context.buildUrl(p, 'pdf'), /mode=vector&pages=all/);
+  assert.doesNotMatch(h.context.buildUrl(p, 'pdf'), /scale=/);
+  h.context.outputMode.value = 'raster';
+  assert.equal(h.context.getParams().scale, 1);
+  assert.equal(h.context.getParams().allPages, false);
 });

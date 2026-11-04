@@ -1,0 +1,6 @@
+# Keep the independent PDF rasterizer fixed for committed visual goldens.
+Pillow==11.3.0
+numpy==2.0.2
+pypdf==6.17.0
+pypdfium2==5.14.0
+zxing-cpp==2.3.0

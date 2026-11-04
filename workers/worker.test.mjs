@@ -73,3 +73,43 @@ test('Node init subpath exports encoding and rejects unknown targets', () => {
     assert.ok(lz_encode(png, 8, 128, 'ZPL').length > 0);
   `]);
 });
+
+test('vector output uses shared geometry without changing source resolution', async () => {
+  const source = '^XA^FO20,20^A0N,30,20^FDPage One^FS^XZ^XA^FDPage Two^FS^XZ';
+  const convert = query => worker.fetch(new Request(`https://example.com/convert?${query}`, {
+    method: 'POST', headers: { 'content-type': 'application/zpl' }, body: source,
+  }), {});
+  const response = await convert('mode=vector&scale=3&width=40&height=30');
+  assert.equal(response.status, 200);
+  const png = new DataView(await response.arrayBuffer());
+  assert.equal(png.getUint32(16), 960);
+  assert.equal(png.getUint32(20), 720);
+  const pdf = await convert('mode=vector&output=pdf&pages=all');
+  assert.equal(pdf.status, 200);
+  assert.equal(pdf.headers.get('content-type'), 'application/pdf');
+  assert.equal((await pdf.text()).slice(0, 4), '%PDF');
+  for (const query of ['mode=bogus', 'mode=vector&scale=0', 'mode=vector&scale=NaN', 'mode=vector&scale=10000',
+    'mode=vector&output=pdf&scale=2', 'mode=raster&scale=2', 'pages=all', 'mode=vector&pages=all',
+    'mode=vector&width=inf', 'mode=vector&dpmm=0', 'output=svg', 'pages=last', 'scale=2&scale=3', 'scale=3junk']) {
+    assert.equal((await convert(query)).status, 400, query);
+  }
+  assert.throws(() => glue.lz_render_output(new TextEncoder().encode(source), 40, 30, 8, false, false, 'bogus', 'vector', 1, false), /1:unknown/);
+});
+
+test('vector Worker respects declared sizes and raster Worker keeps its default canvas', async () => {
+  const source = 'SIZE 40 mm,30 mm\nDIRECTION 1\nCLS\nTEXT 10,10,"1",0,1,1,"Sized"\nPRINT 1\n';
+  for (const [query, contentType, width, height] of [
+    ['mode=vector', 'application/tspl', 320, 240],
+    ['mode=VECTOR', 'application/octet-stream', 320, 240],
+    ['mode=vector&width=50&height=60', 'application/tspl', 400, 480],
+    ['mode=raster', 'application/tspl', 816, 1216],
+  ]) {
+    const response = await worker.fetch(new Request(`https://example.com/convert?${query}`, {
+      method: 'POST', headers: { 'content-type': contentType }, body: source,
+    }), {});
+    assert.equal(response.status, 200, query);
+    const png = new DataView(await response.arrayBuffer());
+    assert.equal(png.getUint32(16), width, query);
+    assert.equal(png.getUint32(20), height, query);
+  }
+});

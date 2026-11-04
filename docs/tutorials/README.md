@@ -1,13 +1,14 @@
 # Labelize Tutorials
 
-Step-by-step guides for using Labelize on each platform. All tutorials use the
-same Rust rendering engine — output is identical whether you convert from the
-CLI, an HTTP call, WebAssembly, or Android. ZPL, EPL, TSPL/TSC, CPCL and DPL input are
-supported on every platform.
+Step-by-step guides for using Labelize on each platform. Every platform uses
+the same Rust rendering engine and supports ZPL, EPL, TSPL/TSC, CPCL and DPL.
+Match input bytes, dimensions and output options when comparing platforms;
+wrapper defaults can differ. For reference material, see the
+[documentation index](../README.md).
 
 | Tutorial | Platform | Start here if you want to… |
 |----------|----------|---------------------------|
-| [Command Line](cli.md) | macOS · Linux · Windows | Convert `.zpl`/`.epl` files to PNG/PDF from a shell |
+| [Command Line](cli.md) | macOS · Linux · Windows | Convert label files to PNG/PDF from a shell |
 | [Docker](docker.md) | Any host with Docker | Run a self-hosted conversion service in a container |
 | [HTTP Service](http-service.md) | Bare metal · container · Cloudflare Workers | Convert labels over a REST API, use the web playground |
 | [JavaScript / WebAssembly](javascript-wasm.md) | Node.js · bundlers · browsers | Render labels client-side with `@goodboy008/labelize-wasm` |
@@ -26,18 +27,22 @@ supported on every platform.
 
 A few terms shared by every tutorial:
 
-- **ZPL / EPL** — the two label languages Labelize parses. Format is
-  auto-detected from the file extension (`.zpl` / `.epl`) or the
-  `Content-Type` header (`application/zpl` / `application/epl`) depending on
-  the surface.
-- **Label size** — width × height in millimetres. The default is 102 × 152 mm
-  (4″ × 6″). If you don't know the size, it's usually encoded in the label
-  itself (`^PW` for width in ZPL) or known from the printer stock.
+- **Input language** — ZPL, EPL, TSPL/TSC, CPCL or DPL. Select it explicitly
+  or use the detection supported by the platform: file extension, content
+  type or input bytes. See each tutorial for its defaults.
+- **Label size** — width × height in millimetres. Native high-level APIs use
+  explicit dimensions, then supported label-declared dimensions, then
+  102 × 152 mm (approximately 4″ × 6″). The hosted Worker's raster mode defaults
+  omitted dimensions to 102 × 152 mm; its vector mode uses declared dimensions
+  before that fallback. Send explicit dimensions when needed.
 - **dpmm** — dots per millimetre, i.e. print resolution. 8 dpmm = 203 dpi
   (most common), 6 dpmm = 152 dpi, 12 dpmm = 300 dpi, 24 dpmm = 600 dpi.
   Higher dpmm → larger pixel dimensions for the same physical size.
-- **PNG vs PDF** — every surface can emit both. PNG is monochrome (thermal
-  faithful); PDF embeds the same render in a single-page document.
+- **PNG vs PDF** — raster output is the default: PNG is black/white unless
+  antialiasing is enabled, and PDF embeds the rendered image. Both PNG modes
+  use 8-bit grayscale samples. Opt-in [vector output](../VECTOR_OUTPUT.md)
+  adds searchable native PDF text, scalable geometry, multipage PDF and PNG
+  scaling independent of the source printer resolution.
 
 ## Try it without installing anything
 

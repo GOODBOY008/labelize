@@ -2,7 +2,9 @@ target/
 .git/
 .github/
 docs/
-examples/
+examples/*
+# Cargo metadata and cargo-chef need this explicitly declared example target.
+!examples/vector_audit.rs
 testdata/
 *.md
 .idea/

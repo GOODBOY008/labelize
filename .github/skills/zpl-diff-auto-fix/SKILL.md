@@ -55,9 +55,9 @@ Before starting, ensure:
 
 ### Phase 1: Scan — Identify High-Diff Labels
 
-1. **Read the diff report** from [testdata/diffs/diff_report.txt](../../testdata/diffs/diff_report.txt)
+1. **Read the diff report** from [label report](../../../testdata/diffs/diff_report_labels.txt) and [unit report](../../../testdata/diffs/diff_report_unit.txt)
 
-2. **Read the tolerance thresholds** from [docs/DIFF_THRESHOLDS.md](../../docs/DIFF_THRESHOLDS.md)
+2. **Read the tolerance thresholds** from [docs/DIFF_THRESHOLDS.md](../../../docs/DIFF_THRESHOLDS.md)
 
 3. **Identify target labels** — either a specific label from the user's request, or all labels with diff > 1%:
    - List labels sorted by diff percentage (highest first)
@@ -202,7 +202,7 @@ For each high-diff element, starting with the highest contributor:
 
 ### Phase 5: Finalize — Update Thresholds and Report
 
-23. **Update diff thresholds** in [docs/DIFF_THRESHOLDS.md](../../docs/DIFF_THRESHOLDS.md):
+23. **Update diff thresholds** in [docs/DIFF_THRESHOLDS.md](../../../docs/DIFF_THRESHOLDS.md):
     - Set new diff% values for improved labels
     - Set new tolerance ceilings slightly above the new diff%
 
@@ -295,5 +295,5 @@ The skill uses Rust utilities in `src/skill/`:
 
 - [Fix ZPL Render Skill](../fix-zpl-render/SKILL.md) — Detailed diagnostic procedures
 - [ZPL Reference Skill](../zpl-reference/SKILL.md) — Official Zebra documentation lookup
-- [Diff Thresholds](../../docs/DIFF_THRESHOLDS.md) — Per-label tolerance configuration
-- [Rendering Fixes History](/memories/repo/labelize-rendering-fixes.md) — Previously applied fixes
+- [Diff Thresholds](../../../docs/DIFF_THRESHOLDS.md) — Per-label tolerance configuration
+- [Rendering behavior and evidence](../../../docs/RENDERING_NOTES.md) — Previously applied fixes

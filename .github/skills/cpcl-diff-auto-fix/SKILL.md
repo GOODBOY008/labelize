@@ -43,7 +43,7 @@ this file defines what changes per language.
 1. `cargo test --test e2e_diff_report -- --nocapture` — CPCL rows live in
    `testdata/diffs/diff_report_unit.txt` with ext `cpcl`.
 2. Cross-reference tolerances in `docs/DIFF_THRESHOLDS.md`; corpus
-   provenance in `docs/CPCL_DPL_CORPUS.md` (real corpus = the
+   provenance in `docs/TEST_CORPUS.md#cpcl-and-dpl` (real corpus = the
    Labelixa/thermal-printer-examples MIT collection).
 3. Highest diff first; `cpcl_shipping` (16.12%) and
    `cpcl_real_asset_tag` (17.76%) are dominated by font-substitute width

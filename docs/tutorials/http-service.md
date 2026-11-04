@@ -1,5 +1,7 @@
 # Tutorial: HTTP Service
 
+[All tutorials](README.md) · [Documentation index](../README.md)
+
 Run Labelize as a REST microservice with a built-in web playground. Two ways
 to run the same thing:
 
@@ -61,7 +63,7 @@ Query parameters:
 | `height`  | 152     | Label height in mm |
 | `dpmm`    | 8       | Dots per mm (6, 8, 12, 24) |
 | `output`  | png     | Output format: `png` or `pdf` |
-| `antialias` | false | Preserve antialiased greys instead of 1-bit black/white |
+| `antialias` | false | Preserve antialiased greys instead of thresholded black/white |
 
 PNG example:
 

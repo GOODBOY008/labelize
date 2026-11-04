@@ -1,5 +1,7 @@
 # Docker Image Publishing
 
+[Documentation index](README.md)
+
 The `Docker` workflow (`.github/workflows/docker.yml`) builds the container image
 and publishes multi-arch manifests to **Docker Hub** and the **GitHub Container
 Registry (GHCR)**.

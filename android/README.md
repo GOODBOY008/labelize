@@ -76,6 +76,8 @@ binding uses.
 
 ## Notes
 
+- The host JVM [JNI smoke check](../e2e/android/README.md) verifies the
+  Kotlin/native boundary, vector output and exception stages.
 - The AAR version tracks the engine version in the root `Cargo.toml`
   (`lib/build.gradle.kts`); the Rust binding crate itself stays `0.1.0`,
   like `wasm/`.

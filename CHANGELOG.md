@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vector PDF and scalable PNG** (opt-in `vector` feature): shared text and
+  barcode layout, subset fonts with Unicode mapping, searchable text and
+  multipage PDFs via krilla. PNG scaling changes output resolution without
+  reinterpreting printer coordinates. Original bitmap data, inversions/XOR,
+  and text/barcode overlap use explicit local image regions. Available through
+  Rust, CLI, HTTP, WASM/Worker, playground and Android; raster output remains
+  the default. See [output options and limits](docs/VECTOR_OUTPUT.md).
+
 ### Fixed
 
 - **CPCL and DPL parser/formatter correctness**: preserve counted binary
@@ -69,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (referenced against labelixa's CPCL renderer), the DPL side adds the
   manual's Appendix B samples (referenced against the hosted Evolabel
   layout view, the only server-side DPL renderer found). Provenance and
-  honest cross-engine distances: docs/CPCL_DPL_CORPUS.md.
+  honest cross-engine distances: docs/TEST_CORPUS.md#cpcl-and-dpl.
 
 - **CPCL support (fourth language)** — Zebra's mobile-printer language
   (QL/MZ series). `! {offset} {hdpi} {vdpi} {height} {qty}` sessions with
@@ -338,7 +348,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TSPL calibration infrastructure**: `docs/TSPL_BASELINES.md` (two-baseline
   strategy — labelixa.com API primary, portakal secondary — with a
   triangulation policy and a measured engine-disagreement ledger incl. a
-  font-cell probe battery), `docs/TSPL_CORPUS.md` (real-capture provenance),
+  font-cell probe battery), `docs/TEST_CORPUS.md#tspl` (real-capture provenance),
   a cached/rate-limited labelixa reference client, and five real-world
   corpus goldens (TSC TE210 hardware capture, filament-db probes/drybox, RU
   warehouse template) with labelixa references and honest tolerances
@@ -400,7 +410,7 @@ remaining upgrade frictions are additive one-liners:
   rendering output is unchanged.
 - **Real-provenance carrier label corpus (#68)** — golden-test labels now come
   only from official carrier demos or real-world captures, each documented in
-  `docs/CARRIER_LABELS.md`; 80 synthetic fixtures were retired.
+  `docs/TEST_CORPUS.md#zpl-and-epl`; 80 synthetic fixtures were retired.
 - **Comprehensive character-display test suite** —
   `tests/unit_text_character_display.rs` sweeps ~960 characters (ASCII,
   Latin-1/Extended-A/B/Additional, Greek, Cyrillic, punctuation, CJK) across

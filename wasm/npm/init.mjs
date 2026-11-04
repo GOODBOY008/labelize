@@ -12,27 +12,17 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import {
-  __wbg_set_wasm,
-  lz_render,
-  lz_render_lang,
-  lz_playground_html,
-  lz_encode,
-  __wbindgen_init_externref_table,
-  __wbindgen_generic_0000000000000001,
-} from "./labelize_wasm_bg.js";
+import * as engine from "./labelize_wasm_bg.js";
+const { __wbg_set_wasm, lz_render, lz_render_lang, lz_render_output, lz_playground_html, lz_encode } = engine;
 
 const bytes = readFileSync(
   fileURLToPath(new URL("./labelize_wasm_bg.wasm", import.meta.url)),
 );
 
 const { instance } = await WebAssembly.instantiate(bytes, {
-  "./labelize_wasm_bg.js": {
-    __wbindgen_init_externref_table,
-    __wbindgen_generic_0000000000000001,
-  },
+  "./labelize_wasm_bg.js": engine,
 });
 __wbg_set_wasm(instance.exports);
 instance.exports.__wbindgen_start();
 
-export { lz_render, lz_render_lang, lz_playground_html, lz_encode };
+export { lz_render, lz_render_lang, lz_render_output, lz_playground_html, lz_encode };

@@ -32,6 +32,9 @@ thiserror = "2"
 lopdf = "0.46"
 flate2 = "1"
 base64 = "0.23"
+krilla = { version = "0.8.2", default-features = false, features = ["raster-images"], optional = true }
+tiny-skia = { version = "0.12", optional = true }
+png = { version = "0.18", optional = true }
 datamatrix = "0.3"
 qrcode = "0.14"
 rxing = { version = "0.9", default-features = false, features = [
@@ -59,12 +62,15 @@ playground = []
 serde = ["dep:serde"]
 serve = ["cli", "playground", "serde", "dep:axum", "dep:tokio", "dep:serde_json"]
 skill = []
+# Searchable hybrid PDF and independently scaled scene PNG output.
+vector = ["dep:krilla", "dep:tiny-skia", "dep:png"]
 
 [[bin]]
 name = "labelize"
 required-features = ["cli"]
 
 [dev-dependencies]
+serde_json = "1"
 proptest = "1"
 # Character-display sweep tests read the embedded fonts' cmaps directly to
 # know which characters must render (mirrors get_ttf_font_data in the renderer).
@@ -74,3 +80,7 @@ sha2 = "0.11"
 # Decoder stack is test-only (DataMatrix escapes and QR mask tests); kept out of the
 # production dependency so Android/WASM consumers don't compile it.
 rxing = { version = "0.9", default-features = false, features = ["decoders", "datamatrix", "qrcode"] }
+
+[[example]]
+name = "vector_audit"
+required-features = ["vector", "serde"]

@@ -1,5 +1,7 @@
 # Tutorial: JavaScript / WebAssembly
 
+[All tutorials](README.md) · [Documentation index](../README.md)
+
 Render ZPL, EPL, TSPL/TSC, CPCL and DPL entirely client-side with
 [`@goodboy008/labelize-wasm`](https://www.npmjs.com/package/@goodboy008/labelize-wasm) —
 no server round-trip, works in Node.js, browsers, and bundlers. The public
@@ -72,7 +74,7 @@ lz_render(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl)
 | `src` | raw label bytes (ZPL, or EPL when `is_epl = true`; for TSPL use `lz_render_lang`) |
 | `width_mm` / `height_mm` | label canvas size in millimetres (defaults 102 × 152) |
 | `dpmm` | dots per millimetre (default 8) |
-| `antialias` | keep renderer greys instead of thresholding to 1-bit |
+| `antialias` | keep renderer greys instead of thresholding to black/white |
 | `want_pdf` | return a PDF instead of PNG |
 | `is_epl` | parse input as EPL instead of ZPL |
 

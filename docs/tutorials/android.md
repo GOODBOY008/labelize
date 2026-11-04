@@ -1,5 +1,7 @@
 # Tutorial: Android
 
+[All tutorials](README.md) · [Documentation index](../README.md)
+
 Render ZPL/EPL/TSPL/CPCL/DPL to PNG/PDF inside an Android app with the self-contained
 `labelize-android` AAR (`com.goodboy008.labelize`). Native libraries for
 `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `x86` are bundled; output is

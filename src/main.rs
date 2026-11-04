@@ -1,14 +1,12 @@
 #[cfg(feature = "cli")]
 use std::fs;
 #[cfg(feature = "cli")]
-use std::io::Cursor;
-#[cfg(feature = "cli")]
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "cli")]
 use clap::{Parser, Subcommand, ValueEnum};
 #[cfg(any(feature = "cli", feature = "serve"))]
-use labelize::{parse_labels, DrawerOptions, LabelInfo, Language, Renderer, ReverseLanguage};
+use labelize::{parse_labels, DrawerOptions, Language, ReverseLanguage};
 
 /// Historical default label dimensions, used when neither an explicit
 /// override nor the label's own declared size (TSPL SIZE) is available.
@@ -80,9 +78,21 @@ enum Commands {
         #[arg(long, default_value_t = 8)]
         dpmm: i32,
 
-        /// Emit 8-bit grayscale output preserving antialiasing (default: 1-bit)
+        /// Preserve grayscale antialiasing (default: threshold to black/white)
         #[arg(long)]
         antialias: bool,
+
+        /// Output backend: raster (default) or vector (requires the vector feature)
+        #[arg(long, default_value = "raster")]
+        mode: labelize::OutputMode,
+
+        /// PNG pixels per source dot, with --mode vector (does not change dpmm)
+        #[arg(long, default_value_t = 1.0)]
+        scale: f64,
+
+        /// Combine all labels into one vector PDF
+        #[arg(long)]
+        all_pages: bool,
     },
 
     /// Convert a raster image into ZPL or TSPL printer code (reverse rendering)
@@ -134,6 +144,9 @@ fn main() {
             height,
             dpmm,
             antialias,
+            mode,
+            scale,
+            all_pages,
         } => {
             if let Err(e) = convert_file(
                 &input,
@@ -144,6 +157,11 @@ fn main() {
                 height,
                 dpmm,
                 antialias,
+                labelize::OutputOptions {
+                    mode,
+                    scale,
+                    all_pages,
+                },
             ) {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
@@ -269,30 +287,6 @@ fn encode_file(
 }
 
 #[cfg(feature = "cli")]
-fn render_label(
-    label: &LabelInfo,
-    options: &DrawerOptions,
-    output_type: OutputType,
-) -> Result<Vec<u8>, String> {
-    let renderer = Renderer::new();
-    let mut buf = Cursor::new(Vec::new());
-    match output_type {
-        OutputType::Png => renderer.draw_label_as_png(label, &mut buf, options.clone())?,
-        OutputType::Pdf => {
-            renderer.draw_label_as_png(label, &mut buf, options.clone())?;
-            let img = image::load_from_memory(&buf.into_inner())
-                .map_err(|e| format!("Failed to decode rendered image: {}", e))?
-                .to_rgba8();
-            let mut pdf_buf = Cursor::new(Vec::new());
-            labelize::encode_pdf(&img, options, &mut pdf_buf)
-                .map_err(|e| format!("Failed to encode PDF: {}", e))?;
-            return Ok(pdf_buf.into_inner());
-        }
-    }
-    Ok(buf.into_inner())
-}
-
-#[cfg(feature = "cli")]
 #[allow(clippy::too_many_arguments)]
 fn convert_file(
     input: &Path,
@@ -303,10 +297,35 @@ fn convert_file(
     height: Option<f64>,
     dpmm: i32,
     antialias: bool,
+    output_options: labelize::OutputOptions,
 ) -> Result<(), String> {
+    output_options
+        .validate(matches!(output_type, OutputType::Pdf))
+        .map_err(|e| e.to_string())?;
     let content = fs::read(input).map_err(|e| format!("Failed to read input file: {}", e))?;
 
     let fmt = detect_format(input, format, &content);
+    if output_options.all_pages {
+        let rendered = labelize::render_pdf_with_output(
+            &content,
+            labelize::RenderOptions {
+                language: Some(fmt.language()),
+                width_mm: width,
+                height_mm: height,
+                dpmm,
+                antialias,
+            },
+            output_options,
+        )
+        .map_err(|e| e.to_string())?;
+        let path = output
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| default_output_path(input, "pdf", None));
+        fs::write(&path, rendered.bytes)
+            .map_err(|e| format!("Failed to write output file: {e}"))?;
+        println!("Converted {} labels -> {}", rendered.labels, path.display());
+        return Ok(());
+    }
     let labels = parse_labels(fmt.language(), &content, dpmm).map_err(|e| e.to_string())?;
 
     if labels.is_empty() {
@@ -345,7 +364,13 @@ fn convert_file(
             ),
         };
 
-        let data = render_label(label, &options, output_type)?;
+        let data = labelize::render_label_with_output(
+            label,
+            options,
+            output_options,
+            matches!(output_type, OutputType::Pdf),
+        )
+        .map_err(|e| e.to_string())?;
         fs::write(&out_path, data).map_err(|e| format!("Failed to write output file: {}", e))?;
         println!("Converted {} -> {}", input.display(), out_path.display());
     }
@@ -451,6 +476,16 @@ async fn serve(host: String, port: u16) {
         /// Emit 8-bit grayscale output preserving antialiasing.
         #[serde(default)]
         antialias: bool,
+        #[serde(default)]
+        mode: Option<String>,
+        #[serde(default = "default_scale")]
+        scale: f64,
+        #[serde(default)]
+        pages: Option<String>,
+    }
+
+    fn default_scale() -> f64 {
+        1.0
     }
 
     fn default_dpmm() -> i32 {
@@ -490,12 +525,30 @@ async fn serve(host: String, port: u16) {
             antialias: params.antialias,
         };
 
+        let output_mode = match params.mode.as_deref().unwrap_or("raster").parse() {
+            Ok(mode) => mode,
+            Err(e) => return (StatusCode::BAD_REQUEST, format!("{e}")).into_response(),
+        };
+        let all_pages = match params.pages.as_deref().unwrap_or("first") {
+            "first" => false,
+            "all" => true,
+            _ => return (StatusCode::BAD_REQUEST, "pages must be first or all").into_response(),
+        };
+        if !matches!(params.output.as_deref(), None | Some("png" | "pdf")) {
+            return (StatusCode::BAD_REQUEST, "output must be png or pdf").into_response();
+        }
+        let output = labelize::OutputOptions {
+            mode: output_mode,
+            scale: params.scale,
+            all_pages,
+        };
+
         // Parse failures are user input (400); render/encode failures are
         // engine-side (500) — LabelizeError's variants carry that split.
         let rendered = if params.output.as_deref() == Some("pdf") {
-            labelize::render_pdf(&body, options)
+            labelize::render_pdf_with_output(&body, options, output)
         } else {
-            labelize::render_png(&body, options)
+            labelize::render_png_with_output(&body, options, output)
         };
 
         match rendered {

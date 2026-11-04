@@ -1,5 +1,7 @@
 # Rendering Diff Thresholds
 
+[Documentation index](README.md)
+
 Labelize renders ZPL/EPL labels to pixel images. This document tracks the
 expected pixel-difference percentage for every test label compared against
 reference images from the [Labelary ZPL viewer](https://labelary.com/viewer.html).
@@ -317,15 +319,15 @@ checks the header's 420 × 80 pixel region directly (29.04% → 4.88%, ceiling
 
 `datamatrix_dimensions` uses a **0.0%** tolerance against its independent
 Labelary reference. It covers ECC200 rectangular size constraints and the
-row-only capacity boundary; see [DATAMATRIX_DIMENSIONS.md](DATAMATRIX_DIMENSIONS.md).
+row-only capacity boundary; see [DataMatrix dimensions](DATAMATRIX.md#ecc-200-dimensions).
 
 `qr_mask_selection` has a **0.0%** tolerance against an independent Labelary
-reference for five isolated EC-H Byte cases. See [QR_MASK_SELECTION.md](QR_MASK_SELECTION.md).
+reference for five isolated EC-H Byte cases. See [QR mask selection](RENDERING_NOTES.md#qr-mask-selection).
 
 The `print_mirror`, `print_mirror_width`, and `print_mirror_inverted` fixtures
 have a strict pixel-for-pixel check in `tests/unit_print_mirror.rs` in addition
 to the golden suite. Their independent Labelary references and measured
-coordinate expectations are documented in [PRINT_MIRROR.md](PRINT_MIRROR.md).
+coordinate expectations are documented in [Print mirror](RENDERING_NOTES.md#print-mirror).
 
 To regenerate all Labelary reference images:
 

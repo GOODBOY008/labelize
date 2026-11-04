@@ -32,13 +32,7 @@ fn render_payload(
         labelize::Language::Zpl
     };
     render_payload_lang(
-        bytes,
-        width_mm,
-        height_mm,
-        dpmm,
-        antialias,
-        want_pdf,
-        language,
+        bytes, width_mm, height_mm, dpmm, antialias, want_pdf, language,
     )
 }
 
@@ -51,8 +45,8 @@ fn render_payload_lang(
     want_pdf: bool,
     language: labelize::Language,
 ) -> Result<Vec<u8>, (jint, String)> {
-    let labels = labelize::parse_labels(language, bytes, dpmm)
-        .map_err(|e| (STAGE_PARSE, e.to_string()))?;
+    let labels =
+        labelize::parse_labels(language, bytes, dpmm).map_err(|e| (STAGE_PARSE, e.to_string()))?;
 
     let label = labels
         .into_iter()
@@ -248,6 +242,127 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_renderLang<'local>(
     }
 }
 
+/// Shared-layout output with explicit backend, PNG scale and page selection.
+#[no_mangle]
+pub extern "system" fn Java_com_goodboy008_labelize_Labelize_renderOutput<'local>(
+    mut env: JNIEnv<'local>,
+    _this: JClass<'local>,
+    src: JByteArray<'local>,
+    width_mm: jdouble,
+    height_mm: jdouble,
+    dpmm: jint,
+    antialias: jboolean,
+    pdf: jboolean,
+    lang: JString<'local>,
+    mode: JString<'local>,
+    scale: jdouble,
+    all_pages: jboolean,
+) -> jbyteArray {
+    // A panic must never unwind across the JNI boundary; surface it as a
+    // render-stage exception instead of aborting the app.
+    let payload = catch_unwind(AssertUnwindSafe(|| {
+        let lang_str: String = match env.get_string(&lang) {
+            Ok(s) => s.into(),
+            Err(e) => return Err((STAGE_RENDER, format!("jni: {e}"))),
+        };
+        let mode_str: String = env
+            .get_string(&mode)
+            .map_err(|e| (STAGE_RENDER, format!("jni: {e}")))?
+            .into();
+        let bytes = match env.convert_byte_array(src) {
+            Ok(b) => b,
+            Err(e) => return Err((STAGE_RENDER, format!("jni: {e}"))),
+        };
+        render_output_payload(
+            &bytes,
+            width_mm,
+            height_mm,
+            dpmm,
+            antialias != 0,
+            pdf != 0,
+            &lang_str,
+            &mode_str,
+            scale,
+            all_pages != 0,
+        )
+    }));
+
+    let out = match payload {
+        Ok(Ok(bytes)) => bytes,
+        Ok(Err((stage, msg))) => {
+            throw_labelize(&mut env, stage, &msg);
+            return std::ptr::null_mut();
+        }
+        Err(_) => {
+            throw_labelize(&mut env, STAGE_RENDER, "internal panic while rendering");
+            return std::ptr::null_mut();
+        }
+    };
+
+    let write = |env: &mut JNIEnv| -> Result<jbyteArray, String> {
+        let len = jint::try_from(out.len())
+            .map_err(|_| "rendered label exceeds 2 GiB (jsize::MAX)".to_string())?;
+        let arr = env.new_byte_array(len).map_err(|e| format!("jni: {e}"))?;
+        // JNI's byte arrays are signed; reinterpret without copying (u8 and
+        // i8 have identical layout, so this is sound).
+        let signed = unsafe { std::slice::from_raw_parts(out.as_ptr().cast::<i8>(), out.len()) };
+        env.set_byte_array_region(&arr, 0, signed)
+            .map_err(|e| format!("jni: {e}"))?;
+        Ok(arr.into_raw())
+    };
+    match write(&mut env) {
+        Ok(arr) => arr,
+        Err(msg) => {
+            throw_labelize(&mut env, STAGE_RENDER, &msg);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_output_payload(
+    bytes: &[u8],
+    width_mm: f64,
+    height_mm: f64,
+    dpmm: i32,
+    antialias: bool,
+    pdf: bool,
+    lang: &str,
+    mode: &str,
+    scale: f64,
+    all_pages: bool,
+) -> Result<Vec<u8>, (jint, String)> {
+    let language = if lang.is_empty() {
+        None
+    } else {
+        Some(
+            labelize::Language::from_name(lang)
+                .ok_or_else(|| (STAGE_PARSE, "unknown label language".into()))?,
+        )
+    };
+    let options = labelize::RenderOptions {
+        language,
+        width_mm: (width_mm != 0.0).then_some(width_mm),
+        height_mm: (height_mm != 0.0).then_some(height_mm),
+        dpmm,
+        antialias,
+    };
+    let output = labelize::OutputOptions {
+        mode: mode.parse().map_err(|e| (STAGE_PARSE, format!("{e}")))?,
+        scale,
+        all_pages,
+    };
+    let rendered = if pdf {
+        labelize::render_pdf_with_output(bytes, options, output)
+    } else {
+        labelize::render_png_with_output(bytes, options, output)
+    };
+    rendered.map(|out| out.bytes).map_err(|e| match e {
+        labelize::LabelizeError::Parse(msg) => (STAGE_PARSE, msg),
+        e => (STAGE_RENDER, e.to_string()),
+    })
+}
+
 /// Engine version, for support diagnostics. Maps to `Labelize.version()`.
 #[no_mangle]
 pub extern "system" fn Java_com_goodboy008_labelize_Labelize_version<'local>(
@@ -271,8 +386,7 @@ mod tests {
 
     const SAMPLE_ZPL: &str = "^XA^FO50,50^A0N,40,40^FDHELLO WORLD^FS^XZ";
     const SAMPLE_EPL: &str = include_str!("../../testdata/labels/dpduk.epl");
-    const SAMPLE_TSPL: &str =
-        include_str!("../../testdata/unit/tspl_real_probe_text.tspl");
+    const SAMPLE_TSPL: &str = include_str!("../../testdata/unit/tspl_real_probe_text.tspl");
     const PNG_MAGIC: [u8; 8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     fn png(bytes: &[u8]) -> bool {

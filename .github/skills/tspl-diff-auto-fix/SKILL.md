@@ -45,7 +45,7 @@ this file defines what changes per language.
 1. `cargo test --test e2e_diff_report -- --nocapture` — TSPL rows live in
    `testdata/diffs/diff_report_unit.txt` with ext `tspl`.
 2. Cross-reference tolerances in `docs/DIFF_THRESHOLDS.md`; corpus
-   provenance in `docs/TSPL_CORPUS.md`.
+   provenance in `docs/TEST_CORPUS.md#tspl`.
 3. Target order: highest diff first, but discount known open questions
    (wide==narrow barcode ratios, REVERSE pre-fix) — check the PR comments
    for the current open-question list before burning cycles.
@@ -117,7 +117,7 @@ this file defines what changes per language.
   DIRECTION-0 fixture diff includes that gap — calibrate such labels against
   portakal semantics only if portakal implements it, else open question.
 - Real captures may carry `;` comments and `${placeholder}` template text —
-  both parse as literal content (documented in TSPL_CORPUS.md).
+  both parse as literal content (documented in TEST_CORPUS.md#tspl).
 
 ## Known open questions (do not "fix" without arbitration)
 

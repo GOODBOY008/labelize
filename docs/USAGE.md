@@ -1,9 +1,12 @@
 # Usage Guide
 
+[Documentation index](README.md)
+
 > Looking for a step-by-step intro for one specific platform (CLI, Docker,
 > HTTP, JavaScript/WASM, Android, Rust)? See the
 > [platform tutorials](tutorials/README.md). This page is the compact
-> reference they build on.
+> reference they build on. [Vector output](VECTOR_OUTPUT.md) covers searchable
+> PDF, multipage PDF and scaled PNG options.
 
 ## Installation
 
@@ -11,7 +14,7 @@
 
 ```bash
 cd labelize
-cargo install --path .
+cargo install --path . --features serve,vector
 ```
 
 ### From Homebrew (macOS/Linux)
@@ -76,8 +79,8 @@ labelize convert label.zpl --width 100 --height 150 --dpmm 12
 
 | Option       | Default | Description                              |
 |-------------|---------|------------------------------------------|
-| `--width`   | 102     | Label width in mm                        |
-| `--height`  | 152     | Label height in mm                       |
+| `--width` | declared, then 102 | Label width in mm; explicit values override the label |
+| `--height` | declared, then 152 | Label height in mm; explicit values override the label |
 | `--dpmm`    | 8       | Dots per mm (6, 8, 12, or 24)           |
 | `-f, --format`  | auto    | Input format: `zpl`, `epl`, `tspl`, `cpcl` or `dpl` |
 | `-t, --type`    | png     | Output type: `png` or `pdf`          |
@@ -156,8 +159,8 @@ curl -X POST "http://localhost:8080/convert?width=100&height=62&dpmm=12" \
 
 | Parameter | Default | Description             |
 |-----------|---------|-------------------------|
-| `width`   | 102     | Label width in mm       |
-| `height`  | 152     | Label height in mm      |
+| `width` | declared, then 102 | Label width in mm |
+| `height` | declared, then 152 | Label height in mm |
 | `dpmm`    | 8       | Dots per mm             |
 | `output`  | png     | Output format: png/pdf  |
 
@@ -258,56 +261,9 @@ fn main() {
 
 ---
 
-## Supported ZPL Commands
+## Language reference
 
-| Command | Description                    |
-|---------|--------------------------------|
-| `^XA`   | Start label format             |
-| `^XZ`   | End label format               |
-| `^FO`   | Field origin                   |
-| `^FT`   | Field typeset                  |
-| `^FD`   | Field data                     |
-| `^FS`   | Field separator                |
-| `^A`    | Font selection                 |
-| `^CF`   | Default font                   |
-| `^FB`   | Field block (word wrap)        |
-| `^FR`   | Field reverse print            |
-| `^FH`   | Hex escape in field data       |
-| `^FN`   | Field number (stored formats)  |
-| `^FW`   | Field orientation              |
-| `^BC`   | Code 128 barcode               |
-| `^BE`   | EAN-13 barcode                 |
-| `^B3`   | Code 39 barcode                |
-| `^B2`   | Interleaved 2-of-5 barcode    |
-| `^BO`   | Aztec barcode                  |
-| `^BX`   | DataMatrix barcode             |
-| `^BQ`   | QR Code                        |
-| `^B7`   | PDF417 barcode                 |
-| `^BD`   | MaxiCode                       |
-| `^BY`   | Barcode defaults               |
-| `^GB`   | Graphic box                    |
-| `^GC`   | Graphic circle                 |
-| `^GD`   | Graphic diagonal line          |
-| `^GF`   | Graphic field                  |
-| `^GS`   | Graphic symbol                 |
-| `^PW`   | Print width                    |
-| `^PO`   | Print orientation              |
-| `^LH`   | Label home                     |
-| `^LR`   | Label reverse                  |
-| `^CI`   | Character set                  |
-| `~DG`   | Download graphics              |
-| `^IL`   | Recall stored image            |
-| `^XG`   | Recall graphic                 |
-| `^DF`   | Download format                |
-| `^XF`   | Recall format                  |
-
-## Supported EPL Commands
-
-| Command | Description                    |
-|---------|--------------------------------|
-| `N`     | New label                      |
-| `A`     | Text field                     |
-| `B`     | Barcode                        |
-| `LO`    | Line draw (graphic box)        |
-| `R`     | Reference point                |
-| `P`     | Print label                    |
+The [ZPL command matrix](ZPL_COMMANDS_REFERENCE.md) is the canonical command
+reference. The [repository README](../README.md) summarizes the other supported
+languages. For detailed rendering behavior and reference evidence, use the
+[documentation index](README.md#develop-and-verify).

@@ -47,7 +47,7 @@ Sibling of `zpl-diff-auto-fix` / `tspl-diff-auto-fix` for DPL
    show the honest evolabel distance, synthetic rows are 0.00%
    renderer-baseline.
 2. Cross-reference `docs/DIFF_THRESHOLDS.md`; provenance in
-   `docs/CPCL_DPL_CORPUS.md`.
+   `docs/TEST_CORPUS.md#cpcl-and-dpl`.
 3. Highest diff first. The dominant component is font-substitute width
    (~20% narrow vs evolabel on the Appendix B component label) — measure
    before touching code (Phase 2 step 6).
