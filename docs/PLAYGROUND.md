@@ -4,6 +4,12 @@ The playground combines an editor, label preview and documentation in one
 page. Rendering and validation use the server hosting that page. The docs
 are bundled with the application and need no separate documentation service.
 
+Open **API** to test individual endpoints and inspect requests and responses.
+Copy examples for your own scripts or download the OpenAPI specification.
+The [API guide](API.md) covers file uploads and temporary directory-conversion
+jobs. Switching between API, Documentation and Playground preserves each
+view's draft until the page is reloaded.
+
 ## Edit, preview and learn
 
 Choose a sample or open a `.zpl`, `.epl`, `.tspl`, `.cpcl` or `.dpl` file.

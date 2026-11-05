@@ -19,6 +19,7 @@ links, copyable code and examples that load directly into the editor.
 | Document | Purpose |
 | --- | --- |
 | [Tutorials](tutorials/README.md) | CLI, Docker, HTTP, JavaScript/WASM, Android and Rust walkthroughs |
+| [Public API](API.md) | Interactive API console, OpenAPI and temporary conversion scripts |
 | [Usage](USAGE.md) | Installation, CLI and native HTTP reference, library examples |
 | [Vector output](VECTOR_OUTPUT.md) | Raster/vector modes, searchable PDF, scalable PNG and fidelity limits |
 | [ZPL command matrix](ZPL_COMMANDS_REFERENCE.md) | Command support and parameter reference |

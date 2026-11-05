@@ -37,11 +37,15 @@
   function docsRoute(focus) {
     var parts = location.hash.slice(1).split("/");
     var visible = parts[0] === "docs";
+    var apiVisible = parts[0] === "api";
     docsView.hidden = !visible;
-    document.getElementById("playground-view").hidden = visible;
-    document.querySelector(".about").hidden = visible;
+    document.getElementById("api-view").hidden = !apiVisible;
+    document.getElementById("playground-view").hidden = visible || apiVisible;
+    document.querySelector(".about").hidden = visible || apiVisible;
     document.getElementById("nav-docs").setAttribute("aria-current", visible ? "page" : "false");
-    document.getElementById("nav-playground").setAttribute("aria-current", visible ? "false" : "page");
+    document.getElementById("nav-api").setAttribute("aria-current", apiVisible ? "page" : "false");
+    document.getElementById("nav-playground").setAttribute("aria-current", visible || apiVisible ? "false" : "page");
+    if (apiVisible) { apiConsole.show(focus); return; }
     if (!visible) { document.title = t("app.title"); if (focus) input.focus(); return; }
     var page = docsPages.find(function (p) { return p.id === (parts[1] || "getting-started"); });
     if (!page) {
@@ -133,4 +137,4 @@
   });
   window.addEventListener("hashchange", function () { docsRoute(true); });
   langSel.addEventListener("change", function () { activeDoc = null; docsRoute(false); });
-  docsRoute(location.hash.indexOf("#docs") === 0);
+  docsRoute(location.hash.indexOf("#docs") === 0 || location.hash === "#api");

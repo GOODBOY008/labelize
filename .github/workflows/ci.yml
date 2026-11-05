@@ -23,7 +23,7 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r tools/docs/requirements.txt
       - run: python tools/docs/build.py --check
-      - run: node --test workers/playground.test.mjs
+      - run: node --test workers/playground.test.mjs workers/api.test.mjs
 
   check:
     name: Check

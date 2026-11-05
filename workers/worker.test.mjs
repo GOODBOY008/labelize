@@ -1,7 +1,7 @@
 // Run after wasm/build.sh: node --experimental-vm-modules --test workers/*.test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { SourceTextModule, SyntheticModule } from 'node:vm';
+import { createContext, SourceTextModule, SyntheticModule } from 'node:vm';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import * as glue from '../wasm/npm/labelize_wasm_bg.js';
@@ -9,17 +9,69 @@ import * as glue from '../wasm/npm/labelize_wasm_bg.js';
 // Use the actual generated wasm-bindgen glue and WASM. Only the bundler's
 // binary import is adapted for Node; no engine/encode behavior is mocked.
 const wasm = new WebAssembly.Module(readFileSync(new URL('../wasm/npm/labelize_wasm_bg.wasm', import.meta.url)));
-const module = new SourceTextModule(readFileSync(new URL('./worker.js', import.meta.url), 'utf8'));
-await module.link((specifier) => {
-  const values = specifier.endsWith('.wasm') ? { default: wasm } : glue;
-  return new SyntheticModule(Object.keys(values), function () {
-    for (const [name, value] of Object.entries(values)) this.setExport(name, value);
+const spec = JSON.parse(readFileSync(new URL('../src/playground/openapi.json', import.meta.url), 'utf8'));
+async function loadWorker(context) {
+  const module = new SourceTextModule(readFileSync(new URL('./worker.js', import.meta.url), 'utf8'), { context });
+  await module.link((specifier) => {
+    const values = specifier.endsWith('.json') ? { default: spec } : specifier.endsWith('.wasm') ? { default: wasm } : glue;
+    return new SyntheticModule(Object.keys(values), function () {
+      for (const [name, value] of Object.entries(values)) this.setExport(name, value);
+    }, { context });
   });
-});
-await module.evaluate();
-const worker = module.namespace.default;
+  await module.evaluate();
+  return module.namespace.default;
+}
+const worker = await loadWorker();
 const png = readFileSync(new URL('../testdata/labels/amazon.png', import.meta.url));
 const call = (query, body = png) => worker.fetch(new Request(`https://example.com/encode${query}`, { method: 'POST', body }), {});
+
+test('public API supports preflight and schema without initializing WASM', async () => {
+  let initializations = 0;
+  const isolated = await loadWorker(createContext({
+    Request, Response, Headers, URL, Uint8Array,
+    WebAssembly: { Instance: WebAssembly.Instance, instantiate() { initializations++; throw new Error('engine unavailable'); } },
+  }));
+  for (const path of [...Object.keys(spec.paths), '/openapi.json']) {
+    const response = await isolated.fetch(new Request(`https://example.com${path}`, {
+      method: 'OPTIONS', headers: { origin: 'https://client.example', 'access-control-request-method': path === '/health' || path === '/openapi.json' ? 'GET' : 'POST', 'access-control-request-headers': 'content-type' },
+    }), {});
+    assert.equal(response.status, 204);
+    assert.equal(await response.text(), '');
+    assert.equal(response.headers.get('access-control-allow-origin'), '*');
+    assert.match(response.headers.get('access-control-allow-headers'), /content-type/i);
+    assert.equal(response.headers.has('access-control-allow-credentials'), false);
+  }
+  const schema = await isolated.fetch(new Request('https://example.com/openapi.json'), {});
+  assert.equal(schema.headers.get('content-type'), 'application/json');
+  assert.deepEqual(await schema.json(), spec);
+  assert.equal((await isolated.fetch(new Request('https://example.com/health'), {})).status, 200);
+  assert.equal(initializations, 0);
+  const failure = await isolated.fetch(new Request('https://example.com/convert', { method: 'POST', body: '^XA^XZ' }), {});
+  assert.equal(failure.status, 500);
+  assert.equal(failure.headers.get('access-control-allow-origin'), '*');
+  assert.equal(initializations, 1);
+});
+
+test('CORS survives actual WASM success, bad requests, and validation failures', async () => {
+  for (const [path, body, status] of [
+    ['/convert?width=100&height=60', '^XA^FO10,10^FDAPI^FS^XZ', 200],
+    ['/convert?dpmm=0', '^XA^XZ', 400],
+    ['/validate?language=bogus', '^XA^XZ', 400],
+    ['/validate?language=tspl', 'AZTEC', 200],
+    ['/format?language=zpl', '^XA^FDAPI^FS^XZ', 200],
+    ['/encode?language=tspl', png, 200],
+  ]) {
+    const response = await worker.fetch(new Request(`https://example.com${path}`, {
+      method: 'POST', headers: { origin: 'https://client.example', 'content-type': 'application/zpl' }, body,
+    }), {});
+    assert.equal(response.status, status, path);
+    assert.equal(response.headers.get('access-control-allow-origin'), '*', path);
+    if (path.startsWith('/validate?language=tspl')) assert.equal((await response.json()).ok, false);
+  }
+  const html = await worker.fetch(new Request('https://example.com/'), {});
+  assert.equal(html.headers.has('access-control-allow-origin'), false);
+  assert.deepEqual(JSON.parse(/<script id="api-data" type="application\/json">([\s\S]*?)<\/script>/.exec(await html.text())[1]), spec);
+});
 
 test('worker uses real WASM and preserves both round trips', async () => {
   const { lz_render_lang } = glue;

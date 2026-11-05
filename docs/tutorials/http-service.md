@@ -24,6 +24,11 @@ That sends your label data to the public service; use a local deployment for
 private data. Examples below use explicit dimensions and language for
 consistent behavior across native and Worker deployments.
 
+Use the playground's **API** tab to test these endpoints on the current
+origin. The [public API guide](../API.md) includes a hosted quickstart,
+OpenAPI download, CORS details and runnable Python/Node.js directory jobs.
+Both deployments expose `GET /openapi.json`, including in native API-only mode.
+
 ## Convert label bytes
 
 `POST /convert` accepts the raw source as its request body. Use the matching
@@ -125,6 +130,10 @@ curl --fail-with-body 'http://localhost:8080/encode?language=tspl&dpmm=8' \
 An 800 × 480 image at 8 dpmm occupies 100 × 60 mm. Generated ZPL does not
 set the canvas: supply those dimensions when rendering it. TSPL includes
 `SIZE` and binary `BITMAP` data. Never decode that output as UTF-8.
+
+Images are limited to 16 Mi pixels, 32000 dots per dimension and 128 MiB
+of decoded data. Hosting and native request-body limits may reject an
+upload before image decoding runs.
 
 ## Handle responses
 

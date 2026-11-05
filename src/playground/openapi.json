@@ -1,0 +1,115 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Labelize HTTP API",
+    "version": "1.0.0",
+    "description": "Convert raw printer-language bytes to PNG/PDF, validate and format source, or encode images as ZPL/TSPL. The public Cloudflare service needs no signup or API key. Requests are synchronous. Send raw bytes, not JSON or multipart forms. Explicit language and dimensions give consistent conversion behavior across deployments."
+  },
+  "servers": [{ "url": "/", "description": "The origin serving this specification" }],
+  "paths": {
+    "/convert": {
+      "post": {
+        "operationId": "convertLabel",
+        "summary": "Label code → PNG or PDF",
+        "description": "Select the parser using Content-Type. Native conversion detects an unspecified language and resolves omitted dimensions from the label before falling back to 102 × 152 mm. Worker raster conversion defaults to ZPL and 102 × 152 mm; Worker vector conversion uses detection and declared dimensions. Vector output requires a build with vector support. By default only the first label is returned.",
+        "parameters": [
+          { "name": "width", "in": "query", "description": "Canvas width in mm. Omitted dimensions follow the deployment defaults above.", "example": 100, "schema": { "type": "number", "minimum": 0, "exclusiveMinimum": true } },
+          { "name": "height", "in": "query", "description": "Canvas height in mm. Omitted dimensions follow the deployment defaults above.", "example": 60, "schema": { "type": "number", "minimum": 0, "exclusiveMinimum": true } },
+          { "$ref": "#/components/parameters/Dpmm" },
+          { "name": "output", "in": "query", "description": "Output file format.", "schema": { "type": "string", "enum": ["png", "pdf"], "default": "png" } },
+          { "name": "mode", "in": "query", "description": "Raster is the default. Vector PDF preserves searchable text where possible; bitmap content remains raster.", "schema": { "type": "string", "enum": ["raster", "vector"], "default": "raster" } },
+          { "name": "antialias", "in": "query", "description": "Preserve grayscale edges in PNG output.", "schema": { "type": "boolean", "default": false } },
+          { "name": "scale", "in": "query", "description": "PNG output pixels per source dot. Values other than 1 require vector PNG. This does not change source dpmm.", "schema": { "type": "number", "minimum": 0, "exclusiveMinimum": true, "default": 1 } },
+          { "name": "pages", "in": "query", "description": "all requires vector PDF and returns every label as a separate page.", "schema": { "type": "string", "enum": ["first", "all"], "default": "first" } }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/LabelSource" },
+        "responses": {
+          "200": { "description": "Rendered label bytes.", "content": { "image/png": { "schema": { "type": "string", "format": "binary" } }, "application/pdf": { "schema": { "type": "string", "format": "binary" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/validate": {
+      "post": {
+        "operationId": "validateLabel",
+        "summary": "Validate label syntax",
+        "description": "Returns a parse report without rendering. Always inspect ok: a parse failure returns HTTP 200 with ok=false and an error. Language is selected by the language query parameter, or detected from the bytes, independently of Content-Type. Empty input can succeed with zero labels.",
+        "parameters": [{ "$ref": "#/components/parameters/Language" }, { "$ref": "#/components/parameters/Dpmm" }],
+        "requestBody": { "$ref": "#/components/requestBodies/LabelSource" },
+        "responses": {
+          "200": { "description": "Parse report; check ok as well as HTTP status.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ValidationReport" }, "examples": { "valid": { "value": { "language": "zpl", "ok": true, "labels": 1 } }, "invalid": { "value": { "language": "zpl", "ok": false, "labels": 0, "error": "Parse error" } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/format": {
+      "post": {
+        "operationId": "formatLabel",
+        "summary": "Format printer-language source",
+        "description": "Reflow source one command per line, preserving binary graphics and field bytes. Formatting does not validate command support. Language is selected by the query parameter or detected from the bytes, independently of Content-Type. Save the response as bytes even though its media type is text/plain.",
+        "parameters": [{ "$ref": "#/components/parameters/Language" }],
+        "requestBody": { "$ref": "#/components/requestBodies/LabelSource" },
+        "responses": {
+          "200": { "description": "Formatted source bytes, which may contain binary payloads.", "content": { "text/plain": { "schema": { "type": "string", "format": "binary" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/encode": {
+      "post": {
+        "operationId": "encodeImage",
+        "summary": "Image → ZPL or TSPL",
+        "description": "Upload encoded image bytes (for example PNG or JPEG). Pixels are composited over white and converted to a monochrome bitmap; this does not perform OCR or barcode recognition. One image pixel is one printer dot at dpmm. Limits: 16 Mi pixels, 32000 dots per dimension, 128 MiB decoded data. Generated ZPL leaves the canvas unset; TSPL contains SIZE and binary BITMAP data.",
+        "parameters": [
+          { "name": "language", "in": "query", "description": "Target printer language. TSPL output is binary and must never be decoded as UTF-8.", "schema": { "type": "string", "enum": ["zpl", "tspl"], "default": "zpl" } },
+          { "$ref": "#/components/parameters/Dpmm" },
+          { "name": "threshold", "in": "query", "description": "Pixels with luminance strictly below this value become ink.", "schema": { "type": "integer", "minimum": 0, "maximum": 255, "default": 128 } }
+        ],
+        "requestBody": { "required": true, "description": "Encoded image bytes, not a data URL or multipart form.", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } }, "image/png": { "schema": { "type": "string", "format": "binary" } }, "image/jpeg": { "schema": { "type": "string", "format": "binary" } } } },
+        "responses": {
+          "200": { "description": "ZPL text or binary TSPL source.", "content": { "text/plain": { "schema": { "type": "string" } }, "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Check service health",
+        "description": "Check that the HTTP service is reachable. This does not perform a conversion.",
+        "responses": { "200": { "description": "Service is reachable.", "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["ok"] } } }, "example": { "status": "ok" } } } } }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Dpmm": { "name": "dpmm", "in": "query", "description": "Source dots per mm; typical printer classes are 6, 8, 12 and 24. Output scaling is a separate setting.", "schema": { "type": "integer", "minimum": 1, "maximum": 2147483647, "default": 8 } },
+      "Language": { "name": "language", "in": "query", "description": "Force the parser. Omit to detect the language from the source bytes.", "schema": { "type": "string", "enum": ["zpl", "epl", "tspl", "cpcl", "dpl"] } }
+    },
+    "requestBodies": {
+      "LabelSource": {
+        "required": true,
+        "description": "Raw printer source. Use Content-Type to select /convert's parser; /validate and /format use the language query parameter instead. Use file uploads for binary printer payloads.",
+        "content": {
+          "application/zpl": { "schema": { "type": "string", "format": "binary" }, "example": "^XA\n^FO40,40^A0N,40,30^FDHello, API^FS\n^XZ" },
+          "application/epl": { "schema": { "type": "string", "format": "binary" } },
+          "application/tspl": { "schema": { "type": "string", "format": "binary" } },
+          "application/cpcl": { "schema": { "type": "string", "format": "binary" } },
+          "application/dpl": { "schema": { "type": "string", "format": "binary" } },
+          "application/octet-stream": { "schema": { "type": "string", "format": "binary" } }
+        }
+      }
+    },
+    "schemas": {
+      "ValidationReport": { "type": "object", "required": ["language", "ok", "labels"], "properties": { "language": { "type": "string", "enum": ["zpl", "epl", "tspl", "cpcl", "dpl"] }, "ok": { "type": "boolean" }, "labels": { "type": "integer", "minimum": 0 }, "error": { "type": "string", "description": "Present when ok is false." } } }
+    },
+    "responses": {
+      "BadRequest": { "description": "Invalid options, unsupported language, invalid source/image, or request extraction failure. Error bodies may be plain text or JSON. Native body-size limits can also produce HTTP 413.", "content": { "text/plain": { "schema": { "type": "string" } }, "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } },
+      "InternalError": { "description": "Rendering, encoding or internal service failure. Hosting limits may also reject a request before it reaches the application.", "content": { "text/plain": { "schema": { "type": "string" } } } }
+    }
+  }
+}

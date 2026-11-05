@@ -18,6 +18,7 @@ PAGES = [
     ('Start here', 'LANGUAGES.md', 'languages'),
     ('Start here', 'TROUBLESHOOTING.md', 'troubleshooting'),
     ('Integrate', 'tutorials/http-service.md', 'http'),
+    ('Integrate', 'API.md', 'api'),
     ('Integrate', 'tutorials/cli.md', 'cli'),
     ('Integrate', 'tutorials/docker.md', 'docker'),
     ('Integrate', 'tutorials/rust-library.md', 'rust'),
@@ -64,6 +65,10 @@ def build():
                     re.findall(r'<h([23]) id="([^"]+)">(.*?)</h[23]>', body)]
         def link(match):
             attr, target = match.groups()
+            # Application navigation and the shared schema are runtime routes,
+            # rather than Markdown files or section anchors.
+            if attr == 'href' and target in ('#api', '#playground', '/openapi.json'):
+                return match.group(0)
             url = urlsplit(html.unescape(target))
             if url.scheme or url.netloc:
                 return match.group(0)
