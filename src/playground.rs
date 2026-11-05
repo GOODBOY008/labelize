@@ -19,7 +19,7 @@ pub const OPENAPI_JSON: &str = include_str!("playground/openapi.json");
 ///   Render always produces PNG; PDF is lazy.
 pub const PLAYGROUND_HTML: &str = concat!(
     r##"<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" data-bs-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -101,6 +101,7 @@ pub const PLAYGROUND_HTML: &str = concat!(
     t = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   }
   document.documentElement.setAttribute("data-theme", t);
+  document.documentElement.setAttribute("data-bs-theme", t);
 })();
 </script>
 <script>
@@ -111,367 +112,14 @@ pub const PLAYGROUND_HTML: &str = concat!(
    keeps every feature enabled. */
 window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 </script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    color-scheme: dark;
-    --bg: #101218;
-    --surface: #191c24;
-    --surface2: #222631;
-    --editor: #161920;
-    --canvas: #12151c;
-    --border: #2b303c;
-    --grid-dot: #2a303b;
-    --accent: #739aff;
-    --accent-hover: #8aabff;
-    --accent-soft: #222e49;
-    --text: #e8ebf2;
-    --text-dim: #a0a8b8;
-    --text-muted: #727d91;
-    --error: #f28b91;
-    --success: #75cba7;
-    --overlay: rgba(22,25,32,0.88);
-    --err-bg: #322229;
-    --sel: rgba(115,154,255,0.23);
-    --shadow: 0 12px 32px rgba(0,0,0,0.24), 0 1px 4px rgba(0,0,0,0.16);
-    --verdict-ok: #75cba7;
-    --verdict-warn: #e5c77a;
-    --verdict-mod: #e8ad7b;
-    --verdict-bad: #f28b91;
-    --badge-fg: #151820;
-    --radius: 12px;
-    --font-mono: "SFMono-Regular",Consolas,"Liberation Mono",monospace;
-    --font-ui: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  }
-
-  :root[data-theme="light"] {
-    color-scheme: light;
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --surface2: #f5f6f8;
-    --editor: #ffffff;
-    --canvas: #f2f4f7;
-    --border: #e2e6ed;
-    --grid-dot: #d7dde6;
-    --accent: #3568d4;
-    --accent-hover: #2856b7;
-    --accent-soft: #edf2ff;
-    --text: #202735;
-    --text-dim: #626e81;
-    --text-muted: #8792a4;
-    --error: #c13f4c;
-    --success: #20825d;
-    --overlay: rgba(246,248,251,0.9);
-    --err-bg: #fff1f2;
-    --sel: rgba(53,104,212,0.16);
-    --shadow: 0 12px 32px rgba(35,49,73,0.10), 0 1px 4px rgba(35,49,73,0.08);
-    --verdict-ok: #c4ead7;
-    --verdict-warn: #f7e5ac;
-    --verdict-mod: #f8d4b5;
-    --verdict-bad: #f8ccd0;
-    --badge-fg: #263445;
-  }
-
-  html, body { height: 100%; }
-  body {
-    display: flex; flex-direction: column; overflow: hidden;
-    background: var(--bg); color: var(--text);
-    font: 14px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased;
-  }
-  button, input, select, textarea { font: inherit; }
-  button, a, input, select { -webkit-tap-highlight-color: transparent; }
-  button, a, input, select { transition: background-color .15s, border-color .15s, color .15s; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button svg, a svg { flex-shrink: 0; }
-  ::selection { background: var(--sel); }
-  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-
-  /* App navigation */
-  .app-header {
-    flex-shrink: 0; display: flex; align-items: center; gap: 24px;
-    min-height: 68px; padding: 12px 32px;
-    background: var(--surface); border-bottom: 1px solid var(--border);
-  }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon { display: block; width: 29px; height: 29px; }
-  .logo-text { font-size: 19px; font-weight: 700; letter-spacing: -.5px; }
-  .nav-label { border-left: 1px solid var(--border); padding-left: 24px; color: var(--text-dim); font-size: 13px; }
-  .header-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
-  .header-link { color: var(--text-dim); text-decoration: none; padding: 7px 9px; font-size: 13px; }
-  .header-link:hover { color: var(--text); }
-  select {
-    appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23848c9b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 10px center;
-    background-color: var(--surface); color: var(--text); border: 1px solid var(--border);
-    border-radius: 7px; height: 38px; padding: 0 34px 0 12px; font-size: 13px; cursor: pointer;
-  }
-  select:hover, input[type="number"]:hover { border-color: var(--text-muted); }
-  .hdr-select { max-width: 190px; }
-  #lang { background-color: transparent; border-color: transparent; }
-  #theme-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    height: 36px; width: 36px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--surface); color: var(--text-dim); cursor: pointer;
-  }
-  #theme-btn:hover { background: var(--surface2); color: var(--text); }
-  #theme-btn svg { width: 17px; height: 17px; }
-  #theme-btn .icon-sun { display: none; }
-  :root[data-theme="dark"] #theme-btn .icon-sun { display: block; }
-  :root[data-theme="dark"] #theme-btn .icon-moon { display: none; }
-
-  /* Workspace */
-  main {
-    display: flex; flex-direction: column; flex: 1; min-height: 0;
-    width: 100%; max-width: 1680px; margin: 0 auto; padding: 26px 32px 16px; gap: 20px;
-  }
-  .workspace-intro { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-  .workspace-intro h1 { font-size: 26px; font-weight: 650; letter-spacing: -.8px; line-height: 1.3; }
-  .workspace-intro p { color: var(--text-dim); font-size: 13px; margin-top: 5px; }
-  .intro-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .settings-bar {
-    display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px 20px; flex-shrink: 0;
-    padding: 17px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  }
-  .setting { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .setting > label { color: var(--text-dim); font-size: 12px; font-weight: 500; }
-  #fmt { min-width: 104px; }
-  #size-preset { min-width: 154px; }
-  #dpmm { min-width: 112px; }
-  #custom-size { display: flex; align-items: flex-end; gap: 10px; }
-  #custom-size .setting { width: 82px; }
-  #custom-size .unit-setting { width: 80px; }
-  #custom-size select { width: 100%; }
-  input[type="number"] {
-    min-width: 0; width: 100%; height: 38px; padding: 0 10px;
-    background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 7px; font-size: 13px;
-  }
-  .size-sep { align-self: flex-end; height: 38px; display: flex; align-items: center; color: var(--text-muted); }
-  .settings-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; min-height: 38px; margin-left: auto; }
-  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
-  .toggle input {
-    appearance: none; position: relative; width: 30px; height: 18px; border-radius: 12px;
-    background: var(--text-muted); border: 0; cursor: pointer; flex-shrink: 0;
-  }
-  .toggle input::before {
-    content: ""; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px;
-    border-radius: 50%; background: #fff; transition: transform .15s;
-  }
-  .toggle input:checked { background: var(--accent); }
-  .toggle input:checked::before { transform: translateX(12px); }
-  .workspace-panels { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
-  .editor-panel, .preview-panel {
-    display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: 0 1px 2px rgba(20,30,48,.025);
-  }
-  .panel-header {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;
-    height: 58px; padding: 10px 18px; border-bottom: 1px solid var(--border);
-  }
-  .panel-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
-  .panel-title svg { color: var(--text-muted); flex-shrink: 0; }
-  .panel-title h2 { font-size: 13px; font-weight: 600; white-space: nowrap; }
-
-  /* Source editor */
-  .editor-body { flex: 1; min-height: 0; display: flex; background: var(--editor); overflow: hidden; }
-  #line-numbers, #zpl-input { font: 13px/22px var(--font-mono); padding-top: 20px; padding-bottom: 24px; tab-size: 2; }
-  #line-numbers {
-    flex-shrink: 0; min-width: 48px; padding-left: 14px; padding-right: 12px;
-    text-align: right; color: var(--text-muted); overflow: hidden; user-select: none;
-  }
-  #zpl-input {
-    display: block; flex: 1; min-width: 0; min-height: 0; width: 100%; padding-left: 4px; padding-right: 20px;
-    background: transparent; color: var(--text); border: 0; outline: none; resize: none; overflow: auto; caret-color: var(--accent);
-  }
-  .editor-body:focus-within { box-shadow: inset 0 0 0 2px var(--sel); }
-  .editor-meta {
-    display: flex; align-items: center; gap: 12px; min-height: 34px; padding: 6px 18px;
-    border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; flex-shrink: 0;
-  }
-  .syntax-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
-  .syntax-status:empty { display: none; }
-  .syntax-status.syn-ok::before, .syntax-status.syn-err::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; }
-  .syntax-status.syn-ok::before { background: var(--success); }
-  .syntax-status.syn-err::before { background: var(--error); }
-  #caret-pos { margin-left: auto; white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-  .editor-actions { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--border); }
-  #file-input { display: none; }
-  #img-input { display: none; }
-
-  .ghost-btn, .fmt-btn, .compare-btn, .dl-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px;
-    padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px;
-    background: var(--surface); color: var(--text-dim); font-size: 12px; font-weight: 500;
-    text-decoration: none; white-space: nowrap; cursor: pointer;
-  }
-  .ghost-btn:hover:not(:disabled), .fmt-btn:hover:not(:disabled), .compare-btn:hover:not(:disabled), .dl-btn:hover:not(:disabled) {
-    color: var(--text); background: var(--surface2); border-color: var(--text-muted);
-  }
-  .fmt-btn { border-color: transparent; min-height: 32px; padding: 5px 8px; }
-  #render-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 16px;
-    border: 1px solid transparent; border-radius: 7px; background: var(--accent); color: #fff;
-    font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  }
-  :root[data-theme="dark"] #render-btn { color: #101a30; }
-  #render-btn:hover:not(:disabled) { background: var(--accent-hover); }
-  .shortcut { margin-left: 8px; font-size: 10px; font-weight: 400; opacity: .75; }
-
-  /* Preview canvas and exports */
-  .preview-panel { position: relative; }
-  #preview-scroll {
-    display: flex; flex-direction: column; align-items: center; flex: 1; min-height: 0;
-    overflow: auto; padding: 24px; gap: 20px;
-    background: radial-gradient(var(--grid-dot) .8px, transparent .8px) 0 0 / 16px 16px, var(--canvas);
-  }
-  #preview-scroll.zoomed { align-items: flex-start; }
-  #preview-img {
-    display: none; max-width: none; flex-shrink: 0; height: auto; margin: auto;
-    border: 1px solid #d5dae2; border-radius: 2px; background: #fff; box-shadow: var(--shadow);
-  }
-  #preview-img.visible { display: block; }
-  #preview-scroll.zoomed #preview-img { margin: 0; }
-  .empty-state { margin: auto; text-align: center; max-width: 300px; padding: 20px 0; }
-  .empty-art { display: block; margin: 0 auto 22px; color: var(--text-muted); }
-  .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 7px; }
-  .empty-state p { color: var(--text-dim); font-size: 13px; line-height: 1.7; }
-  .empty-shortcut { margin-top: 18px; }
-  kbd { color: var(--text-dim); font: 11px var(--font-ui); padding: 5px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); }
-  #zoom-ctrl { display: none; align-items: center; gap: 2px; }
-  #zoom-ctrl.visible { display: flex; }
-  #zoom-ctrl button {
-    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-    background: transparent; color: var(--text-dim); border: 0; border-radius: 5px; cursor: pointer; font-size: 16px;
-  }
-  #zoom-ctrl button:hover { background: var(--surface2); color: var(--text); }
-  #zoom-label { color: var(--text-dim); font-size: 11px; min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
-  #loading { display: none; position: absolute; inset: 58px 0 0; z-index: 10; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: var(--overlay); }
-  #loading.active { display: flex; }
-  .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text { color: var(--text-dim); font-size: 13px; }
-  #error-banner { display: none; width: 100%; color: var(--error); background: var(--err-bg); border: 1px solid var(--error); border-radius: 8px; padding: 14px; font: 12px/1.7 var(--font-mono); overflow-wrap: anywhere; white-space: pre-wrap; }
-  #error-banner.visible { display: block; }
-  .preview-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; flex-shrink: 0; padding: 12px 18px; border-top: 1px solid var(--border); }
-  .compare-btn { min-height: 38px; padding: 7px 12px; color: var(--accent); background: var(--accent-soft); }
-  .compare-btn:disabled { opacity: .65; }
-  .compare-note { font-size: 10px; padding: 2px 5px; background: var(--surface); border-radius: 4px; }
-  #download-bar { display: none; align-items: center; justify-content: flex-end; gap: 7px; width: 100%; }
-  #download-bar.visible { display: flex; }
-  .dl-btn { color: var(--text); padding: 7px 10px; font-size: 11px; }
-  .dl-btn-pdf { background: var(--surface2); }
-  .icon-only { width: 34px; padding: 7px; }
-  .mini-spinner { display: none; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-  .dl-btn-pdf.loading .mini-spinner { display: inline-block; }
-  .dl-btn-pdf.loading .dl-icon-pdf { display: none; }
-  .status-bar { display: flex; align-items: center; gap: 12px; min-height: 30px; padding: 6px 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
-  #status-size { margin-left: auto; }
-  .status-ok { color: var(--success); }
-  .status-err { color: var(--error); }
-  #status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #status-size, #status-time { flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  #toast { position: fixed; left: 50%; bottom: 38px; z-index: 20; max-width: calc(100vw - 32px); width: max-content; padding: 11px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-size: 12px; text-align: center; opacity: 0; pointer-events: none; transform: translate(-50%,8px); transition: opacity .2s, transform .2s; }
-  #toast.show { opacity: 1; transform: translate(-50%,0); }
-
-  /* Reference comparison */
-  #compare-section { display: none; width: 100%; }
-  #compare-section.visible { display: block; }
-  .verdict-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-  .verdict-badge { font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 4px 8px; border-radius: 4px; color: var(--badge-fg); }
-  .v-perfect, .v-good { background: var(--verdict-ok); }
-  .v-minor { background: var(--verdict-warn); }
-  .v-moderate { background: var(--verdict-mod); }
-  .v-high { background: var(--verdict-bad); }
-  .verdict-meta { color: var(--text-dim); font-size: 11px; }
-  .compare-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-  .compare-col { flex: 1 1 130px; min-width: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
-  .col-title { display: block; padding: 9px 10px; color: var(--text-dim); font-size: 10px; border-bottom: 1px solid var(--border); }
-  .compare-col img { display: block; width: 100%; background: #fff; }
-
-  /* Quiet footer disclosure */
-  details.about { flex-shrink: 0; color: var(--text-dim); font-size: 11px; }
-  details.about summary { display: flex; align-items: center; justify-content: center; gap: 8px; list-style: none; padding: 6px 20px 14px; cursor: pointer; user-select: none; }
-  details.about summary::-webkit-details-marker { display: none; }
-  details.about summary::before { content: "+"; font-size: 14px; }
-  details.about[open] summary::before { content: "−"; }
-  details.about[open] { background: var(--surface); border-top: 1px solid var(--border); }
-  details.about[open] summary { padding: 10px 20px; border-bottom: 1px solid var(--border); }
-  .about-body { max-width: 1000px; margin: auto; padding: 20px 32px; max-height: 38vh; overflow: auto; font-size: 12px; line-height: 1.8; }
-  .about-body h1 { color: var(--text); font-size: 15px; margin-bottom: 8px; }
-  .about-body h2 { color: var(--text); font-size: 13px; margin: 16px 0 4px; }
-  .about-body p { margin-bottom: 8px; }
-  .about-body ul { margin: 8px 0 8px 20px; }
-  .about-body dt { color: var(--text); font-weight: 600; margin-top: 10px; }
-  .about-body code { background: var(--surface2); border-radius: 3px; padding: 2px 4px; }
-  .about-body a { color: var(--accent); text-decoration: none; }
-  .about-body a:hover { text-decoration: underline; }
-  .about-links { margin-top: 14px; }
-
-  @media (max-width: 1100px) {
-    .app-header { padding: 12px 24px; }
-    main { padding: 22px 24px 14px; gap: 16px; }
-    .workspace-panels { gap: 16px; }
-    .settings-bar { gap: 14px; }
-    .settings-toggles { gap: 14px; }
-    .preview-actions { padding: 12px; }
-    .dl-btn { padding: 7px 8px; }
-  }
-  @media (max-width: 900px), (max-height: 640px) {
-    html, body { height: auto; min-height: 100%; }
-    body { overflow: auto; }
-    main { flex: none; }
-    .workspace-panels { flex: none; min-height: 540px; }
-  }
-  @media (max-width: 900px) {
-    .workspace-intro { align-items: flex-start; flex-direction: column; gap: 16px; }
-    .intro-actions { width: 100%; }
-    .workspace-panels { grid-template-columns: minmax(0,1fr); }
-    .editor-panel { height: 470px; }
-    .preview-panel { height: 620px; }
-    .settings-toggles { margin-left: 0; }
-  }
-  @media (max-width: 600px) {
-    .app-header { min-height: 60px; padding: 10px 16px; gap: 12px; }
-    .logo { gap: 7px; }
-    .logo-icon { width: 25px; height: 25px; }
-    .logo-text { font-size: 17px; }
-    .nav-label, .header-link { display: none; }
-    .header-actions { gap: 5px; }
-    #lang { max-width: 106px; padding-left: 8px; }
-    main { padding: 24px 16px 12px; }
-    .workspace-intro { align-items: flex-start; flex-direction: column; gap: 16px; }
-    .workspace-intro h1 { font-size: 24px; }
-    .intro-actions { flex-wrap: wrap; }
-    .intro-actions .compare-btn { flex: 1 1 100%; }
-    #samples { flex: 1; max-width: none; min-width: 0; }
-    .intro-actions .ghost-btn { min-height: 38px; }
-    .settings-bar { padding: 16px; gap: 14px 12px; }
-    .settings-bar > .setting { flex: 1 1 calc(50% - 12px); }
-    .settings-bar #fmt, .settings-bar #size-preset, .settings-bar #dpmm { min-width: 0; width: 100%; }
-    #custom-size { flex: 1 1 100%; gap: 8px; }
-    #custom-size .setting { flex: 1; width: auto; }
-    #custom-size .unit-setting { flex: 0 0 72px; }
-    .settings-toggles { flex: 1 1 100%; gap: 22px; }
-    .panel-header { padding: 10px 14px; }
-    .editor-actions { padding: 12px 14px; }
-    .editor-meta, .status-bar { padding-left: 14px; padding-right: 14px; }
-    .editor-panel { height: 430px; }
-    .preview-panel { height: 570px; }
-    #preview-scroll { padding: 20px; }
-    #line-numbers { min-width: 38px; padding-left: 8px; padding-right: 9px; }
-    #zpl-input { padding-right: 12px; }
-    .preview-actions { gap: 8px; }
-    #download-bar { margin-left: 0; }
-    .shortcut { display: none; }
-    details.about summary { font-size: 10px; }
-    .about-body { padding: 16px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
-  }
+<!-- Tabler UI 1.7.3 license
 "##,
+    include_str!("playground/vendor/TABLER-LICENSE"),
+    r##"-->
+<style>
+"##,
+    include_str!("playground/vendor/tabler-1.7.3.min.css"),
+    include_str!("playground/studio.css"),
     include_str!("playground/docs.css"),
     include_str!("playground/api.css"),
     r##"
@@ -479,7 +127,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 </head>
 <body>
 <noscript>
-  <div style="max-width:760px;margin:0 auto;padding:24px 20px;font-family:system-ui,sans-serif;line-height:1.6;color:var(--text)">
+  <style>.app-header,main,.about{display:none!important}body{display:block;overflow:auto}</style>
+  <div style="max-width:760px;margin:0 auto;padding:24px 20px;font-family:system-ui,sans-serif;line-height:1.6;color:var(--tblr-body-color)">
     <h1 style="font-size:20px">Labelize — free online ZPL, EPL, TSPL, CPCL &amp; DPL label viewer</h1>
     <p>
       Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra),
@@ -503,8 +152,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 </noscript>
 
 <header class="app-header">
-  <div class="logo">
-    <svg class="logo-icon" viewBox="374 246 520 471" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <div class="logo navbar-brand">
+    <svg class="logo-icon bg-white rounded p-1" viewBox="374 246 520 471" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="lzA" x1="0.08" y1="0.02" x2="0.95" y2="0.98"><stop offset="0%" stop-color="#10a7f5"/><stop offset="52%" stop-color="#167ce9"/><stop offset="100%" stop-color="#4734e9"/></linearGradient>
         <linearGradient id="lzB" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6425f3"/><stop offset="100%" stop-color="#7548ef"/></linearGradient>
@@ -516,41 +165,48 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     </svg>
     <span class="logo-text">Labelize</span>
   </div>
-  <nav class="app-nav" aria-label="Main navigation">
-    <a id="nav-playground" href="#playground" aria-current="page" data-i18n="nav.playground">Playground</a>
-    <a id="nav-docs" href="#docs/getting-started" data-i18n="nav.docs">Documentation</a>
-    <a id="nav-api" href="#api" data-i18n="nav.api">API</a>
+  <p class="brand-description text-secondary" data-i18n="studio.brand">A workspace for your next label.</p>
+  <span class="sidebar-label subheader" data-i18n="studio.workspace">Workspace</span>
+  <nav class="app-nav nav nav-pills" aria-label="Main navigation">
+    <a id="nav-playground" href="#playground" aria-current="page" data-i18n-aria="nav.playground" class="nav-link active bg-primary text-white"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h5M8 16h1m3 0h1m3 0h0"/></svg><span data-i18n="nav.playground">Playground</span></a>
+    <a id="nav-api" href="#api" data-i18n-aria="nav.api" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 16"/></svg><span data-i18n="nav.api">API</span></a>
+    <a id="nav-docs" href="#docs/getting-started" data-i18n-aria="nav.docs" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><path d="M12 5v15M3 4h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5v15h-5a4 4 0 0 0-4 2 4 4 0 0 0-4-2H3z"/></svg><span class="nav-full" data-i18n="nav.docs">Documentation</span><span class="nav-compact" data-i18n="studio.docsShort">Docs</span></a>
   </nav>
   <nav class="header-actions" aria-label="Resources and preferences" data-i18n-aria="nav.resources">
-    <a class="header-link" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener">GitHub ↗</a>
-    <select id="lang" class="hdr-select" aria-label="Language" data-i18n-aria="hdr.lang">
+    <span class="sidebar-label subheader" data-i18n="studio.preferences">Preferences</span>
+    <div class="preference-controls">
+    <select id="lang" class="hdr-select form-select form-select-sm" aria-label="Language" data-i18n-aria="hdr.lang">
     <option value="en">English</option>
     <option value="zh">简体中文</option>
   </select>
     <button id="theme-btn" type="button" title="Toggle theme" aria-label="Toggle theme"
-          data-i18n-title="hdr.theme" data-i18n-aria="hdr.theme">
-    <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          data-i18n-title="hdr.theme" data-i18n-aria="hdr.theme" class="btn btn-outline-secondary btn-icon btn-sm">
+    <svg class="icon-sun icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="5"/>
       <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
       <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
       <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
       <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
     </svg>
-    <svg class="icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg class="icon-moon icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </svg>
   </button>
+    </div>
+    <a class="header-link btn btn-ghost-secondary btn-sm" href="https://github.com/GOODBOY008/labelize" target="_blank" rel="noopener"><span data-i18n="studio.source">View source</span><span aria-hidden="true">↗</span></a>
+    <p class="sidebar-caption text-secondary">ZPL · EPL · TSPL<br>CPCL · DPL</p>
   </nav>
 </header>
 
 <main id="playground-view">
-  <section class="workspace-intro" aria-labelledby="workspace-title">
+  <section class="workspace-intro page-header" aria-labelledby="workspace-title">
     <div>
-      <h1 id="workspace-title" data-i18n="workspace.title">Label playground</h1>
-      <p data-i18n="workspace.description">Write, preview, and export your thermal labels.</p>
+      <p class="studio-kicker subheader" data-i18n="studio.labelWorkspace">LABEL WORKSPACE</p>
+      <h1 id="workspace-title" class="page-title" data-i18n="workspace.title">Label workspace</h1>
+      <p class="text-secondary" data-i18n="workspace.description">Edit printer code. Preview with precision.</p>
     </div>
     <div class="intro-actions">
-      <select id="samples" class="hdr-select" aria-label="Samples" data-i18n-aria="hdr.samples">
+      <select id="samples" class="hdr-select form-select form-select-sm" aria-label="Samples" data-i18n-aria="hdr.samples">
     <option value="" selected disabled data-i18n="hdr.samples">Samples</option>
     <option value="shipping" data-i18n="sample.shipping">Shipping label</option>
     <option value="barcodes" data-i18n="sample.barcodes">Barcodes &amp; 2D</option>
@@ -561,32 +217,35 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     <option value="dpl" data-i18n="sample.dpl">DPL showcase</option>
   </select>
       <input id="file-input" type="file" accept=".zpl,.epl,.tspl,.cpcl,.dpl">
-      <button id="open-file-btn" class="ghost-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <button id="open-file-btn" class="ghost-btn btn btn-outline-secondary btn-sm">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="icon">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
         <span data-i18n="btn.open">Open File</span>
       </button>
       <input id="img-input" type="file" accept="image/png,image/jpeg,image/gif,image/bmp,image/webp">
-      <button id="img2code-btn" class="ghost-btn" title="Turn an image into printer code — ZPL loads into the editor, TSPL downloads as a file (follows the Format selector)" data-i18n-title="tip.img2code">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <button id="img2code-btn" class="ghost-btn btn btn-outline-secondary btn-sm" title="Turn an image into printer code — ZPL loads into the editor, TSPL downloads as a file (follows the Format selector)" data-i18n-title="tip.img2code">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="icon">
           <rect x="3" y="3" width="18" height="18" rx="2"/>
           <circle cx="8.5" cy="8.5" r="1.5"/>
           <path d="M21 15l-5-5L5 21"/>
         </svg>
         <span data-i18n="btn.img2code">Image &rarr; Code</span>
       </button>
-      <button id="compare-btn" class="compare-btn" type="button">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg> <span data-i18n="btn.compare">Compare with Labelary</span>
+      <button id="compare-btn" class="compare-btn btn btn-outline-secondary btn-sm" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true" class="icon"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg> <span data-i18n="btn.compare">Compare with Labelary</span>
         <span id="compare-note" class="compare-note" hidden data-i18n="compare.zplOnly">ZPL only</span>
       </button>
     </div>
   </section>
 
-  <section class="settings-bar" aria-label="Label settings" data-i18n-aria="panel.settings">
+  <div class="studio-layout">
+  <section class="settings-bar card" aria-label="Label settings" data-i18n-aria="panel.settings">
+    <div class="inspector-heading card-header"><h2 class="card-title" data-i18n="panel.settings">Label settings</h2><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="icon"><path d="M4 7h16M4 17h16M9 4v6m6 4v6"/></svg></div>
+    <div class="settings-body card-body">
     <div class="setting">
-      <label for="fmt" data-i18n="field.format">Format</label>
-      <select id="fmt">
+      <label for="fmt" data-i18n="field.format" class="form-label">Format</label>
+      <select id="fmt" class="form-select form-select-sm">
           <option value="zpl" selected>ZPL</option>
           <option value="epl">EPL</option>
           <option value="tspl">TSPL</option>
@@ -595,8 +254,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
         </select>
     </div>
     <div class="setting">
-      <label for="size-preset" data-i18n="field.size">Label size</label>
-      <select id="size-preset">
+      <label for="size-preset" data-i18n="field.size" class="form-label">Label size</label>
+      <select id="size-preset" class="form-select form-select-sm">
           <option value="4x6" selected data-i18n="size.4x6">4 &times; 6 in</option>
           <option value="4x4" data-i18n="size.4x4">4 &times; 4 in</option>
           <option value="4x3" data-i18n="size.4x3">4 &times; 3 in</option>
@@ -608,69 +267,72 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     </div>
     <div id="custom-size">
       <div class="setting">
-        <label for="label-width" data-i18n="field.width">Width</label>
-        <input id="label-width" type="number" value="101.6" min="0" step="any" required>
+        <label for="label-width" data-i18n="field.width" class="form-label">Width</label>
+        <input id="label-width" type="number" value="101.6" min="0" step="any" required class="form-control form-control-sm">
       </div>
       <span class="size-sep" aria-hidden="true">×</span>
       <div class="setting">
-        <label for="label-height" data-i18n="field.height">Height</label>
-        <input id="label-height" type="number" value="152.4" min="0" step="any" required>
+        <label for="label-height" data-i18n="field.height" class="form-label">Height</label>
+        <input id="label-height" type="number" value="152.4" min="0" step="any" required class="form-control form-control-sm">
       </div>
       <div class="setting unit-setting">
-        <label for="size-unit" data-i18n="field.unit">Unit</label>
-        <select id="size-unit" aria-label="Size unit" data-i18n-aria="field.unit">
+        <label for="size-unit" data-i18n="field.unit" class="form-label">Unit</label>
+        <select id="size-unit" aria-label="Size unit" data-i18n-aria="field.unit" class="form-select form-select-sm">
           <option value="mm" selected data-i18n="unit.mm">mm</option>
           <option value="in" data-i18n="unit.in">in</option>
         </select>
       </div>
     </div>
     <div class="setting">
-      <label for="dpmm" data-i18n="field.resolution">Resolution</label>
-      <select id="dpmm">
+      <label for="dpmm" data-i18n="field.resolution" class="form-label">Resolution</label>
+      <select id="dpmm" class="form-select form-select-sm">
           <option value="6">6 dpmm</option>
           <option value="8" selected>8 dpmm</option>
           <option value="12">12 dpmm</option>
           <option value="24">24 dpmm</option>
         </select>
     </div>
+    <div class="settings-divider" aria-hidden="true"></div>
     <div class="setting" id="output-mode-wrap">
-      <label for="output-mode" data-i18n="field.outputMode">Output</label>
-      <select id="output-mode">
+      <label for="output-mode" data-i18n="field.outputMode" class="form-label">Output</label>
+      <select id="output-mode" class="form-select form-select-sm">
         <option value="raster" data-i18n="mode.raster">Raster</option>
         <option value="vector" data-i18n="mode.vector">Vector PDF / scalable PNG</option>
       </select>
     </div>
     <div class="setting" id="output-scale-wrap">
-      <label for="output-scale" data-i18n="field.outputScale">PNG scale</label>
-      <select id="output-scale" disabled>
+      <label for="output-scale" data-i18n="field.outputScale" class="form-label">PNG scale</label>
+      <select id="output-scale" disabled class="form-select form-select-sm">
         <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option>
       </select>
     </div>
     <div class="settings-toggles">
-      <label class="toggle" for="all-pdf-pages" id="all-pages-wrap">
-        <input type="checkbox" id="all-pdf-pages" disabled>
-        <span data-i18n="field.allPages">All PDF pages</span>
+      <label class="toggle form-check form-switch" for="all-pdf-pages" id="all-pages-wrap">
+        <input type="checkbox" id="all-pdf-pages" disabled class="form-check-input">
+        <span class="form-check-label" data-i18n="field.allPages">All PDF pages</span>
       </label>
-      <label class="toggle" for="auto-render" id="auto-wrap" title="Re-render automatically as you type" data-i18n-title="tip.auto">
-        <input type="checkbox" id="auto-render" checked>
-        <span data-i18n="btn.auto">Live preview</span>
+      <label class="toggle form-check form-switch" for="auto-render" id="auto-wrap" title="Re-render automatically as you type" data-i18n-title="tip.auto">
+        <input type="checkbox" id="auto-render" checked class="form-check-input">
+        <span class="form-check-label" data-i18n="btn.auto">Live preview</span>
       </label>
-      <label class="toggle" for="antialias" id="aa-wrap" title="Preserve grayscale antialiasing instead of thresholding to black/white" data-i18n-title="tip.aa">
-        <input type="checkbox" id="antialias">
-        <span data-i18n="btn.aa">Antialias</span>
+      <label class="toggle form-check form-switch" for="antialias" id="aa-wrap" title="Preserve grayscale antialiasing instead of thresholding to black/white" data-i18n-title="tip.aa">
+        <input type="checkbox" id="antialias" class="form-check-input">
+        <span class="form-check-label" data-i18n="btn.aa">Antialias</span>
       </label>
+    </div>
     </div>
   </section>
 
   <div class="workspace-panels">
-    <section class="editor-panel" aria-labelledby="source-heading">
-      <div class="panel-header">
-        <div class="panel-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 16"/></svg><h2 id="source-heading" data-i18n="panel.code">Source code</h2></div>
-        <button id="format-btn" class="fmt-btn" type="button" data-i18n="btn.format" data-i18n-title="tip.format" title="Reflow one command per line">Format code</button>
+    <section class="editor-panel card" aria-labelledby="source-heading">
+      <div class="panel-header card-header">
+        <div class="panel-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 16"/></svg><h2 id="source-heading" class="card-title" data-i18n="panel.code">Source code</h2></div>
+        <button id="format-btn" class="fmt-btn btn btn-ghost-secondary btn-sm" type="button" data-i18n="btn.format" data-i18n-title="tip.format" title="Reflow one command per line">Format code</button>
       </div>
+      <div class="source-caption text-secondary"><span data-i18n="studio.sourceCaption">PRINTER COMMANDS</span><span data-i18n="studio.plainText">Plain text</span></div>
       <div class="editor-body">
         <pre id="line-numbers" aria-hidden="true">1</pre>
-        <textarea id="zpl-input" aria-label="Label source code" data-i18n-aria="panel.sourceLabel" wrap="off" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">^XA
+        <textarea id="zpl-input" aria-label="Label source code" data-i18n-aria="panel.sourceLabel" wrap="off" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" class="form-control">^XA
 ^FX Top section with logo, name and address.
 ^CF0,60
 ^FO50,50^GB100,100,100^FS
@@ -699,76 +361,76 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 ^FO100,850^BY2,3,60^BQ,,2^FDQA,https://github.com/GOODBOY008/labelize^FS
 ^XZ</textarea>
       </div>
-      <div class="editor-meta">
+      <div class="editor-meta text-secondary">
         <span id="syntax-status" class="syntax-status" aria-live="polite"></span>
         <span id="caret-pos" aria-live="off"></span>
       </div>
-      <div class="editor-actions">
-        <button id="share-btn" class="ghost-btn" title="Copy a permalink to this label" data-i18n-title="tip.share">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <div class="editor-actions card-footer">
+        <button id="share-btn" class="ghost-btn btn btn-outline-secondary btn-sm" title="Copy a permalink to this label" data-i18n-title="tip.share">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="icon">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
         </svg>
         <span data-i18n="btn.share">Share</span>
       </button>
-        <button id="render-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l14-8z"/></svg> <span data-i18n="btn.render">Render</span> <span class="shortcut">Ctrl+&#9166;</span>
+        <button id="render-btn" class="btn btn-primary btn-sm">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="icon"><path d="M7 4v16l14-8z"/></svg> <span data-i18n="btn.render">Render</span> <span class="shortcut">Ctrl+&#9166;</span>
       </button>
       </div>
     </section>
 
-    <section class="preview-panel" aria-labelledby="preview-heading">
-      <div class="panel-header">
-        <div class="panel-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h5M8 15v3m3-3v3m2-3v3m3-3v3"/></svg><h2 id="preview-heading" data-i18n="panel.preview">Label preview</h2></div>
+    <section class="preview-panel card" aria-labelledby="preview-heading">
+      <div class="panel-header card-header">
+        <div class="panel-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h5M8 15v3m3-3v3m2-3v3m3-3v3"/></svg><h2 id="preview-heading" class="card-title" data-i18n="panel.preview">Label preview</h2></div>
         <div id="zoom-ctrl">
-      <button id="zoom-out" type="button" title="Zoom out" data-i18n-title="tip.zoomOut">&minus;</button>
+      <button id="zoom-out" type="button" title="Zoom out" data-i18n-title="tip.zoomOut" class="btn btn-ghost-secondary btn-icon btn-sm">&minus;</button>
       <span id="zoom-label">Fit</span>
-      <button id="zoom-in" type="button" title="Zoom in" data-i18n-title="tip.zoomIn">+</button>
-      <button id="zoom-fit" type="button" title="Fit label to preview" aria-label="Fit label to preview" data-i18n-title="tip.zoomFit" data-i18n-aria="tip.zoomFit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
+      <button id="zoom-in" type="button" title="Zoom in" data-i18n-title="tip.zoomIn" class="btn btn-ghost-secondary btn-icon btn-sm">+</button>
+      <button id="zoom-fit" type="button" title="Fit label to preview" aria-label="Fit label to preview" data-i18n-title="tip.zoomFit" data-i18n-aria="tip.zoomFit" class="btn btn-ghost-secondary btn-icon btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="icon"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
     </div>
       </div>
       <div id="loading">
-      <div class="spinner"></div>
-      <span class="loading-text" id="loading-text" data-i18n="loading.render">Rendering&hellip;</span>
+      <div class="spinner spinner-border spinner-border-sm text-secondary"></div>
+      <span class="loading-text text-secondary" id="loading-text" data-i18n="loading.render">Rendering&hellip;</span>
     </div>
       <div id="preview-scroll">
         <div class="empty-state" id="empty-state">
-          <svg class="empty-art" width="76" height="88" viewBox="0 0 76 88" fill="none" aria-hidden="true">
-            <rect x="10" y="4" width="56" height="76" rx="7" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+          <svg class="empty-art text-secondary" width="76" height="88" viewBox="0 0 76 88" fill="none" aria-hidden="true">
+            <rect x="10" y="4" width="56" height="76" rx="7" fill="var(--tblr-bg-surface)" stroke="var(--tblr-border-color)" stroke-width="1.5"/>
             <path d="M23 22h30M23 30h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <path d="M23 47v15m5-15v15m3-15v15m6-15v15m4-15v15m6-15v15m5-15v15" stroke="currentColor" stroke-width="2"/>
-            <path d="M27 70h22" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M27 70h22" stroke="var(--tblr-border-color)" stroke-width="2" stroke-linecap="round"/>
           </svg>
           <h3 data-i18n="empty.heading">Preview your label</h3>
-          <p data-i18n-html="empty.title">Choose your settings, then press <strong>Render</strong> to see the result.</p>
+          <p class="text-secondary" data-i18n-html="empty.title">Choose your settings, then press <strong>Render</strong> to see the result.</p>
           <div class="empty-shortcut"><kbd>Ctrl + Enter</kbd></div>
         </div>
-        <div id="error-banner" role="alert"></div>
+        <div id="error-banner" class="alert alert-danger" role="alert"></div>
         <img id="preview-img" alt="Rendered label" data-i18n-alt="alt.preview">
         <div id="compare-section">
-        <div class="verdict-row">
-          <span id="verdict-badge" class="verdict-badge"></span>
-          <span id="verdict-meta" class="verdict-meta"></span>
+        <div class="verdict-row card">
+          <span id="verdict-badge" class="verdict-badge badge"></span>
+          <span id="verdict-meta" class="verdict-meta text-secondary"></span>
         </div>
         <div class="compare-grid">
-          <div class="compare-col">
-            <span class="col-title" data-i18n="compare.ref">Labelary &mdash; reference</span>
+          <div class="compare-col card">
+            <span class="col-title text-secondary" data-i18n="compare.ref">Labelary &mdash; reference</span>
             <img id="compare-labelary" alt="Labelary reference render" data-i18n-alt="alt.labelary">
           </div>
-          <div class="compare-col">
-            <span class="col-title">Labelize</span>
+          <div class="compare-col card">
+            <span class="col-title text-secondary">Labelize</span>
             <img id="compare-labelize" alt="Labelize render" data-i18n-alt="alt.labelize">
           </div>
-          <div class="compare-col">
-            <span class="col-title" data-i18n="compare.diff">Diff &mdash; red = differing pixels</span>
+          <div class="compare-col card">
+            <span class="col-title text-secondary" data-i18n="compare.diff">Diff &mdash; red = differing pixels</span>
             <img id="compare-diff" alt="Diff overlay" data-i18n-alt="alt.diff">
           </div>
         </div>
       </div>
       </div>
-      <div id="download-bar" class="preview-actions">
-        <a id="dl-png" class="dl-btn dl-btn-png" href="#" download="label.png" title="Download PNG" aria-label="Download PNG" data-i18n-title="dl.png" data-i18n-aria="dl.png">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <div id="download-bar" class="preview-actions card-footer">
+        <a id="dl-png" class="dl-btn dl-btn-png btn btn-outline-secondary btn-sm" href="#" download="label.png" title="Download PNG" aria-label="Download PNG" data-i18n-title="dl.png" data-i18n-aria="dl.png">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="icon">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
@@ -776,43 +438,45 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
           <span>PNG</span>
         </a>
 
-        <button id="copy-img-btn" class="dl-btn dl-btn-png icon-only" title="Copy PNG to clipboard"
+        <button id="copy-img-btn" class="dl-btn dl-btn-png icon-only btn btn-outline-secondary btn-sm btn-icon" title="Copy PNG to clipboard"
                 data-i18n-title="tip.copyImg" aria-label="Copy PNG to clipboard" data-i18n-aria="tip.copyImg">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="icon">
             <rect x="9" y="9" width="13" height="13" rx="2"/>
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
           </svg>
         </button>
 
-        <button id="dl-pdf" class="dl-btn dl-btn-pdf" title="Download PDF" aria-label="Download PDF" data-i18n-title="dl.pdf" data-i18n-aria="dl.pdf">
-          <svg class="dl-icon-pdf" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <button id="dl-pdf" class="dl-btn dl-btn-pdf btn btn-outline-secondary btn-sm" title="Download PDF" aria-label="Download PDF" data-i18n-title="dl.pdf" data-i18n-aria="dl.pdf">
+          <svg class="dl-icon-pdf icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          <span class="mini-spinner"></span>
+          <span class="mini-spinner spinner-border spinner-border-sm"></span>
           <span>PDF</span>
         </button>
       </div>
-      <div class="status-bar">
+      <div class="status-bar text-secondary">
         <span id="status-text" aria-live="polite"></span>
         <span id="status-size"></span>
         <span id="status-time"></span>
       </div>
-      <div id="toast" role="status"></div>
+      <div id="toast" class="toast" role="status"></div>
     </section>
+  </div>
   </div>
 </main>
 
 <main id="docs-view" hidden aria-label="Documentation">
+  <header class="docs-heading"><p class="studio-kicker subheader" data-i18n="studio.knowledge">KNOWLEDGE BASE</p><h2 class="page-title" data-i18n="nav.docs">Documentation</h2><p class="text-secondary" data-i18n="studio.docsDescription">A practical guide from your first label to your own integration.</p></header>
   <aside class="docs-sidebar">
-    <label for="docs-search" data-i18n="docs.search">Search documentation</label>
-    <input id="docs-search" type="search" placeholder="Size, barcode, HTTP…" autocomplete="off">
-    <p id="docs-results" role="status"></p>
-    <nav id="docs-nav" aria-label="Documentation guides"></nav>
+    <label for="docs-search" data-i18n="docs.search" class="form-label">Search documentation</label>
+    <input id="docs-search" type="search" placeholder="Search guides…" data-i18n-placeholder="studio.searchPlaceholder" autocomplete="off" class="form-control form-control-sm">
+    <p id="docs-results" class="text-secondary" role="status"></p>
+    <nav id="docs-nav" class="nav nav-pills flex-column" aria-label="Documentation guides"></nav>
   </aside>
-  <div><p id="docs-message" role="status"></p><article id="docs-article" class="docs-article" lang="en"></article></div>
-  <nav id="docs-outline" class="docs-outline" aria-label="On this page"></nav>
+  <div class="docs-content"><p id="docs-message" class="text-secondary" role="status"></p><article id="docs-article" class="docs-article markdown" lang="en"></article></div>
+  <nav id="docs-outline" class="docs-outline nav flex-column" aria-label="On this page"></nav>
 </main>
 "##,
     include_str!("playground/docs.html"),
@@ -821,9 +485,9 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     include_str!("playground/openapi.json"),
     r##"</script>"##,
     r##"
-<details class="about">
+<details class="about text-secondary">
   <summary data-i18n="about.summary">About Labelize · FAQ · Open source (MIT)</summary>
-  <div class="about-body">
+  <div class="about-body markdown">
     <h1 data-i18n-html="about.h1">Labelize — free online ZPL, EPL, TSPL, CPCL &amp; DPL label viewer</h1>
     <p data-i18n-html="about.pitch">Labelize renders thermal-printer label code — <strong>ZPL</strong> (Zebra), <strong>EPL</strong> (Eltron), <strong>TSPL/TSC</strong>, <strong>CPCL</strong> (Zebra mobile) and <strong>DPL</strong> (Datamax-O'Neil) — to PNG images or PDF documents. Paste your label code above, press <strong>Render</strong>, or explore the built-in samples.</p>
     <ul data-i18n-html="about.features"></ul>
@@ -863,16 +527,22 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 
   /* ── i18n ──
      Static text is tagged with data-i18n / data-i18n-html / data-i18n-title /
-     data-i18n-aria / data-i18n-alt and swapped by applyI18n(); dynamic strings
+     data-i18n-aria / data-i18n-alt / data-i18n-placeholder and swapped by applyI18n(); dynamic strings
      go through t(key) and fmt(t(key), {placeholder: value}). */
   var I18N = {
     en: {
+      "studio.brand": "A workspace for your next label.",
+      "studio.workspace": "Workspace", "studio.preferences": "Preferences", "studio.source": "View source",
+      "studio.docsShort": "Docs", "studio.labelWorkspace": "LABEL WORKSPACE",
+      "studio.sourceCaption": "PRINTER COMMANDS", "studio.plainText": "Plain text",
+      "studio.knowledge": "KNOWLEDGE BASE", "studio.docsDescription": "A practical guide from your first label to your own integration.",
+      "studio.searchPlaceholder": "Search guides…", "studio.endpointReference": "Endpoint reference",
       "nav.playground": "Playground",
       "nav.resources": "Resources and preferences",
       "nav.docs": "Documentation",
       "docs.search": "Search documentation",
-      "workspace.title": "Label playground",
-      "workspace.description": "Write, preview, and export your thermal labels.",
+      "workspace.title": "Label workspace",
+      "workspace.description": "Edit printer code. Preview with precision.",
       "panel.settings": "Label settings",
       "panel.sourceLabel": "Label source code",
       "field.resolution": "Resolution",
@@ -1000,12 +670,18 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       "alt.diff": "Diff overlay"
     },
     zh: {
+      "studio.brand": "从一段指令，到一张标签。",
+      "studio.workspace": "工作空间", "studio.preferences": "偏好设置", "studio.source": "查看源代码",
+      "studio.docsShort": "文档", "studio.labelWorkspace": "标签工作空间",
+      "studio.sourceCaption": "打印指令", "studio.plainText": "纯文本",
+      "studio.knowledge": "知识库", "studio.docsDescription": "从第一张标签，到接入自己的应用。",
+      "studio.searchPlaceholder": "搜索使用指南…", "studio.endpointReference": "接口说明",
       "docs.search": "搜索文档",
       "nav.playground": "在线预览",
       "nav.resources": "资源与偏好设置",
       "nav.docs": "使用文档",
       "workspace.title": "标签工作台",
-      "workspace.description": "编写、预览并导出你的热敏标签。",
+      "workspace.description": "编辑打印指令，精确预览每一张标签。",
       "panel.settings": "标签设置",
       "panel.sourceLabel": "标签源代码",
       "field.resolution": "分辨率",
@@ -1390,7 +1066,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
     document.title = t("app.title");
 
     var els = document.querySelectorAll(
-      "[data-i18n],[data-i18n-html],[data-i18n-title],[data-i18n-aria],[data-i18n-alt]");
+      "[data-i18n],[data-i18n-html],[data-i18n-title],[data-i18n-aria],[data-i18n-alt],[data-i18n-placeholder]");
     for (var i = 0; i < els.length; i++) {
       var el = els[i], k;
       k = el.getAttribute("data-i18n");       if (k) el.textContent = t(k);
@@ -1398,6 +1074,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       k = el.getAttribute("data-i18n-title"); if (k) el.setAttribute("title", t(k));
       k = el.getAttribute("data-i18n-aria");  if (k) el.setAttribute("aria-label", t(k));
       k = el.getAttribute("data-i18n-alt");   if (k) el.setAttribute("alt", t(k));
+      k = el.getAttribute("data-i18n-placeholder"); if (k) el.setAttribute("placeholder", t(k));
     }
     updateCompareState();
     updateCaret();
@@ -1414,9 +1091,14 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   var rootEl = document.documentElement;
   var schemeMq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
 
+  function applyTheme(theme) {
+    rootEl.setAttribute("data-theme", theme);
+    rootEl.setAttribute("data-bs-theme", theme);
+  }
+
   themeBtn.addEventListener("click", function () {
     var next = rootEl.getAttribute("data-theme") === "light" ? "dark" : "light";
-    rootEl.setAttribute("data-theme", next);
+    applyTheme(next);
     store.set("labelize-theme", next);
   });
 
@@ -1424,7 +1106,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   if (schemeMq) {
     var onSchemeChange = function () {
       if (store.get("labelize-theme") === null) {
-        rootEl.setAttribute("data-theme", schemeMq.matches ? "light" : "dark");
+        applyTheme(schemeMq.matches ? "light" : "dark");
       }
     };
     if (schemeMq.addEventListener) schemeMq.addEventListener("change", onSchemeChange);
@@ -1847,7 +1529,7 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
         compareImgD.src = r.diffCanvas.toDataURL("image/png");
 
         verdictBadge.textContent = v.name;
-        verdictBadge.className = "verdict-badge " + v.cls;
+        verdictBadge.className = "verdict-badge badge " + v.cls;
         verdictBadge.title = t(v.note);
         verdictMeta.textContent = r.pct.toFixed(2) + "%  \u00b7  Labelary " + r.bw + "\u00d7" + r.bh +
           "  \u00b7  Labelize " + r.aw + "\u00d7" + r.ah + "  \u00b7  " + elapsed + " ms  \u00b7  " + t(v.note);

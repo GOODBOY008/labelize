@@ -1,5 +1,5 @@
   Object.assign(I18N.en, {
-    "nav.api": "API", "api.eyebrow": "Developer tools", "api.title": "API console",
+    "nav.api": "API", "api.eyebrow": "INTEGRATION WORKSPACE", "api.title": "API console",
     "api.intro": "Test a request, inspect the result, then use the same call in your script.",
     "api.guide": "API guide & automation", "api.spec": "OpenAPI JSON ↓", "api.request": "Request",
     "api.endpoint": "Endpoint", "api.input": "Input", "api.text": "Text", "api.file": "File (raw bytes)",
@@ -8,7 +8,7 @@
     "api.send": "Send request", "api.cancel": "Cancel", "api.access": "Public API · No signup", "api.url": "Request URL",
     "api.response": "Response", "api.download": "Download response ↓", "api.ready": "Ready when you are. Send a request to see the response.",
     "api.status": "HTTP status", "api.elapsed": "Elapsed", "api.bytes": "Size", "api.headers": "Response headers", "api.image": "API PNG response",
-    "api.examples": "Take it to your script", "api.examplesHelp": "Examples follow the request above. JavaScript uses Node.js 20+; Python uses the standard library.",
+    "api.examples": "Code examples", "api.examplesHelp": "Examples follow the request above. JavaScript uses Node.js 20+; Python uses the standard library.",
     "api.exampleLanguage": "Example language", "api.copy": "Copy example", "api.default": "Detect automatically",
     "api.sending": "Sending request…", "api.complete": "Response received.", "api.cancelled": "Request cancelled.",
     "api.networkError": "Request failed: ", "api.validationFailed": "Validation failed: ", "api.fileRequired": "Choose a file before sending.",
@@ -22,7 +22,7 @@
     "api.param.scale": "PNG scale", "api.param.pages": "PDF pages", "api.param.language": "Language", "api.param.threshold": "Threshold"
   });
   Object.assign(I18N.zh, {
-    "nav.api": "API", "api.eyebrow": "开发者工具", "api.title": "API 调试台",
+    "nav.api": "API", "api.eyebrow": "API 调试工作台", "api.title": "API 调试台",
     "api.intro": "发送请求、查看响应，然后把同样的调用用于自己的脚本。",
     "api.guide": "API 文档与自动转换", "api.spec": "OpenAPI JSON ↓", "api.request": "请求",
     "api.endpoint": "接口", "api.input": "输入方式", "api.text": "文本", "api.file": "文件（原始字节）",
@@ -31,7 +31,7 @@
     "api.send": "发送请求", "api.cancel": "取消", "api.access": "公开 API · 无需注册", "api.url": "请求地址",
     "api.response": "响应", "api.download": "下载响应 ↓", "api.ready": "发送请求后，即可在此查看响应。",
     "api.status": "HTTP 状态", "api.elapsed": "耗时", "api.bytes": "大小", "api.headers": "响应头", "api.image": "API 返回的 PNG 图片",
-    "api.examples": "在脚本中调用", "api.examplesHelp": "示例跟随上方请求更新。JavaScript 使用 Node.js 20+；Python 只需标准库。",
+    "api.examples": "代码示例", "api.examplesHelp": "示例跟随上方请求更新。JavaScript 使用 Node.js 20+；Python 只需标准库。",
     "api.exampleLanguage": "示例语言", "api.copy": "复制示例", "api.default": "自动检测",
     "api.sending": "正在发送请求…", "api.complete": "已收到响应。", "api.cancelled": "请求已取消。",
     "api.networkError": "请求失败：", "api.validationFailed": "校验未通过：", "api.fileRequired": "请先选择文件。",
@@ -68,6 +68,7 @@
     function setMessage(text, error) {
       message.textContent = text;
       message.dataset.error = error ? "true" : "false";
+      message.className = error ? "alert alert-danger" : "text-secondary";
       // A response message has runtime content; language changes must not
       // replace an error with the initial ready message.
       message.removeAttribute("data-i18n");
@@ -116,6 +117,7 @@
         var parameter = apiResolve(spec, item), schema = parameter.schema;
         var group = document.createElement("div"), label = document.createElement("label");
         group.className = "api-parameter";
+        label.className = "form-label";
         label.htmlFor = "api-param-" + parameter.name;
         label.textContent = t("api.param." + parameter.name);
         group.appendChild(label);
@@ -139,6 +141,7 @@
           if (schema.maximum != null) control.max = schema.maximum;
         }
         control.id = label.htmlFor;
+        control.className = schema.enum || schema.type === "boolean" ? "form-select form-select-sm" : "form-control form-control-sm";
         control.title = parameter.description || "";
         var initial = defaults[parameter.name];
         // Encoding only accepts ZPL/TSPL targets, even when the playground

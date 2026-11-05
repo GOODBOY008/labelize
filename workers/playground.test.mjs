@@ -10,6 +10,38 @@ const source = readFileSync(new URL('../src/playground.rs', import.meta.url), 'u
     [...includes.matchAll(/include_str!\("([^"]+)"\)/g)].map(([, path]) => readFileSync(new URL('../src/' + path, import.meta.url), 'utf8')).join(''));
 const upload = source.slice(source.indexOf('  /* ── Image → Code'), source.indexOf('  fileInput.addEventListener("change"'));
 const params = source.slice(source.indexOf('  var SIZE_PRESETS ='), source.indexOf('  function buildUrl('));
+
+test('saved, system and manually selected themes stay synchronized with Tabler', () => {
+  const prepaint = /<script>\s*\/\* Apply the saved[\s\S]*?<\/script>/.exec(source)[0]
+    .replace(/^<script>|<\/script>$/g, '');
+  const runtime = source.slice(source.indexOf('  /* ── Theme ── */'), source.indexOf('  /* ── Settings ── */'));
+  for (const initial of [null, 'light', 'dark']) {
+    let saved = initial, systemListener, click;
+    const attributes = {};
+    const root = { setAttribute: (name, value) => attributes[name] = value, getAttribute: name => attributes[name] };
+    const media = { matches: true, addEventListener: (_, listener) => systemListener = listener };
+    const context = {
+      document: { documentElement: root }, window: { matchMedia: () => media },
+      localStorage: { getItem: () => saved },
+      store: { get: () => saved, set: (_, value) => saved = value },
+      themeBtn: { addEventListener: (_, listener) => click = listener },
+    };
+    runInNewContext(prepaint + runtime, context);
+    assert.equal(attributes['data-theme'], initial || 'light');
+    assert.equal(attributes['data-bs-theme'], initial || 'light');
+    media.matches = false;
+    systemListener();
+    assert.equal(attributes['data-theme'], initial || 'dark');
+    assert.equal(attributes['data-bs-theme'], initial || 'dark');
+    click();
+    const manual = initial === 'light' ? 'dark' : 'light';
+    assert.equal(saved, manual);
+    systemListener();
+    assert.equal(attributes['data-theme'], manual);
+    assert.equal(attributes['data-bs-theme'], manual);
+  }
+});
+
 function element(value = '') {
   return { value, style: {}, disabled: false, listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; }, click() {}, focus() {}, remove() {} };
 }
