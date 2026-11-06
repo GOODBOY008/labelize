@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "renderer": "Labelary public API",
+  "capture_date": "2026-11-06",
+  "dpmm": 8,
+  "primary_references": [
+    "https://labelary.com/reference.html",
+    "https://cpws.zebra.com/cpws/docs/zpl/zpl-zbi2-pm-en.pdf"
+  ],
+  "notes": [
+    "Synthetic ASCII fields; no physical printer validation.",
+    "PNG responses preserved byte-for-byte; decimal API inch sizes floor to the recorded pixel dimensions.",
+    "Render tests use recorded PNG dimensions and never align or regenerate references."
+  ],
+  "captures": [
+    {
+      "id": "direction_rotation_R_R",
+      "source": "direction_rotation_R_R.zpl",
+      "reference": "direction_rotation_R_R.png",
+      "source_sha256": "0b4f3a3a96005c69ee5e7278f0fbfebc59d5f3a497f0bfcaceadc3028d8ee2a4",
+      "reference_sha256": "8803018ab7b43c0d509d4b040de35456c9c2311a843aaffd0622a0136a511f0f",
+      "reference_size": [
+        1023,
+        1023
+      ],
+      "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/5.04x5.04/0/"
+    },
+    {
+      "id": "direction_rotation_V_R",
+      "source": "direction_rotation_V_R.zpl",
+      "reference": "direction_rotation_V_R.png",
+      "source_sha256": "2abfde62a7d1d4011f98de5f067d77aa7268e4cfc9ce79929b2d8c0070c5c69a",
+      "reference_sha256": "0cd4a8ebf2334c97dfde76100718db49e0d91c29229edbe389227a8bef7df085",
+      "reference_size": [
+        1023,
+        1023
+      ],
+      "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/5.04x5.04/0/"
+    },
+    {
+      "id": "FO_direction_alignments",
+      "source": "FO_direction_alignments.zpl",
+      "reference": "FO_direction_alignments.png",
+      "source_sha256": "7532ba0444a2f764d293561d0dea175d8200e31a47cf0617f3452ee0eaa8f47b",
+      "reference_sha256": "5eea35ba32db0ad1f005c63224ffd0122bdbcd456a0d8044ecc6173cdcf36012",
+      "reference_size": [
+        2046,
+        1023
+      ],
+      "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/10.08x5.04/0/"
+    },
+    {
+      "id": "FB_alignment_gaps",
+      "source": "FB_alignment_gaps.zpl",
+      "reference": "FB_alignment_gaps.png",
+      "source_sha256": "0d7da3255d6e5bed8f651e7cb18ef284916947b4b97745df67c74f823b2b1ab7",
+      "reference_sha256": "27ed58a6cb3e71934e7fde5a87f0e4191cf3a05e55f0eb95cceba2ff0071a07f",
+      "reference_size": [
+        2046,
+        1023
+      ],
+      "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/10.08x5.04/0/"
+    },
+    {
+      "id": "block_gap_comparison",
+      "source": "block_gap_comparison.zpl",
+      "reference": "block_gap_comparison.png",
+      "source_sha256": "f5084119978036bcd4c4259791017ff07b0b17a167a0d77b4cd8be35b27bbbb6",
+      "reference_sha256": "e915e0219f3ffe60a7f3a2fd63b2f2af82779d9c0b655e7e88b23734b2b16640",
+      "reference_size": [
+        1023,
+        1023
+      ],
+      "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/5.04x5.04/0/"
+    },
+    {
+      "id": "block_R",
+      "source": "block_R.zpl",
+      "reference": "block_R.png",
+      "source_sha256": "0c3288fe87d20ae18d1b2398333b71dc158bd9bb6f2036365b44228bc04d1a6b",
+      "reference_sha256": "2171738ad6c5129b68d2c91cd9277d875867a8eb0c20b4f936f931cd951af7ec",
+      "reference_size": [
+        1023,
+        1023
+      ],
+      "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/5.04x5.04/0/"
+    }
+  ]
+}

@@ -564,6 +564,7 @@ fn parse_text(line: &str, state: &mut TsplState) -> Result<(), String> {
 
     let font = super::fonts::resident_font(&font_id);
     state.elements.push(LabelElement::Text(TextField {
+        flow: Default::default(),
         reverse_print: ReversePrint::default(),
         font: FontInfo {
             name: font_id,

@@ -17,6 +17,22 @@ Specialized fixtures keep their provenance beside the data:
 
 ## ZPL and EPL
 
+`testdata/unit/field_parameters.zpl` is a synthetic, independent Labelary
+reference for text direction and additional character spacing, captured on
+November 6, 2026 at 8 dots/mm and 813 x 1626 pixels. Its adjacent provenance
+JSON records the original source and PNG hashes. This covers fonts 0/A,
+positive and negative gaps, upright reverse/vertical text and field reset;
+it does not establish physical Zebra printer behavior. Detailed measurements
+are in [Rendering behavior](RENDERING_NOTES.md#field-parameters).
+
+Six additional frozen captures under `testdata/field-parameters/` cover
+rotated `^FO`/`^FT` origins, explicit origin alignment, field-block alignment,
+vertical wrapping and reverse-before-wrap ordering. Their portable
+[`provenance.json`](../testdata/field-parameters/provenance.json) records
+the exact inputs, independent PNG hashes and actual canvas dimensions.
+The interaction tests measure individual fields in raster and vector output;
+they do not fit or realign an erroneous rendered field to the reference.
+
 
 `testdata/labels/` contains captured labels, adapted production templates and
 synthetic carrier demos. The tables below distinguish those origins. Current

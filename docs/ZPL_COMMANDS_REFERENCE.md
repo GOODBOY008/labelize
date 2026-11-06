@@ -315,6 +315,7 @@ The following commands are currently implemented in this project:
 - `^FO` - Field origin
 - `^FT` - Field typeset
 - `^FW` - Field orientation
+- `^FP` - Upright text direction and additional character spacing ([measured behavior](RENDERING_NOTES.md#field-parameters))
 - `^FD` - Field data
 - `^FS` - Field separator
 - `^FB` - Field block

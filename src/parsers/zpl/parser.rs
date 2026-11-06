@@ -26,6 +26,7 @@ use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
+use crate::elements::text_flow::{TextDirection, TextFlow};
 use crate::hex;
 
 use super::command_utils::*;
@@ -289,6 +290,11 @@ impl ZplParser {
         // Field block
         if upper.starts_with("^FB") {
             self.parse_field_block(command);
+            return Ok(None);
+        }
+        // Field print direction and extra character spacing
+        if upper.starts_with("^FP") {
+            self.parse_field_parameter(command);
             return Ok(None);
         }
         // Field data
@@ -795,6 +801,27 @@ impl ZplParser {
             }
         }
         self.printer.next_element_position = pos.add(&self.printer.label_home_position);
+    }
+
+    fn parse_field_parameter(&mut self, command: &str) {
+        let parts = split_command(command, "^FP");
+        let direction = match parts.first().and_then(|s| s.trim().as_bytes().first()) {
+            Some(b'V' | b'v') => TextDirection::Vertical,
+            Some(b'R' | b'r') => TextDirection::Reverse,
+            _ => TextDirection::Horizontal,
+        };
+        let character_spacing = parts
+            .get(1)
+            .and_then(|s| parse_int(s))
+            .unwrap_or(0)
+            .clamp(-10, 9999);
+        self.printer.next_text_flow = TextFlow {
+            direction,
+            // Vertical placement ignores the gap, but field-block wrapping
+            // still measures it. Retain the requested horizontal spacing.
+            character_spacing,
+            ..Default::default()
+        };
     }
 
     fn parse_field_block(&mut self, command: &str) {

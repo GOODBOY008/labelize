@@ -223,6 +223,34 @@ pub fn with_adjusted_sizes(font: &FontInfo) -> FontInfo {
     }
 }
 
+/// Width-derived cell height used by Labelary's extra-spacing limit. The
+/// original body matrix, rather than the substitute's advance, controls it.
+pub(crate) fn spacing_limit_height(source: &FontInfo, resolved: &FontInfo) -> f64 {
+    if source.name == "P" {
+        // This resident face has a separately measured limit: resolved
+        // widths 18/36 accept gaps 162/324, then drop 163/325 to zero.
+        // The other resident faces do not share this multiplier.
+        0.9 * resolved.width
+    } else if let Some(matrix) = bitmap_font_sizes().get(source.name.as_str()) {
+        let base_height = matrix[0];
+        // Font A's stored advance includes its one-dot natural spacing;
+        // its original glyph body is five dots wide.
+        let body_width = if source.name == "A" { 5.0 } else { matrix[1] };
+        let magnitude = if source.width > 0.0 {
+            (source.width / body_width).round().max(1.0)
+        } else if source.height > 0.0 {
+            (source.height / base_height).round().max(1.0)
+        } else {
+            1.0
+        };
+        base_height * magnitude
+    } else if source.width > 0.0 {
+        source.width
+    } else {
+        resolved.width
+    }
+}
+
 /// The multiplier decouples ONLY the pen advance: glyph ink is still laid out
 /// with the substitute's own shape width (`scale.x` unchanged), so glyph
 /// rasterization and the vertical model are untouched. Fonts 0, 1 and P–V have
