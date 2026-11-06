@@ -255,6 +255,7 @@ fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
             };
 
             Ok(Some(LabelElement::Text(TextField {
+                flow: Default::default(),
                 reverse_print: ReversePrint {
                     value: reverse == "R",
                 },

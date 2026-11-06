@@ -98,6 +98,7 @@ impl RecalledFormat {
                                     width_ratio: 0.0,
                                     height: 0,
                                     current_charset: 0,
+                                    text_flow: Default::default(),
                                 },
                             },
                             data: rfd.data,

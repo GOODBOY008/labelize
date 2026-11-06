@@ -11,6 +11,7 @@ use crate::elements::label_position::LabelPosition;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::StoredFormat;
 use crate::elements::stored_graphics::StoredGraphics;
+use crate::elements::text_flow::TextFlow;
 
 pub struct VirtualPrinter {
     pub stored_graphics: HashMap<String, StoredGraphics>,
@@ -30,6 +31,7 @@ pub struct VirtualPrinter {
     pub next_download_format_name: String,
     pub next_hex_escape_char: u8,
     pub next_element_field_reverse: bool,
+    pub next_text_flow: TextFlow,
     pub label_reverse: bool,
     pub default_barcode_dimensions: BarcodeDimensions,
     pub current_charset: i32,
@@ -95,6 +97,7 @@ impl Default for VirtualPrinter {
             next_download_format_name: String::new(),
             next_hex_escape_char: 0,
             next_element_field_reverse: false,
+            next_text_flow: TextFlow::default(),
             label_reverse: false,
             default_barcode_dimensions: BarcodeDimensions::default(),
             current_charset: 0,
@@ -174,6 +177,7 @@ impl VirtualPrinter {
             width_ratio: self.default_barcode_dimensions.width_ratio,
             height: self.default_barcode_dimensions.height,
             current_charset: self.current_charset,
+            text_flow: self.next_text_flow,
         }
     }
 
@@ -191,6 +195,7 @@ impl VirtualPrinter {
             .unwrap_or_else(|| self.default_font.clone());
         self.next_font = None;
         self.next_element_field_reverse = false;
+        self.next_text_flow = TextFlow::default();
         self.next_hex_escape_char = 0;
     }
 

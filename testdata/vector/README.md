@@ -61,7 +61,7 @@ quantity, physical dimensions, overrides, and separate numbered CLI files.
 ## Run the checks
 
 ```sh
-cargo test --locked --features serve,vector --test e2e_vector_visual --test e2e_vector_output
+cargo test --locked --features serve,vector --test e2e_vector_visual --test e2e_vector_output --test e2e_field_parameter_pdf
 python -m pip install -r e2e/vector/requirements.txt
 # Install Poppler's pdftotext/pdftoppm with the platform package manager.
 python -m unittest discover -s e2e/vector -p 'test_*.py' -v
@@ -71,6 +71,9 @@ python e2e/vector/verify_pdf.py --check visual
 ```
 
 The Python PDFium package/bundled engine is pinned in `requirements.txt`.
+The field-parameter export target additionally writes isolated horizontal,
+reverse and vertical text cases. Python tests check their visible native text,
+searchability and geometry in PDFium and Poppler without replacing references.
 Reference capture used macOS arm64, PDFium via pypdfium2 5.14.0, Poppler 26.10.0,
 and the embedded repository fonts. Generated PNGs/PDFs and failure diagnostics
 are written under ignored `output/vector-golden/`, with separate structure and
@@ -79,7 +82,7 @@ replace them.
 
 Linux and Windows CI run the Rust visual goldens and real CLI/HTTP tests. A
 separate Linux job runs the negative controls, PDF structure/search checks and
-PDF visual snapshots as distinct steps, then exports and checks all 174 corpus
+PDF visual snapshots as distinct steps, then exports and checks all 175 corpus
 pages in **both PDFium and Poppler**, retaining the strict barcode and spatial
 gates in `e2e/vector/verify_corpus.py`. It uploads actual outputs and
 reports; a failed corpus also uploads all viewer images.
@@ -88,9 +91,10 @@ reports; a failed corpus also uploads all viewer images.
 
 ```sh
 cargo test --locked --features vector --test e2e_vector_visual export_vector_golden_candidates -- --ignored
+cargo test --locked --features vector --test e2e_field_parameter_pdf
 python -m unittest discover -s e2e/vector -p 'test_*.py' -v
 python e2e/vector/verify_pdf.py --update
-cargo test --locked --features serve,vector --test e2e_vector_visual --test e2e_vector_output
+cargo test --locked --features serve,vector --test e2e_vector_visual --test e2e_vector_output --test e2e_field_parameter_pdf
 python e2e/vector/verify_pdf.py
 ```
 

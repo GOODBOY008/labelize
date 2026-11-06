@@ -8,11 +8,85 @@ Focused semantics and reference measurements that complement the
 renderer or device; they are not universal printer conformance claims.
 
 - [Print mirror](#print-mirror): persistent state, transforms and geometry.
+- [Field parameters](#field-parameters): text direction, character spacing and
+  measured Labelary compatibility.
 - [QR mask selection](#qr-mask-selection): scoring, independent matrices and
   observed firmware differences.
 
 DataMatrix has a separate [reference](DATAMATRIX.md); TSPL calibration and
 open questions are in [TSPL baselines](TSPL_BASELINES.md).
+
+## Field parameters
+
+`^FPd,g` configures the current text field. `H` places upright characters
+left to right, `R` places them right to left, and `V` stacks them vertically
+without rotating the individual characters. The field's font orientation
+still rotates the resulting arrangement. This is distinct from `^FR`, which
+reverses field colors.
+
+The gap `g` is an additional character spacing in printer dots; `^MU` does
+not rescale it. Each `^FP` replaces both parameters: omitted or invalid
+direction selects `H`, and an omitted gap selects zero. `^FS` restores the
+default horizontal direction and zero gap for the next field.
+
+### Independent Labelary measurements (November 6, 2026)
+
+Synthetic `ABCDE` fields were rendered through the public Labelary API at
+8 dots/mm, using scalable font 0 (`^A0N,40,32`) and bitmap font A
+(`^AAN,36,20`). Visible ink widths were:
+
+| Gap command | Font 0 | Font A | Change from zero gap |
+| --- | ---: | ---: | ---: |
+| `^FPH,0` | 86 | 115 | 0 |
+| `^FPH,5` | 106 | 135 | +20 |
+| `^FPH,15` | 146 | 175 | +60 |
+| `^FPH,30` | 206 | 235 | +120 |
+| `^FPH,-5` | 66 | 95 | -20 |
+
+Five characters have four between-character spaces: the measured width
+change is exactly `4 * g`, without stretching the glyphs. `^FPR,10` likewise
+adds ten dots between upright characters in reverse order.
+
+For **both tested fonts**, `^FPV,0`, `^FPV,5`, `^FPV,10` and `^FPV,30`
+produced pixel-identical PNGs. Labelize deliberately reproduces this
+Labelary behavior: the gap is ignored for vertical glyph placement. Vertical
+placement uses the font's cell height as the character pitch. With `^FB`,
+the gap still affects wrapping, so different gaps can produce different
+blocks even though the pitch within each vertical run is unchanged.
+
+Labelary accepts negative gaps down to -10 (more-negative values clamp to
+-10); the Zebra guide documents a nonnegative range instead. Very large
+positive gaps can also be discarded by Labelary based on the selected font
+width. These are compatibility observations, **not verified Zebra printer
+behavior**. Physical-printer tests remain outstanding.
+
+The independent full-page reference is
+[`testdata/unit/field_parameters.zpl`](../testdata/unit/field_parameters.zpl)
+and its PNG; the adjacent provenance JSON records the endpoint, source hash
+and original reference hash. Tests additionally check individual field
+geometry and spacing so sparse whole-page tolerances cannot hide an ignored
+command. Existing substitute-font shape differences remain visible in the
+comparison artifacts.
+
+The new full-page golden has a 3.0% ceiling: the captured comparison measured
+2.7771%, including 1.1299% in the unchanged annotation fields alone. The
+unmodified `db25929` renderer, which ignores `^FP`, measured 3.8829% against
+the same source and reference and fails this ceiling. Isolated geometry
+checks separately require the exact requested per-character displacement;
+font-outline tolerance cannot excuse an ignored or incorrectly scaled gap.
+
+The [additional frozen captures](../testdata/field-parameters/provenance.json)
+pin rotated origins, explicit alignment and field-block interactions. For
+centered blocks, Labelary includes a trailing word separator in alignment
+measurement only when it fits the block width. Acceptance checks compare
+spacing-induced shifts against the zero-gap control, preserving the existing
+substitute-font baseline while rejecting new alignment errors.
+
+Sources: [Zebra Programming Guide](https://cpws.zebra.com/cpws/docs/zpl/zpl-zbi2-pm-en.pdf),
+[Labelary command reference](https://labelary.com/reference.html), and the
+captured independent images. Unicode combining sequences and complex field
+interactions must not be inferred to match physical printer firmware from
+these synthetic measurements.
 
 ## Print mirror
 

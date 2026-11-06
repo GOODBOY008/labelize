@@ -1,0 +1,13 @@
+{
+  "source": "Labelary public API, independent reference; synthetic test data",
+  "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+  "captured_utc": "2026-11-06T20:28:42.462826+00:00",
+  "dpmm": 8,
+  "canvas_px": [
+    813,
+    1626
+  ],
+  "source_sha256": "ad67ec76c8e64d295609b8b81f264c6922f718d864672ffb47bc30d59c78ab2a",
+  "reference_sha256": "a3e1071a0a69afafc69e46ba73372d7bef85d304bfb8f448caeee53453dc4f27",
+  "limitations": "Labelary compatibility only; no physical-printer validation."
+}

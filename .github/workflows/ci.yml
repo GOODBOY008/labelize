@@ -84,8 +84,8 @@ jobs:
           sudo apt-get install -y poppler-utils
           python -m pip install -r e2e/vector/requirements.txt
       - name: Render fixed visual cases and export PDF fixtures through the public API
-        run: cargo test --locked --features vector --test e2e_vector_visual
-      - name: Reject raster and hidden-text negative controls
+        run: cargo test --locked --features vector --test e2e_vector_visual --test e2e_field_parameter_pdf
+      - name: Check native text regressions and reject raster or hidden-text controls
         run: python -m unittest discover -s e2e/vector -p 'test_*.py' -v
       - name: Verify PDF structural goldens and searchable text
         run: python e2e/vector/verify_pdf.py --check structure

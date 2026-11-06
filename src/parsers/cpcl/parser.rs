@@ -482,6 +482,7 @@ fn parse_text(
 
     let font_id = super::fonts::resident_font(font, size.parse::<usize>().unwrap_or(0));
     let text = TextField {
+        flow: Default::default(),
         reverse_print: ReversePrint::default(),
         font: FontInfo {
             name: font.to_string(),
@@ -524,6 +525,7 @@ fn parse_scale_text(
 
     let mm_per_pt = 25.4 / 72.0;
     let text = TextField {
+        flow: Default::default(),
         reverse_print: ReversePrint::default(),
         font: FontInfo {
             name: "CPCL-SCALABLE".to_string(),

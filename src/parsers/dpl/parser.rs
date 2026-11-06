@@ -248,6 +248,7 @@ fn parse_record(
             return Ok(());
         }
         elements.push(LabelElement::Text(TextField {
+            flow: Default::default(),
             reverse_print: ReversePrint::default(),
             font,
             position,
@@ -290,6 +291,7 @@ fn parse_record(
                 return Ok(());
             }
             elements.push(LabelElement::Text(TextField {
+                flow: Default::default(),
                 reverse_print: ReversePrint::default(),
                 font,
                 position,
@@ -306,6 +308,7 @@ fn parse_record(
                 return Ok(());
             }
             elements.push(LabelElement::Text(TextField {
+                flow: Default::default(),
                 reverse_print: ReversePrint::default(),
                 font,
                 position,

@@ -78,6 +78,13 @@ PNG snapshots are the appearance check. They do not prove that a PDF contains
 native vector content, and searchability alone does not prove visible native
 text. Normal tests never create or overwrite vector references.
 
+`e2e_field_parameter_pdf` exports isolated horizontal, reverse and vertical
+text PDFs through the public API. `e2e/vector/test_field_parameters.py` checks
+painting text and embedded Unicode fonts, rejects raster images, searches
+the logical strings and compares both independent PDF readers against the
+shared-layout PNGs at 3x. The CI vector job runs this alongside the fixed
+goldens; these checks never update a reference.
+
 Run the fixed goldens and process checks using
 [the vector fixture guide](../testdata/vector/README.md#run-the-checks).
 Run the full corpus and diagnostic controls using

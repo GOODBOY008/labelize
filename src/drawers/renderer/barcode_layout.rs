@@ -192,6 +192,7 @@ fn plain_glyphs(font: &FontRef, scale: PxScale, text: &str, x: i32, y: i32) -> V
             color: Rgba([0, 0, 0, 255]),
             dedot: false,
             line_start: false,
+            logical_line: 0,
         });
         pen += scaled.h_advance(id);
         if font.outline_glyph(large).is_some() {

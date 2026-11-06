@@ -15,6 +15,7 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::text_field::TextField;
+use crate::elements::text_flow::{TextDirection, TextFlow};
 use crate::images;
 
 use super::drawer_state::DrawerState;
@@ -40,6 +41,8 @@ struct SubstMetrics {
     f0: bool,
     adv_mult: f32,
     dedot_zero: bool,
+    character_spacing: f32,
+    wrap_spacing: f32,
 }
 
 impl SubstMetrics {
@@ -50,6 +53,8 @@ impl SubstMetrics {
         f0: false,
         adv_mult: 1.0,
         dedot_zero: false,
+        character_spacing: 0.0,
+        wrap_spacing: 0.0,
     };
 }
 
@@ -629,7 +634,7 @@ fn measure_text_width(text: &str, font: &FontRef, scale: PxScale, m: SubstMetric
         }
         prev = Some(glyph_id);
     }
-    width
+    width + text.chars().count().saturating_sub(1) as f32 * m.character_spacing
 }
 
 /// The registered trademark symbol ® (U+00AE) is rendered as a superscript in Zebra's
@@ -692,13 +697,50 @@ fn measure_text_width_with_superscript(
         y: scale.y * REGISTERED_MARK_SCALE,
     };
     let mut width = 0.0f32;
+    let mut segments = 0usize;
     for (seg, mark) in superscript_segments(text, m.f0) {
         if !seg.is_empty() {
+            if segments > 0 {
+                width += m.character_spacing;
+            }
             width += measure_text_width(seg, font, scale, m);
+            segments += 1;
         }
         if let Some(mark) = mark {
+            if segments > 0 {
+                width += m.character_spacing;
+            }
             let mark_str = mark.to_string();
             width += measure_text_width(&mark_str, font, super_scale, m);
+            segments += 1;
+        }
+    }
+    width
+}
+
+/// Alignment uses the full pen advance, including the final extra gap. Keep
+/// the zero-gap font calibration unchanged while applying the extra separator
+/// contribution of centred, word-wrapped text relative to that baseline.
+fn block_alignment_width(
+    text: &str,
+    font: &FontRef,
+    scale: PxScale,
+    m: SubstMetrics,
+    block: &crate::elements::field_block::FieldBlock,
+) -> f32 {
+    let mut width = measure_text_width(text, font, scale, m);
+    if text.is_empty() {
+        return width;
+    }
+    width += m.character_spacing;
+    if block.alignment == crate::elements::text_alignment::TextAlignment::Center
+        && m.character_spacing != 0.0
+    {
+        let space = measure_text_width(" ", font, scale, m);
+        if width + space + m.character_spacing <= block.max_width as f32 {
+            width += m.character_spacing;
+        } else {
+            width -= space;
         }
     }
     width
@@ -731,7 +773,10 @@ fn measure_text_ink_bounds(
     let mut min_x = f32::MAX;
     let mut max_x = f32::MIN;
     let mut max_y = f32::MIN;
-    for c in text.chars() {
+    for (index, c) in text.chars().enumerate() {
+        if index > 0 {
+            w += m.character_spacing;
+        }
         let glyph_id = effective_glyph_id(font, c, m.f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             w += missing_glyph_advance(font, m, scale, width_ratio);
@@ -783,8 +828,12 @@ fn measure_text_ink_bounds_with_superscript(
     let mut min_x = f32::MAX;
     let mut max_x = f32::MIN;
     let mut max_y = f32::MIN;
+    let mut segments = 0usize;
     for (seg, mark) in superscript_segments(text, m.f0) {
         if !seg.is_empty() {
+            if segments > 0 {
+                cx += m.character_spacing;
+            }
             let (a, b, y) = measure_text_ink_bounds(seg, font, scale, m);
             if a <= b {
                 min_x = min_x.min(cx + a);
@@ -792,8 +841,12 @@ fn measure_text_ink_bounds_with_superscript(
                 max_y = max_y.max(y);
             }
             cx += measure_text_width(seg, font, scale, m);
+            segments += 1;
         }
         if let Some(mark) = mark {
+            if segments > 0 {
+                cx += m.character_spacing;
+            }
             let mark_str = mark.to_string();
             let (a, b, y) = measure_text_ink_bounds(&mark_str, font, super_scale, m);
             if a <= b {
@@ -802,6 +855,7 @@ fn measure_text_ink_bounds_with_superscript(
                 max_y = max_y.max(y);
             }
             cx += measure_text_width(&mark_str, font, super_scale, m);
+            segments += 1;
         }
     }
     (min_x, max_x, max_y)
@@ -920,12 +974,37 @@ fn word_wrap(
     block: &crate::elements::field_block::FieldBlock,
     m: SubstMetrics,
 ) -> Vec<String> {
+    word_wrap_details(text, font, scale, block, m)
+        .into_iter()
+        .map(|line| line.text)
+        .collect()
+}
+
+struct WrappedLine {
+    text: String,
+    trailing_word_space: bool,
+}
+
+fn word_wrap_details(
+    text: &str,
+    font: &FontRef,
+    scale: PxScale,
+    block: &crate::elements::field_block::FieldBlock,
+    m: SubstMetrics,
+) -> Vec<WrappedLine> {
+    let m = SubstMetrics {
+        character_spacing: m.wrap_spacing,
+        ..m
+    };
     let max_width = block.max_width as f32;
     let mut lines = Vec::new();
     for line in text.split('\n') {
         let words: Vec<&str> = line.split_whitespace().collect();
         if words.is_empty() {
-            lines.push(String::new());
+            lines.push(WrappedLine {
+                text: String::new(),
+                trailing_word_space: false,
+            });
             continue;
         }
         let mut current_line = String::new();
@@ -936,7 +1015,10 @@ fn word_wrap(
                     current_line = test;
                     continue;
                 }
-                lines.push(std::mem::take(&mut current_line));
+                lines.push(WrappedLine {
+                    text: std::mem::take(&mut current_line),
+                    trailing_word_space: true,
+                });
             }
             if block.wrap_long_words && measure_text_width(word, font, scale, m) > max_width {
                 for ch in word.chars() {
@@ -946,7 +1028,10 @@ fn word_wrap(
                         && measure_text_width(&current_line, font, scale, m) > max_width
                     {
                         current_line.truncate(previous_len);
-                        lines.push(std::mem::take(&mut current_line));
+                        lines.push(WrappedLine {
+                            text: std::mem::take(&mut current_line),
+                            trailing_word_space: false,
+                        });
                         current_line.push(ch);
                     }
                 }
@@ -954,7 +1039,10 @@ fn word_wrap(
                 current_line.push_str(word);
             }
         }
-        lines.push(current_line);
+        lines.push(WrappedLine {
+            text: current_line,
+            trailing_word_space: false,
+        });
     }
     lines
 }

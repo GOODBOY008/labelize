@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ZPL `^FP` field parameters**: horizontal character spacing, upright
+  right-to-left text and upright vertical text share the raster/vector layout.
+  Matches the measured Labelary field reset and spacing behavior, including
+  signed horizontal gaps and ignored vertical gaps. See
+  [reference measurements and limits](docs/RENDERING_NOTES.md#field-parameters).
+
 - **Vector PDF and scalable PNG** (opt-in `vector` feature): shared text and
   barcode layout, subset fonts with Unicode mapping, searchable text and
   multipage PDFs via krilla. PNG scaling changes output resolution without
