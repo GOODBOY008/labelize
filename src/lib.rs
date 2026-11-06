@@ -44,7 +44,7 @@ pub use output::{
     render_label_with_output, render_pdf_with_output, render_png_with_output, OutputMode,
     OutputOptions,
 };
-pub use parsers::{CpclParser, DplParser, EplParser, TsplParser, ZplParser};
+pub use parsers::{CpclParser, DplParser, EplParser, TsplParser, ZplParseOptions, ZplParser};
 pub use render::{
     render_pdf, render_png, RenderOptions, Rendered, DEFAULT_LABEL_HEIGHT_MM,
     DEFAULT_LABEL_WIDTH_MM,
