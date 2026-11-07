@@ -28,6 +28,10 @@ The **API** tab lets you test requests, inspect responses and copy cURL,
 JavaScript or Python examples. See the [public API guide](docs/API.md) for
 OpenAPI and scripts that convert a directory of labels through the API.
 
+## Labelize Printer
+
+Labelize Printer is a standalone GPUI virtual printer for Windows, macOS, and Linux. It uses Labelize to render ZPL jobs and receives system raster pages over IPP on macOS and Linux. Each job saves locally as one multipage PDF or one PNG per page. [Printer project](https://github.com/GOODBOY008/labelize-printer) · [Preview installers and validation](https://github.com/GOODBOY008/labelize-printer/releases)
+
 ## ✨ Why Labelize?
 
 Previewing thermal labels today usually means one of three compromises: send your label data to the [Labelary](http://labelary.com/) web API (third-party service, data-privacy concerns, ~400 ms per render), pay for a commercial SDK (often hundreds of dollars), or keep a physical printer around just to see what would print. Labelize is the self-hosted alternative:
