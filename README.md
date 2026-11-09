@@ -28,9 +28,9 @@ The **API** tab lets you test requests, inspect responses and copy cURL,
 JavaScript or Python examples. See the [public API guide](docs/API.md) for
 OpenAPI and scripts that convert a directory of labels through the API.
 
-## Labelize Printer
+## Labelize Studio
 
-Labelize Printer is a standalone GPUI virtual printer for Windows, macOS, and Linux. It uses Labelize to render ZPL jobs and receives system raster pages over IPP on macOS and Linux. Each job saves locally as one multipage PDF or one PNG per page. [Printer project](https://github.com/GOODBOY008/labelize-printer) · [Preview installers and validation](https://github.com/GOODBOY008/labelize-printer/releases)
+Labelize Studio (formerly Labelize Printer) is the standalone Rust + GPUI desktop app for Windows, macOS, and Linux. Design labels, open ZPL/EPL/TSPL/CPCL/DPL files in a multi-tab workspace, preview pages, and export PDF or PNG. It uses Labelize for printer-language parsing and rendering, and also provides the **Labelize Printer** virtual print queue; macOS/Linux system raster pages go directly to file output. [Studio project](https://github.com/GOODBOY008/labelize-studio) · [Installers and validation](https://github.com/GOODBOY008/labelize-studio/releases) · [Upgrade from Printer](https://github.com/GOODBOY008/labelize-studio/blob/main/MIGRATION.md)
 
 ## ✨ Why Labelize?
 
