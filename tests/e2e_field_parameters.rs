@@ -287,6 +287,52 @@ fn reset_and_negative_acceptance(mode: OutputMode) {
     }
 }
 
+fn absolute_character_positions(mode: OutputMode) {
+    let (actual, reference) = images(mode);
+    // Check absolute positions against the independent capture as well as
+    // parameter-induced shifts: a wrong natural advance still adds index * gap
+    // correctly, but accumulates a visible error across the field.
+    // Retain the existing three-dot origin allowance for substitute bearings,
+    // applying it to every character instead of only the first one.
+    for y in [
+        60, 120, 180, 240, 300, 360, 440, 500, 560, 620, 680, 740, 1385, 1445,
+    ] {
+        let a = parts(&horizontal(&actual, y), Axis::Horizontal);
+        let r = parts(&horizontal(&reference, y), Axis::Horizontal);
+        assert_eq!((a.len(), r.len()), (5, 5), "row {y}: five letters");
+        for (index, (a, r)) in a.iter().zip(&r).enumerate() {
+            assert!(
+                a.x.abs_diff(r.x) <= 3,
+                "row {y}, glyph {index}: x={}, Labelary x={}",
+                a.x,
+                r.x
+            );
+        }
+    }
+    for y in [1265, 1325] {
+        let a = bounds(&horizontal(&actual, y));
+        let r = bounds(&horizontal(&reference, y));
+        assert!(a.x.abs_diff(r.x) <= 2, "row {y}: negative-gap origin");
+        assert!(
+            a.width.abs_diff(r.width) <= 3,
+            "row {y}: negative-gap width={}, Labelary width={}",
+            a.width,
+            r.width
+        );
+    }
+}
+
+#[test]
+fn raster_absolute_character_positions_match_labelary() {
+    absolute_character_positions(OutputMode::Raster);
+}
+
+#[cfg(feature = "vector")]
+#[test]
+fn vector_absolute_character_positions_match_labelary() {
+    absolute_character_positions(OutputMode::Vector);
+}
+
 #[test]
 fn raster_horizontal_gaps_match_labelary_displacements() {
     horizontal_acceptance(OutputMode::Raster);

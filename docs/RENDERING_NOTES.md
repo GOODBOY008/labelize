@@ -47,6 +47,14 @@ Five characters have four between-character spaces: the measured width
 change is exactly `4 * g`, without stretching the glyphs. `^FPR,10` likewise
 adds ten dots between upright characters in reverse order.
 
+Font A's standard matrix is 9 dots high by 5 body dots wide, with a separate
+one-dot natural gap. Width selects magnification from the five-dot body;
+the resolved advance includes the gap. For example, `^AAN,36,20` uses a
+fourfold horizontal magnification and a 24-dot advance, before adding `g`.
+Using the six-dot advance as the width divisor incorrectly selects threefold
+magnification and compresses the line. A Labelary width sweep at 5, 7, 8,
+10, 15 and 20 dots confirmed advances of 6, 6, 12, 12, 18 and 24 dots.
+
 For **both tested fonts**, `^FPV,0`, `^FPV,5`, `^FPV,10` and `^FPV,30`
 produced pixel-identical PNGs. Labelize deliberately reproduces this
 Labelary behavior: the gap is ignored for vertical glyph placement. Vertical
@@ -68,12 +76,16 @@ geometry and spacing so sparse whole-page tolerances cannot hide an ignored
 command. Existing substitute-font shape differences remain visible in the
 comparison artifacts.
 
-The new full-page golden has a 3.0% ceiling: the captured comparison measured
-2.7771%, including 1.1299% in the unchanged annotation fields alone. The
+The full-page golden has a 3.0% ceiling: correcting Font A's width
+magnification reduced the comparison from 2.7771% to 2.4873%, including
+1.1299% in the unchanged annotation fields alone. The
 unmodified `db25929` renderer, which ignores `^FP`, measured 3.8829% against
 the same source and reference and fails this ceiling. Isolated geometry
 checks separately require the exact requested per-character displacement;
 font-outline tolerance cannot excuse an ignored or incorrectly scaled gap.
+Every horizontal and reverse glyph origin must also stay within three dots
+of the independent capture, allowing substitute bearings without accepting
+an incorrect natural advance. Both raster and vector output run these checks.
 
 The [additional frozen captures](../testdata/field-parameters/provenance.json)
 pin rotated origins, explicit alignment and field-block interactions. For
@@ -83,6 +95,7 @@ spacing-induced shifts against the zero-gap control, preserving the existing
 substitute-font baseline while rejecting new alignment errors.
 
 Sources: [Zebra Programming Guide](https://cpws.zebra.com/cpws/docs/zpl/zpl-zbi2-pm-en.pdf),
+[Zebra font matrices](https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-font-barcodes-fonts-andbar-codes/r-zpl-font-barcodes-font-matrices.html),
 [Labelary command reference](https://labelary.com/reference.html), and the
 captured independent images. Unicode combining sequences and complex field
 interactions must not be inferred to match physical printer firmware from

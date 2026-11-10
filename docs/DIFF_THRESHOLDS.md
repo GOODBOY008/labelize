@@ -193,7 +193,7 @@ informational.
 | swisspost | zpl | 0.71 | 1.5 | Font metrics |
 | templating | zpl | 1.17 | 2.5 | Font metrics |
 | text_fallback_default | zpl | 2.04 | 2.5 | Font metrics (font-1 ^A1 mono substitute; was 2.84 before the font-1 model) |
-| field_parameters | zpl | 2.78 | 3.0 | Independent Labelary capture for fonts 0/A, H/R/V and signed spacing; substitute font shapes and advances dominate the residual. Unmodified Main (ignoring the command) differs by 3.88%; isolated geometry tests additionally require exact parameter-induced displacements. |
+| field_parameters | zpl | 2.49 | 3.0 | Independent Labelary capture for fonts 0/A, H/R/V and signed spacing. Font A magnifies its five-dot body before adding its natural gap; substitute glyph shapes and bearings dominate the residual. Isolated geometry tests check every glyph origin as well as exact parameter-induced displacements. |
 | dein_ticket_packliste | zpl | 1.23 | 1.5 | Real German packing-list fragment: font-1 ^FB L/J text + font 0; residual is the 1-bit vs Labelary AA edge floor (~0.96% measured by binarizing the reference) |
 | fb_bitmap_line_pitch | zpl | 2.11 | 2.4 | Multi-line ^FB in bitmap fonts A/C/D/E/F; line positions, per-font cell advances and per-font zero dots match Labelary, residual is substitute-face glyph shapes/ink width (pitch pinned by a unit test; was 2.73 before advance calibration + zero-dot policy) |
 | bitmap_font_advance | zpl | 1.33 | 1.8 | A-H `HHHHHHHHHH 0000000000` rows at 1x: pins the per-font cell advance (C=12, E=20, F=16, G=48, H=19 dots) and the per-font zero-dot policy (E/H clean, the rest dotted); residual is substitute glyph shape |
