@@ -33,6 +33,9 @@ pub(crate) struct TextLayout {
     pub face: FontFace,
     pub glyphs: Vec<PlacedGlyph>,
     pub buffer: Option<TextBuffer>,
+    /// Logical field text when the glyphs are laid out in a different reading order.
+    #[cfg_attr(not(feature = "vector"), allow(dead_code))]
+    pub logical_text: Option<String>,
 }
 
 impl TextLayout {
@@ -415,6 +418,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
                 face,
                 glyphs,
                 buffer: None,
+                logical_text: None,
             });
         }
 
@@ -568,6 +572,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
                 x: ox as i32,
                 y: oy as i32,
             }),
+            logical_text: None,
         });
     }
 
@@ -575,6 +580,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
         face,
         glyphs,
         buffer: None,
+        logical_text: None,
     })
 }
 
@@ -603,6 +609,11 @@ fn layout_directed_block(
         subst,
     );
     let mut result = layout(&horizontal, state)?;
+    if text.flow.direction == TextDirection::Reverse {
+        // Wrapping follows visual order, but extraction must retain the source
+        // order, including words split across multiple visual lines.
+        result.logical_text = Some(drawn_text.to_owned());
+    }
     let reverse_offsets: Vec<f32> = if text.flow.direction == TextDirection::Reverse {
         lines
             .iter()

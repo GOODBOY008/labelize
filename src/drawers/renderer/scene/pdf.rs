@@ -148,7 +148,11 @@ fn draw_ops(
                 surface.pop();
                 result?;
             }
-            Op::Text { face, glyphs } => {
+            Op::Text {
+                face,
+                glyphs,
+                logical_text,
+            } => {
                 let font = if let Some((_, font)) = fonts.iter().find(|(f, _)| f == face) {
                     font.clone()
                 } else {
@@ -164,6 +168,17 @@ fn draw_ops(
                     .units_per_em()
                     .ok_or_else(|| LabelizeError::Render("font has no em size".into()))?
                     / metrics.height_unscaled();
+                if let Some(text) = logical_text {
+                    // One span across the entire reordered block preserves
+                    // logical word order even when a word wraps visually.
+                    surface.start_tagged(ContentTag::Span(
+                        SpanTag::empty().with_actual_text(Some(text)),
+                    ));
+                    let result = draw_line(glyphs, &font, &metrics, factor, surface, outlined);
+                    surface.end_tagged();
+                    result?;
+                    continue;
+                }
                 let mut rest = glyphs.as_slice();
                 while !rest.is_empty() {
                     let count = rest
