@@ -641,6 +641,10 @@ fn golden_text_multiline() {
     golden_zpl_with_tolerance("text_multiline", 1.5);
 }
 #[test]
+fn golden_field_parameters() {
+    golden_zpl_with_tolerance("field_parameters", 3.0);
+}
+#[test]
 fn golden_thick_rotated_fb_text() {
     golden_zpl_with_tolerance("thick_rotated_fb_text", 1.0);
 }

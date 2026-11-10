@@ -35,5 +35,6 @@ pub mod stored_format;
 pub mod stored_graphics;
 pub mod text_alignment;
 pub mod text_field;
+pub mod text_flow;
 
 pub use label_element::LabelElement;

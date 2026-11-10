@@ -135,7 +135,7 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 ## Supported ZPL Commands
 
 **Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^LT` (label top), `^LS` (label shift), `^LL` (label length), `^PO`, `^PW`, `^CI`, `^CF`, `^PQ` (print quantity), `^FX` (comment), `^SN`/`^SF` (inert serial state)
-**Text/Font:** `^A`, `^A@` (named font), `^CW` (font identifier), `^FO`, `^FT`, `^FW`, `^FD`, `^FS`, `^FB`, `^FV`, `^FN`, `^FR`, `^FH`
+**Text/Font:** `^A`, `^A@` (named font), `^CW` (font identifier), `^FO`, `^FT`, `^FW`, `^FP` (direction and character spacing), `^FD`, `^FS`, `^FB`, `^FV`, `^FN`, `^FR`, `^FH`
 **Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B8` (EAN-8), `^B9` (UPC-E), `^BU` (UPC-A), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults)
 **Graphics:** `^GB`, `^GC`, `^GD`, `^GE`, `^GF`, `^GS`
 **Storage:** `~DG`, `^IL`, `^XG`, `^ID`, `^IM`, `^IS`, `~EG`, `^DF`, `^XF`

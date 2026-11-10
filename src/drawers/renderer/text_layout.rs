@@ -15,6 +15,8 @@ pub(crate) struct PlacedGlyph {
     pub dedot: bool,
     /// Begins another logical line within this text operation.
     pub line_start: bool,
+    /// Wrapped-line identity, including lines that emitted no glyphs.
+    pub logical_line: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -112,6 +114,8 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
         f0,
         adv_mult: text.font.advance_mult as f32,
         dedot_zero: text.font.dedot_zero,
+        character_spacing: text.flow.character_spacing as f32,
+        wrap_spacing: text.flow.wrap_spacing as f32,
     };
     // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
     // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
@@ -167,9 +171,21 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
         0.0
     };
 
+    if text.flow.direction != TextDirection::Horizontal && text.block.is_some() {
+        return layout_directed_block(text, state, &drawn_text, &font, scale, subst);
+    }
+    if text.flow.direction != TextDirection::Horizontal {
+        return layout_directed(text, state, &drawn_text, &font, scale, subst);
+    }
+
     // Measure text width approximately (scale already includes scale_x).
     // Use superscript-aware measurement so that ® is counted at its rendered size.
-    let text_width = measure_text_width_with_superscript(&drawn_text, &font, scale, subst) as f64;
+    let text_width = (measure_text_width_with_superscript(&drawn_text, &font, scale, subst)
+        + if drawn_text.is_empty() {
+            0.0
+        } else {
+            subst.character_spacing
+        }) as f64;
 
     // For field blocks, use block width for positioning instead of measured text width
     let pos_width = if let Some(ref block) = text.block {
@@ -324,7 +340,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
             for line in lines.iter().take(drawn_lines) {
                 let (a, b, y) = measure_text_ink_bounds_with_superscript(line, &font, scale, subst);
                 if a <= b {
-                    let lw = measure_text_width(line, &font, scale, subst);
+                    let lw = block_alignment_width(line, &font, scale, subst, block);
                     let lx_offset = match block.alignment {
                         crate::elements::text_alignment::TextAlignment::Center => {
                             (block.max_width as f32 - lw) / 2.0
@@ -562,6 +578,292 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
     })
 }
 
+/// Place upright characters along an explicitly directed pen. Starting from
+/// the ordinary first-character layout retains the face's calibrated origin
+/// and its baseline/rotation transform. Only placement changes; both output
+/// backends keep consuming the same glyph outlines.
+fn layout_directed_block(
+    text: &TextField,
+    state: &mut DrawerState,
+    drawn_text: &str,
+    font: &FontRef,
+    scale: PxScale,
+    subst: SubstMetrics,
+) -> Result<TextLayout, String> {
+    let mut horizontal = text.clone();
+    horizontal.flow.direction = TextDirection::Horizontal;
+    if text.flow.direction == TextDirection::Reverse {
+        horizontal.text = drawn_text.chars().rev().collect();
+    }
+    let lines = word_wrap_details(
+        &horizontal.text,
+        font,
+        scale,
+        text.block.as_ref().expect("directed block"),
+        subst,
+    );
+    let mut result = layout(&horizontal, state)?;
+    let reverse_offsets: Vec<f32> = if text.flow.direction == TextDirection::Reverse {
+        lines
+            .iter()
+            .map(|line| {
+                measure_text_width_with_superscript(&line.text, font, scale, subst)
+                    + if line.trailing_word_space {
+                        measure_text_width(" ", font, scale, subst)
+                            + text.flow.character_spacing as f32
+                    } else {
+                        0.0
+                    }
+                    + text.flow.character_spacing as f32
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let mut line_index = usize::MAX;
+    let mut line_pen_x = result.glyphs.first().map(|g| g.x).unwrap_or(0);
+    let width_ratio = if subst.f0 {
+        (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
+    } else {
+        1.0
+    };
+    for placed in &mut result.glyphs {
+        if placed.logical_line != line_index {
+            line_index = placed.logical_line;
+            line_pen_x = placed.x;
+        }
+        match text.flow.direction {
+            TextDirection::Vertical => {
+                let draw_scale = if is_superscript_mark(placed.character, subst.f0) {
+                    PxScale {
+                        x: scale.x * REGISTERED_MARK_SCALE,
+                        y: scale.y * REGISTERED_MARK_SCALE,
+                    }
+                } else {
+                    scale
+                };
+                let id = effective_glyph_id(font, placed.character, subst.f0);
+                let (_, dx, _, _) =
+                    outline_placement(font, id, placed.character, subst, draw_scale, width_ratio);
+                placed.x = line_pen_x;
+                placed.glyph.position.x = dx;
+            }
+            TextDirection::Reverse => {
+                if let Some(offset) = reverse_offsets.get(line_index) {
+                    // The separator that caused a wrap still advances the
+                    // right-to-left pen, although it has no visible outline.
+                    placed.glyph.position.x -= offset;
+                }
+            }
+            TextDirection::Horizontal => unreachable!(),
+        }
+    }
+    expand_directed_buffer(&mut result, font)?;
+    Ok(result)
+}
+
+fn layout_directed(
+    text: &TextField,
+    state: &mut DrawerState,
+    drawn_text: &str,
+    font: &FontRef,
+    scale: PxScale,
+    subst: SubstMetrics,
+) -> Result<TextLayout, String> {
+    let mut anchor = text.clone();
+    anchor.flow = TextFlow::default();
+    anchor.block = None;
+    anchor.alignment = crate::elements::field_alignment::FieldAlignment::Left;
+    let orientation = text.font.orientation;
+    if orientation != FieldOrientation::Normal {
+        anchor.font.orientation = FieldOrientation::Normal;
+        anchor.position = LabelPosition::default();
+    }
+    anchor.text = drawn_text
+        .chars()
+        .find(|&character| {
+            let id = effective_glyph_id(font, character, subst.f0);
+            id != ab_glyph::GlyphId(0)
+                && font
+                    .outline_glyph(id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0)))
+                    .is_some()
+        })
+        .unwrap_or('H')
+        .to_string();
+    let mut anchor_state = state.clone();
+    let mut result = layout(&anchor, &mut anchor_state)?;
+    if result.glyphs.is_empty() {
+        anchor.text = "H".to_owned();
+        result = layout(&anchor, &mut state.clone())?;
+    }
+    let (pen_x, pen_y) = result.glyphs.first().map(|g| (g.x, g.y)).unwrap_or((0, 0));
+    result.glyphs.clear();
+    let metrics = SubstMetrics {
+        character_spacing: 0.0,
+        ..subst
+    };
+    let mut cursor = text.flow.origin_width as f32;
+    for (index, character) in drawn_text.chars().enumerate() {
+        let character = character.to_string();
+        let (dx, dy) = match text.flow.direction {
+            TextDirection::Reverse => {
+                cursor -= measure_text_width_with_superscript(&character, font, scale, metrics)
+                    + text.flow.character_spacing as f32;
+                (cursor, 0.0)
+            }
+            TextDirection::Vertical => (0.0, index as f32 * text.font.height as f32),
+            TextDirection::Horizontal => unreachable!(),
+        };
+        draw_text_with_superscript(
+            &mut result.glyphs,
+            font,
+            scale,
+            Rgba([0, 0, 0, 255]),
+            pen_x as f32 + dx,
+            pen_y as f32 + dy,
+            &character,
+            metrics,
+        );
+    }
+    if orientation != FieldOrientation::Normal {
+        let (x, y) = state.get_text_position(text);
+        let cell_width = text.flow.origin_width;
+        let cell_height = text.font.height;
+        let height = if text.flow.direction == TextDirection::Vertical {
+            drawn_text.chars().count() as f64 * cell_height
+        } else {
+            cell_height
+        };
+        let ascent = cell_height * 0.76;
+        // Baseline anchors rotate around the baseline point; top anchors
+        // reserve the nominal cells rather than the outline's ink rectangle.
+        let (tx, ty) = if text.position.calculate_from_bottom {
+            match orientation {
+                FieldOrientation::Rotated90 => (x + ascent, y),
+                FieldOrientation::Rotated180 => (x, y + ascent),
+                FieldOrientation::Rotated270 => (x - ascent, y),
+                FieldOrientation::Normal => unreachable!(),
+            }
+        } else {
+            match orientation {
+                FieldOrientation::Rotated90 => (
+                    x + height
+                        - if text.flow.direction == TextDirection::Vertical {
+                            cell_height * 0.25
+                        } else {
+                            0.0
+                        },
+                    y,
+                ),
+                FieldOrientation::Rotated180 => (x + cell_width, y + height),
+                FieldOrientation::Rotated270 => (x, y + cell_width),
+                FieldOrientation::Normal => unreachable!(),
+            }
+        };
+        let width = cell_width.max(1.0).ceil() as u32 + 2;
+        let height = height.max(1.0).ceil() as u32 + 2;
+        let (bx, by) = match orientation {
+            FieldOrientation::Rotated90 => (tx - height as f64, ty),
+            FieldOrientation::Rotated180 => (tx - width as f64, ty - height as f64),
+            FieldOrientation::Rotated270 => (tx, ty - width as f64),
+            FieldOrientation::Normal => unreachable!(),
+        };
+        result.buffer = Some(TextBuffer {
+            width,
+            height,
+            orientation,
+            x: bx as i32,
+            y: by as i32,
+        });
+    }
+    expand_directed_buffer(&mut result, font)?;
+    if text.alignment == crate::elements::field_alignment::FieldAlignment::Right
+        && !text.position.calculate_from_bottom
+    {
+        let offset = if text.flow.direction == TextDirection::Reverse {
+            text.font.height
+        } else {
+            -text.font.height
+        } as i32;
+        if let Some(buffer) = &mut result.buffer {
+            buffer.x += offset;
+        } else {
+            for placed in &mut result.glyphs {
+                placed.x += offset;
+            }
+        }
+    }
+
+    // Automatic positions follow the directed pen rather than its bounding
+    // rectangle, whose leading edge changes in reverse and vertical flow.
+    if text.position.calculate_from_bottom {
+        let (x, y) = state.get_text_position(text);
+        let advance = match text.flow.direction {
+            TextDirection::Reverse => (cursor - text.flow.origin_width as f32, 0.0),
+            TextDirection::Vertical => (
+                0.0,
+                drawn_text.chars().count() as f32 * text.font.height as f32,
+            ),
+            TextDirection::Horizontal => unreachable!(),
+        };
+        let (dx, dy) = match text.font.orientation {
+            FieldOrientation::Normal => advance,
+            FieldOrientation::Rotated90 => (-advance.1, advance.0),
+            FieldOrientation::Rotated180 => (-advance.0, -advance.1),
+            FieldOrientation::Rotated270 => (advance.1, -advance.0),
+        };
+        state.auto_pos_x = x + dx as f64;
+        state.auto_pos_y = y + dy as f64;
+    }
+    Ok(result)
+}
+
+/// Grow a rotated text buffer in every direction without moving any glyph on
+/// the page. Reverse pens can reach left of the origin; vertical pens can
+/// extend far below it. Ink bounds include overhanging accents and descenders.
+fn expand_directed_buffer(layout: &mut TextLayout, font: &FontRef) -> Result<(), String> {
+    let Some(buffer) = &mut layout.buffer else {
+        return Ok(());
+    };
+    let mut min_x = 0i64;
+    let mut min_y = 0i64;
+    let mut max_x = buffer.width as i64;
+    let mut max_y = buffer.height as i64;
+    for placed in &layout.glyphs {
+        if let Some(outline) = font.outline_glyph(placed.glyph.clone()) {
+            let bounds = outline.px_bounds();
+            min_x = min_x.min(placed.x as i64 + bounds.min.x.floor() as i64);
+            min_y = min_y.min(placed.y as i64 + bounds.min.y.floor() as i64);
+            max_x = max_x.max(placed.x as i64 + bounds.max.x.ceil() as i64);
+            max_y = max_y.max(placed.y as i64 + bounds.max.y.ceil() as i64);
+        }
+    }
+    let left = -min_x;
+    let top = -min_y;
+    let right = max_x - buffer.width as i64;
+    let bottom = max_y - buffer.height as i64;
+    let width = max_x - min_x;
+    let height = max_y - min_y;
+    if width > i32::MAX as i64 || height > i32::MAX as i64 {
+        return Err("directed text exceeds layout coordinate limits".to_owned());
+    }
+    for placed in &mut layout.glyphs {
+        placed.x += left as i32;
+        placed.y += top as i32;
+    }
+    buffer.width = width as u32;
+    buffer.height = height as u32;
+    let (dx, dy) = match buffer.orientation {
+        FieldOrientation::Normal => (-left, -top),
+        FieldOrientation::Rotated90 => (-bottom, -left),
+        FieldOrientation::Rotated180 => (-right, -bottom),
+        FieldOrientation::Rotated270 => (-top, -right),
+    };
+    buffer.x += dx as i32;
+    buffer.y += dy as i32;
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 /// Draw `text` replicating imageproc's `draw_text_mut` layout, with the calibrated
 /// vertical offset applied to the pen before glyphs snap to the pixel grid, the
@@ -607,7 +909,10 @@ fn draw_text_snapped(
     let mut w = 0.0f32;
     let mut prev: Option<GlyphId> = None;
 
-    for c in text.chars() {
+    for (index, c) in text.chars().enumerate() {
+        if index > 0 {
+            w += m.character_spacing;
+        }
         let glyph_id = effective_glyph_id(font, c, m.f0);
         if glyph_id == ab_glyph::GlyphId(0) {
             // Blank like Labelary: no glyph is drawn and no kerning applies on
@@ -635,6 +940,7 @@ fn draw_text_snapped(
             color,
             dedot: m.dedot_zero && c == '0',
             line_start: false,
+            logical_line: 0,
         });
         if font.outline_glyph(glyph).is_some() {
             if let Some(prev_id) = prev {
@@ -667,12 +973,20 @@ fn draw_text_with_superscript(
         y: scale.y * REGISTERED_MARK_SCALE,
     };
     let mut cx = x;
+    let mut segments = 0usize;
     for (seg, mark) in superscript_segments(text, m.f0) {
         if !seg.is_empty() {
+            if segments > 0 {
+                cx += m.character_spacing;
+            }
             draw_text_snapped(canvas, color, cx as i32, y as i32, scale, font, seg, m);
             cx += measure_text_width(seg, font, scale, m);
+            segments += 1;
         }
         if let Some(mark) = mark {
+            if segments > 0 {
+                cx += m.character_spacing;
+            }
             let mark_str = mark.to_string();
             draw_text_snapped(
                 canvas,
@@ -685,6 +999,7 @@ fn draw_text_with_superscript(
                 m,
             );
             cx += measure_text_width(&mark_str, font, super_scale, m);
+            segments += 1;
         }
     }
 }
@@ -741,11 +1056,11 @@ fn draw_text_block(
         let first = slot == 0;
         let lx = match block.alignment {
             crate::elements::text_alignment::TextAlignment::Center => {
-                let lw = measure_text_width(line, font, scale, m);
+                let lw = block_alignment_width(line, font, scale, m, block);
                 x + (block.max_width as f32 - lw) / 2.0
             }
             crate::elements::text_alignment::TextAlignment::Right => {
-                let lw = measure_text_width(line, font, scale, m);
+                let lw = block_alignment_width(line, font, scale, m, block);
                 x + block.max_width as f32 - lw
             }
             // Justified (J): every line except the block's last is stretched to
@@ -766,6 +1081,9 @@ fn draw_text_block(
                     max_width,
                     pen_x_pad,
                 );
+                for glyph in &mut canvas[first_glyph..] {
+                    glyph.logical_line = i;
+                }
                 if let Some(glyph) = canvas.get_mut(first_glyph) {
                     glyph.line_start = i > 0;
                 }
@@ -796,6 +1114,9 @@ fn draw_text_block(
             line,
             m,
         );
+        for glyph in &mut canvas[first_glyph..] {
+            glyph.logical_line = i;
+        }
         if let Some(glyph) = canvas.get_mut(first_glyph) {
             glyph.line_start = i > 0;
         }
@@ -864,7 +1185,7 @@ fn draw_justified_line(
         );
         cx += measure_text_width_with_superscript(word, font, scale, m);
         if k + 1 < words.len() {
-            cx += space_w + extra;
+            cx += space_w + extra + 2.0 * m.character_spacing;
         }
     }
 }

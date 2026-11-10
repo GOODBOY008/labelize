@@ -26,6 +26,7 @@ use crate::elements::label_element::LabelElement;
 use crate::elements::maxicode::MaxicodeWithData;
 use crate::elements::stored_format::{RecalledField, RecalledFormat};
 use crate::elements::text_field::TextField;
+use crate::elements::text_flow::{TextDirection, TextFlow};
 
 use super::charsets;
 pub use super::qr_payload::parse_qr_fd_payload;
@@ -197,7 +198,7 @@ fn to_graphic_symbol_text_field(
     }
 
     let (face, advance_mult, dedot_zero) = super::zebra_fonts::resolve_designator("GS");
-    let font = super::zebra_fonts::with_adjusted_sizes(&FontInfo {
+    let source_font = FontInfo {
         name: "GS".to_string(),
         face,
         advance_mult,
@@ -205,13 +206,16 @@ fn to_graphic_symbol_text_field(
         width: gs.width,
         height: gs.height,
         orientation: gs.orientation,
-    });
+    };
+    let font = super::zebra_fonts::with_adjusted_sizes(&source_font);
+    let flow = resolve_text_flow(field.text_flow, &source_font, &font);
 
     Ok(Some(LabelElement::Text(TextField {
         font,
         position: field.position.clone(),
         alignment: field.alignment,
         text: gs_text,
+        flow,
         reverse_print: field.reverse_print.clone(),
         block: None,
     })))
@@ -240,13 +244,45 @@ fn to_text_field(
     let text = text.replace("\\&", "\n");
     let unicode_text = charsets::to_unicode_text(&text, field.current_charset)
         .map_err(|e| format!("failed to convert to unicode text: {}", e))?;
+    let font = super::zebra_fonts::with_adjusted_sizes(&field.font);
+    let flow = resolve_text_flow(field.text_flow, &field.font, &font);
 
     Ok(Some(LabelElement::Text(TextField {
-        font: super::zebra_fonts::with_adjusted_sizes(&field.font),
+        font,
         position: field.position.clone(),
         alignment: field.alignment,
         text: unicode_text,
+        flow,
         block: fb.cloned(),
         reverse_print: field.reverse_print.clone(),
     })))
+}
+
+fn resolve_text_flow(mut flow: TextFlow, source_font: &FontInfo, font: &FontInfo) -> TextFlow {
+    // Labelary drops excessive spacing instead of clamping it. Resolve this
+    // after the final font selection, so command order and stored fields use
+    // the same limit. An omitted width uses the font's derived cell width.
+    let width = if source_font.width > 0.0 {
+        source_font.width
+    } else {
+        font.width
+    };
+    let limit_height = super::zebra_fonts::spacing_limit_height(source_font, font);
+    if flow.character_spacing as f64 > 10.0 * limit_height {
+        flow.character_spacing = 0;
+    }
+    flow.wrap_spacing = flow.character_spacing as f64 * 10.0 / width.max(1.0);
+    flow.origin_width = if matches!(
+        flow.direction,
+        TextDirection::Reverse | TextDirection::Vertical
+    ) {
+        if source_font.name == "0" {
+            0.75 * font.width
+        } else {
+            font.width
+        }
+    } else {
+        0.0
+    };
+    flow
 }
