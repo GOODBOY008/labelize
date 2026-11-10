@@ -29,7 +29,7 @@ image = "0.25"
 imageproc = "0.27"
 ab_glyph = "0.2"
 thiserror = "2"
-lopdf = "0.46"
+lopdf = "0.47"
 flate2 = "1"
 base64 = "0.23"
 krilla = { version = "0.8.2", default-features = false, features = ["raster-images"], optional = true }
