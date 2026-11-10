@@ -97,10 +97,14 @@ impl TextLayout {
     }
 }
 
-pub(crate) fn layouts(
-    text: &TextField,
-    state: &mut DrawerState,
-) -> Result<Vec<TextLayout>, String> {
+pub(crate) struct FieldLayout {
+    pub runs: Vec<TextLayout>,
+    /// Reading order for a reverse block, shared by all of its lines and fonts.
+    #[cfg_attr(not(feature = "vector"), allow(dead_code))]
+    pub logical_text: Option<String>,
+}
+
+pub(crate) fn layouts(text: &TextField, state: &mut DrawerState) -> Result<FieldLayout, String> {
     if let Some((block, height)) = text
         .block
         .as_ref()
@@ -120,7 +124,7 @@ pub(crate) fn layouts(
         local.alignment = crate::elements::field_alignment::FieldAlignment::Left;
         local.position = Default::default();
         local.block.as_mut().unwrap().max_height = None;
-        let mut runs = layouts(&local, &mut DrawerState::new())?;
+        let mut field = layouts(&local, &mut DrawerState::new())?;
         let (mut x, mut y) = state.get_text_position(text);
         let rotated_width = if matches!(
             orientation,
@@ -147,7 +151,7 @@ pub(crate) fn layouts(
                 FieldOrientation::Rotated270 => y -= f64::from(width),
             }
         }
-        for run in &mut runs {
+        for run in &mut field.runs {
             run.buffer = Some(TextBuffer {
                 width,
                 height,
@@ -157,8 +161,17 @@ pub(crate) fn layouts(
             });
         }
         state.update_automatic_text_position(text, f64::from(width));
-        return Ok(runs);
+        return Ok(field);
     }
+    let reverse_block = cfg!(feature = "vector")
+        && text.block.is_some()
+        && text.flow.direction == TextDirection::Reverse;
+    let resident = |state: &mut DrawerState| {
+        Ok(FieldLayout {
+            runs: vec![layout(text, state)?],
+            logical_text: reverse_block.then(|| resident_text(text)),
+        })
+    };
     if let Some(resources) = &text.font.resources {
         let props = &resources.properties;
         if resources.primary.is_none()
@@ -179,12 +192,15 @@ pub(crate) fn layouts(
             });
             // No fallback or missing-glyph marker is needed for this field.
             if ordinary || (!props.show_missing && resources.fallbacks.is_empty()) {
-                return Ok(vec![layout(text, state)?]);
+                return resident(state);
             }
         }
-        super::advanced_text::layout(text, state, resources)
+        Ok(FieldLayout {
+            runs: super::advanced_text::layout(text, state, resources)?,
+            logical_text: reverse_block.then(|| text.text.clone()),
+        })
     } else {
-        Ok(vec![layout(text, state)?])
+        resident(state)
     }
 }
 
@@ -358,18 +374,22 @@ impl ResidentMetrics {
     }
 }
 
-fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, String> {
-    let mut glyphs = Vec::new();
+fn resident_text(text: &TextField) -> String {
     // Some bitmap faces carry no lowercase glyphs; the printer (and the
     // reference renderer) draw lowercase field data as uppercase. Match that
     // here so the TTF substitute doesn't produce mixed-case output real
     // hardware can't.
-    let face = text.font.face;
-    let drawn_text: String = if face.uppercases_input() {
+    if text.font.face.uppercases_input() {
         text.text.to_uppercase()
     } else {
         text.text.clone()
-    };
+    }
+}
+
+fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, String> {
+    let mut glyphs = Vec::new();
+    let face = text.font.face;
+    let drawn_text = resident_text(text);
     let font_data = face.ttf_data();
     let font =
         FontRef::try_from_slice(font_data).map_err(|e| format!("failed to load font: {}", e))?;

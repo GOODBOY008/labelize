@@ -32,7 +32,7 @@ fn encode(scenes: &[LabelScene], outlined: bool) -> Result<Vec<u8>, LabelizeErro
         let mut surface = page.surface();
         let scale = (72.0 / (25.4 * scene.dpmm as f64)) as f32;
         surface.push_transform(&PdfTransform::from_scale(scale, scale));
-        let result = draw_ops(&scene.ops, &mut surface, &mut fonts, outlined);
+        let result = draw_ops(&scene.ops, &mut surface, &mut fonts, outlined, false);
         surface.pop();
         surface.finish();
         page.finish();
@@ -84,6 +84,7 @@ fn draw_ops(
     surface: &mut Surface<'_>,
     fonts: &mut Vec<(text_layout::LayoutFont, Font)>,
     outlined: bool,
+    in_text_block: bool,
 ) -> Result<(), LabelizeError> {
     for op in ops {
         match op {
@@ -141,11 +142,20 @@ fn draw_ops(
                         &PdfFillRule::NonZero,
                     );
                 }
-                let result = draw_ops(ops, surface, fonts, outlined);
+                let result = draw_ops(ops, surface, fonts, outlined, in_text_block);
                 if clip.is_some() {
                     surface.pop();
                 }
                 surface.pop();
+                result?;
+            }
+            Op::TextBlock { logical_text, ops } => {
+                // A word can wrap across lines or span multiple shaped runs.
+                surface.start_tagged(ContentTag::Span(
+                    SpanTag::empty().with_actual_text(Some(logical_text)),
+                ));
+                let result = draw_ops(ops, surface, fonts, outlined, true);
+                surface.end_tagged();
                 result?;
             }
             Op::Text { face, glyphs } => {
@@ -164,6 +174,10 @@ fn draw_ops(
                     .units_per_em()
                     .ok_or_else(|| LabelizeError::Render("font has no em size".into()))?
                     / metrics.height_unscaled();
+                if in_text_block {
+                    draw_line(glyphs, &font, &metrics, factor, surface, outlined)?;
+                    continue;
+                }
                 let mut rest = glyphs.as_slice();
                 while !rest.is_empty() {
                     let count = rest

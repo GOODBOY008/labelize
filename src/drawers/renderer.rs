@@ -304,7 +304,7 @@ impl Renderer {
         text: &TextField,
         state: &mut DrawerState,
     ) -> Result<(), String> {
-        for run in text_layout::layouts(text, state)? {
+        for run in text_layout::layouts(text, state)?.runs {
             run.draw(canvas)?;
         }
         Ok(())

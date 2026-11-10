@@ -16,8 +16,12 @@ from verify_corpus import measure
 from verify_pdf import OUTPUT, check_searchable
 
 
-CASES = {"h": "FIELDGAP", "r": "REVERSE", "v": "VERTICAL",
-         "shaped-r": "REVERSE", "shaped-v": "VERTICAL"}
+CASES = {
+    "h": "FIELDGAP", "r": "REVERSE", "v": "VERTICAL",
+    "shaped-r": "REVERSE", "shaped-v": "VERTICAL",
+    "r-block": "REVERSE", "r-wrapped": "REVERSE",
+    "r-words": "FIRST SECOND THIRD", "shaped-r-words": "FIRST SECOND THIRD",
+}
 
 
 class FieldParameterPdf(unittest.TestCase):
@@ -118,6 +122,17 @@ class FieldParameterPdf(unittest.TestCase):
         for direction in ("shaped-r", "shaped-v"):
             with self.subTest(direction=direction):
                 self.verify_flow(direction)
+
+    def test_reverse_block_retains_logical_search_text(self):
+        self.verify_flow("r-block")
+
+    def test_reverse_wrapped_word_remains_searchable_across_lines(self):
+        self.verify_flow("r-wrapped")
+
+    def test_reverse_wrapped_words_retain_logical_order(self):
+        for name in ("r-words", "shaped-r-words"):
+            with self.subTest(name=name):
+                self.verify_flow(name)
 
 
 if __name__ == "__main__":
