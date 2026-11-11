@@ -582,6 +582,31 @@ fn text_font(labels: &[labelize::LabelInfo]) -> labelize::elements::font::FontIn
 }
 
 #[test]
+fn font_a_width_selects_magnification_from_the_five_dot_body() {
+    // Zebra's 9x5 matrix excludes the one-dot natural gap. Labelary's
+    // HHHHH probe advances by 6 dots per magnification, including that gap.
+    for (width, advance) in [(5, 6), (7, 6), (8, 12), (10, 12), (15, 18), (20, 24)] {
+        for command in [format!("^AAN,36,{width}"), format!("^CFA,36,{width}")] {
+            let font = text_font(&parse(&format!("^XA{command}^FDHHHHH^FS^XZ")));
+            assert_eq!(font.width, f64::from(advance), "{command}");
+            assert_eq!(font.height, 36.0, "{command}: independent height");
+        }
+    }
+}
+
+#[test]
+fn font_a_missing_axis_preserves_the_body_matrix_proportions() {
+    for (command, height, advance) in [
+        ("^AAN,0,20", 36.0, 24.0),
+        ("^AAN,36,0", 36.0, 24.0),
+        ("^AAN,0,0", 9.0, 6.0),
+    ] {
+        let font = text_font(&parse(&format!("^XA{command}^FDHHHHH^FS^XZ")));
+        assert_eq!((font.height, font.width), (height, advance), "{command}");
+    }
+}
+
+#[test]
 fn font_b_height_driven_uses_nine_dot_advance() {
     // ^CFB,80: magnification round(80/11)=7 -> cell 77, advance 9*7=63
     // (7-dot glyph + 2-dot intercharacter gap; the gap was previously dropped).

@@ -15,9 +15,10 @@ fn bitmap_font_sizes() -> &'static HashMap<&'static str, [f64; 2]> {
     static SIZES: OnceLock<HashMap<&str, [f64; 2]>> = OnceLock::new();
     SIZES.get_or_init(|| {
         let mut m = HashMap::new();
-        // Font A: 9 high × 5 body dots + 1 spacing dot = 6 dots advance per character.
-        // Verified from Labelary renders: advance = 6×mag px/char at each magnification.
-        m.insert("A", [9.0, 6.0]);
+        // Store the body matrix, excluding the natural intercharacter gap.
+        // Font A magnifies its five-dot body, then adds one spacing dot per
+        // magnification when resolving the advance in with_adjusted_sizes.
+        m.insert("A", [9.0, 5.0]);
         m.insert("B", [11.0, 7.0]);
         m.insert("C", [18.0, 10.0]);
         m.insert("D", [18.0, 10.0]);
@@ -161,7 +162,11 @@ pub fn with_adjusted_sizes(font: &FontInfo) -> FontInfo {
         // width -- and the character advance is 9 dots per magnification (7-dot glyph plus
         // 2-dot intercharacter gap). With the generic rules a ^CFB,80 route code rendered
         // ~26% smaller than Labelary/Zebra output.
-        let advance = if font.name == "B" { 9.0 } else { org_size[1] };
+        let advance = match font.name.as_str() {
+            "A" => 6.0,
+            "B" => 9.0,
+            _ => org_size[1],
+        };
         let width_mag_base = if font.name == "B" {
             org_size[0]
         } else {
@@ -233,9 +238,7 @@ pub(crate) fn spacing_limit_height(source: &FontInfo, resolved: &FontInfo) -> f6
         0.9 * resolved.width
     } else if let Some(matrix) = bitmap_font_sizes().get(source.name.as_str()) {
         let base_height = matrix[0];
-        // Font A's stored advance includes its one-dot natural spacing;
-        // its original glyph body is five dots wide.
-        let body_width = if source.name == "A" { 5.0 } else { matrix[1] };
+        let body_width = matrix[1];
         let magnitude = if source.width > 0.0 {
             (source.width / body_width).round().max(1.0)
         } else if source.height > 0.0 {
