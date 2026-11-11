@@ -1590,7 +1590,7 @@ dependencies = [
 
 [[package]]
 name = "labelize"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "ab_glyph",
  "axum",

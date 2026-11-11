@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-11
+
 ### Added
 
 - **ZPL `^FP` field parameters**: horizontal character spacing, upright
@@ -23,8 +25,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Rust, CLI, HTTP, WASM/Worker, playground and Android; raster output remains
   the default. See [output options and limits](docs/VECTOR_OUTPUT.md).
 
+- **Playground documentation and API console** (#123, #124) add searchable
+  guides with runnable label examples, an interactive HTTP request console,
+  an OpenAPI specification, and inline PNG and PDF previews.
+
+### Changed
+
+- **Playground workspace** (#125) uses Tabler and keeps editor and request
+  drafts as users move between the Playground, API, and Documentation views.
+- **Desktop app links** point to Labelize Studio, including its installers
+  and upgrade guide. The system print queue is still named Labelize Printer.
+- **Rust text fields** carry direction and spacing through `TextFlow`. Code
+  that constructs `TextField` or `FieldInfo` with struct literals must supply
+  `flow` or `text_flow`, respectively. Use `TextFlow::default()` for ordinary
+  horizontal text with zero extra spacing.
+- **Dependencies** update `lopdf` to 0.47 and refresh `flate2` in the lockfile.
+
 ### Fixed
 
+- **ZPL Font A character spacing** (#133) uses the five-dot glyph body to
+  choose horizontal magnification and includes the natural gap in the final
+  advance. `^AAN,36,20` now advances 24 dots per character instead of 18.
 - **CPCL and DPL parser/formatter correctness**: preserve counted binary
   graphics and barcode fields, payload whitespace, and subsequent commands.
   CPCL now accepts full graphics command names, inline/scalable `MULTILINE`
