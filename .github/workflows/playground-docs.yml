@@ -1,0 +1,32 @@
+name: Playground documentation
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'docs/**'
+      - 'tools/docs/**'
+      - 'src/playground/docs.html'
+      - '.github/workflows/playground-docs.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'docs/**'
+      - 'tools/docs/**'
+      - 'src/playground/docs.html'
+      - '.github/workflows/playground-docs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  documentation:
+    name: Validate documentation bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r tools/docs/requirements.txt
+      - run: python tools/docs/build.py --check

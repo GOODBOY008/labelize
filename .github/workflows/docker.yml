@@ -8,14 +8,12 @@ on:
     tags: ['v[0-9]*']
   pull_request:
     branches: [main]
-    # Only re-validate the image when something that affects it changes.
-    # Plain source changes are already covered by the CI workflow.
+    # Validate container configuration on pull requests.
+    # The CI workflow builds and tests Rust changes, including dependency updates.
     paths:
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker-compose.yaml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
       - '.github/workflows/docker.yml'
   workflow_dispatch:
 

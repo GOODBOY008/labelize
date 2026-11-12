@@ -48,7 +48,7 @@ visibility* → *Public*.
 | Push of tag `vX.Y.Z-rc.N` | `X.Y.Z-rc.N` only — prereleases never move `latest` |
 | Push of tag matching `v[0-9]*` but not semver (`v1.3`, `v1abc`) | nothing — the run starts, then skips publishing with a warning |
 | Push of any other tag (`vtest`, `nightly`) | nothing — the workflow does not start at all |
-| Pull request | none — builds and smoke-tests only, no publish |
+| Pull request that changes container configuration | none — builds and smoke-tests only, no publish |
 
 The tag scheme follows mainstream OSS practice (e.g. Grafana, n8n): `latest`
 plus full and minor semver tags on a release, and a single moving `edge` tag on
@@ -123,7 +123,7 @@ On pull requests the build job loads the image locally instead of pushing, then
 smoke-tests it — `--version`, `GET /health`, and a real `POST /convert` that must
 return a non-empty PNG.
 
-PR builds are limited to changes that can actually affect the image (`Dockerfile`,
-`.dockerignore`, `docker-compose.yaml`, `Cargo.toml`, `Cargo.lock`, and the
-workflow itself). Ordinary source changes are already covered by the `CI`
-workflow, so they don't pay for a container rebuild.
+Pull request builds run when `Dockerfile`, `.dockerignore`,
+`docker-compose.yaml`, or the Docker workflow changes. The `CI` workflow
+builds and tests Rust source and Cargo dependency changes. Pushes to `main`
+and release tags build and verify the published containers.
