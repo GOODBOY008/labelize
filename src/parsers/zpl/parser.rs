@@ -34,6 +34,21 @@ use super::fs::*;
 use super::stored_formats;
 use super::virtual_printer::VirtualPrinter;
 
+/// Opt-in controls for consumers that receive complete printer jobs.
+/// The default preserves the canvas and framing behavior of [`ZplParser::parse`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ZplParseOptions {
+    /// Expose the effective `^PW` and `^LL` as physical label dimensions.
+    /// Missing dimensions remain `None`, allowing a caller's media fallback.
+    pub use_declared_dimensions: bool,
+    /// Maximum number of returned labels, including expanded `^PQ` copies.
+    /// Checked before cloning the elements for those copies.
+    pub max_labels: Option<usize>,
+    /// Reject nested, unmatched, or unfinished `^XA`/`^XZ` formats.
+    /// Download/setup commands outside a format remain permitted.
+    pub require_complete_formats: bool,
+}
+
 pub struct ZplParser {
     printer: VirtualPrinter,
 }
@@ -61,7 +76,37 @@ impl ZplParser {
     }
 
     pub fn parse(&mut self, zpl_data: &[u8]) -> Result<Vec<LabelInfo>, String> {
+        self.parse_with_options(zpl_data, ZplParseOptions::default())
+    }
+
+    /// Parse a complete job with optional declared media and resource limits.
+    /// Resolution is the value supplied to [`Self::with_dpmm`], not inferred
+    /// from the stream. As with `parse`, printer resources persist on this instance.
+    ///
+    /// ```
+    /// use labelize::{ZplParseOptions, ZplParser};
+    ///
+    /// let labels = ZplParser::with_dpmm(8).parse_with_options(
+    ///     b"^XA^PW400^LL240^FO10,10^FDHello^FS^PQ2^XZ",
+    ///     ZplParseOptions {
+    ///         use_declared_dimensions: true,
+    ///         max_labels: Some(1000),
+    ///         require_complete_formats: true,
+    ///     },
+    /// ).unwrap();
+    ///
+    /// assert_eq!(labels.len(), 2);
+    /// assert_eq!(labels[0].label_width_mm, Some(50.0));
+    /// assert_eq!(labels[0].label_height_mm, Some(30.0));
+    /// ```
+    pub fn parse_with_options(
+        &mut self,
+        zpl_data: &[u8],
+        options: ZplParseOptions,
+    ) -> Result<Vec<LabelInfo>, String> {
         let mut results = Vec::new();
+        let mut format_open = false;
+        let mut height_at_first_field = None;
         let mut result_elements: Vec<LabelElement> = Vec::new();
         let mut mirror_at_format_start = self.printer.label_mirrored;
 
@@ -74,6 +119,11 @@ impl ZplParser {
             let upper = command.to_uppercase();
 
             if upper.starts_with("^XA") {
+                if options.require_complete_formats && format_open {
+                    return Err("Nested ^XA before the preceding ^XZ".into());
+                }
+                format_open = true;
+                height_at_first_field = None;
                 mirror_at_format_start = self.printer.label_mirrored;
                 self.printer.reset_label_state();
                 current_recalled_format = None;
@@ -81,6 +131,10 @@ impl ZplParser {
             }
 
             if upper.starts_with("^XZ") {
+                if options.require_complete_formats && !format_open {
+                    return Err("Unmatched ^XZ without ^XA".into());
+                }
+                format_open = false;
                 // Resolve any active recalled format
                 if let Some(ref rf) = current_recalled_format {
                     let resolved = stored_formats::resolve_elements(rf)?;
@@ -92,6 +146,21 @@ impl ZplParser {
                 }
 
                 if self.printer.next_download_format_name.is_empty() {
+                    let quantity = self
+                        .printer
+                        .print_quantity
+                        .max(1)
+                        .checked_mul(self.printer.print_copies.max(1))
+                        .ok_or("Print quantity exceeds supported label count")?
+                        as usize;
+                    let total = results
+                        .len()
+                        .checked_add(quantity)
+                        .ok_or("Print quantity exceeds addressable label count")?;
+                    if let Some(limit) = options.max_labels.filter(|&limit| total > limit) {
+                        return Err(format!("Print job exceeds the {limit} label limit"));
+                    }
+
                     // ^LT/^LS apply when the label is emitted, never when a format is
                     // stored: recalled formats keep raw positions and shift with the
                     // recall format's own ^LT/^LS (Labelary behavior, verified). This
@@ -103,15 +172,20 @@ impl ZplParser {
                         self.printer.label_shift,
                         self.printer.label_top,
                     );
-                    let quantity =
-                        self.printer.print_quantity.max(1) * self.printer.print_copies.max(1);
+                    let dimension = |dots: i32| {
+                        (options.use_declared_dimensions && dots > 0)
+                            .then_some(dots as f64 / self.printer.dpmm as f64)
+                    };
+                    let label_width_mm = dimension(self.printer.print_width);
+                    let label_height_mm =
+                        dimension(height_at_first_field.unwrap_or(self.printer.label_length));
                     for _ in 0..quantity {
                         results.push(LabelInfo {
                             print_width: self.printer.print_width,
                             inverted: self.printer.label_inverted,
                             mirrored: self.printer.label_mirrored,
-                            label_width_mm: None,
-                            label_height_mm: None,
+                            label_width_mm,
+                            label_height_mm,
                             elements: shifted.clone(),
                         });
                     }
@@ -137,6 +211,12 @@ impl ZplParser {
                     &raw_command.bytes[3..],
                     self.printer.next_hex_escape_char,
                 ));
+            }
+
+            // Zebra applies ^LL to the current format only before its first
+            // ^FS; later values become the default for the next format.
+            if upper.starts_with("^FS") && height_at_first_field.is_none() {
+                height_at_first_field = Some(self.printer.label_length);
             }
 
             // Try each command parser
@@ -165,6 +245,9 @@ impl ZplParser {
             }
         }
 
+        if options.require_complete_formats && format_open {
+            return Err("Incomplete ZPL format: missing ^XZ".into());
+        }
         Ok(results)
     }
 
@@ -192,6 +275,9 @@ impl ZplParser {
         if upper.starts_with("^LL") {
             let scale = self.printer.unit_scale();
             if let Some(v) = command_text(command, "^LL")
+                .split(',')
+                .next()
+                .unwrap_or_default()
                 .trim()
                 .parse::<f64>()
                 .ok()

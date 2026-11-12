@@ -44,4 +44,4 @@ pub use cpcl::parser::CpclParser;
 pub use dpl::parser::DplParser;
 pub use epl::parser::EplParser;
 pub use tspl::parser::TsplParser;
-pub use zpl::parser::ZplParser;
+pub use zpl::parser::{ZplParseOptions, ZplParser};
