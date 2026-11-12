@@ -87,7 +87,7 @@ jobs:
           printf 'https://mirrors.mit.edu/ubuntu/\tpriority:100\n' | sudo tee -a /etc/apt/apt-mirrors.txt >/dev/null
           apt_options=(-o Acquire::Retries=0 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10)
           sudo apt-get "${apt_options[@]}" update
-          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends poppler-utils
+          sudo apt-get "${apt_options[@]}" install -y poppler-utils
       - name: Install Python PDF and barcode dependencies
         run: python -m pip install -r e2e/vector/requirements.txt
       - name: Render fixed visual cases and export PDF fixtures through the public API
