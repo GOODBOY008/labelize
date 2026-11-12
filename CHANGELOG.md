@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-12
+
+### Added
+
+- **Complete ZPL print jobs**. Rust callers can use
+  `ZplParser::parse_with_options` to read per-label `^PW` and `^LL` dimensions,
+  require matching `^XA` and `^XZ` commands, and limit the number of labels
+  before expanding copies. The existing `parse` method retains its canvas
+  and format framing defaults.
+
+### Fixed
+
+- Reject `^PQ` quantities whose expanded count overflows the parser's supported range.
+
 ## [1.11.0] - 2026-11-11
 
 ### Added
