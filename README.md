@@ -12,7 +12,7 @@
 [![Docker](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/docker.yml?branch=main&label=docker)](https://github.com/GOODBOY008/labelize/actions/workflows/docker.yml)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 
-[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](https://labelize.764629910.workers.dev/#docs/getting-started) · [API console](https://labelize.764629910.workers.dev/#api) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
+[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](https://labelize.764629910.workers.dev/#docs/getting-started) · [API console](https://labelize.764629910.workers.dev/#api) · [💬 Discussions](https://github.com/GOODBOY008/labelize/discussions) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
 
 <img src="docs/playground.png" alt="The Labelize web playground rendering a shipping label" width="860"/>
 
@@ -437,9 +437,15 @@ tools/build/build-windows.sh   # → target/windows-release/labelize.exe (via Do
 
 ## 🤝 Contributing
 
+Join [GitHub Discussions](https://github.com/GOODBOY008/labelize/discussions) to
+ask questions, suggest features, or share what you've built with Labelize. We use
+English so contributors from different countries can follow along. If you share
+a label sample, replace real names, addresses, and tracking numbers with test data.
+
 Contributions are welcome! Bug reports, new ZPL/EPL/TSPL/CPCL/DPL commands, rendering
 improvements, and docs fixes all count — see [AGENTS.md](AGENTS.md) for the
-development workflow, then open an issue or submit a pull request.
+development workflow, then [open an issue](https://github.com/GOODBOY008/labelize/issues/new)
+or submit a pull request.
 
 ## 📄 License
 
