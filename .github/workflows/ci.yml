@@ -78,11 +78,18 @@ jobs:
           python-version: '3.11'
           cache: pip
           cache-dependency-path: e2e/vector/requirements.txt
-      - name: Install independent PDF readers and barcode decoder
+      - name: Install Poppler
+        timeout-minutes: 5
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils
-          python -m pip install -r e2e/vector/requirements.txt
+          # The runner's default mirrors share ubuntu.com DNS. Keep them first,
+          # then fall back to MIT's copy of the same Ubuntu-signed archive.
+          printf 'https://mirrors.mit.edu/ubuntu/\tpriority:100\n' | sudo tee -a /etc/apt/apt-mirrors.txt >/dev/null
+          apt_options=(-o Acquire::Retries=0 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10)
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends poppler-utils
+      - name: Install Python PDF and barcode dependencies
+        run: python -m pip install -r e2e/vector/requirements.txt
       - name: Render fixed visual cases and export PDF fixtures through the public API
         run: cargo test --locked --features vector --test e2e_vector_visual --test e2e_field_parameter_pdf
       - name: Check native text regressions and reject raster or hidden-text controls
