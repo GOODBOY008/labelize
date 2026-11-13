@@ -1,0 +1,19 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use the [bug report form](https://github.com/GOODBOY008/labelize/issues/new?template=bug_report.yml) if you can reproduce a bug.
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you need help with?
+      description: Describe what you're trying to do, what you've tried, and what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Label or environment details
+      description: |
+        If relevant, include your Labelize version, how you run it, and a small label sample with its language, size, and resolution.
+        Replace customer data with test values, including data encoded in barcodes and QR codes.

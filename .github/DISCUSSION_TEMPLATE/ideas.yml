@@ -1,0 +1,17 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use the [feature request form](https://github.com/GOODBOY008/labelize/issues/new?template=feature_request.yml) for a specific change you'd like the project to track.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What are you trying to do?
+      description: Describe your use case and where Labelize could help.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: Share your idea, examples, or related projects if you have them.

@@ -444,7 +444,7 @@ a label sample, replace real names, addresses, and tracking numbers with test da
 
 Contributions are welcome! Bug reports, new ZPL/EPL/TSPL/CPCL/DPL commands, rendering
 improvements, and docs fixes all count — see [AGENTS.md](AGENTS.md) for the
-development workflow, then [open an issue](https://github.com/GOODBOY008/labelize/issues/new)
+development workflow, then [open an issue](https://github.com/GOODBOY008/labelize/issues/new/choose)
 or submit a pull request.
 
 ## 📄 License
