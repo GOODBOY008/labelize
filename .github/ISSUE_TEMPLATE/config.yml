@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and help
+    url: https://github.com/GOODBOY008/labelize/discussions/categories/q-a
+    about: Ask about installation, label formats, rendering settings, or integration.
+  - name: Ideas and feedback
+    url: https://github.com/GOODBOY008/labelize/discussions/categories/ideas
+    about: Share an idea and get feedback from the community.
+  - name: Labelize Studio
+    url: https://github.com/GOODBOY008/labelize-studio/issues/new/choose
+    about: Report problems or request features for the Labelize Studio desktop app.

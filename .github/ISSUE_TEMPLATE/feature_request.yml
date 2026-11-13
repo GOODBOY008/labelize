@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a specific improvement to Labelize.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        To get early feedback, start a discussion in [Ideas](https://github.com/GOODBOY008/labelize/discussions/categories/ideas).
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What are you trying to do, and where does your workflow get stuck?
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: Requested change
+      description: How should Labelize work in your example? Include the label language, command, or API if relevant.
+    validations:
+      required: true

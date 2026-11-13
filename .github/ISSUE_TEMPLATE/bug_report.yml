@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible problem with Labelize.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For rendering bugs, see the [guide to sharing a reproducible label](https://github.com/GOODBOY008/labelize/discussions/138).
+        Replace real customer data with test values, including data encoded in barcodes and QR codes.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did you encounter the bug?
+      options:
+        - CLI
+        - HTTP service / Docker
+        - Web playground
+        - Rust library
+        - JavaScript / WebAssembly
+        - Android library
+        - Documentation
+        - Other / unsure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and environment
+      description: Enter the Labelize version, package version, Docker tag, or commit if known. Include the OS or browser if relevant.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Label language
+      options:
+        - ZPL
+        - EPL
+        - TSPL
+        - CPCL
+        - DPL
+        - Other / unsure
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the command, request, or playground steps and a small label sample if relevant. For rendering, include label size, resolution (dpi or dots/mm), and output format.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Include relevant errors or screenshots. For comparisons, name the printer model or reference renderer.
+    validations:
+      required: true
