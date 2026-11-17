@@ -1,0 +1,11 @@
+{
+  "fixture": "usps_apo",
+  "source_sha256": "6cf7f6be329159f153f0943372799d4f51e48b9bf313dd7340053f7e23b22551",
+  "request_source": "labels/usps_apo.zpl",
+  "request_sha256": "6cf7f6be329159f153f0943372799d4f51e48b9bf313dd7340053f7e23b22551",
+  "reference_sha256": "53c907be29dfe8fe39039252df50807ef87d7a86431878e862ce72083b9dad8b",
+  "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+  "captured_date": "2026-11-17",
+  "reference": "Labelary",
+  "label_index": 0
+}

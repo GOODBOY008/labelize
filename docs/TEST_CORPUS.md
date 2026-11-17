@@ -17,6 +17,29 @@ Specialized fixtures keep their provenance beside the data:
 
 ## ZPL and EPL
 
+Six synthetic `testdata/unit/zpl_*.zpl` fixtures cover the `^B0` Aztec alias,
+`^IM` recall, `^IS` bitmap saving, `^A@` orientation/filename parameters and
+counted `^GFB` payloads. Their independent Labelary PNGs were captured on
+November 17, 2026 at 8 dpmm and 813 × 1626 pixels; the exact bytes and hashes
+are recorded in [capture provenance](../testdata/unit/zpl-render-commands-provenance.json).
+The binary fixture includes literal command prefixes and trailing CR/LF/TAB
+bytes and must not undergo line-ending conversion. The named-font capture uses
+an equivalent `^A0` control for Zebra's documented `^CF0` fallback because
+Labelary applies different sizing to `^A@` with an unavailable font. Its request
+source is retained beside the fixture. Image load and move have separate
+captures, and a pixel-exact unit regression covers both placements in one format.
+These captures verify software rendering, not physical printer output.
+
+The original USPS APO capture contains six truncated/lossy `^GFB` fields. It
+and its historical reference are preserved under `testdata/invalid/`, where a
+regression requires an explicit truncation error. The adapted rendering fixture
+uses valid `^GFA` fields containing only the complete bitmap rows available to
+the old text parser; missing original image pixels are not reconstructed.
+[Normalization details](../testdata/invalid/usps_apo_normalization.json) record
+original and adapted hashes and each field's byte counts. Its new independent
+reference is recorded in [capture provenance](../testdata/labels/usps_apo.provenance.json).
+
+
 `testdata/unit/field_parameters.zpl` is a synthetic, independent Labelary
 reference for text direction and additional character spacing, captured on
 November 6, 2026 at 8 dots/mm and 813 x 1626 pixels. Its adjacent provenance
@@ -52,7 +75,7 @@ are maintained in [Diff thresholds](DIFF_THRESHOLDS.md).
 
 | Label | Carrier / system | Source |
 |-------|------------------|--------|
-| `usps`, `usps_apo`, `usps_intl` | USPS eVS production stream | captured (anonymized) |
+| `usps`, `usps_apo`, `usps_intl` | USPS eVS production stream | captured (anonymized); APO graphic payloads normalized as documented above |
 | `ups`, `ups_surepost`, `ups_import_control` | UPS production waybills | captured (anonymized) |
 | `fedex`, `fedex_express`, `fedex_ground` | FedEx production waybills | captured (anonymized) |
 | `dhlpaket` | DHL Paket (DE) production | captured (anonymized) |

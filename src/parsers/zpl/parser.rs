@@ -24,6 +24,7 @@ use crate::elements::label_info::LabelInfo;
 use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::maxicode::Maxicode;
+use crate::elements::raster_label::RasterLabel;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::{RecalledFieldData, StoredField, StoredFormat};
 use crate::elements::text_flow::{TextDirection, TextFlow};
@@ -141,18 +142,27 @@ impl ZplParser {
                     result_elements.extend(resolved);
                 }
 
-                if result_elements.is_empty() && self.printer.next_download_format_name.is_empty() {
+                if result_elements.is_empty()
+                    && self.printer.next_download_format_name.is_empty()
+                    && self.printer.image_saves.is_empty()
+                {
                     continue;
                 }
 
                 if self.printer.next_download_format_name.is_empty() {
+                    let print_image = self
+                        .printer
+                        .image_saves
+                        .last()
+                        .is_none_or(|(_, print)| *print);
                     let quantity = self
                         .printer
                         .print_quantity
                         .max(1)
                         .checked_mul(self.printer.print_copies.max(1))
                         .ok_or("Print quantity exceeds supported label count")?
-                        as usize;
+                        as usize
+                        * usize::from(print_image);
                     let total = results
                         .len()
                         .checked_add(quantity)
@@ -179,17 +189,38 @@ impl ZplParser {
                     let label_width_mm = dimension(self.printer.print_width);
                     let label_height_mm =
                         dimension(height_at_first_field.unwrap_or(self.printer.label_length));
+                    let label = LabelInfo {
+                        print_width: self.printer.print_width,
+                        inverted: self.printer.label_inverted,
+                        mirrored: self.printer.label_mirrored,
+                        label_width_mm,
+                        label_height_mm,
+                        elements: shifted,
+                    };
+                    if !self.printer.image_saves.is_empty() {
+                        if saved_image_depth(&label) >= 16 {
+                            return Err("Saved image nesting exceeds 16 levels".into());
+                        }
+                        let saved = RasterLabel {
+                            label: std::sync::Arc::new(label.clone()),
+                            source_dpmm: self.printer.dpmm,
+                            position: LabelPosition::default(),
+                            magnification_x: 1,
+                            magnification_y: 1,
+                            reverse_print: ReversePrint::default(),
+                        };
+                        for (name, _) in self.printer.image_saves.drain(..) {
+                            self.printer.stored_graphics.remove(&name);
+                            self.printer.saved_images.insert(name, saved.clone());
+                        }
+                    }
                     for _ in 0..quantity {
-                        results.push(LabelInfo {
-                            print_width: self.printer.print_width,
-                            inverted: self.printer.label_inverted,
-                            mirrored: self.printer.label_mirrored,
-                            label_width_mm,
-                            label_height_mm,
-                            elements: shifted.clone(),
-                        });
+                        results.push(label.clone());
                     }
                 } else {
+                    if !self.printer.image_saves.is_empty() {
+                        return Err("^IS inside a downloaded format is not supported".into());
+                    }
                     self.printer.stored_formats.insert(
                         self.printer.next_download_format_name.clone(),
                         StoredFormat {
@@ -220,7 +251,12 @@ impl ZplParser {
             }
 
             // Try each command parser
-            if let Some(el) = self.parse_command(command)? {
+            let parsed = if upper.starts_with("^GF") {
+                self.parse_graphic_field(&raw_command.bytes)?
+            } else {
+                self.parse_command(command)?
+            };
+            if let Some(el) = parsed {
                 // Handle template swap
                 if let LabelElement::RecalledFormat(rf) = el {
                     if let Some(ref prev_rf) = current_recalled_format {
@@ -452,7 +488,7 @@ impl ZplParser {
             self.parse_barcode_pdf417(command);
             return Ok(None);
         }
-        if upper.starts_with("^BO") {
+        if upper.starts_with("^BO") || upper.starts_with("^B0") {
             self.parse_barcode_aztec(command);
             return Ok(None);
         }
@@ -490,9 +526,6 @@ impl ZplParser {
         if upper.starts_with("^GD") {
             return self.parse_graphic_diagonal_line(command);
         }
-        if upper.starts_with("^GF") {
-            return self.parse_graphic_field(command);
-        }
         if upper.starts_with("^GS") {
             self.parse_graphic_symbol(command);
             return Ok(None);
@@ -508,11 +541,10 @@ impl ZplParser {
             return Ok(None);
         }
         if upper.starts_with("^IM") {
-            self.parse_image_move(command);
-            return Ok(None);
+            return self.parse_image_move(command);
         }
         if upper.starts_with("^IS") {
-            self.parse_image_save(command);
+            self.parse_image_save(command)?;
             return Ok(None);
         }
         if upper.starts_with("~EG") {
@@ -740,20 +772,23 @@ impl ZplParser {
         self.printer.next_font = Some(font);
     }
 
-    /// `^A@f,h,w` -- change font by name. `f` may be a built-in designator or a
-    /// downloadable font name (device prefix, extension); names we cannot render
-    /// degrade to the default font like `^A`'s numeric fallback does.
+    /// `^A@o,h,w,d:f.x` -- orientation and dimensions precede the font filename.
+    /// An omitted filename retains the previous named font. Unavailable fonts
+    /// use ^CF's fallback; loading downloadable font files remains unsupported.
     fn parse_change_font_named(&mut self, command: &str) {
         let parts = split_command(command, "^A@");
-        if parts.is_empty() || parts[0].is_empty() {
-            self.printer.next_font = None;
-            return;
+        if let Some(name) = parts.get(3).map(|s| s.trim()).filter(|s| !s.is_empty()) {
+            self.printer.named_font = Some(name.to_string());
         }
-        let mut font = crate::elements::font::FontInfo {
-            name: self.resolve_font_name(parts[0]),
-            orientation: self.printer.default_font.orientation,
-            ..Default::default()
-        };
+        let mut font = self.printer.default_font.clone();
+        if let Some(name) = &self.printer.named_font {
+            font.name = self.resolve_font_name(name);
+        }
+        font.orientation = parts
+            .first()
+            .and_then(|s| s.trim().as_bytes().first())
+            .map(|&b| to_field_orientation(b))
+            .unwrap_or(self.printer.default_orientation);
 
         let scale = self.printer.unit_scale();
         if let Some(s) = parts.get(1) {
@@ -1516,8 +1551,14 @@ impl ZplParser {
         Ok(Some(LabelElement::DiagonalLine(gd)))
     }
 
-    fn parse_graphic_field(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^GF");
+    fn parse_graphic_field(&self, command: &[u8]) -> Result<Option<LabelElement>, String> {
+        let mut fields = command[3..].splitn(5, |&b| b == b',');
+        let parts: Vec<_> = fields
+            .by_ref()
+            .take(4)
+            .map(|s| std::str::from_utf8(s).unwrap_or_default())
+            .collect();
+        let data = fields.next().unwrap_or_default();
         let mut gf = GraphicField {
             position: self.printer.next_element_position.clone(),
             magnification_x: 1,
@@ -1533,10 +1574,10 @@ impl ZplParser {
         };
         if let Some(s) = parts.first() {
             if !s.is_empty() {
-                match s.as_bytes()[0] {
+                match s.as_bytes()[0].to_ascii_uppercase() {
                     b'A' => gf.format = GraphicFieldFormat::Hex,
                     b'B' => gf.format = GraphicFieldFormat::Raw,
-                    b'C' => gf.format = GraphicFieldFormat::AR,
+                    b'C' => return Err("^GFC compressed binary graphics are not supported".into()),
                     _ => {}
                 }
             }
@@ -1550,18 +1591,27 @@ impl ZplParser {
         if let Some(v) = parts.get(3).and_then(|s| parse_int(s)) {
             gf.row_bytes = v.min(9999999);
         }
-        if parts.len() > 4 {
-            let data = parts[4..].join(",").trim().to_string();
-            match gf.format {
-                GraphicFieldFormat::Hex => {
-                    gf.data = hex::decode_graphic_field_data(&data, gf.row_bytes)
-                        .map_err(|e| format!("failed to decode hex string: {}", e))?;
-                }
-                GraphicFieldFormat::Raw => {
-                    gf.data = data.into_bytes();
-                }
-                _ => {}
+        match gf.format {
+            GraphicFieldFormat::Hex => {
+                let data = std::str::from_utf8(data)
+                    .map_err(|_| "^GFA requires ASCII graphic data")?
+                    .trim();
+                gf.data = hex::decode_graphic_field_data(data, gf.row_bytes)
+                    .map_err(|e| format!("failed to decode hex string: {}", e))?;
             }
+            GraphicFieldFormat::Raw => {
+                if !(1..=99999).contains(&gf.data_bytes)
+                    || !(1..=99999).contains(&gf.total_bytes)
+                    || !(1..=99999).contains(&gf.row_bytes)
+                {
+                    return Err("Binary ^GF counts must be between 1 and 99999".into());
+                }
+                if data.len() != gf.data_bytes as usize {
+                    return Err("Truncated binary ^GF payload".into());
+                }
+                gf.data = data.to_vec();
+            }
+            _ => {}
         }
         Ok(Some(LabelElement::GraphicField(gf)))
     }
@@ -1624,88 +1674,39 @@ impl ZplParser {
                 .map_err(|e| format!("failed to decode embedded graphics: {}", e))?;
         }
 
-        let path = ensure_extension(&path, "GRF");
+        let path = image_key(&path);
+        self.printer.saved_images.remove(&path);
         self.printer.stored_graphics.insert(path, graphics);
         Ok(())
     }
 
     fn parse_image_load(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^IL");
-        let mut gf = GraphicField {
-            position: LabelPosition::default(),
-            magnification_x: 1,
-            magnification_y: 1,
-            reverse_print: ReversePrint::default(),
-            format: GraphicFieldFormat::Hex,
-            data_bytes: 0,
-            total_bytes: 0,
-            row_bytes: 0,
-            data: Vec::new(),
-            mode: GraphicFieldMode::default(),
-            zero_bits_black: false,
-        };
-
-        let mut path = STORED_GRAPHICS_DEFAULT_PATH.to_string();
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                path = s.to_string();
-            }
-        }
-
-        if let Some(v) = self.printer.stored_graphics.get(&path) {
-            gf.data = v.data.clone();
-            gf.data_bytes = v.total_bytes;
-            gf.total_bytes = v.total_bytes;
-            gf.row_bytes = v.row_bytes;
-            Ok(Some(LabelElement::GraphicField(gf)))
-        } else {
-            Ok(None)
-        }
+        let name = split_command(command, "^IL")[0];
+        self.recall_image(
+            name,
+            LabelPosition::default(),
+            1,
+            1,
+            ReversePrint::default(),
+        )
     }
 
     fn parse_recall_graphics(&self, command: &str) -> Result<Option<LabelElement>, String> {
         let parts = split_command(command, "^XG");
-        let mut gf = GraphicField {
-            position: self.printer.next_element_position.clone(),
-            magnification_x: 1,
-            magnification_y: 1,
-            reverse_print: self.printer.get_reverse_print(),
-            format: GraphicFieldFormat::Hex,
-            data_bytes: 0,
-            total_bytes: 0,
-            row_bytes: 0,
-            data: Vec::new(),
-            mode: GraphicFieldMode::default(),
-            zero_bits_black: false,
+        let magnification = |index: usize| {
+            parts
+                .get(index)
+                .and_then(|s| parse_int(s))
+                .filter(|v| (1..=10).contains(v))
+                .unwrap_or(1)
         };
-
-        let mut path = STORED_GRAPHICS_DEFAULT_PATH.to_string();
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                path = s.to_string();
-            }
-        }
-
-        if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
-            if (0..=10).contains(&v) {
-                gf.magnification_x = v;
-            }
-        }
-        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
-            if (0..=10).contains(&v) {
-                gf.magnification_y = v;
-            }
-        }
-
-        if let Some(v) = self.printer.stored_graphics.get(&path) {
-            gf.data = v.data.clone();
-            gf.data_bytes = v.total_bytes;
-            gf.total_bytes = v.total_bytes;
-            gf.row_bytes = v.row_bytes;
-            Ok(Some(LabelElement::GraphicField(gf)))
-        } else {
-            Ok(None)
-        }
+        self.recall_image(
+            parts[0],
+            self.printer.next_element_position.clone(),
+            magnification(1),
+            magnification(2),
+            self.printer.get_reverse_print(),
+        )
     }
 
     fn parse_download_format(&mut self, command: &str) -> Result<(), String> {
@@ -1745,6 +1746,9 @@ impl ZplParser {
             return;
         }
         let key = name.to_string();
+        if self.printer.saved_images.remove(&image_key(name)).is_some() {
+            return;
+        }
         if self.printer.stored_graphics.remove(&key).is_some() {
             return;
         }
@@ -1759,49 +1763,68 @@ impl ZplParser {
         self.printer.stored_formats.remove(&zpl);
     }
 
-    /// `^IMa,b` -- move (rename) a stored object from a to b. The extension picks
-    /// the store: `.ZPL` moves formats, anything else moves graphics.
-    fn parse_image_move(&mut self, command: &str) {
-        let parts = split_command(command, "^IM");
-        if parts.len() < 2 {
-            return;
-        }
-        let (from, to) = (parts[0].trim(), parts[1].trim());
-        if let Some(key) = storage_key(from, "ZPL") {
-            if let Some(v) = self.printer.stored_formats.remove(&key) {
-                self.printer
-                    .stored_formats
-                    .insert(storage_key(to, "ZPL").unwrap_or_default(), v);
-            }
-            return;
-        }
-        let from_key = ensure_extension(from, "GRF");
-        let to_key = ensure_extension(to, "GRF");
-        if let Some(g) = self.printer.stored_graphics.remove(&from_key) {
-            self.printer.stored_graphics.insert(to_key, g);
-        }
+    /// ^IM draws a stored image at its original size without deleting it.
+    fn parse_image_move(&self, command: &str) -> Result<Option<LabelElement>, String> {
+        let name = split_command(command, "^IM")[0];
+        self.recall_image(
+            name,
+            self.printer.next_element_position.clone(),
+            1,
+            1,
+            self.printer.get_reverse_print(),
+        )
     }
 
-    /// `^ISa,b` -- copy a stored object from a to b (both names remain usable).
-    fn parse_image_save(&mut self, command: &str) {
+    /// ^IS saves the completed label, including fields following this command.
+    fn parse_image_save(&mut self, command: &str) -> Result<(), String> {
+        if !self.printer.next_download_format_name.is_empty() {
+            return Err("^IS inside a downloaded format is not supported".into());
+        }
         let parts = split_command(command, "^IS");
-        if parts.len() < 2 {
-            return;
+        let name = image_key(parts.first().copied().unwrap_or_default());
+        validate_device(&name)?;
+        if !name.ends_with(".GRF") && !name.ends_with(".PNG") {
+            return Err("^IS supports .GRF and .PNG images".into());
         }
-        let (from, to) = (parts[0].trim(), parts[1].trim());
-        if let Some(key) = storage_key(from, "ZPL") {
-            if let Some(v) = self.printer.stored_formats.get(&key).cloned() {
-                self.printer
-                    .stored_formats
-                    .insert(storage_key(to, "ZPL").unwrap_or_default(), v);
-            }
-            return;
+        let print = !parts
+            .get(1)
+            .is_some_and(|s| s.trim().eq_ignore_ascii_case("N"));
+        self.printer.image_saves.push((name, print));
+        Ok(())
+    }
+
+    fn recall_image(
+        &self,
+        name: &str,
+        position: LabelPosition,
+        mag_x: i32,
+        mag_y: i32,
+        reverse_print: ReversePrint,
+    ) -> Result<Option<LabelElement>, String> {
+        let key = image_key(name);
+        if let Some(saved) = self.printer.saved_images.get(&key) {
+            let mut image = saved.clone();
+            image.position = position;
+            image.magnification_x = mag_x;
+            image.magnification_y = mag_y;
+            image.reverse_print = reverse_print;
+            return Ok(Some(LabelElement::RasterLabel(image)));
         }
-        let from_key = ensure_extension(from, "GRF");
-        let to_key = ensure_extension(to, "GRF");
-        if let Some(g) = self.printer.stored_graphics.get(&from_key).cloned() {
-            self.printer.stored_graphics.insert(to_key, g);
-        }
+        Ok(self.printer.stored_graphics.get(&key).map(|g| {
+            LabelElement::GraphicField(GraphicField {
+                position,
+                magnification_x: mag_x,
+                magnification_y: mag_y,
+                reverse_print,
+                format: GraphicFieldFormat::Hex,
+                data_bytes: g.total_bytes,
+                total_bytes: g.total_bytes,
+                row_bytes: g.row_bytes,
+                data: g.data.clone(),
+                mode: GraphicFieldMode::default(),
+                zero_bits_black: false,
+            })
+        }))
     }
 
     /// `~EGname` -- erase stored graphics; a blank name erases all of them.
@@ -1809,9 +1832,11 @@ impl ZplParser {
         let name = command_text(command, "~EG").trim();
         if name.is_empty() {
             self.printer.stored_graphics.clear();
+            self.printer.saved_images.clear();
         } else {
-            let key = ensure_extension(name, "GRF");
+            let key = image_key(name);
             self.printer.stored_graphics.remove(&key);
+            self.printer.saved_images.remove(&key);
         }
     }
 
@@ -1833,13 +1858,33 @@ impl ZplParser {
     }
 }
 
-/// Storage key for a `.ZPL` extension check on `^IM`/`^IS` targets: returns the
-/// normalized key when the name carries a `.ZPL` extension, else None (graphics).
-fn storage_key(name: &str, ext: &str) -> Option<String> {
-    if name.to_ascii_uppercase().ends_with(&format!(".{}", ext)) {
-        Some(ensure_extension(name, ext))
+fn saved_image_depth(label: &LabelInfo) -> usize {
+    label
+        .elements
+        .iter()
+        .filter_map(|element| match element {
+            LabelElement::RasterLabel(image) => Some(1 + saved_image_depth(&image.label)),
+            _ => None,
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+/// Graphics default to DRAM and the GRF extension. Keep explicit PNG names.
+fn image_key(name: &str) -> String {
+    let name = name.trim();
+    if name.is_empty() {
+        return STORED_GRAPHICS_DEFAULT_PATH.to_string();
+    }
+    let name = if name.contains(':') {
+        name.to_string()
     } else {
-        None
+        format!("R:{name}")
+    };
+    if name.contains('.') {
+        name.to_ascii_uppercase()
+    } else {
+        format!("{}.GRF", name.to_ascii_uppercase())
     }
 }
 
@@ -1859,6 +1904,7 @@ fn apply_label_offsets(elements: &mut [LabelElement], shift_x: i32, top_y: i32) 
             LabelElement::GraphicCircle(g) => &mut g.position,
             LabelElement::DiagonalLine(g) => &mut g.position,
             LabelElement::GraphicField(g) => &mut g.position,
+            LabelElement::RasterLabel(g) => &mut g.position,
             LabelElement::Barcode128(b) => &mut b.position,
             LabelElement::BarcodeEan13(b) => &mut b.position,
             LabelElement::Barcode2of5(b) => &mut b.position,
@@ -1904,13 +1950,15 @@ fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<ZplCommand>, String> {
     let mut tilde = b'~';
     let mut buff = Vec::new();
     let mut results = Vec::new();
-    // Preserve input bytes before the text view is decoded. As before, literal
-    // transport CR/LF/TAB are ignored; ^FH can insert them into field data.
-    for ch in zpl_data
-        .iter()
-        .copied()
-        .filter(|b| !matches!(b, b'\n' | b'\r' | b'\t'))
-    {
+    // Only text transport whitespace is ignored. Counted binary payloads are
+    // copied before interpreting any whitespace or command-prefix bytes.
+    let mut cursor = 0;
+    while cursor < zpl_data.len() {
+        let ch = zpl_data[cursor];
+        cursor += 1;
+        if matches!(ch, b'\n' | b'\r' | b'\t') {
+            continue;
+        }
         let mut is_ct = false;
         let mut is_cc = false;
         if buff.len() == 4 {
@@ -1933,6 +1981,17 @@ fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<ZplCommand>, String> {
         }
 
         buff.push(ch);
+        if let Some(length) = super::binary_graphics::payload_length(&buff) {
+            let length = length?;
+            let end = cursor
+                .checked_add(length)
+                .filter(|&end| end <= zpl_data.len())
+                .ok_or("Truncated binary ^GF payload")?;
+            buff.extend_from_slice(&zpl_data[cursor..end]);
+            results.push(normalize_command(&buff, tilde, caret));
+            buff.clear();
+            cursor = end;
+        }
     }
 
     if !buff.is_empty() {

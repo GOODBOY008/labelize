@@ -251,6 +251,10 @@ impl Renderer {
                 self.draw_graphic_field(canvas, gf);
                 Ok(())
             }
+            LabelElement::RasterLabel(image) => {
+                let field = self.raster_label_field(image, options)?;
+                self.draw_element(canvas, &LabelElement::GraphicField(field), options, state)
+            }
             LabelElement::Barcode128(_)
             | LabelElement::BarcodeEan13(_)
             | LabelElement::BarcodeEan8(_)
@@ -437,6 +441,74 @@ impl Renderer {
                 .collect();
             drawing::draw_polygon_mut(canvas, &points, color);
         }
+    }
+
+    fn raster_label_field(
+        &self,
+        saved: &crate::elements::raster_label::RasterLabel,
+        options: &DrawerOptions,
+    ) -> Result<GraphicField, String> {
+        let source_dpmm = saved.source_dpmm.max(1);
+        let resolution_ratio = options.dpmm as f64 / source_dpmm as f64;
+        let source_options = DrawerOptions {
+            label_width_mm: saved
+                .label
+                .label_width_mm
+                .unwrap_or(options.label_width_mm * resolution_ratio),
+            label_height_mm: saved
+                .label
+                .label_height_mm
+                .unwrap_or(options.label_height_mm * resolution_ratio),
+            dpmm: source_dpmm,
+            antialias: false,
+            ..options.clone()
+        };
+        let width = (source_options.label_width_mm * source_dpmm as f64).ceil();
+        let height = (source_options.label_height_mm * source_dpmm as f64).ceil();
+        if !width.is_finite()
+            || !height.is_finite()
+            || width <= 0.0
+            || height <= 0.0
+            || width > 32000.0
+            || height > 32000.0
+            || width * height > 16_777_216.0
+        {
+            return Err("Saved image exceeds the 16 Mi pixel or 32000-dot limit".into());
+        }
+        let mut png = Vec::new();
+        self.draw_label_as_png(&saved.label, &mut png, source_options)?;
+        let image = image::load_from_memory(&png)
+            .map_err(|e| format!("failed to decode saved image: {e}"))?
+            .to_luma8();
+        // Remove presentation margins: the destination adds its own centering.
+        let width = if saved.label.print_width > 0 {
+            image.width().min(saved.label.print_width as u32)
+        } else {
+            image.width()
+        };
+        let left = (image.width() - width) / 2;
+        let row_bytes = width.div_ceil(8) as usize;
+        let mut data = vec![0u8; row_bytes * image.height() as usize];
+        for y in 0..image.height() {
+            for x in 0..width {
+                if image.get_pixel(left + x, y)[0] == 0 {
+                    data[y as usize * row_bytes + x as usize / 8] |= 0x80 >> (x % 8);
+                }
+            }
+        }
+        Ok(GraphicField {
+            position: saved.position.clone(),
+            magnification_x: saved.magnification_x,
+            magnification_y: saved.magnification_y,
+            reverse_print: saved.reverse_print.clone(),
+            format: crate::elements::graphic_field::GraphicFieldFormat::Raw,
+            data_bytes: data.len() as i32,
+            total_bytes: data.len() as i32,
+            row_bytes: row_bytes as i32,
+            data,
+            mode: GraphicFieldMode::default(),
+            zero_bits_black: false,
+        })
     }
 
     fn draw_graphic_field(&self, canvas: &mut RgbaImage, gf: &GraphicField) {

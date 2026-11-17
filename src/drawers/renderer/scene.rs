@@ -339,6 +339,19 @@ impl LabelScene {
                         });
                     }
                 }
+                LabelElement::RasterLabel(_) => {
+                    let mut image = RgbaImage::new(content_width, height);
+                    renderer
+                        .draw_element(&mut image, element, &options, &mut state)
+                        .map_err(LabelizeError::Render)?;
+                    if let Some((image, x, y)) = crop_covered(&image) {
+                        ops.push(Op::Image {
+                            image: Arc::new(image),
+                            x: x as f32,
+                            y: y as f32,
+                        });
+                    }
+                }
                 LabelElement::Maxicode(code) => {
                     if code.data.is_empty() {
                         continue;

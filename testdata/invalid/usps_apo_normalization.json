@@ -1,0 +1,58 @@
+{
+  "original_source_sha256": "fd673e11e0f2aa45b8c40f39ba1936f200a84a60e417c385fe9c5d630bd29737",
+  "normalized_source_sha256": "6cf7f6be329159f153f0943372799d4f51e48b9bf313dd7340053f7e23b22551",
+  "note": "The original capture has six truncated/lossy binary graphic fields. The valid adapted fixture retains only complete rows of printable bytes rendered by the legacy parser. Missing original pixels are not reconstructed. The original source and reference are retained here for invalid-input coverage.",
+  "fields": [
+    {
+      "offset": 4803,
+      "declared_bytes": 100,
+      "available_trimmed_bytes": 56,
+      "normalized_bytes": 56,
+      "row_bytes": 4
+    },
+    {
+      "offset": 5313,
+      "declared_bytes": 33,
+      "available_trimmed_bytes": 0,
+      "normalized_bytes": 3,
+      "row_bytes": 3
+    },
+    {
+      "offset": 5344,
+      "declared_bytes": 357,
+      "available_trimmed_bytes": 82,
+      "normalized_bytes": 77,
+      "row_bytes": 7
+    },
+    {
+      "offset": 5522,
+      "declared_bytes": 33,
+      "available_trimmed_bytes": 0,
+      "normalized_bytes": 3,
+      "row_bytes": 3
+    },
+    {
+      "offset": 5549,
+      "declared_bytes": 204,
+      "available_trimmed_bytes": 0,
+      "normalized_bytes": 2,
+      "row_bytes": 2
+    },
+    {
+      "offset": 5616,
+      "declared_bytes": 4888,
+      "available_trimmed_bytes": 0,
+      "normalized_bytes": 13,
+      "row_bytes": 13
+    }
+  ],
+  "legacy_renderer_comparison": {
+    "baseline_commit": "70d41692a33b6dd7832b98cb215b1082b2012a6b",
+    "canvas_pixels": [
+      813,
+      1626
+    ],
+    "different_pixels": 0,
+    "grayscale_pixels_sha256": "27eebc393739395a41a0f50500742306aa8df5d903f0fa7a94c97cd76fd14d0a"
+  }
+}

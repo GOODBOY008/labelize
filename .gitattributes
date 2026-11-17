@@ -1,3 +1,7 @@
 # Reverse golden snapshots are compared byte-for-byte on every platform.
 /testdata/reverse/*.zpl text eol=lf
 /testdata/reverse/*.tspl binary
+
+# Counted graphic payloads include literal command prefixes and CR/LF/TAB bytes.
+/testdata/unit/zpl_binary_graphics.zpl binary
+/testdata/invalid/usps_apo_truncated.zpl binary
