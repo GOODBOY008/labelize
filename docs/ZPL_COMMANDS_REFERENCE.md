@@ -377,5 +377,8 @@ The following commands are currently implemented in this project:
 - **`^IS`**: captures the completed format, including fields after the command.
   `^IL`, `^IM` and `^XG` recall the frozen bitmap. Saved images use the caller's
   canvas unless declared dimensions were requested, and have limits of 16 Mi
-  pixels, 32000 dots per dimension and 16 nested images. An `^IS` inside a
-  downloaded `^DF` format returns an explicit unsupported error.
+  pixels, 32000 dots per dimension and 16 nested images. A render can cache up
+  to 64 MiB of packed saved images. Repeated placements at the same source
+  dimensions reuse the bitmap. `^IL` restores the saved page including its
+  margins. `^IM` and `^XG` position that bitmap at the field origin. An `^IS`
+  inside a downloaded `^DF` format returns an explicit unsupported error.

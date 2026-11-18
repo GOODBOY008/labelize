@@ -198,17 +198,7 @@ impl ZplParser {
                         elements: shifted,
                     };
                     if !self.printer.image_saves.is_empty() {
-                        if saved_image_depth(&label) >= 16 {
-                            return Err("Saved image nesting exceeds 16 levels".into());
-                        }
-                        let saved = RasterLabel {
-                            label: std::sync::Arc::new(label.clone()),
-                            source_dpmm: self.printer.dpmm,
-                            position: LabelPosition::default(),
-                            magnification_x: 1,
-                            magnification_y: 1,
-                            reverse_print: ReversePrint::default(),
-                        };
+                        let saved = RasterLabel::new(label.clone(), self.printer.dpmm)?;
                         for (name, _) in self.printer.image_saves.drain(..) {
                             self.printer.stored_graphics.remove(&name);
                             self.printer.saved_images.insert(name, saved.clone());
@@ -1682,13 +1672,17 @@ impl ZplParser {
 
     fn parse_image_load(&self, command: &str) -> Result<Option<LabelElement>, String> {
         let name = split_command(command, "^IL")[0];
-        self.recall_image(
+        let mut element = self.recall_image(
             name,
             LabelPosition::default(),
             1,
             1,
             ReversePrint::default(),
-        )
+        )?;
+        if let Some(LabelElement::RasterLabel(saved)) = &mut element {
+            saved.page_relative = true;
+        }
+        Ok(element)
     }
 
     fn parse_recall_graphics(&self, command: &str) -> Result<Option<LabelElement>, String> {
@@ -1737,30 +1731,26 @@ impl ZplParser {
         }
     }
 
-    /// `^IDname` -- delete a stored object. Without an extension the raw key, then
-    /// the `.GRF`, then the `.ZPL` store are tried (spec: bare name deletes all
-    /// stored objects of that name).
+    /// Delete images using the same device, case and extension defaults as
+    /// download and recall. Formats keep their existing name resolution.
     fn parse_image_delete(&mut self, command: &str) {
         let name = command_text(command, "^ID").trim();
         if name.is_empty() {
             return;
         }
-        let key = name.to_string();
-        if self.printer.saved_images.remove(&image_key(name)).is_some() {
-            return;
+        let key = image_key(name);
+        self.printer.saved_images.remove(&key);
+        self.printer.stored_graphics.remove(&key);
+        // An omitted extension identifies a graphic. Only a format name may
+        // delete a format with the same stem.
+        if name
+            .rsplit_once('.')
+            .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("ZPL"))
+        {
+            self.printer
+                .stored_formats
+                .remove(&ensure_extension(name, "ZPL"));
         }
-        if self.printer.stored_graphics.remove(&key).is_some() {
-            return;
-        }
-        if self.printer.stored_formats.remove(&key).is_some() {
-            return;
-        }
-        let grf = ensure_extension(&key, "GRF");
-        if self.printer.stored_graphics.remove(&grf).is_some() {
-            return;
-        }
-        let zpl = ensure_extension(&key, "ZPL");
-        self.printer.stored_formats.remove(&zpl);
     }
 
     /// ^IM draws a stored image at its original size without deleting it.
@@ -1856,18 +1846,6 @@ impl ZplParser {
             }
         }
     }
-}
-
-fn saved_image_depth(label: &LabelInfo) -> usize {
-    label
-        .elements
-        .iter()
-        .filter_map(|element| match element {
-            LabelElement::RasterLabel(image) => Some(1 + saved_image_depth(&image.label)),
-            _ => None,
-        })
-        .max()
-        .unwrap_or(0)
 }
 
 /// Graphics default to DRAM and the GRF extension. Keep explicit PNG names.

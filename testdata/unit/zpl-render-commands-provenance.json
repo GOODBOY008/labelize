@@ -59,5 +59,16 @@
     "captured_date": "2026-11-17",
     "reference": "Labelary",
     "label_index": 0
+  },
+  {
+    "fixture": "zpl_saved_image_edges",
+    "source_sha256": "9b99ae41a5fba9da8e7da1151c89da9219832c7a5ba8f10bfd4f9b2a1a28249f",
+    "request_source": "unit/zpl_saved_image_edges.zpl",
+    "request_sha256": "9b99ae41a5fba9da8e7da1151c89da9219832c7a5ba8f10bfd4f9b2a1a28249f",
+    "reference_sha256": "c8c92c8421cccaf8c0478d00549397a050f2d8ad0340cafaf412e45a67be8150",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "captured_date": "2026-11-18",
+    "reference": "Labelary",
+    "label_index": 0
   }
 ]

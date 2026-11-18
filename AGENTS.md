@@ -145,7 +145,8 @@ label as a bitmap (`p=N` suppresses printing). Saved images are resolved by
 `^IL`/`^IM`/`^XG` and retain their own font/offset/orientation state. The raster
 snapshot uses the caller's canvas unless declared dimensions were requested;
 images are limited to 16 Mi pixels, 32000 dots per dimension and 16 nesting
-levels. `^IS` inside `^DF` remains unsupported and returns an error.
+levels. A render reuses shared bitmaps and limits their combined packed data
+to 64 MiB. `^IS` inside `^DF` remains unsupported and returns an error.
 `^A@o,h,w,d:f.x` retains the last filename; unavailable downloaded fonts still
 use the `^CF` fallback. `^GFB` is byte-safe; `^GFC` returns an explicit error.
 

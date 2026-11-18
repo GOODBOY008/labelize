@@ -135,6 +135,7 @@ impl LabelScene {
         let mut background = needs_compositing
             .then(|| RgbaImage::from_pixel(content_width, height, Rgba([255, 255, 255, 255])));
         let renderer = Renderer::new();
+        let mut saved_images = SavedImageCache::default();
         let mut background_state = DrawerState::new();
         for (index, element) in label.elements.iter().enumerate() {
             if matches!(element, LabelElement::InvertRegion(_)) {
@@ -144,7 +145,13 @@ impl LabelScene {
                 if element.is_reverse_print() {
                     let mut mask = RgbaImage::new(content_width, height);
                     renderer
-                        .draw_element(&mut mask, element, &options, &mut background_state)
+                        .draw_element(
+                            &mut mask,
+                            element,
+                            &options,
+                            &mut background_state,
+                            &mut saved_images,
+                        )
                         .map_err(LabelizeError::Render)?;
                     images::reverse_print::reverse_print(&mask, background);
                     if let Some(bounds) = covered_bounds(&mask, 30) {
@@ -159,7 +166,13 @@ impl LabelScene {
                     continue;
                 }
                 renderer
-                    .draw_element(background, element, &options, &mut background_state)
+                    .draw_element(
+                        background,
+                        element,
+                        &options,
+                        &mut background_state,
+                        &mut saved_images,
+                    )
                     .map_err(LabelizeError::Render)?;
                 if let LabelElement::GraphicField(g) = element {
                     if g.mode == GraphicFieldMode::Xor {
@@ -172,6 +185,7 @@ impl LabelScene {
                                 &LabelElement::GraphicField(ordinary),
                                 &options,
                                 &mut DrawerState::new(),
+                                &mut saved_images,
                             )
                             .map_err(LabelizeError::Render)?;
                         if let Some(bounds) = covered_bounds(&mask, 1) {
@@ -342,7 +356,7 @@ impl LabelScene {
                 LabelElement::RasterLabel(_) => {
                     let mut image = RgbaImage::new(content_width, height);
                     renderer
-                        .draw_element(&mut image, element, &options, &mut state)
+                        .draw_element(&mut image, element, &options, &mut state, &mut saved_images)
                         .map_err(LabelizeError::Render)?;
                     if let Some((image, x, y)) = crop_covered(&image) {
                         ops.push(Op::Image {
@@ -500,7 +514,13 @@ impl LabelScene {
                     for element in &label.elements {
                         if !matches!(element, LabelElement::InvertRegion(_)) {
                             renderer
-                                .draw_element(&mut image, element, &options, &mut state)
+                                .draw_element(
+                                    &mut image,
+                                    element,
+                                    &options,
+                                    &mut state,
+                                    &mut saved_images,
+                                )
                                 .map_err(LabelizeError::Render)?;
                         }
                     }
@@ -570,6 +590,22 @@ impl LabelScene {
         } else {
             transform
         };
+        let margins = saved_images
+            .margins(label, &options, width, content_width, height)
+            .map_err(LabelizeError::Render)?;
+        for (page_x, margin) in margins {
+            if let Some((image, x, y)) = crop_covered(&margin) {
+                scene.ops.push(Op::Group {
+                    transform,
+                    clip: None,
+                    ops: vec![Op::Image {
+                        image: Arc::new(image),
+                        x: (page_x + x) as f32 - offset,
+                        y: y as f32,
+                    }],
+                });
+            }
+        }
         scene.ops.push(Op::Group {
             transform,
             clip: Rect::from_xywh(0.0, 0.0, content_width as f32, height as f32),

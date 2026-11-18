@@ -17,17 +17,17 @@ Specialized fixtures keep their provenance beside the data:
 
 ## ZPL and EPL
 
-Six synthetic `testdata/unit/zpl_*.zpl` fixtures cover the `^B0` Aztec alias,
+Seven synthetic `testdata/unit/zpl_*.zpl` fixtures cover the `^B0` Aztec alias,
 `^IM` recall, `^IS` bitmap saving, `^A@` orientation/filename parameters and
-counted `^GFB` payloads. Their independent Labelary PNGs were captured on
-November 17, 2026 at 8 dpmm and 813 × 1626 pixels; the exact bytes and hashes
-are recorded in [capture provenance](../testdata/unit/zpl-render-commands-provenance.json).
+counted `^GFB` payloads. The Labelary captures from November 17–18, 2026 use
+8 dpmm and an 813 × 1626 pixel canvas. The source and reference hashes appear in [capture provenance](../testdata/unit/zpl-render-commands-provenance.json).
 The binary fixture includes literal command prefixes and trailing CR/LF/TAB
 bytes and must not undergo line-ending conversion. The named-font capture uses
 an equivalent `^A0` control for Zebra's documented `^CF0` fallback because
 Labelary applies different sizing to `^A@` with an unavailable font. Its request
-source is retained beside the fixture. Image load and move have separate
-captures, and a pixel-exact unit regression covers both placements in one format.
+source is retained beside the fixture. The saved-image edge fixture places a
+mirrored image on paper wider than the print area by an odd number of dots.
+It checks page loads, field placements and clipping at both paper edges.
 These captures verify software rendering, not physical printer output.
 
 The original USPS APO capture contains six truncated/lossy `^GFB` fields. It

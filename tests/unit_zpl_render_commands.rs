@@ -125,7 +125,8 @@ fn saved_images_obey_declared_dimensions_when_requested() {
 #[test]
 fn saved_images_support_placement_magnification_and_white_transparency() {
     let actual=pixels("^XA^PW200^FO0,0^GB8,8,8^FS^ISR:T.GRF,N^XZ^XA^FO24,24^GB80,80,80^FS^FO16,16^XGR:T.GRF,2,3^FS^XZ");
-    let expected = pixels("^XA^PW200^FO24,24^GB80,80,80^FS^FO16,16^GB16,24,16^FS^XZ");
+    // The field starts at page x=17. Its saved one-dot margin is magnified by two.
+    let expected = pixels("^XA^PW200^FO24,24^GB80,80,80^FS^FO18,16^GB16,24,16^FS^XZ");
     assert!(actual == expected);
 }
 
@@ -290,4 +291,84 @@ fn saved_image_can_be_loaded_and_moved_without_mutating_the_first_placement() {
         pixels("^XA^FO8,8^GB20,20,20^FS^ISR:T.GRF,N^XZ^XA^ILR:T.GRF^FS^FO80,80^IMR:T.GRF^FS^XZ");
     let expected = pixels("^XA^FO8,8^GB20,20,20^FS^FO88,88^GB20,20,20^FS^XZ");
     assert!(actual == expected);
+}
+
+#[test]
+fn downloaded_graphics_delete_with_the_same_device_and_case_defaults_as_recall() {
+    for (download, delete) in [
+        ("dot", "dot"),
+        ("dot", "R:DOT.GRF"),
+        ("R:Dot.gRf", "dOt"),
+        ("R:dot", "R:dot"),
+    ] {
+        let mut parser = ZplParser::new();
+        let setup = format!("^XA^DFR:dot.ZPL^FO8,8^GB1,1,1^FS^XZ~DG{download},1,1,FF~DGE:DOT.GRF,1,1,80^XA^IMdot^FS^XZ");
+        assert_eq!(parser.parse(setup.as_bytes()).unwrap()[0].elements.len(), 1);
+        let recall = format!("^ID{delete}^XA^IMdot^FS^IME:DOT.GRF^FS^XZ^XA^XFR:dot.ZPL^FS^XZ");
+        let labels = parser.parse(recall.as_bytes()).unwrap();
+        assert_eq!(labels.len(), 2);
+        assert!(matches!(
+            &labels[1].elements[..],
+            [LabelElement::GraphicBox(_)]
+        ));
+        assert!(
+            matches!(&labels[0].elements[..], [LabelElement::GraphicField(g)] if g.data == [0x80])
+        );
+    }
+}
+
+fn assert_ink_coordinates(label: &LabelInfo, expected: &[(u32, u32)]) {
+    fn ink(image: image::GrayImage) -> Vec<(u32, u32)> {
+        image
+            .enumerate_pixels()
+            .filter(|(_, _, p)| p[0] == 0)
+            .map(|(x, y, _)| (x, y))
+            .collect()
+    }
+    assert_eq!(ink(render(label, options())), expected);
+    #[cfg(feature = "vector")]
+    {
+        let scene = labelize::LabelScene::new(label, options()).unwrap();
+        let png = scene
+            .to_png(labelize::ScenePngOptions {
+                scale: 1.0,
+                antialias: false,
+            })
+            .unwrap();
+        assert_eq!(
+            ink(image::load_from_memory(&png).unwrap().to_luma8()),
+            expected
+        );
+    }
+}
+
+#[test]
+fn loaded_bitmap_keeps_both_print_edges_through_mirrors_and_inversion() {
+    // Coordinate pairs measured on a 203×203 Labelary page with a 200-dot print width.
+    for (settings, expected) in [
+        ("", [(1, 0), (200, 3)]),
+        ("^PMY", [(201, 0), (2, 3)]),
+        ("^POI", [(2, 199), (201, 202)]),
+        ("^POI^PMY", [(200, 199), (1, 202)]),
+    ] {
+        let labels = parse(format!(
+            "^XA^PW200{settings}^FO0,0^GB1,1,1^FS^FO199,3^GB1,1,1^FS^ISR:E.GRF,Y^FS^XZ^XA^PMN^PON^ILR:E.GRF^FS^FO200,4^GB1,1,1^FS^XZ"
+        ));
+        assert_eq!(labels.len(), 2);
+        for label in &labels {
+            assert_ink_coordinates(label, &expected);
+        }
+    }
+}
+
+#[test]
+fn positioned_saved_bitmaps_keep_their_page_margins_and_clip_at_the_paper_edge() {
+    let saved = "^XA^PW200^PMY^FO0,0^GB1,1,1^FS^FO199,3^GB1,1,1^FS^ISR:E.GRF,N^FS^XZ";
+    for command in ["^IMR:E.GRF", "^XGR:E.GRF,1,1"] {
+        let labels = parse(format!(
+            "{saved}^XA^PMN^FO0,0{command}^FS^XZ^XA^FO1,4{command}^FS^XZ"
+        ));
+        assert_ink_coordinates(&labels[0], &[(202, 0), (3, 3)]);
+        assert_ink_coordinates(&labels[1], &[(4, 7)]);
+    }
 }

@@ -85,6 +85,7 @@ informational.
 | zpl_binary_graphics | zpl | 0.00 | 0.0 | Counted raw bytes, including command prefixes and whitespace |
 | zpl_image_recall | zpl | 0.00 | 0.0 | Repeated ^IM recalls and ^XG magnification |
 | zpl_image_save | zpl | 0.00 | 0.0 | Completed-label ^IS snapshot and ^IL overlay |
+| zpl_saved_image_edges | zpl | 0.00 | 0.0 | Mirrored page edges in saved bitmaps loaded and placed on odd-width paper |
 | zpl_saved_image_move | zpl | 0.00 | 0.0 | ^IM recall of a saved bitmap at a field origin |
 | zpl_named_font | zpl | 0.33 | 0.5 | Named-font fallback versus equivalent ^A0 reference |
 | amazonshipping | zpl | 2.18 | 4.0 | DataMatrix in 4 orientations + ^FR + font metrics |

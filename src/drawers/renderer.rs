@@ -21,6 +21,8 @@ use crate::images;
 use super::drawer_state::DrawerState;
 
 pub(crate) mod barcode_layout;
+mod saved_images;
+use saved_images::SavedImageCache;
 #[cfg(feature = "vector")]
 pub mod scene;
 pub(crate) mod text_layout;
@@ -78,37 +80,32 @@ impl Renderer {
         options: DrawerOptions,
     ) -> Result<(), String> {
         let options = options.with_defaults();
+        let canvas = self.draw_label_canvas(label, &options, &mut SavedImageCache::default())?;
+        let mut buf = Vec::new();
+        images::monochrome::encode_png_with(&canvas, &mut buf, options.antialias)
+            .map_err(|e| format!("failed to encode png: {e}"))?;
+        output
+            .write_all(&buf)
+            .map_err(|e| format!("failed to write png: {e}"))
+    }
+
+    fn draw_label_canvas(
+        &self,
+        label: &LabelInfo,
+        options: &DrawerOptions,
+        saved_images: &mut SavedImageCache,
+    ) -> Result<RgbaImage, String> {
         let mut state = DrawerState::new();
-
-        let width_mm = options.label_width_mm;
-        let height_mm = options.label_height_mm;
-        let dpmm = options.dpmm;
-
-        // A dot count converted through millimetres can land a few ULPs
-        // above an integer (e.g. 7 / 24000 * 24000). Preserve that integer
-        // canvas while still rounding genuine fractional dots upward.
-        let canvas_dots = |mm: f64| {
-            let dots = mm * dpmm as f64;
-            let nearest = dots.round();
-            if (dots - nearest).abs() <= dots.abs() * f64::EPSILON * 4.0 {
-                nearest as i32
-            } else {
-                dots.ceil() as i32
-            }
-        };
-        let label_width = canvas_dots(width_mm);
+        let label_width = canvas_dots(options.label_width_mm, options.dpmm) as u32;
         let image_width = if label.print_width > 0 {
-            label_width.min(label.print_width)
+            label_width.min(label.print_width as u32)
         } else {
             label_width
         };
-        let image_height = canvas_dots(height_mm);
+        let image_height = canvas_dots(options.label_height_mm, options.dpmm) as u32;
 
-        let mut canvas = RgbaImage::from_pixel(
-            image_width as u32,
-            image_height as u32,
-            Rgba([255, 255, 255, 255]),
-        );
+        let mut canvas =
+            RgbaImage::from_pixel(image_width, image_height, Rgba([255, 255, 255, 255]));
 
         let mut reverse_buf: Option<RgbaImage> = None;
 
@@ -134,20 +131,16 @@ impl Renderer {
 
             if reverse_print {
                 let buf = reverse_buf.get_or_insert_with(|| {
-                    RgbaImage::from_pixel(
-                        image_width as u32,
-                        image_height as u32,
-                        Rgba([0, 0, 0, 0]),
-                    )
+                    RgbaImage::from_pixel(image_width, image_height, Rgba([0, 0, 0, 0]))
                 });
                 // Clear buffer
                 for pixel in buf.pixels_mut() {
                     *pixel = Rgba([0, 0, 0, 0]);
                 }
-                self.draw_element(buf, element, &options, &mut state)?;
+                self.draw_element(buf, element, options, &mut state, saved_images)?;
                 images::reverse_print::reverse_print(buf, &mut canvas);
             } else {
-                self.draw_element(&mut canvas, element, &options, &mut state)?;
+                self.draw_element(&mut canvas, element, options, &mut state, saved_images)?;
             }
         }
 
@@ -166,47 +159,28 @@ impl Renderer {
             }
         }
 
-        // Handle print width centering and label inversion
+        // Center the print area on the physical page. A saved bitmap can also
+        // carry ink in the margins left by a different width or orientation.
         let invert_label = options.enable_inverted_labels && label.inverted;
         if image_width != label_width || invert_label {
-            let mut final_canvas = RgbaImage::from_pixel(
-                label_width as u32,
-                image_height as u32,
-                Rgba([255, 255, 255, 255]),
-            );
-
-            let offset_x = ((label_width - image_width) / 2) as i64;
-
-            if invert_label {
-                // Rotate the rendered content 180° and composite it over the white
-                // canvas with imageops::overlay, matching the centering path below.
-                // Element drawing can leave semi-transparent pixels on the canvas
-                // (rotated text buffers are stamped in without blending), so this
-                // branch must also use src-over compositing rather than raw pixel copy;
-                // otherwise the 1-bit encode will treat any covered pixel as solid black.
-                // offset (label_width - image_width) - offset_x reproduces the previous
-                // dst_x = label_width - 1 - x - offset_x mapping one-to-one.
-                let rotated = image::imageops::rotate180(&canvas);
-                let inverted_offset_x = (label_width - image_width) as i64 - offset_x;
-                image::imageops::overlay(&mut final_canvas, &rotated, inverted_offset_x, 0);
-            } else {
-                image::imageops::overlay(&mut final_canvas, &canvas, offset_x, 0);
+            let mut page = RgbaImage::from_pixel(label_width, image_height, Rgba([255; 4]));
+            let offset = (label_width - image_width) / 2;
+            image::imageops::overlay(&mut page, &canvas, i64::from(offset), 0);
+            for (x, margin) in
+                saved_images.margins(label, options, label_width, image_width, image_height)?
+            {
+                image::imageops::overlay(&mut page, &margin, i64::from(x), 0);
             }
-            canvas = final_canvas;
+            // Compositing on paper before rotation also blends translucent ink.
+            if invert_label {
+                image::imageops::rotate180_in_place(&mut page);
+            }
+            canvas = page;
         }
-
-        // ^PM mirrors the complete output after print-width centering and ^PO.
-        // Flipping only the narrower ^PW canvas misplaces odd margins by a dot.
         if label.mirrored {
             image::imageops::flip_horizontal_in_place(&mut canvas);
         }
-
-        let mut buf = Vec::new();
-        images::monochrome::encode_png_with(&canvas, &mut buf, options.antialias)
-            .map_err(|e| format!("failed to encode png: {}", e))?;
-        output
-            .write_all(&buf)
-            .map_err(|e| format!("failed to write png: {}", e))
+        Ok(canvas)
     }
 
     fn draw_element(
@@ -215,6 +189,7 @@ impl Renderer {
         element: &LabelElement,
         options: &DrawerOptions,
         state: &mut DrawerState,
+        saved_images: &mut SavedImageCache,
     ) -> Result<(), String> {
         // Bottom-of-label-anchored elements that are not drawn from an
         // encoded image flip here, where the canvas height is known; the
@@ -252,8 +227,17 @@ impl Renderer {
                 Ok(())
             }
             LabelElement::RasterLabel(image) => {
-                let field = self.raster_label_field(image, options)?;
-                self.draw_element(canvas, &LabelElement::GraphicField(field), options, state)
+                let page_width = canvas_dots(options.label_width_mm, options.dpmm) as u32;
+                let print_offset = (page_width - canvas.width()) / 2;
+                let offset = if image.page_relative {
+                    -i64::from(print_offset)
+                } else {
+                    0
+                };
+                saved_images
+                    .bitmap(image, options)?
+                    .draw(canvas, image, offset, false);
+                Ok(())
             }
             LabelElement::Barcode128(_)
             | LabelElement::BarcodeEan13(_)
@@ -443,74 +427,6 @@ impl Renderer {
         }
     }
 
-    fn raster_label_field(
-        &self,
-        saved: &crate::elements::raster_label::RasterLabel,
-        options: &DrawerOptions,
-    ) -> Result<GraphicField, String> {
-        let source_dpmm = saved.source_dpmm.max(1);
-        let resolution_ratio = options.dpmm as f64 / source_dpmm as f64;
-        let source_options = DrawerOptions {
-            label_width_mm: saved
-                .label
-                .label_width_mm
-                .unwrap_or(options.label_width_mm * resolution_ratio),
-            label_height_mm: saved
-                .label
-                .label_height_mm
-                .unwrap_or(options.label_height_mm * resolution_ratio),
-            dpmm: source_dpmm,
-            antialias: false,
-            ..options.clone()
-        };
-        let width = (source_options.label_width_mm * source_dpmm as f64).ceil();
-        let height = (source_options.label_height_mm * source_dpmm as f64).ceil();
-        if !width.is_finite()
-            || !height.is_finite()
-            || width <= 0.0
-            || height <= 0.0
-            || width > 32000.0
-            || height > 32000.0
-            || width * height > 16_777_216.0
-        {
-            return Err("Saved image exceeds the 16 Mi pixel or 32000-dot limit".into());
-        }
-        let mut png = Vec::new();
-        self.draw_label_as_png(&saved.label, &mut png, source_options)?;
-        let image = image::load_from_memory(&png)
-            .map_err(|e| format!("failed to decode saved image: {e}"))?
-            .to_luma8();
-        // Remove presentation margins: the destination adds its own centering.
-        let width = if saved.label.print_width > 0 {
-            image.width().min(saved.label.print_width as u32)
-        } else {
-            image.width()
-        };
-        let left = (image.width() - width) / 2;
-        let row_bytes = width.div_ceil(8) as usize;
-        let mut data = vec![0u8; row_bytes * image.height() as usize];
-        for y in 0..image.height() {
-            for x in 0..width {
-                if image.get_pixel(left + x, y)[0] == 0 {
-                    data[y as usize * row_bytes + x as usize / 8] |= 0x80 >> (x % 8);
-                }
-            }
-        }
-        Ok(GraphicField {
-            position: saved.position.clone(),
-            magnification_x: saved.magnification_x,
-            magnification_y: saved.magnification_y,
-            reverse_print: saved.reverse_print.clone(),
-            format: crate::elements::graphic_field::GraphicFieldFormat::Raw,
-            data_bytes: data.len() as i32,
-            total_bytes: data.len() as i32,
-            row_bytes: row_bytes as i32,
-            data,
-            mode: GraphicFieldMode::default(),
-            zero_bits_black: false,
-        })
-    }
-
     fn draw_graphic_field(&self, canvas: &mut RgbaImage, gf: &GraphicField) {
         let data_len = if gf.total_bytes > 0 {
             (gf.total_bytes as usize).min(gf.data.len())
@@ -522,57 +438,85 @@ impl Renderer {
             return;
         }
 
-        let width = gf.row_bytes * 8;
-        let height = data_len as i32 / gf.row_bytes;
-
-        let mag_x = gf.magnification_x.max(1);
-        let mag_y = gf.magnification_y.max(1);
-
-        // When positioned by ^FT, y is the bottom edge of the field; adjust to top-left.
-        let base_x = gf.position.x;
-        let base_y = if gf.position.calculate_from_bottom {
-            gf.position.y - height * mag_y
-        } else {
-            gf.position.y
+        let bitmap = BitmapRows {
+            data: &gf.data[..data_len],
+            row_bytes: gf.row_bytes as usize,
+            zero_bits_black: gf.zero_bits_black,
         };
+        bitmap.draw(
+            canvas,
+            &gf.position,
+            (gf.magnification_x, gf.magnification_y),
+            0,
+            gf.mode == GraphicFieldMode::Xor,
+        );
+    }
+}
 
-        let black = Rgba([0, 0, 0, 255]);
-        let white = Rgba([255, 255, 255, 255]);
+/// Physical dimensions can sit a few ULPs above an integer dot count.
+fn canvas_dots(mm: f64, dpmm: i32) -> f64 {
+    let value = mm * f64::from(dpmm);
+    if (value - value.round()).abs() <= value.abs() * f64::EPSILON * 4.0 {
+        value.round()
+    } else {
+        value.ceil()
+    }
+}
 
-        for y in 0..height {
-            for x in 0..width {
-                let idx = (y * (width / 8) + x / 8) as usize;
-                if idx >= gf.data.len() {
+struct BitmapRows<'a> {
+    data: &'a [u8],
+    row_bytes: usize,
+    zero_bits_black: bool,
+}
+
+impl BitmapRows<'_> {
+    fn draw(
+        &self,
+        canvas: &mut RgbaImage,
+        position: &LabelPosition,
+        magnification: (i32, i32),
+        offset_x: i64,
+        xor: bool,
+    ) {
+        let (mx, my) = (
+            i64::from(magnification.0.max(1)),
+            i64::from(magnification.1.max(1)),
+        );
+        let width = self.row_bytes as i64 * 8;
+        let height = (self.data.len() / self.row_bytes) as i64;
+        let (cw, ch) = (i64::from(canvas.width()), i64::from(canvas.height()));
+        let x = i64::from(position.x) + offset_x;
+        let mut y = i64::from(position.y);
+        if position.from_bottom {
+            y = (ch - y - height * my).max(0);
+        }
+        if position.calculate_from_bottom {
+            y -= height * my;
+        }
+
+        // Limit work to source dots whose magnified rectangles intersect this
+        // surface. In particular a narrow page margin does not scan every row's width.
+        let start_x = (-x / mx).clamp(0, width);
+        let end_x = ((cw - x + mx - 1) / mx).clamp(0, width);
+        let start_y = (-y / my).clamp(0, height);
+        let end_y = ((ch - y + my - 1) / my).clamp(0, height);
+        for sy in start_y..end_y {
+            let row = &self.data[sy as usize * self.row_bytes..];
+            for sx in start_x..end_x {
+                let set = row[sx as usize / 8] & (0x80 >> (sx % 8)) != 0;
+                if set == self.zero_bits_black {
                     continue;
                 }
-                let val = (gf.data[idx] >> (7 - x % 8)) & 1;
-                let ink = if gf.zero_bits_black {
-                    val == 0
-                } else {
-                    val != 0
-                };
-                if ink {
-                    for my in 0..mag_y {
-                        for mx in 0..mag_x {
-                            let px = base_x + x * mag_x + mx;
-                            let py = base_y + y * mag_y + my;
-                            if px >= 0
-                                && py >= 0
-                                && (px as u32) < canvas.width()
-                                && (py as u32) < canvas.height()
-                            {
-                                // XOR inverts whatever is already there (black
-                                // ink over black canvas erases it); Overwrite
-                                // and Or just paint black — on a 1-bit canvas
-                                // Or is indistinguishable from Overwrite.
-                                let current = canvas.get_pixel(px as u32, py as u32);
-                                if gf.mode == GraphicFieldMode::Xor && *current == black {
-                                    canvas.put_pixel(px as u32, py as u32, white);
-                                } else {
-                                    canvas.put_pixel(px as u32, py as u32, black);
-                                }
-                            }
-                        }
+                let px = x + sx * mx;
+                let py = y + sy * my;
+                for dy in py.max(0)..(py + my).min(ch) {
+                    for dx in px.max(0)..(px + mx).min(cw) {
+                        let pixel = canvas.get_pixel_mut(dx as u32, dy as u32);
+                        *pixel = if xor && *pixel == Rgba([0, 0, 0, 255]) {
+                            Rgba([255; 4])
+                        } else {
+                            Rgba([0, 0, 0, 255])
+                        };
                     }
                 }
             }

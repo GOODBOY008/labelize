@@ -332,6 +332,10 @@ fn golden_zpl_image_recall() {
     golden_zpl_with_tolerance("zpl_image_recall", 0.0);
 }
 #[test]
+fn golden_zpl_saved_image_edges() {
+    golden_zpl_with_tolerance("zpl_saved_image_edges", 0.0);
+}
+#[test]
 fn golden_zpl_saved_image_move() {
     golden_zpl_with_tolerance("zpl_saved_image_move", 0.0);
 }
