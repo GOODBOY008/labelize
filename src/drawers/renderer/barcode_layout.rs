@@ -121,6 +121,7 @@ impl TextImage {
                 face,
                 glyphs,
                 buffer: Some(buffer),
+                logical_text: None,
             },
         }
     }

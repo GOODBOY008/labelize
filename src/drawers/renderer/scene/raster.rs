@@ -123,7 +123,7 @@ fn draw_ops(
                     clip,
                 );
             }
-            Op::Text { face, glyphs } => {
+            Op::Text { face, glyphs, .. } => {
                 let font = FontRef::try_from_slice(face.ttf_data())
                     .map_err(|e| LabelizeError::Render(e.to_string()))?;
                 for g in glyphs {

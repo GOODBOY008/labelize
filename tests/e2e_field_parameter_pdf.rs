@@ -13,6 +13,15 @@ fn export_field_parameter_native_pdf_probes() {
         ("h", "^FPH,15", "FIELDGAP", 80, 80),
         ("r", "^FPR,10", "REVERSE", 400, 160),
         ("v", "^FPV,30", "VERTICAL", 80, 240),
+        ("r-block", "^FPR,10^FB300,1,0,L,0", "REVERSE", 400, 160),
+        ("r-wrapped", "^FPR,10^FB100,5,0,L,0", "REVERSE", 400, 160),
+        (
+            "r-words",
+            "^FPR,10^FB150,5,0,L,0",
+            "FIRST SECOND THIRD",
+            400,
+            160,
+        ),
     ] {
         let source = format!("^XA^PW640^LL640^FO{x},{y}^A0N,40,32{command}^FD{text}^FS^XZ\n");
         let options = RenderOptions {

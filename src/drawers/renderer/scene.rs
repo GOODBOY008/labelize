@@ -70,6 +70,7 @@ enum Op {
     Text {
         face: FontFace,
         glyphs: Vec<text_layout::PlacedGlyph>,
+        logical_text: Option<String>,
     },
     Image {
         image: Arc<RgbaImage>,
@@ -669,6 +670,7 @@ fn text_op(layout: text_layout::TextLayout) -> Op {
     let text = Op::Text {
         face: layout.face,
         glyphs: layout.glyphs,
+        logical_text: layout.logical_text,
     };
     if let Some(buffer) = layout.buffer {
         Op::Group {
@@ -883,7 +885,7 @@ fn symbol_paths(image: &RgbaImage) -> Result<Vec<Op>, LabelizeError> {
 fn collect_text_bounds(ops: &[Op], transform: Transform, clip: Option<Rect>, out: &mut Vec<Rect>) {
     for op in ops {
         match op {
-            Op::Text { face, glyphs } => {
+            Op::Text { face, glyphs, .. } => {
                 let Ok(font) = FontRef::try_from_slice(face.ttf_data()) else {
                     continue;
                 };
