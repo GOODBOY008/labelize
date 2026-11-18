@@ -557,3 +557,66 @@ fn advanced_vertical_flow_moves_a_combining_cluster_as_one_cell() {
     let separate = draw("^FO40,40^A0N,32,20^FDA\u{301}^FS^FO40,72^A0N,32,20^FDB^FS");
     assert!(text == separate);
 }
+
+#[test]
+fn formatting_preserves_serial_masks_increments_and_start_values() {
+    let job = b"^XA^FD001^SFddd,1^FS^PQ2^XZ";
+    assert_eq!(texts(&format_zpl(job)), [["001"], ["002"]]);
+    for job in [
+        b"^XA^SNABC009^FS^PQ3^XZ".as_slice(),
+        b"^XA^FD001^SFddd^FS^PQ2^XZ",
+        b"~CC!!XA!CD;!FD001!SFddd;1!FS!PQ2!XZ",
+        b"^XA^FN1^FDREF^FS^FE^FD#1#^FS^SN012 tail ^FS^PQ2^XZ",
+    ] {
+        let formatted = format_zpl(job);
+        assert_eq!(texts(&formatted), texts(job));
+        assert_eq!(format_zpl(&formatted), formatted);
+    }
+}
+
+#[test]
+fn recalled_variable_assignments_are_cleared_from_retained_bitmaps() {
+    let template = "^XA^DFR:V.ZPL^FS^FO30,40^FN1^FS^XZ";
+    for (field, keep_first) in [("^FV", false), ("^FD", true)] {
+        let job = format!("{template}^XA^MCN^FO5,5^GB8,8,8^FS^XFR:V.ZPL^FN1{field}ONE^FS^XZ^XA^XFR:V.ZPL^FN1^FH^FVT_57O^FS^XZ");
+        let pages = ZplParser::new().parse(job.as_bytes()).unwrap();
+        assert_eq!(pages.len(), 2);
+        let LabelElement::RasterLabel(bg) = &pages[1].elements[0] else {
+            panic!("expected saved background")
+        };
+        assert!(bg
+            .label()
+            .elements
+            .iter()
+            .any(|e| matches!(e, LabelElement::GraphicBox(_))));
+        assert_eq!(
+            bg.label()
+                .elements
+                .iter()
+                .any(|e| matches!(e,LabelElement::Text(t) if t.text=="ONE")),
+            keep_first
+        );
+        assert!(pages[1]
+            .elements
+            .iter()
+            .any(|e| matches!(e,LabelElement::Text(t) if t.text=="TWO")));
+    }
+}
+
+#[test]
+fn advanced_justified_blocks_distribute_slack_only_on_nonfinal_lines() {
+    let font = "~DBR:T.FNT,N,5,4,4,4,2,TEST,#0041.5.4.0.4.4.F090F09090#0042.5.4.0.4.4.E090E090E0";
+    let field = |x, y, description: &str| format!("^FO{x},{y}^A@N,5,4,R:T.FNT{description}^FS");
+    for settings in ["", "^PA1,1,1,1"] {
+        let draw = |commands: String| pixels(format!("{font}^XA^CI28{settings}{commands}^XZ"));
+        let expected = field(40, 40, "^FDA")
+            + &field(50, 40, "^FDB")
+            + &field(60, 40, "^FDA")
+            + &field(40, 45, "^FDB")
+            + &field(48, 45, "^FDA");
+        assert!(
+            draw(field(40, 40, "^FB24,2,0,J^FDA B A B A")) == draw(expected),
+            "{settings}"
+        );
+    }
+}

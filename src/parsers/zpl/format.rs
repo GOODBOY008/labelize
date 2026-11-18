@@ -35,12 +35,26 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
         {
             return data.to_vec();
         }
+        // Spaces in data, serial masks and positional field parameters are
+        // significant. Indentation before the next command would change them.
+        let literal = [b"FD", b"FV", b"SN", b"SF", b"FN", b"FH", b"FC", b"FE"]
+            .iter()
+            .any(|cmd| token.is_format(cmd));
         let mut raw = token.raw;
         if !token.is_format(b"CC")
             && !token.is_format(b"CD")
             && !token.is_format(b"CT")
             && token.payload.is_none()
         {
+            if !literal {
+                // Indentation on a new line belongs to the following command.
+                // Strip it when formatting an already-formatted stream.
+                if let Some(end) = raw.iter().rposition(|b| !matches!(b, b' ' | b'\t')) {
+                    if matches!(raw[end], b'\n' | b'\r') {
+                        raw = &raw[..=end];
+                    }
+                }
+            }
             while raw.last().is_some_and(|b| matches!(b, b'\n' | b'\r')) {
                 raw = &raw[..raw.len() - 1];
             }
@@ -58,7 +72,7 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
         }
         out.extend_from_slice(raw);
         out.push(b'\n');
-        after_data = token.is_format(b"FD") || token.is_format(b"FV") || token.payload.is_some();
+        after_data = literal || token.payload.is_some();
         if opens {
             depth += 1;
         }

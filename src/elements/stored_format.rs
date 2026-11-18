@@ -41,6 +41,7 @@ pub struct StoredField {
 
 #[derive(Clone, Debug)]
 pub struct RecalledFieldData {
+    pub variable: bool,
     pub sequence: Option<super::field_info::FieldSequence>,
     pub reference_delimiter: Option<char>,
     pub clock_indicators: [Option<char>; 3],
@@ -101,6 +102,7 @@ impl RecalledFormat {
                             if rfd.clock_indicators[0].is_some() {
                                 rf.stored.field.clock_indicators = rfd.clock_indicators;
                             }
+                            rf.stored.field.variable |= rfd.variable;
                             rf.data = rfd.data.clone();
                             rf.data_bytes = rfd.data_bytes.clone();
                         }
@@ -123,7 +125,7 @@ impl RecalledFormat {
                                     character_map: None,
                                     sequence: rfd.sequence.clone(),
                                     reference_delimiter: rfd.reference_delimiter,
-                                    variable: true,
+                                    variable: rfd.variable,
                                     clock_indicators: rfd.clock_indicators,
                                     text_flow: Default::default(),
                                 },

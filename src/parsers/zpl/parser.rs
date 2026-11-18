@@ -560,15 +560,10 @@ impl ZplParser {
             self.printer.pending_reference = Some(command[3..].chars().next().unwrap_or('#'));
             return Ok(None);
         }
-        // Field data
-        if upper.starts_with("^FD") {
-            self.parse_field_data(command)?;
-            return Ok(None);
-        }
-        // Field value
-        if upper.starts_with("^FV") {
-            self.printer.variable = true;
-            self.printer.next_element_field_data = command_text(command, "^FV").to_string();
+        // Fixed and variable fields use the same data encoding.
+        if upper.starts_with("^FD") || upper.starts_with("^FV") {
+            self.printer.variable |= upper.starts_with("^FV");
+            self.parse_field_data(&command[3..])?;
             return Ok(None);
         }
         // Field number
@@ -1159,8 +1154,8 @@ impl ZplParser {
             Some(Box::new(LabelElement::FieldBlockConfig(block)));
     }
 
-    fn parse_field_data(&mut self, command: &str) -> Result<(), String> {
-        let mut text = command_text(command, "^FD").to_string();
+    fn parse_field_data(&mut self, data: &str) -> Result<(), String> {
+        let mut text = data.to_string();
         if self.printer.next_hex_escape_char != 0 {
             text = hex::decode_escaped_string(&text, self.printer.next_hex_escape_char)
                 .map_err(|e| format!("failed to decode escaped hex string: {}", e))?;
@@ -1207,6 +1202,7 @@ impl ZplParser {
             }
         } else if self.printer.next_download_format_name.is_empty() {
             Some(LabelElement::RecalledFieldData(RecalledFieldData {
+                variable: self.printer.variable,
                 sequence: self.printer.sequence.clone(),
                 reference_delimiter: self.printer.reference_delimiter,
                 clock_indicators: self.printer.clock_indicators,

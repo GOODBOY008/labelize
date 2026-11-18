@@ -14,10 +14,54 @@ struct Run {
     // Logical byte offset and visual cluster index for each glyph.
     glyphs: Vec<(usize, usize, PlacedGlyph)>,
 }
+struct Cluster {
+    start: f32,
+    whitespace: bool,
+}
+
 struct Line {
     runs: Vec<Run>,
-    cluster_starts: Vec<f32>,
+    clusters: Vec<Cluster>,
     width: f32,
+}
+impl Line {
+    /// Distribute unused width across the gaps between words in visual order.
+    /// Painted glyphs and pen positions share the same offsets, including
+    /// when several shaping or fallback runs contribute to a line.
+    fn justify(&mut self, width: f32, spacing: f32) {
+        let mut gaps = 0usize;
+        let mut seen_word = false;
+        let mut in_gap = false;
+        let gaps_before: Vec<_> = self
+            .clusters
+            .iter()
+            .map(|c| {
+                if c.whitespace {
+                    in_gap = seen_word;
+                } else {
+                    gaps += usize::from(in_gap);
+                    seen_word = true;
+                    in_gap = false;
+                }
+                gaps
+            })
+            .collect();
+        if gaps == 0 {
+            return;
+        }
+        // The pen includes the trailing inter-character gap. Align the end
+        // of the last word with the block edge.
+        let extra = (width + spacing - self.width) / gaps as f32;
+        for (c, n) in self.clusters.iter_mut().zip(&gaps_before) {
+            c.start += *n as f32 * extra;
+        }
+        for run in &mut self.runs {
+            for (_, cluster, glyph) in &mut run.glyphs {
+                glyph.glyph.position.x += gaps_before[*cluster] as f32 * extra;
+            }
+        }
+        self.width = width + spacing;
+    }
 }
 struct Faces<'a> {
     shapers: Vec<rustybuzz::Face<'a>>,
@@ -41,7 +85,7 @@ impl Faces<'_> {
     fn line(&self, text: &str) -> Line {
         let mut line = Line {
             runs: Vec::new(),
-            cluster_starts: Vec::new(),
+            clusters: Vec::new(),
             width: 0.0,
         };
         if text.is_empty() {
@@ -97,17 +141,20 @@ impl Faces<'_> {
                 let mut emit =
                     |start: usize, gid: u16, dx: f32, dy: f32, advance: f32, actual: &str| {
                         if last_cluster != Some(start) {
-                            if !line.cluster_starts.is_empty() {
+                            if !line.clusters.is_empty() {
                                 line.width += self.spacing;
                             }
-                            line.cluster_starts.push(line.width);
+                            line.clusters.push(Cluster {
+                                start: line.width,
+                                whitespace: actual.chars().all(char::is_whitespace),
+                            });
                             last_cluster = Some(start);
                         }
                         let ch = actual.chars().next().unwrap_or(' ');
                         if gid != 0 || properties.show_missing {
                             run.glyphs.push((
                                 start,
-                                line.cluster_starts.len() - 1,
+                                line.clusters.len() - 1,
                                 PlacedGlyph {
                                     character: ch,
                                     extracted: Some(actual.to_owned()),
@@ -197,7 +244,7 @@ impl Faces<'_> {
                 line.runs.push(run);
             }
         }
-        if !line.cluster_starts.is_empty() {
+        if !line.clusters.is_empty() {
             line.width += self.spacing;
         }
         line.runs.sort_by_key(|r| r.start);
@@ -336,7 +383,7 @@ pub(super) fn layout(
     let rotated = text.font.orientation != FieldOrientation::Normal;
     let cells = lines
         .iter()
-        .map(|line| line.cluster_starts.len())
+        .map(|line| line.clusters.len())
         .max()
         .unwrap_or(0);
     let (x, y) = if directed_field {
@@ -370,6 +417,13 @@ pub(super) fn layout(
     }
     let mut out = Vec::new();
     for (n, line) in lines.iter_mut().enumerate() {
+        if n + 1 < slots
+            && block.is_some_and(|b| {
+                b.alignment == crate::elements::text_alignment::TextAlignment::Justified
+            })
+        {
+            line.justify(width, faces.spacing);
+        }
         let left = match block.map(|b| b.alignment) {
             Some(crate::elements::text_alignment::TextAlignment::Right) => width - line.width,
             Some(crate::elements::text_alignment::TextAlignment::Center) => {
@@ -380,15 +434,14 @@ pub(super) fn layout(
         for run in &mut line.runs {
             let mut glyphs = Vec::new();
             for (_, cluster, mut g) in run.glyphs.drain(..) {
-                let start = line.cluster_starts[cluster];
+                let start = line.clusters[cluster].start;
                 match direction {
                     TextDirection::Horizontal => {}
                     TextDirection::Reverse => {
                         let end = line
-                            .cluster_starts
+                            .clusters
                             .get(cluster + 1)
-                            .copied()
-                            .unwrap_or(line.width);
+                            .map_or(line.width, |cluster| cluster.start);
                         let origin = if directed_field {
                             text.flow.origin_width as f32
                         } else {
