@@ -4,6 +4,7 @@
 //! resolution. Parsers produce the shared, language-neutral IR in
 //! `crate::elements` and never the other way around.
 
+mod binary_graphics;
 pub mod charsets;
 pub mod command_utils;
 pub mod format;

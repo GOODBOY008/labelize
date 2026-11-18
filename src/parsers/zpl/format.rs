@@ -2,8 +2,8 @@
 //!
 //! Command boundaries follow the same rules as the parser's command splitter
 //! (`^CC`/`^CT` remap included), but unlike the splitter this walk keeps every
-//! payload byte verbatim — the splitter drops transport CR/LF/TAB everywhere
-//! because rendering ignores them; a formatter must not rewrite data. Only
+//! payload byte verbatim — counted binary graphics bypass text processing in
+//! both paths; a formatter must not rewrite their bytes. Only
 //! whitespace *between* commands is insignificant and gets dropped.
 //!
 //! Output is raw bytes, not `String`: `^FD` field data may be any encoding
@@ -36,8 +36,11 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
             .iter()
             .position(|b| !b.is_ascii_whitespace())
             .unwrap_or(buf.len());
+        let binary = buf.len() >= start + 4
+            && (buf[start + 1..start + 4].eq_ignore_ascii_case(b"GFB")
+                || buf[start + 1..start + 4].eq_ignore_ascii_case(b"GFC"));
         let mut end = buf.len();
-        while end > start && matches!(buf[end - 1], b'\n' | b'\r') {
+        while !binary && end > start && matches!(buf[end - 1], b'\n' | b'\r') {
             end -= 1;
         }
         if start >= end {
@@ -69,11 +72,14 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
         }
         out.push(b'\n');
         buf.clear();
-        is_data
+        is_data || binary
     }
 
     let mut after_data = false;
-    for &ch in data {
+    let mut cursor = 0;
+    while cursor < data.len() {
+        let ch = data[cursor];
+        cursor += 1;
         // A completed `^CCx`/`^CTx` at exactly four bytes is itself a
         // boundary: the remapped character takes effect for the bytes that
         // follow (mirrors the parser's splitter state machine).
@@ -93,6 +99,18 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
             after_data = flush(&mut buf, &mut out, &mut depth, after_data);
         }
         buf.push(ch);
+        if let Some(length) = super::binary_graphics::payload_length(&buf) {
+            // Formatting is infallible: retain malformed binary input verbatim.
+            let Ok(length) = length else {
+                return data.to_vec();
+            };
+            let Some(end) = cursor.checked_add(length).filter(|&end| end <= data.len()) else {
+                return data.to_vec();
+            };
+            buf.extend_from_slice(&data[cursor..end]);
+            cursor = end;
+            after_data = flush(&mut buf, &mut out, &mut depth, after_data);
+        }
     }
     if !buf.is_empty() {
         flush(&mut buf, &mut out, &mut depth, after_data);

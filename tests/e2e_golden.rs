@@ -324,6 +324,35 @@ fn golden_fb_single_line_overflow() {
     golden_zpl_with_tolerance("fb_single_line_overflow", 0.2);
 }
 #[test]
+fn golden_zpl_b0_alias() {
+    golden_zpl_with_tolerance("zpl_b0_alias", 0.0);
+}
+#[test]
+fn golden_zpl_image_recall() {
+    golden_zpl_with_tolerance("zpl_image_recall", 0.0);
+}
+#[test]
+fn golden_zpl_saved_image_edges() {
+    golden_zpl_with_tolerance("zpl_saved_image_edges", 0.0);
+}
+#[test]
+fn golden_zpl_saved_image_move() {
+    golden_zpl_with_tolerance("zpl_saved_image_move", 0.0);
+}
+#[test]
+fn golden_zpl_image_save() {
+    golden_zpl_with_tolerance("zpl_image_save", 0.0);
+}
+#[test]
+fn golden_zpl_named_font() {
+    golden_zpl_with_tolerance("zpl_named_font", 0.5);
+}
+#[test]
+fn golden_zpl_binary_graphics() {
+    golden_zpl_with_tolerance("zpl_binary_graphics", 0.0);
+}
+
+#[test]
 fn golden_aztec_ec() {
     golden_zpl_with_tolerance("aztec_ec", 7.5);
 }

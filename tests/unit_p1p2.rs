@@ -229,7 +229,7 @@ fn b9_check_digit_flag_hides_text_only() {
 
 #[test]
 fn aat_selects_builtin_font_by_name() {
-    let labels = parse("^XA^A@B,30,20^FO50,50^FDHello^FS^XZ");
+    let labels = parse("^XA^A@N,30,20,B^FO50,50^FDHello^FS^XZ");
     match &labels[0].elements[0] {
         LabelElement::Text(t) => assert_eq!(t.font.name, "B"),
         other => panic!("expected text, got {:?}", other),
@@ -238,7 +238,7 @@ fn aat_selects_builtin_font_by_name() {
 
 #[test]
 fn aat_numeric_name_falls_back_to_font_zero() {
-    let labels = parse("^XA^A@3,30,20^FO50,50^FDHello^FS^XZ");
+    let labels = parse("^XA^A@N,30,20,3^FO50,50^FDHello^FS^XZ");
     match &labels[0].elements[0] {
         LabelElement::Text(t) => assert_eq!(t.font.name, "0"),
         other => panic!("expected text, got {:?}", other),
@@ -248,7 +248,7 @@ fn aat_numeric_name_falls_back_to_font_zero() {
 #[test]
 fn aat_unknown_downloadable_name_falls_back_to_default() {
     // Downloaded font names cannot be rendered; degrade to the default font.
-    let labels = parse("^XA^A@E:ARI000.TTF,30,20^FO50,50^FDHello^FS^XZ");
+    let labels = parse("^XA^A@N,30,20,E:ARI000.TTF^FO50,50^FDHello^FS^XZ");
     match &labels[0].elements[0] {
         LabelElement::Text(t) => assert_eq!(t.font.name, "A"),
         other => panic!("expected text, got {:?}", other),
@@ -284,34 +284,13 @@ fn id_deletes_stored_graphic_before_recall() {
 }
 
 #[test]
-fn im_moves_and_is_copies_stored_format() {
-    // ^IM renames; after the move only the new name resolves.
-    let zpl = "^XA^DFR:BASE.ZPL^FO100,100^GB50,50,5^FS^XZ^XA^IMR:BASE.ZPL,R:MOVED.ZPL^FS^XFR:MOVED.ZPL^FS^XZ";
-    let labels = parse(zpl);
-    assert!(
-        labels.len() == 1 && boxes_of(&labels[0]).len() == 1,
-        "^IM move should make the new name resolvable"
-    );
-    assert_eq!(boxes_of(&labels[0])[0], (100, 100));
-
-    // ^IS copies: both names resolve (both recalls merge into the same label).
-    let zpl = "^XA^DFR:BASE.ZPL^FO100,100^GB50,50,5^FS^XZ^XA^ISR:BASE.ZPL,R:COPY.ZPL^FS^XFR:BASE.ZPL^FS^XFR:COPY.ZPL^FS^XZ";
-    let labels = parse(zpl);
-    assert_eq!(
-        boxes_of(&labels[0]),
-        vec![(100, 100), (100, 100)],
-        "^IS should leave both names resolvable"
-    );
-}
-
-#[test]
 fn eg_erases_all_or_named_graphics() {
     // ~EG with no name clears the whole graphics store.
     let zpl =
         "^XA~DGR:IMG.GRF,00008,00001,8,,,,^FS^XG R:IMG.GRF,1,1^FS^XZ~EG^XA^XGR:IMG.GRF,1,1^FS^XZ";
     // NOTE: this stream uses a graphics store; ~EG then makes the recall a no-op.
     let labels = parse(zpl);
-    assert!(labels.is_empty(), "~EG should erase all graphics");
+    assert_eq!(labels.len(), 1, "first recall renders, second is erased");
 
     // ~EG with a name removes only that graphic.
     let zpl = "^XA~DGR:IMG.GRF,00008,00001,8,,,,^FS^XGR:IMG.GRF,1,1^FS^XZ~EGR:IMG.GRF^XA^XGR:IMG.GRF,1,1^FS^XZ";

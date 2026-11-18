@@ -8,6 +8,7 @@ use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
 use crate::elements::label_element::LabelElement;
 use crate::elements::label_position::LabelPosition;
+use crate::elements::raster_label::RasterLabel;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::stored_format::StoredFormat;
 use crate::elements::stored_graphics::StoredGraphics;
@@ -15,6 +16,7 @@ use crate::elements::text_flow::TextFlow;
 
 pub struct VirtualPrinter {
     pub stored_graphics: HashMap<String, StoredGraphics>,
+    pub saved_images: HashMap<String, RasterLabel>,
     pub stored_formats: HashMap<String, StoredFormat>,
     pub label_home_position: LabelPosition,
     pub next_element_position: LabelPosition,
@@ -58,6 +60,10 @@ pub struct VirtualPrinter {
     pub label_shift: i32,
     /// Font identifier map from `^CW` (identifier char -> font name).
     pub font_map: HashMap<String, String>,
+    /// The last explicit filename passed to ^A@, retained across fields.
+    pub named_font: Option<String>,
+    /// Images saved from the completed format; the last print flag wins.
+    pub image_saves: Vec<(String, bool)>,
     /// Labels to print from `^PQ` (parameter a). Emitted as that many copies of the
     /// label, since serials render literally (no auto-increment), matching Labelary.
     pub print_quantity: i32,
@@ -78,6 +84,7 @@ impl Default for VirtualPrinter {
     fn default() -> Self {
         VirtualPrinter {
             stored_graphics: HashMap::new(),
+            saved_images: HashMap::new(),
             stored_formats: HashMap::new(),
             label_home_position: LabelPosition::default(),
             next_element_position: LabelPosition::default(),
@@ -111,6 +118,8 @@ impl Default for VirtualPrinter {
             label_top: 0,
             label_shift: 0,
             font_map: HashMap::new(),
+            named_font: None,
+            image_saves: Vec::new(),
             print_quantity: 1,
             print_copies: 1,
             serial_number: String::new(),
@@ -209,6 +218,7 @@ impl VirtualPrinter {
 
     pub fn reset_label_state(&mut self) {
         self.next_download_format_name = String::new();
+        self.image_saves.clear();
         self.label_inverted = false;
         self.format_mirrored = None;
         // Do not reset label_mirrored: ^PM persists across label formats.

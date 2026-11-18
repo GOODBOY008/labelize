@@ -300,7 +300,7 @@ The following commands are currently implemented in this project:
 - `^LR` - Label reverse print
 - `^LT` - Label top (shift content down/up; |value| > 120 dots ignored, per Zebra)
 - `^LS` - Label shift (positive = left, clamped at the left edge)
-- `^LL` - Label length (recorded; no rendering effect — label size comes from the canvas, matching Labelary)
+- `^LL` - Label length (opt-in declared dimensions; default parsing uses the caller's canvas)
 - `^PO` - Print orientation
 - `^PW` - Print width
 - `^MU` - Units of measurement
@@ -335,7 +335,7 @@ The following commands are currently implemented in this project:
 - `^B2` - Interleaved 2 of 5
 - `^B3` - Code 39
 - `^B7` - PDF417
-- `^BO` - Aztec
+- `^BO`, `^B0` - Aztec
 - `^BX` - Data Matrix
 - `^BQ` - QR Code
 - `^BD` - MaxiCode
@@ -346,7 +346,7 @@ The following commands are currently implemented in this project:
 - `^GC` - Graphic circle
 - `^GD` - Graphic diagonal
 - `^GE` - Graphic ellipse
-- `^GF` - Graphic field
+- `^GF` - Graphic field: ASCII/hex and counted binary (`B`) payloads
 - `^GS` - Graphic symbol
 
 ### Storage
@@ -354,8 +354,8 @@ The following commands are currently implemented in this project:
 - `^IL` - Image load
 - `^XG` - Recall graphic
 - `^ID` - Delete stored object (graphic or format)
-- `^IM` - Move stored object
-- `^IS` - Copy stored object
+- `^IM` - Draw a stored image at the field origin, without magnification
+- `^IS` - Save the completed label bitmap; `,N` suppresses printing
 - `~EG` - Erase graphics (blank name erases all)
 - `^DF` - Download format
 - `^XF` - Recall format
@@ -365,10 +365,20 @@ The following commands are currently implemented in this project:
 - **MaxiCode** (`^BD`): No compliant encoder; structural rendering only (~35% diff)
 - **PDF417** (`^B7`): Encoding gaps vs reference (~18% diff)
 - **Font metrics**: open-source font substitutes (Roboto Condensed / DejaVu) vs Zebra built-in fonts cause 2-7% typical diff
-- **`^LL` command**: Not parsed (label length)
+- **`^LL` dimensions**: exposed when `ZplParseOptions::use_declared_dimensions` is enabled; default parsing uses the caller's canvas
 - **`^B9` with >7-digit data**: follows the UPC-E standard; Labelary's own
   zero-suppression of 11/12-digit input diverges from the standard
-- **`^A@`/`^CW` downloaded fonts**: named downloadable fonts (e.g. `E:ARI000.TTF`)
-  cannot be rendered and fall back to the default font; Labelary's `^A@` handling
-  is nonstandard (treats the name as an orientation on font 0), so we follow the
-  Zebra spec instead
+- **`^A@`/`^CW` downloaded fonts**: unavailable fonts fall back to `^CF`.
+  `^A@o,h,w,d:f.x` reads orientation first and filename fourth; an omitted
+  filename retains the previous selection. Font file downloads are not implemented.
+- **`^GFC`**: compressed binary graphics are unsupported and return an error.
+  `^GFB` preserves raw bytes, including embedded command prefixes and CR/LF/TAB;
+  its byte counts must be in 1–99999 and the payload must be complete.
+- **`^IS`**: captures the completed format, including fields after the command.
+  `^IL`, `^IM` and `^XG` recall the frozen bitmap. Saved images use the caller's
+  canvas unless declared dimensions were requested, and have limits of 16 Mi
+  pixels, 32000 dots per dimension and 16 nested images. A render can cache up
+  to 64 MiB of packed saved images. Repeated placements at the same source
+  dimensions reuse the bitmap. `^IL` restores the saved page including its
+  margins. `^IM` and `^XG` position that bitmap at the field origin. An `^IS`
+  inside a downloaded `^DF` format returns an explicit unsupported error.

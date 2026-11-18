@@ -1,0 +1,74 @@
+[
+  {
+    "fixture": "zpl_b0_alias",
+    "source_sha256": "18a8075562b6f00b23561d9f029c1c40fff4fbfb9136435a26ff0aa70e5e870b",
+    "reference_sha256": "bb81b678607a829e5a70dc1a9d541a5cae2dca3ddbf947f687fa4a34790a7f85",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "reference": "Labelary",
+    "captured_date": "2026-11-17",
+    "label_index": 0
+  },
+  {
+    "fixture": "zpl_image_recall",
+    "source_sha256": "bab8d531aba55a1757b1b2510faf0556a887219506367c9141d2ee046480f4e1",
+    "reference_sha256": "d07afdfddce9e759c13d5ff0c946581093715972d1062fef6884222c004a4ef2",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "reference": "Labelary",
+    "captured_date": "2026-11-17",
+    "label_index": 0
+  },
+  {
+    "fixture": "zpl_image_save",
+    "source_sha256": "613558676fbed8a90415132b1a1706b0e8ddcf5f87eaa7b2cd163ce64bcdf76f",
+    "request_source": "unit/zpl_image_save.zpl",
+    "request_sha256": "613558676fbed8a90415132b1a1706b0e8ddcf5f87eaa7b2cd163ce64bcdf76f",
+    "reference_sha256": "1e7cb0b9bc5354b9f8f168c48243256cc52582f90d1c964c0fae5404245a85b6",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "captured_date": "2026-11-17",
+    "reference": "Labelary",
+    "label_index": 0
+  },
+  {
+    "fixture": "zpl_named_font",
+    "source_sha256": "868b3c40c5425373747d55b3d79a63db1579e4e45aaba60ad56b3fa8f7512fe2",
+    "request_source": "unit/zpl_named_font.reference.txt",
+    "request_sha256": "8ea0eb15e3e36368de593debf446abee4f252d6158cdafb9fbbfbcbaebfa49ee",
+    "reference_sha256": "34a4ad7c16b5a238565f219315ba65285759f2a0b83070a0e79343cdf490fa98",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "captured_date": "2026-11-17",
+    "reference": "Labelary",
+    "label_index": 0,
+    "note": "Zebra specifies ^CF fallback for unavailable font filenames. Capture uses equivalent ^A0 fields to avoid Labelary named-font fallback sizing differences. The original ^A@ fields and unit tests exercise argument order and fallback."
+  },
+  {
+    "fixture": "zpl_binary_graphics",
+    "source_sha256": "2be2e3310755895509d2d6d00c2aedfec204e23265181a6d2942086a5609365a",
+    "reference_sha256": "cb03cebd08d50610ac583b73b62f4052605cd66eb2fa3ddcfdd1291899bef9fd",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "reference": "Labelary",
+    "captured_date": "2026-11-17",
+    "label_index": 0
+  },
+  {
+    "fixture": "zpl_saved_image_move",
+    "source_sha256": "2e21afa320f67e34c56e8e5fe1277b638843a7f65ea1380e1102b4b4cb9a07e2",
+    "request_source": "unit/zpl_saved_image_move.zpl",
+    "request_sha256": "2e21afa320f67e34c56e8e5fe1277b638843a7f65ea1380e1102b4b4cb9a07e2",
+    "reference_sha256": "ce824d5cc9e2210baf8678c59327d15bd283cdc1adccc6a636d5e1ca517bacf8",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "captured_date": "2026-11-17",
+    "reference": "Labelary",
+    "label_index": 0
+  },
+  {
+    "fixture": "zpl_saved_image_edges",
+    "source_sha256": "9b99ae41a5fba9da8e7da1151c89da9219832c7a5ba8f10bfd4f9b2a1a28249f",
+    "request_source": "unit/zpl_saved_image_edges.zpl",
+    "request_sha256": "9b99ae41a5fba9da8e7da1151c89da9219832c7a5ba8f10bfd4f9b2a1a28249f",
+    "reference_sha256": "c8c92c8421cccaf8c0478d00549397a050f2d8ad0340cafaf412e45a67be8150",
+    "endpoint": "https://api.labelary.com/v1/printers/8dpmm/labels/4.005x8.01/0/",
+    "captured_date": "2026-11-18",
+    "reference": "Labelary",
+    "label_index": 0
+  }
+]

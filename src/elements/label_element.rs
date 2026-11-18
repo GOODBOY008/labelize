@@ -18,6 +18,7 @@ use super::graphic_field::GraphicField;
 use super::graphic_symbol::GraphicSymbol;
 use super::invert_region::InvertRegion;
 use super::maxicode::{Maxicode, MaxicodeWithData};
+use super::raster_label::RasterLabel;
 use super::stored_format::{RecalledField, RecalledFieldData, RecalledFormat, StoredField};
 use super::text_field::TextField;
 
@@ -32,6 +33,7 @@ pub enum LabelElement {
     DiagonalLine(GraphicDiagonalLine),
     InvertRegion(InvertRegion),
     GraphicField(GraphicField),
+    RasterLabel(RasterLabel),
     Barcode128(Barcode128WithData),
     BarcodeEan13(BarcodeEan13WithData),
     BarcodeEan8(BarcodeEan8WithData),
@@ -78,6 +80,7 @@ impl LabelElement {
             LabelElement::DiagonalLine(g) => g.reverse_print.value,
             LabelElement::InvertRegion(_) => false,
             LabelElement::GraphicField(g) => g.reverse_print.value,
+            LabelElement::RasterLabel(g) => g.reverse_print.value,
             LabelElement::Barcode128(b) => b.reverse_print.value,
             LabelElement::BarcodeEan13(b) => b.reverse_print.value,
             LabelElement::BarcodeEan8(b) => b.reverse_print.value,

@@ -81,6 +81,13 @@ informational.
 
 | Label | Ext | Diff % | Tolerance | Primary diff source |
 |-------|-----|--------|-----------|---------------------|
+| zpl_b0_alias | zpl | 0.00 | 0.0 | ^B0 Aztec alias, two orientations |
+| zpl_binary_graphics | zpl | 0.00 | 0.0 | Counted raw bytes, including command prefixes and whitespace |
+| zpl_image_recall | zpl | 0.00 | 0.0 | Repeated ^IM recalls and ^XG magnification |
+| zpl_image_save | zpl | 0.00 | 0.0 | Completed-label ^IS snapshot and ^IL overlay |
+| zpl_saved_image_edges | zpl | 0.00 | 0.0 | Mirrored page edges in saved bitmaps loaded and placed on odd-width paper |
+| zpl_saved_image_move | zpl | 0.00 | 0.0 | ^IM recall of a saved bitmap at a field origin |
+| zpl_named_font | zpl | 0.33 | 0.5 | Named-font fallback versus equivalent ^A0 reference |
 | amazonshipping | zpl | 2.18 | 4.0 | DataMatrix in 4 orientations + ^FR + font metrics |
 | aztec_ec_1_ec23 | zpl | 0.36 | 7.5 | Aztec encoder pattern differences (rxing vs Labelary), EC 23% |
 | aztec_ec_2_ec45 | zpl | 0.53 | 7.5 | Aztec encoder pattern differences, EC 45% |
@@ -235,8 +242,8 @@ informational.
 | yodel | zpl | 1.86 | 4.5 | QR code + font metrics |
 | dhl_express | zpl | 2.21 | 3.5 | Real DHL Express capture (Centiro): mid-format ^LH honored; ^GFA logo + font metrics |
 | dhl_home_delivery | zpl | 1.84 | — | ^GFA logo + font metrics |
-| usps_apo | zpl | 2.84 | 3.5 | Font metrics (rotated I/B pen-anchor fixed; glyph-top re-anchored to Labelary after #64 unclipping; residual = glyph weight + 1-bit AA fringe) |
-| usps_intl | zpl | 2.46 | 4.0 | Font metrics (^POI rotated text) |
+| usps_apo | zpl | 2.73 | 3.5 | Font metrics (rotated I/B pen-anchor fixed; glyph-top re-anchored to Labelary after #64 unclipping; residual = glyph weight + 1-bit AA fringe) |
+| usps_intl | zpl | 1.86 | 4.0 | Font metrics (^POI rotated text) |
 | usps_priority_mail | zpl | 0.32 | — | Font metrics (^FB centered) |
 | usps_test_merchant | zpl | 0.07 | — | Font metrics |
 | cjk_font0_ci28 | zpl | 0.11 | 1.0 | ^CI28 font-0 CJK: rendered blank with calibrated advance like Labelary (probe-measured, see tuning::FONT0_MISSING_GLYPH_ADVANCE_EM); residual = Roboto Condensed metrics on the Latin prefix |

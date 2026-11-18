@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Recognize ZPL `^B0` as the Aztec alias of `^BO`.
+- Correct `^IM` to draw stored graphics, and `^IS` to save the completed
+  label bitmap with its print flag, for recall using `^IL`, `^IM` or `^XG`.
+- Parse `^A@` as orientation, height, width and font filename; retain omitted
+  filenames and use the configured fallback for unavailable fonts.
+- Preserve all counted `^GFB` bytes, including command prefixes and transport
+  whitespace, during parsing and formatting. Reject truncated payloads and
+  unsupported `^GFC` compression instead of silently producing broken images.
+
 ## [1.12.0] - 2026-11-12
 
 ### Added

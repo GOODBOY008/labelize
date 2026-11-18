@@ -136,9 +136,19 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 
 **Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^LT` (label top), `^LS` (label shift), `^LL` (label length), `^PO`, `^PW`, `^CI`, `^CF`, `^PQ` (print quantity), `^FX` (comment), `^SN`/`^SF` (inert serial state)
 **Text/Font:** `^A`, `^A@` (named font), `^CW` (font identifier), `^FO`, `^FT`, `^FW`, `^FP` (direction and character spacing), `^FD`, `^FS`, `^FB`, `^FV`, `^FN`, `^FR`, `^FH`
-**Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B8` (EAN-8), `^B9` (UPC-E), `^BU` (UPC-A), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults)
+**Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B8` (EAN-8), `^B9` (UPC-E), `^BU` (UPC-A), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO`/`^B0` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults)
 **Graphics:** `^GB`, `^GC`, `^GD`, `^GE`, `^GF`, `^GS`
 **Storage:** `~DG`, `^IL`, `^XG`, `^ID`, `^IM`, `^IS`, `~EG`, `^DF`, `^XF`
+
+`^IM` recalls an image without magnification; `^ISd:o.x,p` saves the completed
+label as a bitmap (`p=N` suppresses printing). Saved images are resolved by
+`^IL`/`^IM`/`^XG` and retain their own font/offset/orientation state. The raster
+snapshot uses the caller's canvas unless declared dimensions were requested;
+images are limited to 16 Mi pixels, 32000 dots per dimension and 16 nesting
+levels. A render reuses shared bitmaps and limits their combined packed data
+to 64 MiB. `^IS` inside `^DF` remains unsupported and returns an error.
+`^A@o,h,w,d:f.x` retains the last filename; unavailable downloaded fonts still
+use the `^CF` fallback. `^GFB` is byte-safe; `^GFC` returns an explicit error.
 
 ## Build & Test
 
@@ -236,7 +246,7 @@ This ensures PR reviewers can visually inspect the before/after rendering impact
   Structured Append remain unsupported.
 - **PDF417**: Encoding gaps vs reference (~18% diff)
 - **Font metrics**: Helvetica Bold vs Zebra built-in fonts causes 2–7% typical diff
-- **`^LL` command**: Not parsed (label length)
+- **`^LL` dimensions**: parsed; opt in through `ZplParseOptions::use_declared_dimensions`
 
 ## Code Style
 
