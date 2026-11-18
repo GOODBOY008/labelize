@@ -307,15 +307,15 @@ fn fx_comment_is_ignored() {
     assert!(parse("^XA^FX nothing here^FS^XZ").is_empty());
 }
 
-// ── ^PQ (print quantity), ^SN/^SF (inert serial state) ────────────────────────
+// ── ^PQ (print quantity), ^SN/^SF (serialization) ────────────────────────
 
 #[test]
-fn pq_emits_quantity_times_copies_labels() {
+fn pq_emits_total_quantity_including_serial_replicates() {
     assert_eq!(parse("^XA^FO50,50^GB50,50,5^FS^XZ").len(), 1);
     let labels = parse("^XA^FO50,50^GB50,50,5^FS^PQ3^XZ");
     assert_eq!(labels.len(), 3);
     let labels = parse("^XA^FO50,50^GB50,50,5^FS^PQ2,0,3,Y^XZ");
-    assert_eq!(labels.len(), 6, "quantity x copies");
+    assert_eq!(labels.len(), 2, "replicates count toward total quantity");
 }
 
 #[test]
@@ -331,8 +331,8 @@ fn pq_zero_or_missing_defaults_to_one() {
 }
 
 #[test]
-fn sn_sf_are_inert_and_serials_render_literally() {
-    // Serial markers in ^FD render literally (Labelary behavior): no substitution.
+fn serial_mask_leaves_the_initial_field_value_unchanged() {
+    // The first copy uses the initial field value.
     let labels = parse("^XA^SN001^SFABC#^FO50,50^A0N,30,30^FDABC#001^FS^XZ");
     assert_eq!(texts_of(&labels[0]), vec!["ABC#001".to_string()]);
 }

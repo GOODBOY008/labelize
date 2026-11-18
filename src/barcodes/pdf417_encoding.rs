@@ -411,7 +411,7 @@ const START_PATTERN: u32 = 0x1FEA8;
 const STOP_PATTERN: u32 = 0x3FA29;
 
 /// codeword -> 17-bit bar/space pattern, per cluster (0, 3, 6).
-fn cluster_patterns() -> &'static [[u32; 929]; 3] {
+pub(super) fn cluster_patterns() -> &'static [[u32; 929]; 3] {
     static TABLES: OnceLock<[[u32; 929]; 3]> = OnceLock::new();
     TABLES.get_or_init(|| {
         let mut tables = [[0u32; 929]; 3];

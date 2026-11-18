@@ -260,6 +260,7 @@ fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
                     value: reverse == "R",
                 },
                 font: FontInfo {
+                    resources: None,
                     name: "0".to_string(),
                     face: FontFace::CondensedBold,
                     advance_mult: 1.0,

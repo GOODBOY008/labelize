@@ -23,7 +23,7 @@ fn encode(scenes: &[LabelScene], outlined: bool) -> Result<Vec<u8>, LabelizeErro
         return Err(LabelizeError::Render("no scenes to encode".into()));
     }
     let mut document = Document::new();
-    let mut fonts = Vec::<(FontFace, Font)>::new();
+    let mut fonts = Vec::<(text_layout::LayoutFont, Font)>::new();
     for scene in scenes {
         let settings =
             PageSettings::from_wh(page_extent(scene.width_mm), page_extent(scene.height_mm))
@@ -82,7 +82,7 @@ fn pdf_path(path: &Path) -> Result<PdfPath, LabelizeError> {
 fn draw_ops(
     ops: &[Op],
     surface: &mut Surface<'_>,
-    fonts: &mut Vec<(FontFace, Font)>,
+    fonts: &mut Vec<(text_layout::LayoutFont, Font)>,
     outlined: bool,
 ) -> Result<(), LabelizeError> {
     for op in ops {
@@ -152,10 +152,10 @@ fn draw_ops(
                 let font = if let Some((_, font)) = fonts.iter().find(|(f, _)| f == face) {
                     font.clone()
                 } else {
-                    let font = Font::new(face.ttf_data().into(), 0).ok_or_else(|| {
+                    let font = Font::new(face.ttf_data().to_vec().into(), 0).ok_or_else(|| {
                         LabelizeError::Render("embedded font could not be loaded".into())
                     })?;
-                    fonts.push((*face, font.clone()));
+                    fonts.push((face.clone(), font.clone()));
                     font
                 };
                 let metrics = FontRef::try_from_slice(face.ttf_data())
@@ -174,7 +174,14 @@ fn draw_ops(
                         .unwrap_or(rest.len());
                     let (line, tail) = rest.split_at(count);
                     rest = tail;
-                    let text: String = line.iter().map(|g| g.character).collect();
+                    let text: String = line
+                        .iter()
+                        .map(|g| {
+                            g.extracted
+                                .clone()
+                                .unwrap_or_else(|| g.character.to_string())
+                        })
+                        .collect();
                     surface.start_tagged(ContentTag::Span(
                         SpanTag::empty().with_actual_text(Some(&text)),
                     ));
@@ -295,7 +302,10 @@ fn draw_line(
         // enclosing ActualText span preserves the logical line for extraction.
         for g in run {
             let mut utf8 = [0; 4];
-            let text = g.character.encode_utf8(&mut utf8);
+            let text = g
+                .extracted
+                .as_deref()
+                .unwrap_or_else(|| g.character.encode_utf8(&mut utf8));
             let positioned = KrillaGlyph {
                 glyph_id: GlyphId::new(g.glyph.id.0 as u32),
                 text_range: 0..text.len(),

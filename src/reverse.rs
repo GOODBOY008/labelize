@@ -216,6 +216,13 @@ pub fn tspl_from_image_bytes(
     encode_image_bytes(bytes, options, ReverseLanguage::Tspl)
 }
 
+/// Pack an encoded image for frontends that store monochrome graphics.
+pub(crate) fn packed_image(bytes: &[u8]) -> Result<(usize, Vec<u8>), LabelizeError> {
+    let image = decode_image(bytes)?;
+    let bitmap = ink_bitmap(&image, &ReverseOptions::default())?;
+    Ok((bitmap.row_bytes, bitmap.bits))
+}
+
 fn decode_image(bytes: &[u8]) -> Result<RgbaImage, LabelizeError> {
     let decode_error = |e| LabelizeError::Encode(format!("image decode error: {e}"));
     let mut reader = ImageReader::new(Cursor::new(bytes))

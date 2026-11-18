@@ -4,6 +4,8 @@ use super::text_alignment::TextAlignment;
 pub struct FieldBlock {
     pub max_width: i32,
     pub max_lines: i32,
+    /// Physical block height in dots, when constrained by the source.
+    pub max_height: Option<i32>,
     pub line_spacing: i32,
     pub alignment: TextAlignment,
     pub hanging_indent: i32,
@@ -18,6 +20,7 @@ impl Default for FieldBlock {
         FieldBlock {
             max_width: 0,
             max_lines: 1,
+            max_height: None,
             line_spacing: 0,
             alignment: TextAlignment::Left,
             hanging_indent: 0,

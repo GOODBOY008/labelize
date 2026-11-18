@@ -8,6 +8,8 @@ use super::*;
 pub(crate) struct PlacedGlyph {
     #[cfg_attr(not(feature = "vector"), allow(dead_code))]
     pub character: char,
+    #[cfg_attr(not(feature = "vector"), allow(dead_code))]
+    pub extracted: Option<String>,
     pub glyph: ab_glyph::Glyph,
     pub x: i32,
     pub y: i32,
@@ -29,8 +31,33 @@ pub(crate) struct TextBuffer {
 }
 
 #[derive(Clone, Debug)]
+pub(crate) enum LayoutFont {
+    Resident(FontFace),
+    Downloaded(std::sync::Arc<[u8]>),
+}
+
+impl LayoutFont {
+    pub fn ttf_data(&self) -> &[u8] {
+        match self {
+            Self::Resident(face) => face.ttf_data(),
+            Self::Downloaded(bytes) => bytes,
+        }
+    }
+}
+impl PartialEq for LayoutFont {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Resident(a), Self::Resident(b)) => a == b,
+            (Self::Downloaded(a), Self::Downloaded(b)) => std::sync::Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+impl Eq for LayoutFont {}
+
+#[derive(Clone, Debug)]
 pub(crate) struct TextLayout {
-    pub face: FontFace,
+    pub face: LayoutFont,
     pub glyphs: Vec<PlacedGlyph>,
     pub buffer: Option<TextBuffer>,
 }
@@ -70,7 +97,76 @@ impl TextLayout {
     }
 }
 
-pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, String> {
+pub(crate) fn layouts(
+    text: &TextField,
+    state: &mut DrawerState,
+) -> Result<Vec<TextLayout>, String> {
+    if let Some((block, height)) = text
+        .block
+        .as_ref()
+        .and_then(|b| b.max_height.map(|h| (b, h)))
+    {
+        let width = block.max_width.max(1) as u32;
+        let height = height.max(1) as u32;
+        if width > 32000
+            || height > 32000
+            || u64::from(width) * u64::from(height) > 16 * 1024 * 1024
+        {
+            return Err("Text block dimensions exceed the supported image size".into());
+        }
+        let mut local = text.clone();
+        let orientation = local.font.orientation;
+        local.font.orientation = FieldOrientation::Normal;
+        local.alignment = crate::elements::field_alignment::FieldAlignment::Left;
+        local.position = Default::default();
+        local.block.as_mut().unwrap().max_height = None;
+        let mut runs = layouts(&local, &mut DrawerState::new())?;
+        let (mut x, mut y) = state.get_text_position(text);
+        let rotated_width = if matches!(
+            orientation,
+            FieldOrientation::Rotated90 | FieldOrientation::Rotated270
+        ) {
+            height
+        } else {
+            width
+        };
+        match text.alignment {
+            crate::elements::field_alignment::FieldAlignment::Right => {
+                x -= f64::from(rotated_width)
+            }
+            crate::elements::field_alignment::FieldAlignment::Center => {
+                x -= f64::from(rotated_width) * 0.5
+            }
+            _ => {}
+        }
+        if text.position.calculate_from_bottom {
+            match orientation {
+                FieldOrientation::Normal => y -= f64::from(height),
+                FieldOrientation::Rotated90 => x -= f64::from(height),
+                FieldOrientation::Rotated180 => x -= f64::from(width),
+                FieldOrientation::Rotated270 => y -= f64::from(width),
+            }
+        }
+        for run in &mut runs {
+            run.buffer = Some(TextBuffer {
+                width,
+                height,
+                orientation,
+                x: x as i32,
+                y: y as i32,
+            });
+        }
+        state.update_automatic_text_position(text, f64::from(width));
+        return Ok(runs);
+    }
+    if let Some(resources) = &text.font.resources {
+        super::advanced_text::layout(text, state, resources)
+    } else {
+        Ok(vec![layout(text, state)?])
+    }
+}
+
+fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, String> {
     let mut glyphs = Vec::new();
     // Some bitmap faces carry no lowercase glyphs; the printer (and the
     // reference renderer) draw lowercase field data as uppercase. Match that
@@ -412,7 +508,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
 
         if buf_w == 0 || buf_h == 0 {
             return Ok(TextLayout {
-                face,
+                face: LayoutFont::Resident(face),
                 glyphs,
                 buffer: None,
             });
@@ -559,7 +655,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
         }
 
         return Ok(TextLayout {
-            face,
+            face: LayoutFont::Resident(face),
             glyphs,
             buffer: Some(TextBuffer {
                 width: buf_w,
@@ -572,7 +668,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
     }
 
     Ok(TextLayout {
-        face,
+        face: LayoutFont::Resident(face),
         glyphs,
         buffer: None,
     })
@@ -934,6 +1030,7 @@ fn draw_text_snapped(
         }
         glyphs.push(PlacedGlyph {
             character: c,
+            extracted: None,
             glyph: glyph.clone(),
             x,
             y,

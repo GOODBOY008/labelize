@@ -88,7 +88,7 @@ Zebra's mobile-printer language (QL/MZ series); sessions start with `! {offset} 
 
 **Setup:** `PAGE-WIDTH` (label width), `UNITS` commands, `;` comments
 **Content:** `TEXT`/`T` (+ `VTEXT`/`TEXT90`/`TEXT180`/`TEXT270` rotations, 90° CCW), `SCALE-TEXT`/`ST` (+ vertical; 72 pt/inch, `ROTATE` in 90° steps), `ML`/`MULTILINE` blocks (inline text command, scalable text, blank rows), resident fonts 0-7 (Appendix D cell metrics in `parsers/cpcl/fonts.rs`), `SETMAG {w} {h}`, justification (`LEFT`/`CENTER`/`RIGHT [end]` via one-line blocks), `BARCODE`/`B`/`VBARCODE` (128, UCCEAN128, 39/39C/F39/F39C, UPCA, UPCE, EAN13, EAN8, I2OF5/I2OF5C/I2OF5G; ratio codes 0-4 = 1.5-3.5:1, 20-30 = 2.0-3.0:1), `BARCODE-TEXT`/`BT` (HRI state), `B PDF-417 … ENDPDF` (XD/YD/C/S), `B QR … ENDQR` (`MA,`/`H0M,N…` payload conventions resolved parser-side), `B MAXICODE … ENDMAXICODE` (POST/CC/SC/MSG tags → mode-2 payload), `B AZTEC … ENDAZTEC` (XD/EC), `BOX`, `LINE`, `INVERSE-LINE` (region inversion of earlier objects), `EG`/`CG` and their full `EXPANDED-GRAPHICS`/`COMPRESSED-GRAPHICS` names (byte-safe counted payloads, set bits black)
-**No-op (device behaviour):** `CONTRAST`, `TONE`, `JOURNAL`, `PACE`, `AUTO-PACE`, `NO-PACE`, `WAIT`, `BEEP`, `CUT`, `PARTIAL-CUT`, `FORM`, `PREFEED`, `POSTFEED`, `ENCODING`, `COUNT` (inert serial state like `^SN`)
+**No-op (device behaviour):** `CONTRAST`, `TONE`, `JOURNAL`, `PACE`, `AUTO-PACE`, `NO-PACE`, `WAIT`, `BEEP`, `CUT`, `PARTIAL-CUT`, `FORM`, `PREFEED`, `POSTFEED`, `ENCODING`, `COUNT` (inert serial state)
 **Unsupported (explicit error):** `CONCAT`/`VCONCAT`, `FG` font groups, `PCX`, `SCALE-TO-FIT`, `DEFINE-FORMAT`/`USE-FORMAT`, `VEG`/`VCG`, `PATTERN` ≠ 100, barcode types with addenda (`UPCA2/5`, `UPCE2/5`, `EAN132/5`, `EAN82/5`), `93`, `CODABAR`, `MSI*`, `POSTNET`, `FIM`
 **Reference renderer:** labelixa.com renders a CPCL subset (`POST /v1/cpcl/render`) and is the golden reference where it covers the commands; renderer-baseline otherwise (EPL/TSPL convention). Real-provenance corpus (the MIT-licensed Labelixa example collection) and reference details: [CPCL/DPL corpus](docs/TEST_CORPUS.md#cpcl-and-dpl); tolerances in [docs/DIFF_THRESHOLDS.md](docs/DIFF_THRESHOLDS.md).
 
@@ -134,9 +134,9 @@ Datamax-O'Neil (now Honeywell) label formats: `<STX>L` opens a format, `E` termi
 
 ## Supported ZPL Commands
 
-**Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^LT` (label top), `^LS` (label shift), `^LL` (label length), `^PO`, `^PW`, `^CI`, `^CF`, `^PQ` (print quantity), `^FX` (comment), `^SN`/`^SF` (inert serial state)
-**Text/Font:** `^A`, `^A@` (named font), `^CW` (font identifier), `^FO`, `^FT`, `^FW`, `^FP` (direction and character spacing), `^FD`, `^FS`, `^FB`, `^FV`, `^FN`, `^FR`, `^FH`
-**Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B8` (EAN-8), `^B9` (UPC-E), `^BU` (UPC-A), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO`/`^B0` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults)
+**Label control:** `^XA`, `^XZ`, `^LH`, `^LR`, `^LT` (label top), `^LS` (label shift), `^LL` (label length), `^PO`, `^PW`, `^CI`, `^CF`, `^PQ` (print quantity), `^FX` (comment), `^SN`/`^SF` (serialized fields), `^MC` (retain background), `^CC`/`~CC`, `^CT`/`~CT`, `^CD`/`~CD`
+**Text/Font:** `^A`, `^A@` (named font), `^CW` (font identifier), `^FO`, `^FT`, `^FW`, `^FP` (direction and character spacing), `^FD`, `^FS`, `^FB`, `^TB`, `^FE`, `^FC`, `^FL`, `^PA`, `^FV`, `^FN`, `^FR`, `^FH`
+**Barcodes:** `^BC` (Code128), `^BE` (EAN-13), `^B8` (EAN-8), `^B9` (UPC-E), `^BU` (UPC-A), `^B2` (2of5), `^B3` (Code39), `^B7` (PDF417), `^BO`/`^B0` (Aztec), `^BX` (DataMatrix), `^BQ` (QR), `^BD` (MaxiCode), `^BY` (defaults). Additional linear, stacked, postal and GS1 commands are listed in [the command reference](docs/ZPL_COMMANDS_REFERENCE.md#barcodes).
 **Graphics:** `^GB`, `^GC`, `^GD`, `^GE`, `^GF`, `^GS`
 **Storage:** `~DG`, `^IL`, `^XG`, `^ID`, `^IM`, `^IS`, `~EG`, `^DF`, `^XF`
 
@@ -146,9 +146,8 @@ label as a bitmap (`p=N` suppresses printing). Saved images are resolved by
 snapshot uses the caller's canvas unless declared dimensions were requested;
 images are limited to 16 Mi pixels, 32000 dots per dimension and 16 nesting
 levels. A render reuses shared bitmaps and limits their combined packed data
-to 64 MiB. `^IS` inside `^DF` remains unsupported and returns an error.
-`^A@o,h,w,d:f.x` retains the last filename; unavailable downloaded fonts still
-use the `^CF` fallback. `^GFB` is byte-safe; `^GFC` returns an explicit error.
+to 64 MiB. A stored format executes its image saves when recalled.
+`^A@o,h,w,d:f.x` retains the last filename; missing fonts use the `^CF` fallback. Downloaded bitmap and TrueType faces can be selected or linked. `^GFB` is byte-safe; `^GFC` returns an explicit error.
 
 ## Build & Test
 

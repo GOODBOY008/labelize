@@ -9,6 +9,22 @@
 use super::field_orientation::FieldOrientation;
 use super::font_face::FontFace;
 
+#[derive(Clone, Debug, Default)]
+pub struct TextProperties {
+    pub show_missing: bool,
+    pub bidirectional: bool,
+    pub shape: bool,
+    pub open_type: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct FontResources {
+    pub primary: Option<std::sync::Arc<[u8]>>,
+    pub fallbacks: Vec<std::sync::Arc<[u8]>>,
+    pub properties: TextProperties,
+    pub native_cell: Option<(u16, u16)>,
+}
+
 #[derive(Clone, Debug)]
 pub struct FontInfo {
     /// Producer-owned font key (ZPL designator, EPL font number, …) — kept
@@ -16,6 +32,7 @@ pub struct FontInfo {
     pub name: String,
     /// Rendering class (embedded asset + calibration), resolved by the parser.
     pub face: FontFace,
+    pub resources: Option<std::sync::Arc<FontResources>>,
     /// Pen-advance multiplier for fixed-cell faces, resolved by the parser
     /// from its font tables; 1.0 for faces with their own advance model.
     pub advance_mult: f64,
@@ -32,6 +49,7 @@ impl Default for FontInfo {
         FontInfo {
             name: "A".to_string(),
             face: FontFace::default(),
+            resources: None,
             advance_mult: 1.0,
             dedot_zero: false,
             width: 0.0,

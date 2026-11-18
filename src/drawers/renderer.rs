@@ -23,6 +23,7 @@ use super::drawer_state::DrawerState;
 pub(crate) mod barcode_layout;
 mod saved_images;
 use saved_images::SavedImageCache;
+mod advanced_text;
 #[cfg(feature = "vector")]
 pub mod scene;
 pub(crate) mod text_layout;
@@ -244,6 +245,7 @@ impl Renderer {
             | LabelElement::BarcodeEan8(_)
             | LabelElement::BarcodeUca(_)
             | LabelElement::Barcode2of5(_)
+            | LabelElement::BarcodeSymbol(_)
             | LabelElement::Barcode39(_)
             | LabelElement::BarcodePdf417(_)
             | LabelElement::BarcodeAztec(_)
@@ -264,7 +266,10 @@ impl Renderer {
         text: &TextField,
         state: &mut DrawerState,
     ) -> Result<(), String> {
-        text_layout::layout(text, state)?.draw(canvas)
+        for run in text_layout::layouts(text, state)? {
+            run.draw(canvas)?;
+        }
+        Ok(())
     }
 
     fn draw_graphic_box(

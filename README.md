@@ -324,10 +324,10 @@ DataMatrix ECC 200 field-data escapes and firmware defaults are described in
 
 | Category | Commands |
 |----------|----------|
-| **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^A@` (named font) `^CF` `^CW` (font identifier) `^FB` `^FR` `^FH` `^FN` `^FW` `^FV` |
-| **Barcodes** | `^BC` (Code 128) `^BE` (EAN-13) `^B8` (EAN-8) `^B9` (UPC-E) `^BU` (UPC-A) `^B2` (Interleaved 2-of-5) `^B3` (Code 39) `^B7` (PDF417) `^BO` (Aztec) `^BX` (DataMatrix) `^BQ` (QR Code) `^BD` (MaxiCode) `^BY` (defaults) |
-| **Graphics** | `^GB` (box) `^GC` (circle) `^GD` (diagonal) `^GE` (ellipse) `^GF` (graphic field) `^GS` (symbol) `~DG` (download graphic) `^IL` `^XG` `^ID` `^IM` `^IS` `~EG` |
-| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^PM` (persistent mirror image) `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serial state) |
+| **Text & Font** | `^FO` `^FT` `^FD` `^FS` `^A` `^A@` (named font) `^CF` `^CW` (font identifier) `^FB` `^TB` `^FE` `^FC` `^FL` `^PA` `^FR` `^FH` `^FN` `^FW` `^FV` |
+| **Barcodes** | `^BC` (Code 128) `^BE` (EAN-13) `^B8` (EAN-8) `^B9` (UPC-E) `^BU` (UPC-A) `^B2` (Interleaved 2-of-5) `^B3` (Code 39) `^B7` (PDF417) `^BO` (Aztec) `^BX` (DataMatrix) `^BQ` (QR Code) `^BD` (MaxiCode) `^BY` (defaults). Code 93, Codabar, MicroPDF417, GS1 DataBar/Composite and postal symbols are in the [full command list](docs/ZPL_COMMANDS_REFERENCE.md#barcodes). |
+| **Graphics** | `^GB` (box) `^GC` (circle) `^GD` (diagonal) `^GE` (ellipse) `^GF` (graphic field) `^GS` (symbol) `~DG` (download graphic) `^IL` `^XG` `^ID` `^IM` `^IS` `~EG` `~DY` `^MC` |
+| **Label Control** | `^XA` `^XZ` `^PW` `^PO` `^PM` (persistent mirror image) `^LH` `^LR` `^LT` (label top) `^LS` (label shift) `^LL` (label length) `^CI` `^MU` (units) `^PQ` (print quantity) `^FX` (comment) `^SN`/`^SF` (serialized fields) |
 | **Stored Formats** | `^DF` `^XF` |
 
 DataMatrix rendering supports **ECC 000, 050, 080, 100, 140 and 200**. Omitted or empty ZPL

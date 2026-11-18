@@ -58,6 +58,31 @@ pub(crate) fn layout(
         LabelElement::BarcodeUca(b) => draw_barcode_upca(&mut canvas, b)?,
         LabelElement::BarcodeUcpe(b) => draw_barcode_upce(&mut canvas, b)?,
         LabelElement::Barcode2of5(b) => draw_barcode_2of5(&mut canvas, b)?,
+        LabelElement::BarcodeSymbol(b) => {
+            if !b.data.is_empty() {
+                let (img, caption) = barcodes::symbols::encode(&b.symbol, &b.data)?;
+                let pos = adjust_image_typeset_position(
+                    &img,
+                    &b.position,
+                    b.symbol.orientation,
+                    canvas.height(),
+                );
+                overlay_with_rotation(&mut canvas, &img, &pos, b.symbol.orientation);
+                if b.symbol.caption {
+                    draw_barcode_interpretation_line(
+                        &mut canvas,
+                        &caption,
+                        &pos,
+                        &img,
+                        b.symbol.orientation,
+                        b.symbol.caption_above,
+                        b.symbol.module as i32,
+                        false,
+                        crate::elements::field_alignment::FieldAlignment::Center,
+                    );
+                }
+            }
+        }
         LabelElement::Barcode39(b) => draw_barcode_39(&mut canvas, b)?,
         LabelElement::BarcodePdf417(b) => draw_barcode_pdf417(&mut canvas, b)?,
         LabelElement::BarcodeAztec(b) => draw_barcode_aztec(&mut canvas, b)?,
@@ -118,7 +143,7 @@ impl TextImage {
         Self {
             raster,
             layout: TextLayout {
-                face,
+                face: text_layout::LayoutFont::Resident(face),
                 glyphs,
                 buffer: Some(buffer),
             },
@@ -184,6 +209,7 @@ fn plain_glyphs(font: &FontRef, scale: PxScale, text: &str, x: i32, y: i32) -> V
         let id = font.glyph_id(character);
         let large = id.with_scale_and_position(ss, ab_glyph::point(pen, scaled.ascent()));
         glyphs.push(PlacedGlyph {
+            extracted: None,
             character,
             glyph: id
                 .with_scale_and_position(scale, ab_glyph::point(pen / 3.0, scaled.ascent() / 3.0)),

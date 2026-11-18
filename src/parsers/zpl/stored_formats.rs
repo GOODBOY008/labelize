@@ -32,20 +32,59 @@ use super::charsets;
 pub use super::qr_payload::parse_qr_fd_payload;
 
 pub fn resolve_elements(rf: &RecalledFormat) -> Result<Vec<LabelElement>, String> {
-    let mut res = Vec::with_capacity(rf.elements.len());
-    for element in &rf.elements {
-        match element {
-            LabelElement::RecalledField(rf) => {
-                if let Some(resolved) = resolve_field(rf)? {
-                    res.push(resolved);
-                }
+    resolve_copy(&rf.elements, 0, &Default::default())
+}
+
+pub(super) fn resolve_copy(
+    elements: &[LabelElement],
+    index: usize,
+    clock: &super::field_clock::FieldClock,
+) -> Result<Vec<LabelElement>, String> {
+    use std::collections::HashMap;
+    let mut values = HashMap::new();
+    for el in elements {
+        match el {
+            LabelElement::RecalledField(f) if f.stored.number >= 0 => {
+                let value = f.stored.field.sequence.as_ref().map_or_else(
+                    || f.data.clone(),
+                    |s| super::variable_fields::serialize(&f.data, s, index),
+                );
+                values.insert(f.stored.number, value);
             }
-            other => {
-                res.push(other.clone());
+            LabelElement::RecalledFieldData(f) => {
+                let value = f.sequence.as_ref().map_or_else(
+                    || f.data.clone(),
+                    |rule| super::variable_fields::serialize(&f.data, rule, index),
+                );
+                values.insert(f.number, value);
             }
+            _ => {}
         }
     }
-    Ok(res)
+    let mut result = Vec::with_capacity(elements.len());
+    for el in elements {
+        if let LabelElement::RecalledField(f) = el {
+            let mut field = f.clone();
+            if let Some(delimiter) = field.stored.field.reference_delimiter {
+                field.data = super::variable_fields::interpolate(&field.data, delimiter, &values);
+                field.data_bytes = Some(field.data.as_bytes().to_vec());
+            }
+            if field.stored.field.clock_indicators[0].is_some() {
+                field.data = clock.expand(&field.data, field.stored.field.clock_indicators);
+                field.data_bytes = Some(field.data.as_bytes().to_vec());
+            }
+            if let Some(sequence) = &field.stored.field.sequence {
+                field.data = super::variable_fields::serialize(&field.data, sequence, index);
+                field.data_bytes = Some(field.data.as_bytes().to_vec());
+            }
+            if let Some(drawable) = resolve_field(&field)? {
+                result.push(drawable);
+            }
+        } else {
+            result.push(el.clone());
+        }
+    }
+    Ok(result)
 }
 
 /// v1.7.x method form of [`resolve_elements`]. The inherent impl lives in
@@ -58,9 +97,25 @@ impl RecalledFormat {
     }
 }
 
-fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
+pub(super) fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
     let field = &f.stored.field;
-    let text = &f.data;
+    let original;
+    let text = if field.character_map.is_some()
+        && f.data_bytes
+            .as_deref()
+            .is_some_and(|bytes| std::str::from_utf8(bytes).is_err())
+    {
+        original = f
+            .data_bytes
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|&b| char::from(b))
+            .collect::<String>();
+        &original
+    } else {
+        &f.data
+    };
 
     if field.element.is_none() && text.is_empty() {
         return Ok(None);
@@ -131,6 +186,17 @@ fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
                 data: text.clone(),
             })))
         }
+        Some(LabelElement::BarcodeSymbolConfig(symbol)) => Ok(Some(LabelElement::BarcodeSymbol(
+            crate::elements::barcode_symbol::BarcodeSymbolWithData {
+                symbol: symbol.clone(),
+                data: super::barcode_commands::field_bytes(
+                    &symbol.kind,
+                    f.data_bytes.as_deref().unwrap_or(text.as_bytes()),
+                )?,
+                position: field.position.clone(),
+                reverse_print: field.reverse_print.clone(),
+            },
+        ))),
         Some(LabelElement::Barcode39Config(bc)) => {
             Ok(Some(LabelElement::Barcode39(Barcode39WithData {
                 reverse_print: field.reverse_print.clone(),
@@ -200,6 +266,7 @@ fn to_graphic_symbol_text_field(
     let (face, advance_mult, dedot_zero) = super::zebra_fonts::resolve_designator("GS");
     let source_font = FontInfo {
         name: "GS".to_string(),
+        resources: None,
         face,
         advance_mult,
         dedot_zero,
@@ -242,9 +309,39 @@ fn to_text_field(
     fb: Option<&FieldBlock>,
 ) -> Result<Option<LabelElement>, String> {
     let text = text.replace("\\&", "\n");
+    let text = if let Some(map) = &field.character_map {
+        text.chars()
+            .map(|c| u8::try_from(c).map_or(c, |b| char::from(map[b as usize])))
+            .collect()
+    } else {
+        text
+    };
     let unicode_text = charsets::to_unicode_text(&text, field.current_charset)
         .map_err(|e| format!("failed to convert to unicode text: {}", e))?;
     let font = super::zebra_fonts::with_adjusted_sizes(&field.font);
+    let mut block = fb.cloned();
+    let mut unicode_text = unicode_text;
+    if let Some(block) = block.as_mut().filter(|b| b.max_height.is_some()) {
+        let height = block.max_height.unwrap_or(1);
+        let cell = if field.font.height > 0.0 {
+            field.font.height
+        } else {
+            font.height
+        }
+        .max(1.0);
+        // Bounded text blocks have a quarter-cell gap. The last line may
+        // be partly visible; the physical rectangle clips its ink.
+        block.line_spacing = (cell * 0.25).round() as i32;
+        block.max_lines = (f64::from(height) / (cell + f64::from(block.line_spacing)))
+            .ceil()
+            .max(1.0) as i32;
+        block.alignment = match field.alignment {
+            FieldAlignment::Right => crate::elements::text_alignment::TextAlignment::Right,
+            FieldAlignment::Center => crate::elements::text_alignment::TextAlignment::Center,
+            _ => crate::elements::text_alignment::TextAlignment::Left,
+        };
+        unicode_text = unicode_text.replace('\u{00ad}', "").replace("<< >", "<");
+    }
     let flow = resolve_text_flow(field.text_flow, &field.font, &font);
 
     Ok(Some(LabelElement::Text(TextField {
@@ -253,7 +350,7 @@ fn to_text_field(
         alignment: field.alignment,
         text: unicode_text,
         flow,
-        block: fb.cloned(),
+        block,
         reverse_print: field.reverse_print.clone(),
     })))
 }

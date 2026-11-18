@@ -324,6 +324,10 @@ fn golden_fb_single_line_overflow() {
     golden_zpl_with_tolerance("fb_single_line_overflow", 0.2);
 }
 #[test]
+fn golden_zpl_extended_barcodes() {
+    golden_zpl_with_tolerance("zpl_extended_barcodes", 0.0);
+}
+#[test]
 fn golden_zpl_b0_alias() {
     golden_zpl_with_tolerance("zpl_b0_alias", 0.0);
 }
