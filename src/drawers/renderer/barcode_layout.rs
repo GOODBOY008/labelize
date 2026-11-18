@@ -579,30 +579,18 @@ fn draw_barcode_datamatrix(
             .to_string());
         }
     }
-    // Skip empty fields, preserving upstream's label-level behavior.
-    // Legacy bytes are authoritative even when the display text differs.
-    let is_empty = if bc.barcode.quality == 200 && bc.barcode.escape != 0 {
-        bc.data.is_empty()
-    } else {
-        bc.data_bytes
-            .as_deref()
-            .unwrap_or(bc.data.as_bytes())
-            .is_empty()
-    };
-    if is_empty {
+    // The field bytes include any byte escapes decoded by the frontend.
+    let input = bc.data_bytes.as_deref().unwrap_or(bc.data.as_bytes());
+    if input.is_empty() {
         return Ok(());
     }
     let scale = bc.barcode.height.max(1);
     let img_raw = if bc.barcode.quality != 200 {
         // Legacy g (ECC 200 escapes) has no effect. Consume preserved field
         // bytes instead of attempting to reverse the display text decoding.
-        let input = match bc.data_bytes.as_deref() {
-            Some(bytes) => bytes,
-            None if bc.data.is_ascii() => bc.data.as_bytes(),
-            None => {
-                return Err("Legacy DataMatrix: non-ASCII data requires explicit data_bytes".into())
-            }
-        };
+        if bc.data_bytes.is_none() && !bc.data.is_ascii() {
+            return Err("Legacy DataMatrix: non-ASCII data requires explicit data_bytes".into());
+        }
         // ZD421 CI13/CI27 probes preserve backslashes and pipes after FH.
         // Do not apply the PDF417 substitutions suggested by the BX prose.
         if bc.barcode.ratio
@@ -622,11 +610,6 @@ fn draw_barcode_datamatrix(
         )?
         .to_image(scale as usize, scale as usize)
     } else {
-        let input = if bc.barcode.escape == 0 {
-            bc.data_bytes.as_deref().unwrap_or(bc.data.as_bytes())
-        } else {
-            bc.data.as_bytes()
-        };
         let image = barcodes::datamatrix::render_field(
             input,
             scale,

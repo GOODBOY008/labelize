@@ -296,6 +296,13 @@ impl ZplParser {
                     &bytes[3..],
                     self.printer.next_hex_escape_char,
                 ));
+            } else if upper.starts_with("^SN") {
+                let start = bytes[3..]
+                    .split(|&b| b == self.syntax.delimiter)
+                    .next()
+                    .unwrap_or_default();
+                self.printer.next_element_field_bytes =
+                    Some(if start.is_empty() { b"1" } else { start }.to_vec());
             }
 
             // Zebra applies ^LL to the current format only before its first
@@ -725,7 +732,6 @@ impl ZplParser {
             let start = parts[0];
             self.printer.next_element_field_data =
                 if start.is_empty() { "1" } else { start }.into();
-            self.printer.next_element_field_bytes = None;
             self.printer.sequence = Some(crate::elements::field_info::FieldSequence::Numeric {
                 increment: parts
                     .get(1)

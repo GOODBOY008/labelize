@@ -41,9 +41,9 @@ fn empty_fields_leave_other_label_content_unchanged_for_all_qualities() {
 }
 
 #[test]
-fn legacy_empty_check_uses_preserved_bytes_instead_of_display_text() {
+fn empty_check_uses_preserved_bytes_for_all_qualities() {
     let empty = render(&parse("^XA^FO4,4^GB3,3,3^FS^XZ")).unwrap();
-    for quality in [0, 50, 80, 100, 140] {
+    for quality in [0, 50, 80, 100, 140, 200] {
         let mut label = parse(&format!(
             "^XA^FO20,20^BXN,2,{quality}^FDAB^FS^FO4,4^GB3,3,3^FS^XZ"
         ));

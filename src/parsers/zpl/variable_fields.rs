@@ -2,40 +2,70 @@ use crate::elements::field_info::FieldSequence;
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
 
-pub(super) fn serialize(value: &str, rule: &FieldSequence, index: usize) -> String {
+/// Each valid Unicode grapheme occupies one position. In binary data each
+/// undecodable byte is an opaque position and is copied verbatim.
+fn grapheme_boundaries(data: &[u8]) -> Vec<usize> {
+    let mut boundaries = Vec::new();
+    let mut offset = 0;
+    for chunk in data.utf8_chunks() {
+        boundaries.extend(
+            chunk
+                .valid()
+                .grapheme_indices(true)
+                .map(|(i, _)| offset + i),
+        );
+        offset += chunk.valid().len();
+        boundaries.extend(offset..offset + chunk.invalid().len());
+        offset += chunk.invalid().len();
+    }
+    boundaries.push(data.len());
+    boundaries
+}
+
+pub(super) fn serialize(value: &[u8], rule: &FieldSequence, index: usize) -> Vec<u8> {
     match rule {
         FieldSequence::Numeric { increment, pad } => {
-            let bytes = value.as_bytes();
-            let Some(last) = bytes.iter().rposition(u8::is_ascii_digit) else {
-                return value.into();
+            let Some(last) = value.iter().rposition(u8::is_ascii_digit) else {
+                return value.to_vec();
             };
             let end = last + 1;
-            let width = bytes[..end]
+            let width = value[..end]
                 .iter()
                 .rev()
                 .take(12)
                 .take_while(|b| b.is_ascii_digit())
                 .count();
             let start = end - width;
-            let number: i128 = value[start..end].parse().unwrap_or(0);
+            let number = value[start..end]
+                .iter()
+                .fold(0i128, |n, &b| n * 10 + i128::from(b - b'0'));
             let next =
                 (number + i128::from(*increment) * index as i128).rem_euclid(1_000_000_000_000);
             let width = if *pad { width } else { 0 };
-            format!("{}{:0width$}{}", &value[..start], next, &value[end..])
+            let mut result = value[..start].to_vec();
+            result.extend(format!("{next:0width$}").bytes());
+            result.extend_from_slice(&value[end..]);
+            result
         }
         FieldSequence::Masked { mask, increment } => {
+            let mut result = value.to_vec();
             if index == 0 {
-                return value.into();
+                return result;
             }
             let mut masks = mask.chars().rev();
             let mut increments = increment.chars().rev();
             let mut carry = u64::from(increment.is_empty()) * index as u64;
-            let mut parts = Vec::new();
-            for cluster in value.graphemes(true).rev() {
-                let c = cluster.chars().next().unwrap();
-                if matches!(c, '\u{200e}'|'\u{200f}'|'\u{202a}'..='\u{202e}'|'\u{2066}'..='\u{2069}')
-                {
-                    parts.push(cluster.to_string());
+            for span in grapheme_boundaries(value).windows(2).rev() {
+                let cluster = &value[span[0]..span[1]];
+                let first = std::str::from_utf8(cluster)
+                    .ok()
+                    .and_then(|s| s.chars().next());
+                if matches!(
+                    first,
+                    Some(
+                        '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}',
+                    )
+                ) {
                     continue;
                 }
                 let mask = masks.next().unwrap_or('%');
@@ -49,65 +79,66 @@ pub(super) fn serialize(value: &str, rule: &FieldSequence, index: usize) -> Stri
                     'A' => b"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
                     'n' => b"0123456789abcdefghijklmnopqrstuvwxyz",
                     'N' => b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                    _ => {
-                        parts.push(cluster.to_string());
-                        continue;
-                    }
+                    _ => continue,
                 };
                 let digit = |c: char| {
                     alphabet
                         .iter()
                         .position(|&b| char::from(b).eq_ignore_ascii_case(&c))
                 };
-                let Some(current) = digit(c) else {
-                    parts.push(cluster.to_string());
+                let Some(current) = first.and_then(digit) else {
                     continue;
                 };
                 let sum =
                     current as u64 + add.and_then(digit).unwrap_or(0) as u64 * index as u64 + carry;
                 carry = sum / alphabet.len() as u64;
-                let next = alphabet[(sum % alphabet.len() as u64) as usize] as char;
-                parts.push(format!("{next}{}", &cluster[c.len_utf8()..]));
+                result[span[0]] = alphabet[(sum % alphabet.len() as u64) as usize];
             }
-            parts.reverse();
-            parts.concat()
+            result
         }
     }
 }
 
-pub(super) fn interpolate(text: &str, delimiter: char, values: &HashMap<i32, String>) -> String {
-    let mut result = String::new();
-    let mut rest = text;
-    while let Some((before, tail)) = rest.split_once(delimiter) {
-        result.push_str(before);
-        let Some((expression, after)) = tail.split_once(delimiter) else {
-            result.push(delimiter);
+fn split_marker<'a>(data: &'a [u8], marker: &[u8]) -> Option<(&'a [u8], &'a [u8])> {
+    let start = data.windows(marker.len()).position(|w| w == marker)?;
+    Some((&data[..start], &data[start + marker.len()..]))
+}
+
+pub(super) fn interpolate(data: &[u8], delimiter: char, values: &HashMap<i32, Vec<u8>>) -> Vec<u8> {
+    let mut marker = [0; 4];
+    let marker = delimiter.encode_utf8(&mut marker).as_bytes();
+    let mut result = Vec::with_capacity(data.len());
+    let mut rest = data;
+    while let Some((before, tail)) = split_marker(rest, marker) {
+        result.extend_from_slice(before);
+        let Some((expression, after)) = split_marker(tail, marker) else {
+            result.extend_from_slice(marker);
             rest = tail;
             break;
         };
-        let mut parts = expression.split(',');
-        let field = parts.next().and_then(|p| p.parse::<i32>().ok());
-        let Some(id) = field else {
-            result.push(delimiter);
+        let mut parts = std::str::from_utf8(expression).unwrap_or("").split(',');
+        let Some(id) = parts.next().and_then(|p| p.parse::<i32>().ok()) else {
+            result.extend_from_slice(marker);
             rest = tail;
             continue;
         };
-        let value = values.get(&id).map(String::as_str).unwrap_or("");
+        let value = values.get(&id).map(Vec::as_slice).unwrap_or_default();
         match (parts.next(), parts.next(), parts.next(), parts.next()) {
-            (None, None, None, None) => result.push_str(value),
+            (None, None, None, None) => result.extend_from_slice(value),
             (Some(dir), Some(pos), Some(len), None) => {
                 if let (Ok(pos), Ok(len)) = (pos.parse::<usize>(), len.parse::<usize>()) {
-                    let chars: Vec<_> = value.graphemes(true).collect();
-                    if pos > 0 && pos <= chars.len() {
+                    let offsets = grapheme_boundaries(value);
+                    let count = offsets.len() - 1;
+                    if pos > 0 && pos <= count {
                         let (start, end) = if dir.eq_ignore_ascii_case("f") {
-                            (pos - 1, (pos - 1).saturating_add(len).min(chars.len()))
+                            (pos - 1, (pos - 1).saturating_add(len).min(count))
                         } else if dir.eq_ignore_ascii_case("b") {
-                            let end = chars.len() + 1 - pos;
+                            let end = count + 1 - pos;
                             (end.saturating_sub(len), end)
                         } else {
                             (0, 0)
                         };
-                        result.extend(chars[start..end].iter().copied());
+                        result.extend_from_slice(&value[offsets[start]..offsets[end]]);
                     }
                 }
             }
@@ -115,6 +146,6 @@ pub(super) fn interpolate(text: &str, delimiter: char, values: &HashMap<i32, Str
         }
         rest = after;
     }
-    result.push_str(rest);
+    result.extend_from_slice(rest);
     result
 }

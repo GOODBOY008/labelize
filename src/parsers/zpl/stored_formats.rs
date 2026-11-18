@@ -28,8 +28,9 @@ use crate::elements::stored_format::{RecalledField, RecalledFormat};
 use crate::elements::text_field::TextField;
 use crate::elements::text_flow::{TextDirection, TextFlow};
 
-use super::charsets;
 pub use super::qr_payload::parse_qr_fd_payload;
+use super::{charsets, variable_fields};
+use std::collections::HashMap;
 
 pub fn resolve_elements(rf: &RecalledFormat) -> Result<Vec<LabelElement>, String> {
     resolve_copy(&rf.elements, 0, &Default::default())
@@ -40,42 +41,36 @@ pub(super) fn resolve_copy(
     index: usize,
     clock: &super::field_clock::FieldClock,
 ) -> Result<Vec<LabelElement>, String> {
-    use std::collections::HashMap;
-    let mut values = HashMap::new();
-    for el in elements {
-        match el {
-            LabelElement::RecalledField(f) if f.stored.number >= 0 => {
-                let value = f.stored.field.sequence.as_ref().map_or_else(
-                    || f.data.clone(),
-                    |s| super::variable_fields::serialize(&f.data, s, index),
-                );
-                values.insert(f.stored.number, value);
-            }
-            LabelElement::RecalledFieldData(f) => {
-                let value = f.sequence.as_ref().map_or_else(
-                    || f.data.clone(),
-                    |rule| super::variable_fields::serialize(&f.data, rule, index),
-                );
-                values.insert(f.number, value);
-            }
-            _ => {}
-        }
-    }
+    let references = std::cell::OnceCell::new();
     let mut result = Vec::with_capacity(elements.len());
     for el in elements {
         if let LabelElement::RecalledField(f) = el {
             let mut field = f.clone();
             if let Some(delimiter) = field.stored.field.reference_delimiter {
-                field.data = super::variable_fields::interpolate(&field.data, delimiter, &values);
-                field.data_bytes = Some(field.data.as_bytes().to_vec());
+                let (text_values, byte_values) = references.get_or_init(|| {
+                    (
+                        numbered_values(elements, index, false),
+                        numbered_values(elements, index, true),
+                    )
+                });
+                let source = f.data_bytes.as_deref().unwrap_or(f.data.as_bytes());
+                field.data_bytes =
+                    Some(variable_fields::interpolate(source, delimiter, byte_values));
+                field.data = String::from_utf8(variable_fields::interpolate(
+                    f.data.as_bytes(),
+                    delimiter,
+                    text_values,
+                ))
+                .expect("text field references preserve UTF-8");
             }
-            if field.stored.field.clock_indicators[0].is_some() {
-                field.data = clock.expand(&field.data, field.stored.field.clock_indicators);
-                field.data_bytes = Some(field.data.as_bytes().to_vec());
+            let markers = f.stored.field.clock_indicators;
+            if markers[0].is_some() {
+                transform_payload(&mut field, clock.expander(markers));
             }
-            if let Some(sequence) = &field.stored.field.sequence {
-                field.data = super::variable_fields::serialize(&field.data, sequence, index);
-                field.data_bytes = Some(field.data.as_bytes().to_vec());
+            if let Some(sequence) = &f.stored.field.sequence {
+                transform_payload(&mut field, |data| {
+                    variable_fields::serialize(data, sequence, index)
+                });
             }
             if let Some(drawable) = resolve_field(&field)? {
                 result.push(drawable);
@@ -85,6 +80,43 @@ pub(super) fn resolve_copy(
         }
     }
     Ok(result)
+}
+
+// Field text may be a decoded display string while the barcode consumes the
+// original printer bytes. Apply the same substitutions to each representation.
+fn transform_payload(field: &mut RecalledField, transform: impl Fn(&[u8]) -> Vec<u8>) {
+    if let Some(bytes) = &mut field.data_bytes {
+        *bytes = transform(bytes);
+    }
+    field.data = String::from_utf8(transform(field.data.as_bytes()))
+        .expect("text field substitutions preserve UTF-8");
+}
+
+fn numbered_values(elements: &[LabelElement], index: usize, raw: bool) -> HashMap<i32, Vec<u8>> {
+    let mut values = HashMap::new();
+    for el in elements {
+        let (number, text, bytes, sequence) = match el {
+            LabelElement::RecalledField(f) if f.stored.number >= 0 => (
+                f.stored.number,
+                &f.data,
+                &f.data_bytes,
+                &f.stored.field.sequence,
+            ),
+            LabelElement::RecalledFieldData(f) => (f.number, &f.data, &f.data_bytes, &f.sequence),
+            _ => continue,
+        };
+        let data = if raw {
+            bytes.as_deref().unwrap_or(text.as_bytes())
+        } else {
+            text.as_bytes()
+        };
+        let value = sequence.as_ref().map_or_else(
+            || data.to_vec(),
+            |rule| variable_fields::serialize(data, rule, index),
+        );
+        values.insert(number, value);
+    }
+    values
 }
 
 /// v1.7.x method form of [`resolve_elements`]. The inherent impl lives in

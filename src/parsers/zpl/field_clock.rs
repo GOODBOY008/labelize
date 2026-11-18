@@ -66,7 +66,7 @@ impl FieldClock {
         }
     }
 
-    pub fn expand(&self, text: &str, markers: [Option<char>; 3]) -> String {
+    pub fn expander(&self, markers: [Option<char>; 3]) -> impl Fn(&[u8]) -> Vec<u8> {
         let now = if self.time_now { None } else { self.start }
             .unwrap_or_else(|| Utc::now() + self.adjustment);
         let mut dates = [now; 3];
@@ -108,34 +108,46 @@ impl FieldClock {
             18 => Locale::pl_PL,
             _ => Locale::en_US,
         };
-        let mut result = String::new();
-        let mut chars = text.chars().peekable();
-        while let Some(c) = chars.next() {
-            if let (Some(i), Some(&key)) =
-                (markers.iter().position(|m| *m == Some(c)), chars.peek())
-            {
-                if key == c {
-                    result.push(c);
-                    chars.next();
-                    continue;
-                }
-                if "aAbBdhHIjmMpSUWwyY".contains(key) {
-                    chars.next();
-                    if key == 'w' {
-                        result
-                            .push_str(&format!("{:02}", dates[i].weekday().num_days_from_sunday()));
-                    } else {
-                        result.push_str(
-                            &dates[i]
-                                .format_localized(&format!("%{key}"), locale)
-                                .to_string(),
-                        );
+        let expand_text = move |text: &str| {
+            let mut result = String::new();
+            let mut chars = text.chars().peekable();
+            while let Some(c) = chars.next() {
+                if let (Some(i), Some(&key)) =
+                    (markers.iter().position(|m| *m == Some(c)), chars.peek())
+                {
+                    if key == c {
+                        result.push(c);
+                        chars.next();
+                        continue;
                     }
-                    continue;
+                    if "aAbBdhHIjmMpSUWwyY".contains(key) {
+                        chars.next();
+                        if key == 'w' {
+                            result.push_str(&format!(
+                                "{:02}",
+                                dates[i].weekday().num_days_from_sunday()
+                            ));
+                        } else {
+                            result.push_str(
+                                &dates[i]
+                                    .format_localized(&format!("%{key}"), locale)
+                                    .to_string(),
+                            );
+                        }
+                        continue;
+                    }
                 }
+                result.push(c);
             }
-            result.push(c);
+            result
+        };
+        move |data| {
+            let mut result = Vec::with_capacity(data.len());
+            for chunk in data.utf8_chunks() {
+                result.extend(expand_text(chunk.valid()).bytes());
+                result.extend_from_slice(chunk.invalid());
+            }
+            result
         }
-        result
     }
 }
