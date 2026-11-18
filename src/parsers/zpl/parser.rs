@@ -52,12 +52,14 @@ pub struct ZplParseOptions {
 
 pub struct ZplParser {
     printer: VirtualPrinter,
+    syntax: super::stream::Syntax,
 }
 
 impl Default for ZplParser {
     fn default() -> Self {
         ZplParser {
             printer: VirtualPrinter::new(),
+            syntax: Default::default(),
         }
     }
 }
@@ -73,6 +75,7 @@ impl ZplParser {
     pub fn with_dpmm(dpmm: i32) -> Self {
         ZplParser {
             printer: VirtualPrinter::with_dpmm(dpmm),
+            syntax: Default::default(),
         }
     }
 
@@ -111,13 +114,30 @@ impl ZplParser {
         let mut result_elements: Vec<LabelElement> = Vec::new();
         let mut mirror_at_format_start = self.printer.label_mirrored;
 
-        let commands = split_zpl_commands(zpl_data)?;
+        let mut commands = super::stream::Stream::new(zpl_data, self.syntax);
         let mut current_recalled_format: Option<crate::elements::stored_format::RecalledFormat> =
             None;
 
-        for raw_command in &commands {
-            let command = &raw_command.text;
+        while let Some(raw_command) = commands.next()? {
+            self.syntax = commands.syntax;
+            let Some(bytes) = raw_command.normalized() else {
+                continue;
+            };
+            if bytes.get(0..3).is_some_and(|s| {
+                [b"~DY", b"~DT", b"~DU", b"~DB", b"~DS"]
+                    .iter()
+                    .any(|code| s.eq_ignore_ascii_case(*code))
+            }) {
+                super::objects::download(&mut self.printer, &bytes, self.syntax.delimiter)?;
+                continue;
+            }
+            let text = String::from_utf8_lossy(&bytes);
+            let command = text.as_ref();
             let upper = command.to_uppercase();
+            let reference = self.printer.pending_reference.take();
+            if upper.starts_with("^FD") {
+                self.printer.reference_delimiter = reference;
+            }
 
             if upper.starts_with("^XA") {
                 if options.require_complete_formats && format_open {
@@ -127,6 +147,7 @@ impl ZplParser {
                 height_at_first_field = None;
                 mirror_at_format_start = self.printer.label_mirrored;
                 self.printer.reset_label_state();
+                self.printer.clock.start_format();
                 current_recalled_format = None;
                 continue;
             }
@@ -138,13 +159,13 @@ impl ZplParser {
                 format_open = false;
                 // Resolve any active recalled format
                 if let Some(ref rf) = current_recalled_format {
-                    let resolved = stored_formats::resolve_elements(rf)?;
-                    result_elements.extend(resolved);
+                    result_elements.extend(rf.elements.iter().cloned());
                 }
 
                 if result_elements.is_empty()
                     && self.printer.next_download_format_name.is_empty()
                     && self.printer.image_saves.is_empty()
+                    && self.printer.retained_image.is_none()
                 {
                     continue;
                 }
@@ -155,14 +176,8 @@ impl ZplParser {
                         .image_saves
                         .last()
                         .is_none_or(|(_, print)| *print);
-                    let quantity = self
-                        .printer
-                        .print_quantity
-                        .max(1)
-                        .checked_mul(self.printer.print_copies.max(1))
-                        .ok_or("Print quantity exceeds supported label count")?
-                        as usize
-                        * usize::from(print_image);
+                    let quantity =
+                        self.printer.print_quantity.max(1) as usize * usize::from(print_image);
                     let total = results
                         .len()
                         .checked_add(quantity)
@@ -176,7 +191,8 @@ impl ZplParser {
                     // recall format's own ^LT/^LS (Labelary behavior, verified). This
                     // also makes the shift retroactive for fields placed before the
                     // command appeared in the format.
-                    let mut shifted = result_elements.clone();
+                    let mut shifted =
+                        stored_formats::resolve_copy(&result_elements, 0, &self.printer.clock)?;
                     apply_label_offsets(
                         &mut shifted,
                         self.printer.label_shift,
@@ -189,7 +205,7 @@ impl ZplParser {
                     let label_width_mm = dimension(self.printer.print_width);
                     let label_height_mm =
                         dimension(height_at_first_field.unwrap_or(self.printer.label_length));
-                    let label = LabelInfo {
+                    let mut label = LabelInfo {
                         print_width: self.printer.print_width,
                         inverted: self.printer.label_inverted,
                         mirrored: self.printer.label_mirrored,
@@ -197,6 +213,12 @@ impl ZplParser {
                         label_height_mm,
                         elements: shifted,
                     };
+                    let previous = self
+                        .printer
+                        .retained_image
+                        .clone()
+                        .map(LabelElement::RasterLabel);
+                    label.elements.splice(0..0, previous.iter().cloned());
                     if !self.printer.image_saves.is_empty() {
                         let saved = RasterLabel::new(label.clone(), self.printer.dpmm)?;
                         for (name, _) in self.printer.image_saves.drain(..) {
@@ -204,13 +226,55 @@ impl ZplParser {
                             self.printer.saved_images.insert(name, saved.clone());
                         }
                     }
-                    for _ in 0..quantity {
+                    let serialized = result_elements.iter().any(|el| match el {
+                        LabelElement::RecalledField(f) => f.stored.field.sequence.is_some(),
+                        LabelElement::RecalledFieldData(f) => f.sequence.is_some(),
+                        _ => false,
+                    });
+                    let clock_per_copy = self.printer.clock.changes_per_copy() && result_elements.iter()
+                        .any(|el| matches!(el, LabelElement::RecalledField(f) if f.stored.field.clock_indicators[0].is_some()));
+                    let replicas = self.printer.print_copies.max(1) as usize;
+                    for copy in 0..quantity {
+                        if copy != 0 && (clock_per_copy || serialized && copy % replicas == 0) {
+                            label.elements = stored_formats::resolve_copy(
+                                &result_elements,
+                                copy / replicas,
+                                &self.printer.clock,
+                            )?;
+                            apply_label_offsets(
+                                &mut label.elements,
+                                self.printer.label_shift,
+                                self.printer.label_top,
+                            );
+                            label.elements.splice(0..0, previous.iter().cloned());
+                        }
                         results.push(label.clone());
                     }
-                } else {
-                    if !self.printer.image_saves.is_empty() {
-                        return Err("^IS inside a downloaded format is not supported".into());
+                    if self.printer.keep_bitmap && print_image {
+                        let static_fields: Vec<_> = result_elements.iter().filter(|el| !matches!(el, LabelElement::RecalledField(f) if f.stored.field.variable)).cloned().collect();
+                        label.elements = stored_formats::resolve_copy(
+                            &static_fields,
+                            quantity.saturating_sub(1) / replicas,
+                            &self.printer.clock,
+                        )?;
+                        apply_label_offsets(
+                            &mut label.elements,
+                            self.printer.label_shift,
+                            self.printer.label_top,
+                        );
+                        if !label.elements.is_empty() {
+                            self.printer.retained_image = Some(RasterLabel::retained(
+                                label,
+                                self.printer.dpmm,
+                                self.printer.retained_image.as_ref(),
+                            )?);
+                        }
                     }
+                } else {
+                    self.printer.format_saves.insert(
+                        self.printer.next_download_format_name.clone(),
+                        std::mem::take(&mut self.printer.image_saves),
+                    );
                     self.printer.stored_formats.insert(
                         self.printer.next_download_format_name.clone(),
                         StoredFormat {
@@ -229,9 +293,16 @@ impl ZplParser {
 
             if upper.starts_with("^FD") || upper.starts_with("^FV") {
                 self.printer.next_element_field_bytes = Some(hex::decode_escaped_bytes(
-                    &raw_command.bytes[3..],
+                    &bytes[3..],
                     self.printer.next_hex_escape_char,
                 ));
+            } else if upper.starts_with("^SN") {
+                let start = bytes[3..]
+                    .split(|&b| b == self.syntax.delimiter)
+                    .next()
+                    .unwrap_or_default();
+                self.printer.next_element_field_bytes =
+                    Some(if start.is_empty() { b"1" } else { start }.to_vec());
             }
 
             // Zebra applies ^LL to the current format only before its first
@@ -242,7 +313,7 @@ impl ZplParser {
 
             // Try each command parser
             let parsed = if upper.starts_with("^GF") {
-                self.parse_graphic_field(&raw_command.bytes)?
+                self.parse_graphic_field(&bytes)?
             } else {
                 self.parse_command(command)?
             };
@@ -250,8 +321,7 @@ impl ZplParser {
                 // Handle template swap
                 if let LabelElement::RecalledFormat(rf) = el {
                     if let Some(ref prev_rf) = current_recalled_format {
-                        let resolved = stored_formats::resolve_elements(prev_rf)?;
-                        result_elements.extend(resolved);
+                        result_elements.extend(prev_rf.elements.iter().cloned());
                     }
                     self.printer.label_inverted = rf.inverted;
                     if let Some(mirrored) = rf.mirrored {
@@ -275,6 +345,12 @@ impl ZplParser {
             return Err("Incomplete ZPL format: missing ^XZ".into());
         }
         Ok(results)
+    }
+
+    fn parameters<'a>(&self, command: &'a str, prefix: &str) -> Vec<&'a str> {
+        command[prefix.len()..]
+            .split(char::from(self.syntax.delimiter))
+            .collect()
     }
 
     fn parse_command(&mut self, command: &str) -> Result<Option<LabelElement>, String> {
@@ -301,7 +377,7 @@ impl ZplParser {
         if upper.starts_with("^LL") {
             let scale = self.printer.unit_scale();
             if let Some(v) = command_text(command, "^LL")
-                .split(',')
+                .split(char::from(self.syntax.delimiter))
                 .next()
                 .unwrap_or_default()
                 .trim()
@@ -339,7 +415,7 @@ impl ZplParser {
         }
         // Print width
         if upper.starts_with("^PW") {
-            let parts = split_command(command, "^PW");
+            let parts = self.parameters(command, "^PW");
             let scale = self.printer.unit_scale();
             if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
                 self.printer.print_width = v.max(2);
@@ -353,9 +429,21 @@ impl ZplParser {
         }
         // Change charset
         if upper.starts_with("^CI") {
-            let parts = split_command(command, "^CI");
+            let parts = self.parameters(command, "^CI");
             if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
                 self.printer.current_charset = v;
+                self.printer.character_map = None;
+                if (0..=13).contains(&v) && parts.len() >= 3 {
+                    let mut map = std::array::from_fn(|i| i as u8);
+                    for pair in parts[1..].as_chunks::<2>().0 {
+                        if let (Ok(source), Ok(input)) =
+                            (pair[0].trim().parse::<u8>(), pair[1].trim().parse::<u8>())
+                        {
+                            map[input as usize] = source;
+                        }
+                    }
+                    self.printer.character_map = Some(std::sync::Arc::new(map));
+                }
             }
             return Ok(None);
         }
@@ -404,19 +492,85 @@ impl ZplParser {
             self.parse_field_block(command);
             return Ok(None);
         }
+        if upper.starts_with("^TB") {
+            let parts = self.parameters(command, "^TB");
+            let dimension = |i| {
+                parts
+                    .get(i)
+                    .and_then(|v: &&str| parse_int_scaled(v, self.printer.unit_scale()))
+                    .unwrap_or(1)
+                    .max(1)
+            };
+            let block = FieldBlock {
+                max_width: dimension(1),
+                max_height: Some(dimension(2)),
+                wrap_long_words: true,
+                ..Default::default()
+            };
+            if let Some(&orientation) = parts[0].as_bytes().first() {
+                let mut font = self.printer.get_next_font_or_default();
+                font.orientation = to_field_orientation(orientation);
+                self.printer.next_font = Some(font);
+            }
+            self.printer.next_element_field_element =
+                Some(Box::new(LabelElement::FieldBlockConfig(block)));
+            return Ok(None);
+        }
         // Field print direction and extra character spacing
         if upper.starts_with("^FP") {
             self.parse_field_parameter(command);
             return Ok(None);
         }
-        // Field data
-        if upper.starts_with("^FD") {
-            self.parse_field_data(command)?;
+        if upper.starts_with("^FC") {
+            let parts = self.parameters(command, "^FC");
+            self.printer.clock_indicators =
+                std::array::from_fn(|i| parts.get(i).and_then(|s| s.chars().next()));
+            self.printer.clock_indicators[0].get_or_insert('%');
             return Ok(None);
         }
-        // Field value
-        if upper.starts_with("^FV") {
-            self.printer.next_element_field_data = command_text(command, "^FV").to_string();
+        if upper.starts_with("^ST") || upper.starts_with("^SO") || upper.starts_with("^SL") {
+            let parts = self.parameters(command, &command[..3]);
+            self.printer.clock.configure(&upper[..3], &parts);
+            return Ok(None);
+        }
+        if upper.starts_with("^MC") {
+            match command[3..].trim().to_ascii_uppercase().as_str() {
+                "N" => self.printer.keep_bitmap = true,
+                "Y" => {
+                    self.printer.keep_bitmap = false;
+                    self.printer.retained_image = None;
+                }
+                _ => {}
+            }
+            return Ok(None);
+        }
+        if upper.starts_with("^PA") {
+            let parts = self.parameters(command, "^PA");
+            let enabled = |i| parts.get(i).is_some_and(|s: &&str| s.trim() == "1");
+            self.printer.fonts.properties =
+                (0..4)
+                    .any(enabled)
+                    .then(|| crate::elements::font::TextProperties {
+                        show_missing: enabled(0),
+                        bidirectional: enabled(1),
+                        shape: enabled(2),
+                        open_type: enabled(3),
+                    });
+            return Ok(None);
+        }
+        if upper.starts_with("^FL") {
+            let p = self.parameters(command, "^FL");
+            self.printer.fonts.link(&p);
+            return Ok(None);
+        }
+        if upper.starts_with("^FE") {
+            self.printer.pending_reference = Some(command[3..].chars().next().unwrap_or('#'));
+            return Ok(None);
+        }
+        // Fixed and variable fields use the same data encoding.
+        if upper.starts_with("^FD") || upper.starts_with("^FV") {
+            self.printer.variable |= upper.starts_with("^FV");
+            self.parse_field_data(&command[3..])?;
             return Ok(None);
         }
         // Field number
@@ -450,6 +604,18 @@ impl ZplParser {
         }
 
         // Barcode commands
+        if upper.as_bytes().starts_with(b"^B") && command.is_char_boundary(3) && command.len() >= 3
+        {
+            if let Some(config) = super::barcode_commands::configuration(
+                &upper.as_bytes()[..3],
+                &self.parameters(command, &command[..3]),
+                &self.printer,
+            ) {
+                self.printer.next_element_field_element =
+                    Some(Box::new(LabelElement::BarcodeSymbolConfig(config)));
+                return Ok(None);
+            }
+        }
         if upper.starts_with("^BC") {
             self.parse_barcode_128(command);
             return Ok(None);
@@ -555,18 +721,36 @@ impl ZplParser {
             return self.parse_recall_format(command);
         }
 
-        // Print quantity and serial state (serial markers in ^FD render literally,
-        // matching Labelary, so ^SN/^SF only record stream state)
+        // Serial fields are evaluated when copies are emitted.
         if upper.starts_with("^PQ") {
             self.parse_print_quantity(command);
             return Ok(None);
         }
         if upper.starts_with("^SN") {
-            self.printer.serial_number = command_text(command, "^SN").to_string();
+            self.printer.serial_number = command[3..].to_string();
+            let parts = self.parameters(command, "^SN");
+            let start = parts[0];
+            self.printer.next_element_field_data =
+                if start.is_empty() { "1" } else { start }.into();
+            self.printer.sequence = Some(crate::elements::field_info::FieldSequence::Numeric {
+                increment: parts
+                    .get(1)
+                    .and_then(|p| p.trim().parse::<i64>().ok())
+                    .unwrap_or(1)
+                    .clamp(-999999999999, 999999999999),
+                pad: parts
+                    .get(2)
+                    .is_some_and(|p| p.trim().eq_ignore_ascii_case("Y")),
+            });
             return Ok(None);
         }
         if upper.starts_with("^SF") {
-            self.printer.serial_format = command_text(command, "^SF").to_string();
+            self.printer.serial_format = command[3..].to_string();
+            let parts = self.parameters(command, "^SF");
+            self.printer.sequence = Some(crate::elements::field_info::FieldSequence::Masked {
+                mask: parts[0].to_string(),
+                increment: parts.get(1).copied().unwrap_or("").to_string(),
+            });
             return Ok(None);
         }
 
@@ -574,7 +758,7 @@ impl ZplParser {
     }
 
     fn parse_label_home(&mut self, command: &str) {
-        let parts = split_command(command, "^LH");
+        let parts = self.parameters(command, "^LH");
         let scale = self.printer.unit_scale();
         let old = self.printer.label_home_position.clone();
         if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
@@ -597,7 +781,7 @@ impl ZplParser {
     /// Zebra/Labelary accept only |v| <= 120 dots and ignore larger values
     /// (calibrated: `^LT121` and `^LT-121` render unshifted).
     fn parse_label_top(&mut self, command: &str) {
-        let parts = split_command(command, "^LT");
+        let parts = self.parameters(command, "^LT");
         let scale = self.printer.unit_scale();
         if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             if v.abs() <= 120 {
@@ -609,7 +793,7 @@ impl ZplParser {
     /// `^LSv` -- label shift. Positive shifts content left, negative right;
     /// per-element x is clamped at 0 (Labelary behavior).
     fn parse_label_shift(&mut self, command: &str) {
-        let parts = split_command(command, "^LS");
+        let parts = self.parameters(command, "^LS");
         let scale = self.printer.unit_scale();
         if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.label_shift = v;
@@ -620,7 +804,7 @@ impl ZplParser {
     /// c are ignored unless both are given; matching values reset the conversion. The mode
     /// carries over from field to field until the next `^MU`.
     fn parse_measurement_units(&mut self, command: &str) {
-        let parts = split_command(command, "^MU");
+        let parts = self.parameters(command, "^MU");
         if let Some(unit) = parts
             .first()
             .and_then(|s| s.trim().as_bytes().first().copied())
@@ -638,7 +822,7 @@ impl ZplParser {
     }
 
     fn parse_change_default_font(&mut self, command: &str) {
-        let parts = split_command(command, "^CF");
+        let parts = self.parameters(command, "^CF");
         // The font designator is a single character; real printers and Labelary tolerate height
         // digits glued onto it (^CFB0,30 = font B, height 0, width 30) -- the same leniency
         // parse_change_font() already applies to ^A. Taking the whole first part as the name
@@ -650,7 +834,9 @@ impl ZplParser {
                 let name = (first[0] as char).to_uppercase().to_string();
                 let mut probe = self.printer.default_font.clone();
                 probe.name = name.clone();
-                if zebra_fonts::is_standard_font(&probe) {
+                if let Some(mapped) = self.printer.font_map.get(&name) {
+                    self.printer.default_font.name = self.resolve_font_name(mapped);
+                } else if zebra_fonts::is_standard_font(&probe) {
                     self.printer.default_font.name = name;
                 } else if (first[0] as char).is_ascii_digit() {
                     // Numeric font names (1-9) are user-installed fonts on Zebra printers.
@@ -695,7 +881,7 @@ impl ZplParser {
     }
 
     fn parse_change_font(&mut self, command: &str) {
-        let parts = split_command(command, "^A");
+        let parts = self.parameters(command, "^A");
         if parts.is_empty() || parts[0].is_empty() {
             self.printer.next_font = None;
             return;
@@ -713,7 +899,7 @@ impl ZplParser {
             font.name = self.resolve_font_name(&mapped);
         }
 
-        if !zebra_fonts::is_standard_font(&font) {
+        if !zebra_fonts::is_standard_font(&font) && self.printer.fonts.find(&font.name).is_none() {
             // Numeric font names (1-9) are user-installed fonts on Zebra printers.
             // Fall back to font "0" (proportional) rather than font "A" (monospaced).
             if font.name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
@@ -764,9 +950,9 @@ impl ZplParser {
 
     /// `^A@o,h,w,d:f.x` -- orientation and dimensions precede the font filename.
     /// An omitted filename retains the previous named font. Unavailable fonts
-    /// use ^CF's fallback; loading downloadable font files remains unsupported.
+    /// use the current ^CF fallback.
     fn parse_change_font_named(&mut self, command: &str) {
-        let parts = split_command(command, "^A@");
+        let parts = self.parameters(command, "^A@");
         if let Some(name) = parts.get(3).map(|s| s.trim()).filter(|s| !s.is_empty()) {
             self.printer.named_font = Some(name.to_string());
         }
@@ -798,7 +984,7 @@ impl ZplParser {
     /// `^CWx,f` -- assign a font name to a font identifier character (A-Z, 0-9);
     /// later `^A` with that identifier uses the mapped font.
     fn parse_font_identifier(&mut self, command: &str) {
-        let parts = split_command(command, "^CW");
+        let parts = self.parameters(command, "^CW");
         if let Some(id) = parts.first() {
             if let Some(c) = id.trim().chars().next() {
                 if c.is_ascii_alphanumeric() {
@@ -817,9 +1003,11 @@ impl ZplParser {
     }
 
     /// Resolve a font name (from `^A@` or a `^CW`-mapped name) to a renderable
-    /// built-in designator. Downloadable font names are unrecognizable here and fall
-    /// back to the default font.
+    /// downloaded object or resident designator, using the default for missing files.
     fn resolve_font_name(&self, name: &str) -> String {
+        if let Some(key) = self.printer.fonts.find(name) {
+            return key;
+        }
         let base = name.rsplit(':').next().unwrap_or(name);
         let base = base.split('.').next().unwrap_or(base);
         let mut chars = base.chars();
@@ -842,7 +1030,7 @@ impl ZplParser {
     }
 
     fn parse_field_orientation(&mut self, command: &str) {
-        let parts = split_command(command, "^FW");
+        let parts = self.parameters(command, "^FW");
         if let Some(s) = parts.first() {
             if !s.is_empty() {
                 self.printer
@@ -857,7 +1045,7 @@ impl ZplParser {
     }
 
     fn parse_field_origin(&mut self, command: &str) {
-        let parts = split_command(command, "^FO");
+        let parts = self.parameters(command, "^FO");
         let scale = self.printer.unit_scale();
         let mut pos = LabelPosition {
             calculate_from_bottom: false,
@@ -884,7 +1072,7 @@ impl ZplParser {
     }
 
     fn parse_field_typeset(&mut self, command: &str) {
-        let parts = split_command(command, "^FT");
+        let parts = self.parameters(command, "^FT");
         let scale = self.printer.unit_scale();
         let mut pos = LabelPosition {
             calculate_from_bottom: true,
@@ -915,7 +1103,7 @@ impl ZplParser {
     }
 
     fn parse_field_parameter(&mut self, command: &str) {
-        let parts = split_command(command, "^FP");
+        let parts = self.parameters(command, "^FP");
         let direction = match parts.first().and_then(|s| s.trim().as_bytes().first()) {
             Some(b'V' | b'v') => TextDirection::Vertical,
             Some(b'R' | b'r') => TextDirection::Reverse,
@@ -936,13 +1124,14 @@ impl ZplParser {
     }
 
     fn parse_field_block(&mut self, command: &str) {
-        let parts = split_command(command, "^FB");
+        let parts = self.parameters(command, "^FB");
         // Labelary wraps oversized words at character boundaries and overprints
         // excess lines in the final slot. Select these policies parser-side;
         // other frontends also use field blocks for alignment alone.
         let mut block = FieldBlock {
             max_width: 0,
             max_lines: 1,
+            max_height: None,
             line_spacing: 0,
             alignment: crate::elements::text_alignment::TextAlignment::Left,
             hanging_indent: 0,
@@ -971,8 +1160,8 @@ impl ZplParser {
             Some(Box::new(LabelElement::FieldBlockConfig(block)));
     }
 
-    fn parse_field_data(&mut self, command: &str) -> Result<(), String> {
-        let mut text = command_text(command, "^FD").to_string();
+    fn parse_field_data(&mut self, data: &str) -> Result<(), String> {
+        let mut text = data.to_string();
         if self.printer.next_hex_escape_char != 0 {
             text = hex::decode_escaped_string(&text, self.printer.next_hex_escape_char)
                 .map_err(|e| format!("failed to decode escaped hex string: {}", e))?;
@@ -982,7 +1171,26 @@ impl ZplParser {
     }
 
     fn parse_field_separator(&mut self) -> Result<Option<LabelElement>, String> {
-        let result = if self.printer.next_element_field_number < 0 {
+        let font = self.printer.get_next_font_or_default();
+        if matches!(
+            self.printer.next_element_field_element.as_deref(),
+            None | Some(LabelElement::FieldBlockConfig(_))
+        ) && self.printer.fonts.needs_intellifont(&font.name)
+            && (!self.printer.next_element_field_data.is_empty()
+                || self.printer.next_element_field_number >= 0)
+        {
+            return Err(format!(
+                "Cannot render legacy Intellifont outlines from {}",
+                font.name
+            ));
+        }
+        let dynamic = self.printer.sequence.is_some()
+            || self.printer.reference_delimiter.is_some()
+            || self.printer.clock_indicators[0].is_some()
+            || self.printer.variable;
+        let result = if self.printer.next_element_field_number < 0
+            || dynamic && !self.printer.next_download_format_name.is_empty()
+        {
             // Not a template field -> resolve immediately via RecalledField
             let rf = crate::elements::stored_format::RecalledField {
                 stored: StoredField {
@@ -993,9 +1201,17 @@ impl ZplParser {
                 data_bytes: self.printer.next_element_field_bytes.clone(),
             };
             // Resolve immediately
-            resolve_recalled_field(&rf)?
+            if dynamic {
+                Some(LabelElement::RecalledField(rf))
+            } else {
+                stored_formats::resolve_field(&rf)?
+            }
         } else if self.printer.next_download_format_name.is_empty() {
             Some(LabelElement::RecalledFieldData(RecalledFieldData {
+                variable: self.printer.variable,
+                sequence: self.printer.sequence.clone(),
+                reference_delimiter: self.printer.reference_delimiter,
+                clock_indicators: self.printer.clock_indicators,
                 number: self.printer.next_element_field_number,
                 data: self.printer.next_element_field_data.clone(),
                 data_bytes: self.printer.next_element_field_bytes.clone(),
@@ -1012,7 +1228,7 @@ impl ZplParser {
 
     // Barcode parsers
     fn parse_barcode_128(&mut self, command: &str) {
-        let parts = split_command(command, "^BC");
+        let parts = self.parameters(command, "^BC");
         let scale = self.printer.unit_scale();
         let mut bc = Barcode128 {
             orientation: self.printer.default_orientation,
@@ -1055,7 +1271,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_ean13(&mut self, command: &str) {
-        let parts = split_command(command, "^BE");
+        let parts = self.parameters(command, "^BE");
         let scale = self.printer.unit_scale();
         let mut bc = BarcodeEan13 {
             orientation: self.printer.default_orientation,
@@ -1088,7 +1304,7 @@ impl ZplParser {
     /// `^B8o,h,f,g` -- EAN-8. Defaults: orientation N, height from ^BY,
     /// interpretation line on (below), not above.
     fn parse_barcode_ean8(&mut self, command: &str) {
-        let parts = split_command(command, "^B8");
+        let parts = self.parameters(command, "^B8");
         let scale = self.printer.unit_scale();
         let mut bc = BarcodeEan8 {
             orientation: self.printer.default_orientation,
@@ -1120,7 +1336,7 @@ impl ZplParser {
 
     /// `^BUo,h,f,g` -- UPC-A. Defaults like ^B8.
     fn parse_barcode_upca(&mut self, command: &str) {
-        let parts = split_command(command, "^BU");
+        let parts = self.parameters(command, "^BU");
         let scale = self.printer.unit_scale();
         let mut bc = BarcodeUca {
             orientation: self.printer.default_orientation,
@@ -1151,7 +1367,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_2of5(&mut self, command: &str) {
-        let parts = split_command(command, "^B2");
+        let parts = self.parameters(command, "^B2");
         let scale = self.printer.unit_scale();
         let mut bc = Barcode2of5 {
             orientation: self.printer.default_orientation,
@@ -1188,7 +1404,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_39(&mut self, command: &str) {
-        let parts = split_command(command, "^B3");
+        let parts = self.parameters(command, "^B3");
         let scale = self.printer.unit_scale();
         let mut bc = Barcode39 {
             orientation: self.printer.default_orientation,
@@ -1224,7 +1440,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_pdf417(&mut self, command: &str) {
-        let parts = split_command(command, "^B7");
+        let parts = self.parameters(command, "^B7");
         let scale = self.printer.unit_scale();
         let mut bc = BarcodePdf417 {
             orientation: self.printer.default_orientation,
@@ -1263,7 +1479,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_aztec(&mut self, command: &str) {
-        let parts = split_command(command, "^BO");
+        let parts = self.parameters(command, "^BO");
         let mut bc = BarcodeAztec {
             orientation: self.printer.default_orientation,
             magnification: 0,
@@ -1285,7 +1501,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_datamatrix(&mut self, command: &str) {
-        let parts = split_command(command, "^BX");
+        let parts = self.parameters(command, "^BX");
         let scale = self.printer.unit_scale();
         let mut bc = BarcodeDatamatrix {
             orientation: self.printer.default_orientation,
@@ -1336,7 +1552,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_qr(&mut self, command: &str) {
-        let parts = split_command(command, "^BQ");
+        let parts = self.parameters(command, "^BQ");
         let mut bc = BarcodeQr {
             magnification: 1,
             orientation: FieldOrientation::Normal,
@@ -1348,7 +1564,7 @@ impl ZplParser {
     }
 
     fn parse_maxicode(&mut self, command: &str) {
-        let parts = split_command(command, "^BD");
+        let parts = self.parameters(command, "^BD");
         // Zebra defines Mode 2 as the default when the ^BD mode parameter is omitted.
         let mut mc = Maxicode { mode: 2 };
         if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
@@ -1360,7 +1576,7 @@ impl ZplParser {
     /// `^B9o,h,f,g,e` -- UPC-E. Defaults: orientation N, height from ^BY,
     /// interpretation line on (below), not above, check digit printed.
     fn parse_barcode_upce(&mut self, command: &str) {
-        let parts = split_command(command, "^B9");
+        let parts = self.parameters(command, "^B9");
         let scale = self.printer.unit_scale();
         let mut bc = BarcodeUcpe {
             orientation: self.printer.default_orientation,
@@ -1397,7 +1613,7 @@ impl ZplParser {
     }
 
     fn parse_barcode_field_defaults(&mut self, command: &str) {
-        let parts = split_command(command, "^BY");
+        let parts = self.parameters(command, "^BY");
         let scale = self.printer.unit_scale();
         // Never below one dot: a sub-dot module collapses the barcode.
         if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
@@ -1409,12 +1625,13 @@ impl ZplParser {
         }
         if let Some(v) = parts.get(2).and_then(|s| parse_int_scaled(s, scale)) {
             self.printer.default_barcode_dimensions.height = v;
+            self.printer.barcode_height_explicit = true;
         }
     }
 
     // Graphic commands
     fn parse_graphic_box(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^GB");
+        let parts = self.parameters(command, "^GB");
         let scale = self.printer.unit_scale();
         let mut gb = GraphicBox {
             position: self.printer.next_element_position.clone(),
@@ -1452,7 +1669,7 @@ impl ZplParser {
     }
 
     fn parse_graphic_circle(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^GC");
+        let parts = self.parameters(command, "^GC");
         let scale = self.printer.unit_scale();
         let mut gc = GraphicCircle {
             position: self.printer.next_element_position.clone(),
@@ -1474,7 +1691,7 @@ impl ZplParser {
     }
 
     fn parse_graphic_ellipse(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^GE");
+        let parts = self.parameters(command, "^GE");
         let scale = self.printer.unit_scale();
         let mut ge = GraphicEllipse {
             position: self.printer.next_element_position.clone(),
@@ -1506,7 +1723,7 @@ impl ZplParser {
     }
 
     fn parse_graphic_diagonal_line(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^GD");
+        let parts = self.parameters(command, "^GD");
         let scale = self.printer.unit_scale();
         let mut gd = GraphicDiagonalLine {
             position: self.printer.next_element_position.clone(),
@@ -1542,7 +1759,7 @@ impl ZplParser {
     }
 
     fn parse_graphic_field(&self, command: &[u8]) -> Result<Option<LabelElement>, String> {
-        let mut fields = command[3..].splitn(5, |&b| b == b',');
+        let mut fields = command[3..].splitn(5, |&b| b == self.syntax.delimiter);
         let parts: Vec<_> = fields
             .by_ref()
             .take(4)
@@ -1607,7 +1824,7 @@ impl ZplParser {
     }
 
     fn parse_graphic_symbol(&mut self, command: &str) {
-        let parts = split_command(command, "^GS");
+        let parts = self.parameters(command, "^GS");
         let scale = self.printer.unit_scale();
         // When ^GS has no explicit size, inherit from last rendered field's font
         // (Labelary behavior: GS follows the most recent ^A font dimensions)
@@ -1638,7 +1855,7 @@ impl ZplParser {
 
     fn parse_download_graphics(&mut self, command: &str) -> Result<(), String> {
         let data = &command["~DG".len()..];
-        let parts: Vec<&str> = data.splitn(4, ',').collect();
+        let parts: Vec<&str> = data.splitn(4, char::from(self.syntax.delimiter)).collect();
 
         let mut path = STORED_GRAPHICS_DEFAULT_PATH.to_string();
         if let Some(s) = parts.first() {
@@ -1671,7 +1888,7 @@ impl ZplParser {
     }
 
     fn parse_image_load(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let name = split_command(command, "^IL")[0];
+        let name = self.parameters(command, "^IL")[0];
         let mut element = self.recall_image(
             name,
             LabelPosition::default(),
@@ -1686,7 +1903,7 @@ impl ZplParser {
     }
 
     fn parse_recall_graphics(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let parts = split_command(command, "^XG");
+        let parts = self.parameters(command, "^XG");
         let magnification = |index: usize| {
             parts
                 .get(index)
@@ -1715,7 +1932,7 @@ impl ZplParser {
         Ok(())
     }
 
-    fn parse_recall_format(&self, command: &str) -> Result<Option<LabelElement>, String> {
+    fn parse_recall_format(&mut self, command: &str) -> Result<Option<LabelElement>, String> {
         let path_text = command_text(command, "^XF");
         let path = if path_text.is_empty() {
             STORED_FORMAT_DEFAULT_PATH.to_string()
@@ -1725,6 +1942,9 @@ impl ZplParser {
         validate_device(&path)?;
         let key = ensure_extension(&path, "ZPL");
         if let Some(v) = self.printer.stored_formats.get(&key) {
+            if let Some(saves) = self.printer.format_saves.get(&key) {
+                self.printer.image_saves.extend(saves.iter().cloned());
+            }
             Ok(Some(LabelElement::RecalledFormat(v.to_recalled_format())))
         } else {
             Ok(None)
@@ -1739,6 +1959,7 @@ impl ZplParser {
             return;
         }
         let key = image_key(name);
+        self.printer.fonts.remove(name);
         self.printer.saved_images.remove(&key);
         self.printer.stored_graphics.remove(&key);
         // An omitted extension identifies a graphic. Only a format name may
@@ -1747,15 +1968,15 @@ impl ZplParser {
             .rsplit_once('.')
             .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("ZPL"))
         {
-            self.printer
-                .stored_formats
-                .remove(&ensure_extension(name, "ZPL"));
+            let key = ensure_extension(name, "ZPL");
+            self.printer.stored_formats.remove(&key);
+            self.printer.format_saves.remove(&key);
         }
     }
 
     /// ^IM draws a stored image at its original size without deleting it.
     fn parse_image_move(&self, command: &str) -> Result<Option<LabelElement>, String> {
-        let name = split_command(command, "^IM")[0];
+        let name = self.parameters(command, "^IM")[0];
         self.recall_image(
             name,
             self.printer.next_element_position.clone(),
@@ -1767,10 +1988,7 @@ impl ZplParser {
 
     /// ^IS saves the completed label, including fields following this command.
     fn parse_image_save(&mut self, command: &str) -> Result<(), String> {
-        if !self.printer.next_download_format_name.is_empty() {
-            return Err("^IS inside a downloaded format is not supported".into());
-        }
-        let parts = split_command(command, "^IS");
+        let parts = self.parameters(command, "^IS");
         let name = image_key(parts.first().copied().unwrap_or_default());
         validate_device(&name)?;
         if !name.ends_with(".GRF") && !name.ends_with(".PNG") {
@@ -1831,10 +2049,9 @@ impl ZplParser {
     }
 
     /// `^PQa,b,c,d` -- labels to print (a) and copies of the same label (c).
-    /// The format emits a * c identical labels (serials render literally, so
-    /// copies are pixel-identical, matching Labelary).
+    /// The replicate count groups identical serial values inside the total quantity.
     fn parse_print_quantity(&mut self, command: &str) {
-        let parts = split_command(command, "^PQ");
+        let parts = self.parameters(command, "^PQ");
         if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
             if v > 0 {
                 self.printer.print_quantity = v;
@@ -1887,6 +2104,7 @@ fn apply_label_offsets(elements: &mut [LabelElement], shift_x: i32, top_y: i32) 
             LabelElement::BarcodeEan13(b) => &mut b.position,
             LabelElement::Barcode2of5(b) => &mut b.position,
             LabelElement::Barcode39(b) => &mut b.position,
+            LabelElement::BarcodeSymbol(b) => &mut b.position,
             LabelElement::BarcodePdf417(b) => &mut b.position,
             LabelElement::BarcodeAztec(b) => &mut b.position,
             LabelElement::BarcodeDatamatrix(b) => &mut b.position,
@@ -1898,101 +2116,4 @@ fn apply_label_offsets(elements: &mut [LabelElement], shift_x: i32, top_y: i32) 
         pos.x = (pos.x - shift_x).max(0);
         pos.y = (pos.y + top_y).max(0);
     }
-}
-
-/// Resolve a RecalledField into a drawable LabelElement (used in field separator)
-fn resolve_recalled_field(
-    f: &crate::elements::stored_format::RecalledField,
-) -> Result<Option<LabelElement>, String> {
-    use crate::elements::stored_format::RecalledFormat;
-
-    // Build a temporary RecalledFormat with a single field and resolve it
-    let rf = RecalledFormat {
-        inverted: false,
-        mirrored: None,
-        elements: vec![LabelElement::RecalledField(f.clone())],
-        field_refs: std::collections::HashMap::new(),
-    };
-
-    let resolved = stored_formats::resolve_elements(&rf)?;
-    Ok(resolved.into_iter().next())
-}
-
-struct ZplCommand {
-    text: String,
-    bytes: Vec<u8>,
-}
-
-fn split_zpl_commands(zpl_data: &[u8]) -> Result<Vec<ZplCommand>, String> {
-    let mut caret = b'^';
-    let mut tilde = b'~';
-    let mut buff = Vec::new();
-    let mut results = Vec::new();
-    // Only text transport whitespace is ignored. Counted binary payloads are
-    // copied before interpreting any whitespace or command-prefix bytes.
-    let mut cursor = 0;
-    while cursor < zpl_data.len() {
-        let ch = zpl_data[cursor];
-        cursor += 1;
-        if matches!(ch, b'\n' | b'\r' | b'\t') {
-            continue;
-        }
-        let mut is_ct = false;
-        let mut is_cc = false;
-        if buff.len() == 4 {
-            is_ct = buff[0] == caret && &buff[1..3] == b"CT";
-            is_cc = buff[0] == caret && &buff[1..3] == b"CC";
-        }
-
-        if ch == caret || ch == tilde || is_ct || is_cc {
-            let normalized = normalize_command(&buff, tilde, caret);
-
-            if is_ct && normalized.bytes.len() >= 4 {
-                tilde = normalized.bytes[3];
-            } else if is_cc && normalized.bytes.len() >= 4 {
-                caret = normalized.bytes[3];
-            } else if !normalized.text.is_empty() {
-                results.push(normalized);
-            }
-
-            buff.clear();
-        }
-
-        buff.push(ch);
-        if let Some(length) = super::binary_graphics::payload_length(&buff) {
-            let length = length?;
-            let end = cursor
-                .checked_add(length)
-                .filter(|&end| end <= zpl_data.len())
-                .ok_or("Truncated binary ^GF payload")?;
-            buff.extend_from_slice(&zpl_data[cursor..end]);
-            results.push(normalize_command(&buff, tilde, caret));
-            buff.clear();
-            cursor = end;
-        }
-    }
-
-    if !buff.is_empty() {
-        let normalized = normalize_command(&buff, tilde, caret);
-        if !normalized.text.is_empty() {
-            results.push(normalized);
-        }
-    }
-
-    Ok(results)
-}
-
-fn normalize_command(command: &[u8], tilde: u8, caret: u8) -> ZplCommand {
-    let mut bytes = command.to_vec();
-    if let Some(first) = bytes.first_mut() {
-        let original = *first;
-        if caret != b'^' && original == caret {
-            *first = b'^';
-        }
-        if tilde != b'~' && original == tilde {
-            *first = b'~';
-        }
-    }
-    let text = String::from_utf8_lossy(&bytes).trim_start().to_string();
-    ZplCommand { text, bytes }
 }

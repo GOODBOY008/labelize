@@ -86,6 +86,8 @@ pub fn resolve_designator(name: &str) -> (FontFace, f64, bool) {
         "P" | "Q" | "R" | "S" | "T" | "U" | "V" => FontFace::ResidentBitmap,
         "A" | "C" | "E" | "F" | "G" | "H" => FontFace::BitmapMono,
         "W" | "X" | "Y" | "Z" => FontFace::Mono,
+        // The parser has resolved qualified names against its downloaded fonts.
+        _ if name.contains(':') => FontFace::Mono,
         _ => {
             warn_unmapped_font(name);
             FontFace::Mono
@@ -132,6 +134,18 @@ fn warn_unmapped_font(name: &str) {
 /// step-off for bitmap fonts, P-V matrix independence, scalable fill-ins).
 pub fn with_adjusted_sizes(font: &FontInfo) -> FontInfo {
     let mut font = font.clone();
+    if let Some(resources) = font.resources.as_ref().filter(|r| r.primary.is_some()) {
+        let (w, h) = resources.native_cell.unwrap_or((24, 24));
+        if font.width <= 0.0 && font.height <= 0.0 {
+            font.width = f64::from(w);
+            font.height = f64::from(h);
+        } else if font.height <= 0.0 {
+            font.height = font.width * f64::from(h) / f64::from(w);
+        } else if font.width <= 0.0 {
+            font.width = font.height * f64::from(w) / f64::from(h);
+        }
+        return font;
+    }
 
     if font.name == "1" {
         // Zebra scalable font 1 — Labelary substitutes a monospace face

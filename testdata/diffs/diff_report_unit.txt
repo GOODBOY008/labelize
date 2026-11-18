@@ -117,11 +117,12 @@
 ║ usps_test_merchant             │ zpl  │    0.07% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ zpl_b0_alias                   │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ zpl_binary_graphics            │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
+║ zpl_extended_barcodes          │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ zpl_image_recall               │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ zpl_image_save                 │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ zpl_named_font                 │ zpl  │    0.33% │      813x1626 │      813x1626 │ GOOD(<1%)    ║
 ║ zpl_saved_image_edges          │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ║ zpl_saved_image_move           │ zpl  │    0.00% │      813x1626 │      813x1626 │ PERFECT      ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Summary: 119 total │ 28 perfect │ 65 good │ 13 minor │ 11 moderate │ 2 high │ 0 skip │ 0 err
+║ Summary: 120 total │ 29 perfect │ 65 good │ 13 minor │ 11 moderate │ 2 high │ 0 skip │ 0 err
 ╚══════════════════════════════════════════════════════════════════════════════╝

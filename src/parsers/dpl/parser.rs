@@ -354,6 +354,7 @@ fn scalable_size_fields(state: &DplState, eee: &str, rest: &[u8]) -> Result<Font
     let width =
         to_dots(w_field).ok_or_else(|| format!("invalid scalable font width {w_field:?}"))?;
     Ok(FontInfo {
+        resources: None,
         name: format!("DPL-SCALABLE-{eee}"),
         face: FontFace::CondensedBold,
         advance_mult: 1.0,
@@ -376,6 +377,7 @@ fn bitmap_text_font(
     let w_mult = super::fonts::multiplier(c).max(1.0);
     let h_mult = super::fonts::multiplier(d).max(1.0);
     FontInfo {
+        resources: None,
         name: (b as char).to_string(),
         face: font.face,
         advance_mult: 1.0,
@@ -398,6 +400,7 @@ fn smooth_text_font(
     let points = super::fonts::smooth_font_points(eee).unwrap_or(10.0);
     let mm = points / 72.307 * 25.4;
     FontInfo {
+        resources: None,
         name: format!("9-{eee}"),
         face: FontFace::CondensedBold,
         advance_mult: 1.0,

@@ -58,6 +58,31 @@ pub(crate) fn layout(
         LabelElement::BarcodeUca(b) => draw_barcode_upca(&mut canvas, b)?,
         LabelElement::BarcodeUcpe(b) => draw_barcode_upce(&mut canvas, b)?,
         LabelElement::Barcode2of5(b) => draw_barcode_2of5(&mut canvas, b)?,
+        LabelElement::BarcodeSymbol(b) => {
+            if !b.data.is_empty() {
+                let (img, caption) = super::barcode_raster::render(&b.symbol, &b.data)?;
+                let pos = adjust_image_typeset_position(
+                    &img,
+                    &b.position,
+                    b.symbol.orientation,
+                    canvas.height(),
+                );
+                overlay_with_rotation(&mut canvas, &img, &pos, b.symbol.orientation);
+                if b.symbol.caption {
+                    draw_barcode_interpretation_line(
+                        &mut canvas,
+                        &caption,
+                        &pos,
+                        &img,
+                        b.symbol.orientation,
+                        b.symbol.caption_above,
+                        b.symbol.module as i32,
+                        false,
+                        crate::elements::field_alignment::FieldAlignment::Center,
+                    );
+                }
+            }
+        }
         LabelElement::Barcode39(b) => draw_barcode_39(&mut canvas, b)?,
         LabelElement::BarcodePdf417(b) => draw_barcode_pdf417(&mut canvas, b)?,
         LabelElement::BarcodeAztec(b) => draw_barcode_aztec(&mut canvas, b)?,
@@ -118,7 +143,7 @@ impl TextImage {
         Self {
             raster,
             layout: TextLayout {
-                face,
+                face: text_layout::LayoutFont::Resident(face),
                 glyphs,
                 buffer: Some(buffer),
             },
@@ -184,6 +209,7 @@ fn plain_glyphs(font: &FontRef, scale: PxScale, text: &str, x: i32, y: i32) -> V
         let id = font.glyph_id(character);
         let large = id.with_scale_and_position(ss, ab_glyph::point(pen, scaled.ascent()));
         glyphs.push(PlacedGlyph {
+            extracted: None,
             character,
             glyph: id
                 .with_scale_and_position(scale, ab_glyph::point(pen / 3.0, scaled.ascent() / 3.0)),
@@ -553,30 +579,18 @@ fn draw_barcode_datamatrix(
             .to_string());
         }
     }
-    // Skip empty fields, preserving upstream's label-level behavior.
-    // Legacy bytes are authoritative even when the display text differs.
-    let is_empty = if bc.barcode.quality == 200 && bc.barcode.escape != 0 {
-        bc.data.is_empty()
-    } else {
-        bc.data_bytes
-            .as_deref()
-            .unwrap_or(bc.data.as_bytes())
-            .is_empty()
-    };
-    if is_empty {
+    // The field bytes include any byte escapes decoded by the frontend.
+    let input = bc.data_bytes.as_deref().unwrap_or(bc.data.as_bytes());
+    if input.is_empty() {
         return Ok(());
     }
     let scale = bc.barcode.height.max(1);
     let img_raw = if bc.barcode.quality != 200 {
         // Legacy g (ECC 200 escapes) has no effect. Consume preserved field
         // bytes instead of attempting to reverse the display text decoding.
-        let input = match bc.data_bytes.as_deref() {
-            Some(bytes) => bytes,
-            None if bc.data.is_ascii() => bc.data.as_bytes(),
-            None => {
-                return Err("Legacy DataMatrix: non-ASCII data requires explicit data_bytes".into())
-            }
-        };
+        if bc.data_bytes.is_none() && !bc.data.is_ascii() {
+            return Err("Legacy DataMatrix: non-ASCII data requires explicit data_bytes".into());
+        }
         // ZD421 CI13/CI27 probes preserve backslashes and pipes after FH.
         // Do not apply the PDF417 substitutions suggested by the BX prose.
         if bc.barcode.ratio
@@ -596,11 +610,6 @@ fn draw_barcode_datamatrix(
         )?
         .to_image(scale as usize, scale as usize)
     } else {
-        let input = if bc.barcode.escape == 0 {
-            bc.data_bytes.as_deref().unwrap_or(bc.data.as_bytes())
-        } else {
-            bc.data.as_bytes()
-        };
         let image = barcodes::datamatrix::render_field(
             input,
             scale,

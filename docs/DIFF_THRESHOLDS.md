@@ -82,6 +82,7 @@ informational.
 | Label | Ext | Diff % | Tolerance | Primary diff source |
 |-------|-----|--------|-----------|---------------------|
 | zpl_b0_alias | zpl | 0.00 | 0.0 | ^B0 Aztec alias, two orientations |
+| zpl_extended_barcodes | zpl | 0.00 | 0.0 | Code 93, Industrial and Standard 2 of 5, Codabar, MicroPDF417 and POSTNET against Labelary |
 | zpl_binary_graphics | zpl | 0.00 | 0.0 | Counted raw bytes, including command prefixes and whitespace |
 | zpl_image_recall | zpl | 0.00 | 0.0 | Repeated ^IM recalls and ^XG magnification |
 | zpl_image_save | zpl | 0.00 | 0.0 | Completed-label ^IS snapshot and ^IL overlay |

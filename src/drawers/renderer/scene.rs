@@ -68,7 +68,7 @@ enum Op {
         rule: FillRule,
     },
     Text {
-        face: FontFace,
+        face: text_layout::LayoutFont,
         glyphs: Vec<text_layout::PlacedGlyph>,
     },
     Image {
@@ -199,16 +199,18 @@ impl LabelScene {
             let element = adjusted.as_ref().unwrap_or(element);
             match element {
                 LabelElement::Text(text) => {
-                    let layout =
-                        text_layout::layout(text, &mut state).map_err(LabelizeError::Render)?;
-                    let op = text_op(layout);
-                    collect_text_bounds(
-                        std::slice::from_ref(&op),
-                        Transform::identity(),
-                        None,
-                        &mut source_text_bounds,
-                    );
-                    ops.push(op);
+                    for layout in
+                        text_layout::layouts(text, &mut state).map_err(LabelizeError::Render)?
+                    {
+                        let op = text_op(layout);
+                        collect_text_bounds(
+                            std::slice::from_ref(&op),
+                            Transform::identity(),
+                            None,
+                            &mut source_text_bounds,
+                        );
+                        ops.push(op);
+                    }
                 }
                 LabelElement::GraphicBox(g) => {
                     let w = g.width.max(g.border_thickness) as f32;
@@ -421,6 +423,7 @@ impl LabelScene {
                 | LabelElement::BarcodeEan8(_)
                 | LabelElement::BarcodeUca(_)
                 | LabelElement::Barcode2of5(_)
+                | LabelElement::BarcodeSymbol(_)
                 | LabelElement::Barcode39(_)
                 | LabelElement::BarcodePdf417(_)
                 | LabelElement::BarcodeAztec(_)
@@ -473,6 +476,7 @@ impl LabelScene {
                 | LabelElement::BarcodeEan8Config(_)
                 | LabelElement::BarcodeUcaConfig(_)
                 | LabelElement::Barcode2of5Config(_)
+                | LabelElement::BarcodeSymbolConfig(_)
                 | LabelElement::Barcode39Config(_)
                 | LabelElement::BarcodePdf417Config(_)
                 | LabelElement::BarcodeAztecConfig(_)
@@ -591,7 +595,7 @@ impl LabelScene {
             transform
         };
         let margins = saved_images
-            .margins(label, &options, width, content_width, height)
+            .margins(label, &options, width, content_width, height, None)
             .map_err(LabelizeError::Render)?;
         for (page_x, margin) in margins {
             if let Some((image, x, y)) = crop_covered(&margin) {

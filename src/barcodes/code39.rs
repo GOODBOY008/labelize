@@ -51,7 +51,7 @@ static CHAR_MAP: &[(char, [u8; 9])] = &[
     ('*', [0, 1, 0, 0, 1, 0, 1, 0, 0]),
 ];
 
-fn get_pattern(ch: char) -> Option<[u8; 9]> {
+pub(super) fn get_pattern(ch: char) -> Option<[u8; 9]> {
     let upper = ch.to_ascii_uppercase();
     CHAR_MAP.iter().find(|(c, _)| *c == upper).map(|(_, p)| *p)
 }

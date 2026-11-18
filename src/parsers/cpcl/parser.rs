@@ -13,8 +13,7 @@
 //! Unsupported constructs error out instead of misrendering (see the
 //! explicit arms in [`parse_line`]); device-only commands (CONTRAST, TONE,
 //! PACE, …) are accepted as no-ops, mirroring the TSPL frontend, and
-//! `COUNT` is inert serial state like ZPL `^SN` (its effect only shows on
-//! copies after the first).
+//! `COUNT` is accepted without advancing the value on subsequent copies.
 
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
@@ -485,6 +484,7 @@ fn parse_text(
         flow: Default::default(),
         reverse_print: ReversePrint::default(),
         font: FontInfo {
+            resources: None,
             name: font.to_string(),
             face: font_id.face,
             advance_mult: 1.0,
@@ -528,6 +528,7 @@ fn parse_scale_text(
         flow: Default::default(),
         reverse_print: ReversePrint::default(),
         font: FontInfo {
+            resources: None,
             name: "CPCL-SCALABLE".to_string(),
             face: FontFace::CondensedBold,
             advance_mult: 1.0,

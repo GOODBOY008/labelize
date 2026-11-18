@@ -163,7 +163,7 @@ fn image_resources_survive_parse_calls_and_can_be_deleted_or_overwritten() {
 }
 
 #[test]
-fn saved_image_nesting_and_unsupported_downloaded_format_use_return_errors() {
+fn saved_image_nesting_is_bounded_and_format_saves_run_at_recall() {
     let mut source = String::from("^XA^FO8,8^GB8,8,8^FS^ISR:T.GRF,N^XZ");
     for _ in 0..17 {
         source.push_str("^XA^ILR:T.GRF^ISR:T.GRF,N^XZ");
@@ -172,10 +172,18 @@ fn saved_image_nesting_and_unsupported_downloaded_format_use_return_errors() {
         .parse(source.as_bytes())
         .unwrap_err()
         .contains("nesting"));
-    assert!(ZplParser::new()
-        .parse(b"^XA^DFR:T.ZPL^FO8,8^FDTEST^FS^ISR:T.GRF^XZ")
-        .unwrap_err()
-        .contains("downloaded format"));
+    let mut parser = ZplParser::new();
+    assert!(parser
+        .parse(b"^XA^DFR:T.ZPL^FO8,8^FDTEST^FS^ISR:T.GRF,N^XZ")
+        .unwrap()
+        .is_empty());
+    assert!(parser.parse(b"^XA^ILR:T.GRF^XZ").unwrap().is_empty());
+    assert!(parser.parse(b"^XA^XFR:T.ZPL^XZ").unwrap().is_empty());
+    let recalled = parser.parse(b"^XA^ILR:T.GRF^XZ").unwrap();
+    assert!(matches!(
+        &recalled[0].elements[0],
+        LabelElement::RasterLabel(_)
+    ));
 }
 
 #[test]

@@ -14,106 +14,68 @@
 /// `^XA` and `^XZ` indented by two spaces, one trailing newline. Never fails
 /// — malformed input is reflowed, not rejected.
 pub fn format_zpl(data: &[u8]) -> Vec<u8> {
-    let mut caret = b'^';
-    let mut tilde = b'~';
-    let mut depth: i32 = 0;
-    let mut out: Vec<u8> = Vec::with_capacity(data.len() + 16);
-    let mut buf: Vec<u8> = Vec::new();
-
-    fn starts_with_ignoring_case(bytes: &[u8], prefix: &[u8]) -> bool {
-        bytes.len() >= prefix.len() && bytes[..prefix.len()].eq_ignore_ascii_case(prefix)
-    }
-
-    fn flush(buf: &mut Vec<u8>, out: &mut Vec<u8>, depth: &mut i32, after_data: bool) -> bool {
-        if buf.is_empty() {
-            return after_data;
-        }
-        // Leading whitespace between commands is insignificant (the parser
-        // trims it). Trailing CR/LF is transport noise the parser strips
-        // everywhere, so it is dropped too; trailing spaces/tabs may be ^FD
-        // payload and are kept byte-for-byte.
-        let start = buf
-            .iter()
-            .position(|b| !b.is_ascii_whitespace())
-            .unwrap_or(buf.len());
-        let binary = buf.len() >= start + 4
-            && (buf[start + 1..start + 4].eq_ignore_ascii_case(b"GFB")
-                || buf[start + 1..start + 4].eq_ignore_ascii_case(b"GFC"));
-        let mut end = buf.len();
-        while !binary && end > start && matches!(buf[end - 1], b'\n' | b'\r') {
-            end -= 1;
-        }
-        if start >= end {
-            buf.clear();
-            return after_data;
-        }
-        let cmd = &buf[start..end];
-        let is_xa = starts_with_ignoring_case(cmd, b"^XA");
-        let is_xz = starts_with_ignoring_case(cmd, b"^XZ");
-        let is_data =
-            starts_with_ignoring_case(cmd, b"^FD") || starts_with_ignoring_case(cmd, b"^FV");
-        if is_xz {
-            *depth = (*depth - 1).max(0);
-        }
-        // The parser drops the newline but keeps spaces between commands, so
-        // indenting a line right after ^FD/^FV would append spaces to the
-        // field data itself (empty ^FD^FS pairs gained "  " payloads). The
-        // line directly after a data command stays flush-left.
-        if is_xa || is_xz || after_data {
-            out.extend_from_slice(cmd);
-        } else {
-            for _ in 0..*depth {
-                out.extend_from_slice(b"  ");
-            }
-            out.extend_from_slice(cmd);
-        }
-        if is_xa {
-            *depth += 1;
-        }
-        out.push(b'\n');
-        buf.clear();
-        is_data || binary
-    }
-
+    let mut stream = super::stream::Stream::new(data, Default::default());
+    let mut depth = 0usize;
     let mut after_data = false;
-    let mut cursor = 0;
-    while cursor < data.len() {
-        let ch = data[cursor];
-        cursor += 1;
-        // A completed `^CCx`/`^CTx` at exactly four bytes is itself a
-        // boundary: the remapped character takes effect for the bytes that
-        // follow (mirrors the parser's splitter state machine).
-        let mut is_ct = false;
-        let mut is_cc = false;
-        if buf.len() == 4 {
-            is_ct = buf[0] == caret && &buf[1..3] == b"CT";
-            is_cc = buf[0] == caret && &buf[1..3] == b"CC";
+    let mut out = Vec::with_capacity(data.len());
+    loop {
+        let token = match stream.next() {
+            Ok(Some(token)) => token,
+            Ok(None) => break,
+            Err(_) => return data.to_vec(),
+        };
+        // Formatting whitespace would itself be syntax in these alphabets.
+        if [
+            stream.syntax.format,
+            stream.syntax.control,
+            stream.syntax.delimiter,
+        ]
+        .iter()
+        .any(u8::is_ascii_whitespace)
+        {
+            return data.to_vec();
         }
-
-        if ch == caret || ch == tilde || is_ct || is_cc {
-            if is_ct && buf.len() >= 4 {
-                tilde = buf[3];
-            } else if is_cc && buf.len() >= 4 {
-                caret = buf[3];
+        // Spaces in data, serial masks and positional field parameters are
+        // significant. Indentation before the next command would change them.
+        let literal = [b"FD", b"FV", b"SN", b"SF", b"FN", b"FH", b"FC", b"FE"]
+            .iter()
+            .any(|cmd| token.is_format(cmd));
+        let mut raw = token.raw;
+        if !token.is_format(b"CC")
+            && !token.is_format(b"CD")
+            && !token.is_format(b"CT")
+            && token.payload.is_none()
+        {
+            if !literal {
+                // Indentation on a new line belongs to the following command.
+                // Strip it when formatting an already-formatted stream.
+                if let Some(end) = raw.iter().rposition(|b| !matches!(b, b' ' | b'\t')) {
+                    if matches!(raw[end], b'\n' | b'\r') {
+                        raw = &raw[..=end];
+                    }
+                }
             }
-            after_data = flush(&mut buf, &mut out, &mut depth, after_data);
+            while raw.last().is_some_and(|b| matches!(b, b'\n' | b'\r')) {
+                raw = &raw[..raw.len() - 1];
+            }
         }
-        buf.push(ch);
-        if let Some(length) = super::binary_graphics::payload_length(&buf) {
-            // Formatting is infallible: retain malformed binary input verbatim.
-            let Ok(length) = length else {
-                return data.to_vec();
-            };
-            let Some(end) = cursor.checked_add(length).filter(|&end| end <= data.len()) else {
-                return data.to_vec();
-            };
-            buf.extend_from_slice(&data[cursor..end]);
-            cursor = end;
-            after_data = flush(&mut buf, &mut out, &mut depth, after_data);
+        if raw.is_empty() || raw.iter().all(u8::is_ascii_whitespace) {
+            continue;
         }
-    }
-    if !buf.is_empty() {
-        flush(&mut buf, &mut out, &mut depth, after_data);
+        let opens = token.is_format(b"XA");
+        let closes = token.is_format(b"XZ");
+        if closes {
+            depth = depth.saturating_sub(1);
+        }
+        if !opens && !closes && !after_data {
+            out.extend(std::iter::repeat_n(b' ', depth * 2));
+        }
+        out.extend_from_slice(raw);
+        out.push(b'\n');
+        after_data = literal || token.payload.is_some();
+        if opens {
+            depth += 1;
+        }
     }
     out
 }

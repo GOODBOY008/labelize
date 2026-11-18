@@ -8,6 +8,8 @@ use super::*;
 pub(crate) struct PlacedGlyph {
     #[cfg_attr(not(feature = "vector"), allow(dead_code))]
     pub character: char,
+    #[cfg_attr(not(feature = "vector"), allow(dead_code))]
+    pub extracted: Option<String>,
     pub glyph: ab_glyph::Glyph,
     pub x: i32,
     pub y: i32,
@@ -29,8 +31,33 @@ pub(crate) struct TextBuffer {
 }
 
 #[derive(Clone, Debug)]
+pub(crate) enum LayoutFont {
+    Resident(FontFace),
+    Downloaded(std::sync::Arc<[u8]>),
+}
+
+impl LayoutFont {
+    pub fn ttf_data(&self) -> &[u8] {
+        match self {
+            Self::Resident(face) => face.ttf_data(),
+            Self::Downloaded(bytes) => bytes,
+        }
+    }
+}
+impl PartialEq for LayoutFont {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Resident(a), Self::Resident(b)) => a == b,
+            (Self::Downloaded(a), Self::Downloaded(b)) => std::sync::Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+impl Eq for LayoutFont {}
+
+#[derive(Clone, Debug)]
 pub(crate) struct TextLayout {
-    pub face: FontFace,
+    pub face: LayoutFont,
     pub glyphs: Vec<PlacedGlyph>,
     pub buffer: Option<TextBuffer>,
 }
@@ -70,7 +97,268 @@ impl TextLayout {
     }
 }
 
-pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, String> {
+pub(crate) fn layouts(
+    text: &TextField,
+    state: &mut DrawerState,
+) -> Result<Vec<TextLayout>, String> {
+    if let Some((block, height)) = text
+        .block
+        .as_ref()
+        .and_then(|b| b.max_height.map(|h| (b, h)))
+    {
+        let width = block.max_width.max(1) as u32;
+        let height = height.max(1) as u32;
+        if width > 32000
+            || height > 32000
+            || u64::from(width) * u64::from(height) > 16 * 1024 * 1024
+        {
+            return Err("Text block dimensions exceed the supported image size".into());
+        }
+        let mut local = text.clone();
+        let orientation = local.font.orientation;
+        local.font.orientation = FieldOrientation::Normal;
+        local.alignment = crate::elements::field_alignment::FieldAlignment::Left;
+        local.position = Default::default();
+        local.block.as_mut().unwrap().max_height = None;
+        let mut runs = layouts(&local, &mut DrawerState::new())?;
+        let (mut x, mut y) = state.get_text_position(text);
+        let rotated_width = if matches!(
+            orientation,
+            FieldOrientation::Rotated90 | FieldOrientation::Rotated270
+        ) {
+            height
+        } else {
+            width
+        };
+        match text.alignment {
+            crate::elements::field_alignment::FieldAlignment::Right => {
+                x -= f64::from(rotated_width)
+            }
+            crate::elements::field_alignment::FieldAlignment::Center => {
+                x -= f64::from(rotated_width) * 0.5
+            }
+            _ => {}
+        }
+        if text.position.calculate_from_bottom {
+            match orientation {
+                FieldOrientation::Normal => y -= f64::from(height),
+                FieldOrientation::Rotated90 => x -= f64::from(height),
+                FieldOrientation::Rotated180 => x -= f64::from(width),
+                FieldOrientation::Rotated270 => y -= f64::from(width),
+            }
+        }
+        for run in &mut runs {
+            run.buffer = Some(TextBuffer {
+                width,
+                height,
+                orientation,
+                x: x as i32,
+                y: y as i32,
+            });
+        }
+        state.update_automatic_text_position(text, f64::from(width));
+        return Ok(runs);
+    }
+    if let Some(resources) = &text.font.resources {
+        let props = &resources.properties;
+        if resources.primary.is_none()
+            && !props.shape
+            && !props.open_type
+            && (!props.bidirectional || !unicode_bidi::BidiInfo::new(&text.text, None).has_rtl())
+        {
+            let face = text.font.face;
+            let font = FontRef::try_from_slice(face.ttf_data()).map_err(|e| e.to_string())?;
+            let ordinary = text.text.chars().all(|c| {
+                let c = if face.uppercases_input() {
+                    c.to_ascii_uppercase()
+                } else {
+                    c
+                };
+                c.is_whitespace()
+                    || effective_glyph_id(&font, c, face == FontFace::CondensedBold).0 != 0
+            });
+            // No fallback or missing-glyph marker is needed for this field.
+            if ordinary || (!props.show_missing && resources.fallbacks.is_empty()) {
+                return Ok(vec![layout(text, state)?]);
+            }
+        }
+        super::advanced_text::layout(text, state, resources)
+    } else {
+        Ok(vec![layout(text, state)?])
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ResidentMetrics {
+    pub face: FontFace,
+    pub scale: PxScale,
+    pub subst: SubstMetrics,
+    pub ascent: f32,
+    pub bitmap_y_shift: f64,
+    pub line_height_factor: f32,
+}
+
+impl ResidentMetrics {
+    pub(super) fn new(text: &TextField, face: FontFace, font: &FontRef) -> Self {
+        // The advance table and the vertical pen offset are calibrated for the scalable
+        // font 0 only; the bitmap fonts are left on their existing metrics.
+        let f0 = face == FontFace::CondensedBold;
+        let font_size = text.font.get_size() as f32;
+        let scale_x = if face == text.font.face {
+            text.font.get_scale_x()
+        } else if text.font.height != 0.0 {
+            face.width_ratio() * text.font.width / text.font.height
+        } else {
+            1.0
+        } as f32;
+        let mut scale = PxScale {
+            x: font_size * scale_x,
+            y: font_size,
+        };
+
+        // Compute font ascent for ^FT baseline positioning.
+        // Use a ZPL-proportional ascent (~76% of cell height) to match Zebra font metrics,
+        // since our substitute TTF fonts have different ascent ratios.
+        let ascent = font_size * 0.76;
+
+        // Bitmap fonts (A–H) correction:
+        // Zebra's built-in bitmap Font A uses 7 of its 9 dot rows for capital letters (cap-height
+        // = 7/9 of cell height).  DejaVu Mono, our TTF substitute, renders cap letters at ~6/9 of
+        // the em-square.  To match Zebra's proportions we:
+        //   1. Scale scale.y by 7/6 so the rendered cap-height becomes 7/9 × cell.
+        //   2. Shift the draw-Y upward so the cap top aligns with the field origin (^FO y-coord)
+        //      instead of being pushed down by the TTF ascender gap.
+        // The shift is computed from the actual 'H' glyph bounds at the ORIGINAL scale so that
+        // it remains correct for any font size or magnification.
+        let subst = SubstMetrics {
+            f0,
+            adv_mult: if face == text.font.face {
+                text.font.advance_mult as f32
+            } else {
+                1.0
+            },
+            dedot_zero: face == text.font.face && text.font.dedot_zero,
+            character_spacing: text.flow.character_spacing as f32,
+            wrap_spacing: text.flow.wrap_spacing as f32,
+        };
+        // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
+        // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
+        // the ab_glyph scale -- hence 11.5/11/0.657 = 1.59 vs the generic 7/6 font-A correction.
+        // Fonts P-V (resident bitmaps): Labelary caps measure ~0.60-0.625x the base
+        // cell (P: 12/20, Q: 17/28, S: 25/40), where DejaVu Mono Bold caps land at
+        // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
+        // Font 1 (mono substitute): DejaVu Sans Mono regular caps land at 1493/2384
+        // ≈ 0.626 of the ab_glyph scale and must read as 0.73 of the height param.
+        let line_height_factor: f32 = face.line_height_factor() as f32;
+        // Font 0's substitute needs a cap-height correction like the bitmap
+        // fonts (see tuning::FONT0_CAP_SCALE): inflate the em so caps land at
+        // 0.75 of the cell, matching Labelary. The font-0 constants expressed
+        // in scaled-em units (advance deltas, missing-glyph advance, the
+        // size-proportional pen offset) already account for this factor.
+        if f0 {
+            scale.y = font_size * crate::tuning::FONT0_CAP_SCALE as f32;
+        }
+        let cap_scale: f32 = face.cap_scale() as f32;
+        // Bitmap fonts (A-H, P-V) enlarge the em by cap_scale only to match glyph
+        // size; the ^FB line pitch on the printer is still the font cell height
+        // (+ line spacing). Without this, an 18-dot font C block advances 21 dots
+        // per line instead of 18 and long blocks overflow into following fields.
+        let line_height_factor: f32 = if face.divides_line_height_by_cap() {
+            line_height_factor / cap_scale
+        } else {
+            line_height_factor
+        };
+        let bitmap_y_shift: f64 = if face.uses_cell_shift() {
+            scale.y = font_size * cap_scale;
+
+            let orig_scale = PxScale {
+                x: scale.x,
+                y: font_size,
+            };
+            let orig_ascent = font.as_scaled(orig_scale).ascent();
+            let orig_gap = font
+                .outline_glyph(
+                    font.glyph_id('H')
+                        .with_scale_and_position(orig_scale, ab_glyph::point(0.0, orig_ascent)),
+                )
+                .map(|g| g.px_bounds().min.y as f64)
+                .unwrap_or(font_size as f64 * 0.148);
+
+            // With the cap-scaled em, the ascender gap also scales by the same factor.
+            // Shift the draw origin UP by that new gap so cap_top = field y.
+            // Labelary anchors P-V caps ~0.15x cell BELOW the field origin (measured:
+            // P top is 3px below origin at 20-dot cell, Q 4px at 28-dot, S 6px at
+            // 40-dot), so push the origin back down by that amount.
+            let p_low_cap = font_size as f64 * face.cap_anchor_drop();
+            -(orig_gap * cap_scale as f64) + p_low_cap
+        } else {
+            0.0
+        };
+
+        Self {
+            face,
+            scale,
+            subst,
+            ascent,
+            bitmap_y_shift,
+            line_height_factor,
+        }
+    }
+
+    pub(super) fn letter(self, c: char) -> char {
+        if self.face.uppercases_input() {
+            c.to_ascii_uppercase()
+        } else {
+            c
+        }
+    }
+
+    /// Keep OpenType substitutions and offsets while applying the resident
+    /// pen advance and the calibrated outline for an ordinary resident glyph.
+    pub(super) fn calibrate(
+        self,
+        font: &FontRef,
+        glyph: &mut ab_glyph::Glyph,
+        c: char,
+        advance: f32,
+    ) -> f32 {
+        let c = self.letter(c);
+        let base = effective_glyph_id(font, c, self.subst.f0);
+        let ordinary = glyph.id == font.glyph_id(c);
+        let mut scale = self.scale;
+        if ordinary && is_superscript_mark(c, self.subst.f0) {
+            scale = PxScale {
+                x: scale.x * REGISTERED_MARK_SCALE,
+                y: scale.y * REGISTERED_MARK_SCALE,
+            };
+            glyph.position.y +=
+                font.as_scaled(scale).ascent() - font.as_scaled(self.scale).ascent();
+        }
+        let ratio = self.subst.width_ratio(scale);
+        glyph.position.x += self.face.pen_x_offset() as f32;
+        glyph.position.y += self.subst.y_offset(scale);
+        if glyph.id.0 == 0 && base.0 == 0 {
+            return missing_glyph_advance(font, self.subst, scale, ratio);
+        }
+        if !ordinary {
+            return advance * self.subst.adv_mult;
+        }
+        let (size, dx, dy, id) = outline_placement(font, base, c, self.subst, scale, ratio);
+        let kerning = advance - font.as_scaled(self.scale).h_advance(glyph.id);
+        glyph.id = id;
+        glyph.scale = size;
+        glyph.position.x += dx;
+        glyph.position.y += dy;
+        (font.as_scaled(scale).h_advance(base) + kerning) * self.subst.adv_mult
+            + if self.subst.f0 {
+                crate::tuning::font0_advance_delta(c) as f32 * scale.y * ratio
+            } else {
+                0.0
+            }
+    }
+}
+
+fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, String> {
     let mut glyphs = Vec::new();
     // Some bitmap faces carry no lowercase glyphs; the printer (and the
     // reference renderer) draw lowercase field data as uppercase. Match that
@@ -86,90 +374,16 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
     let font =
         FontRef::try_from_slice(font_data).map_err(|e| format!("failed to load font: {}", e))?;
 
-    // The advance table and the vertical pen offset are calibrated for the scalable
-    // font 0 only; the bitmap fonts are left on their existing metrics.
-    let f0 = face == FontFace::CondensedBold;
+    let ResidentMetrics {
+        scale,
+        subst,
+        ascent,
+        bitmap_y_shift,
+        line_height_factor,
+        ..
+    } = ResidentMetrics::new(text, face, &font);
     let font_size = text.font.get_size() as f32;
-    let scale_x = text.font.get_scale_x() as f32;
-    let mut scale = PxScale {
-        x: font_size * scale_x,
-        y: font_size,
-    };
-
-    // Compute font ascent for ^FT baseline positioning.
-    // Use a ZPL-proportional ascent (~76% of cell height) to match Zebra font metrics,
-    // since our substitute TTF fonts have different ascent ratios.
-    let ascent = font_size * 0.76;
-
-    // Bitmap fonts (A–H) correction:
-    // Zebra's built-in bitmap Font A uses 7 of its 9 dot rows for capital letters (cap-height
-    // = 7/9 of cell height).  DejaVu Mono, our TTF substitute, renders cap letters at ~6/9 of
-    // the em-square.  To match Zebra's proportions we:
-    //   1. Scale scale.y by 7/6 so the rendered cap-height becomes 7/9 × cell.
-    //   2. Shift the draw-Y upward so the cap top aligns with the field origin (^FO y-coord)
-    //      instead of being pushed down by the TTF ascender gap.
-    // The shift is computed from the actual 'H' glyph bounds at the ORIGINAL scale so that
-    // it remains correct for any font size or magnification.
-    let subst = SubstMetrics {
-        f0,
-        adv_mult: text.font.advance_mult as f32,
-        dedot_zero: text.font.dedot_zero,
-        character_spacing: text.flow.character_spacing as f32,
-        wrap_spacing: text.flow.wrap_spacing as f32,
-    };
-    // Font B cap height measured on Labelary: ~11.5 dots per magnification for an 11-dot
-    // cell (caps overshoot the nominal cell), where DejaVu Mono Bold caps land at ~0.657 of
-    // the ab_glyph scale -- hence 11.5/11/0.657 = 1.59 vs the generic 7/6 font-A correction.
-    // Fonts P-V (resident bitmaps): Labelary caps measure ~0.60-0.625x the base
-    // cell (P: 12/20, Q: 17/28, S: 25/40), where DejaVu Mono Bold caps land at
-    // ~0.72em -- hence ~0.85 (sweep 0.80-0.90 converged on 0.85).
-    // Font 1 (mono substitute): DejaVu Sans Mono regular caps land at 1493/2384
-    // ≈ 0.626 of the ab_glyph scale and must read as 0.73 of the height param.
-    let line_height_factor: f32 = face.line_height_factor() as f32;
-    // Font 0's substitute needs a cap-height correction like the bitmap
-    // fonts (see tuning::FONT0_CAP_SCALE): inflate the em so caps land at
-    // 0.75 of the cell, matching Labelary. The font-0 constants expressed
-    // in scaled-em units (advance deltas, missing-glyph advance, the
-    // size-proportional pen offset) already account for this factor.
-    if f0 {
-        scale.y = font_size * crate::tuning::FONT0_CAP_SCALE as f32;
-    }
-    let cap_scale: f32 = face.cap_scale() as f32;
-    // Bitmap fonts (A-H, P-V) enlarge the em by cap_scale only to match glyph
-    // size; the ^FB line pitch on the printer is still the font cell height
-    // (+ line spacing). Without this, an 18-dot font C block advances 21 dots
-    // per line instead of 18 and long blocks overflow into following fields.
-    let line_height_factor: f32 = if face.divides_line_height_by_cap() {
-        line_height_factor / cap_scale
-    } else {
-        line_height_factor
-    };
-    let bitmap_y_shift: f64 = if face.uses_cell_shift() {
-        scale.y = font_size * cap_scale;
-
-        let orig_scale = PxScale {
-            x: scale.x,
-            y: font_size,
-        };
-        let orig_ascent = font.as_scaled(orig_scale).ascent();
-        let orig_gap = font
-            .outline_glyph(
-                font.glyph_id('H')
-                    .with_scale_and_position(orig_scale, ab_glyph::point(0.0, orig_ascent)),
-            )
-            .map(|g| g.px_bounds().min.y as f64)
-            .unwrap_or(font_size as f64 * 0.148);
-
-        // With the cap-scaled em, the ascender gap also scales by the same factor.
-        // Shift the draw origin UP by that new gap so cap_top = field y.
-        // Labelary anchors P-V caps ~0.15x cell BELOW the field origin (measured:
-        // P top is 3px below origin at 20-dot cell, Q 4px at 28-dot, S 6px at
-        // 40-dot), so push the origin back down by that amount.
-        let p_low_cap = font_size as f64 * face.cap_anchor_drop();
-        -(orig_gap * cap_scale as f64) + p_low_cap
-    } else {
-        0.0
-    };
+    let f0 = subst.f0;
 
     if text.flow.direction != TextDirection::Horizontal && text.block.is_some() {
         return layout_directed_block(text, state, &drawn_text, &font, scale, subst);
@@ -412,7 +626,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
 
         if buf_w == 0 || buf_h == 0 {
             return Ok(TextLayout {
-                face,
+                face: LayoutFont::Resident(face),
                 glyphs,
                 buffer: None,
             });
@@ -559,7 +773,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
         }
 
         return Ok(TextLayout {
-            face,
+            face: LayoutFont::Resident(face),
             glyphs,
             buffer: Some(TextBuffer {
                 width: buf_w,
@@ -572,7 +786,7 @@ pub(crate) fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLa
     }
 
     Ok(TextLayout {
-        face,
+        face: LayoutFont::Resident(face),
         glyphs,
         buffer: None,
     })
@@ -658,7 +872,7 @@ fn layout_directed_block(
             TextDirection::Horizontal => unreachable!(),
         }
     }
-    expand_directed_buffer(&mut result, font)?;
+    expand_buffer_to_ink(&mut result, font)?;
     Ok(result)
 }
 
@@ -725,58 +939,81 @@ fn layout_directed(
             metrics,
         );
     }
-    if orientation != FieldOrientation::Normal {
-        let (x, y) = state.get_text_position(text);
-        let cell_width = text.flow.origin_width;
-        let cell_height = text.font.height;
-        let height = if text.flow.direction == TextDirection::Vertical {
-            drawn_text.chars().count() as f64 * cell_height
-        } else {
-            cell_height
-        };
-        let ascent = cell_height * 0.76;
-        // Baseline anchors rotate around the baseline point; top anchors
-        // reserve the nominal cells rather than the outline's ink rectangle.
-        let (tx, ty) = if text.position.calculate_from_bottom {
-            match orientation {
-                FieldOrientation::Rotated90 => (x + ascent, y),
-                FieldOrientation::Rotated180 => (x, y + ascent),
-                FieldOrientation::Rotated270 => (x - ascent, y),
-                FieldOrientation::Normal => unreachable!(),
-            }
-        } else {
-            match orientation {
-                FieldOrientation::Rotated90 => (
-                    x + height
-                        - if text.flow.direction == TextDirection::Vertical {
-                            cell_height * 0.25
-                        } else {
-                            0.0
-                        },
-                    y,
-                ),
-                FieldOrientation::Rotated180 => (x + cell_width, y + height),
-                FieldOrientation::Rotated270 => (x, y + cell_width),
-                FieldOrientation::Normal => unreachable!(),
-            }
-        };
-        let width = cell_width.max(1.0).ceil() as u32 + 2;
-        let height = height.max(1.0).ceil() as u32 + 2;
-        let (bx, by) = match orientation {
-            FieldOrientation::Rotated90 => (tx - height as f64, ty),
-            FieldOrientation::Rotated180 => (tx - width as f64, ty - height as f64),
-            FieldOrientation::Rotated270 => (tx, ty - width as f64),
-            FieldOrientation::Normal => unreachable!(),
-        };
-        result.buffer = Some(TextBuffer {
-            width,
-            height,
-            orientation,
-            x: bx as i32,
-            y: by as i32,
-        });
+    let cells = drawn_text.chars().count();
+    result.buffer = directed_buffer(text, state, cells, text.font.height * 0.76);
+    expand_buffer_to_ink(&mut result, font)?;
+    align_directed(text, &mut result);
+    update_directed_position(
+        text,
+        state,
+        f64::from(text.flow.origin_width as f32 - cursor),
+        cells,
+    );
+    Ok(result)
+}
+
+/// Rotate the nominal upright cells about the field's origin or baseline.
+pub(super) fn directed_buffer(
+    text: &TextField,
+    state: &DrawerState,
+    cells: usize,
+    ascent: f64,
+) -> Option<TextBuffer> {
+    let orientation = text.font.orientation;
+    if orientation == FieldOrientation::Normal {
+        return None;
     }
-    expand_directed_buffer(&mut result, font)?;
+    let (x, y) = state.get_text_position(text);
+    let cell_width = text.flow.origin_width;
+    let cell_height = text.font.height;
+    let height = if text.flow.direction == TextDirection::Vertical {
+        cells as f64 * cell_height
+    } else {
+        cell_height
+    };
+    // Baseline anchors rotate around the baseline point; top anchors
+    // reserve the nominal cells rather than the outline's ink rectangle.
+    let (tx, ty) = if text.position.calculate_from_bottom {
+        match orientation {
+            FieldOrientation::Rotated90 => (x + ascent, y),
+            FieldOrientation::Rotated180 => (x, y + ascent),
+            FieldOrientation::Rotated270 => (x - ascent, y),
+            FieldOrientation::Normal => unreachable!(),
+        }
+    } else {
+        match orientation {
+            FieldOrientation::Rotated90 => (
+                x + height
+                    - if text.flow.direction == TextDirection::Vertical {
+                        cell_height * 0.25
+                    } else {
+                        0.0
+                    },
+                y,
+            ),
+            FieldOrientation::Rotated180 => (x + cell_width, y + height),
+            FieldOrientation::Rotated270 => (x, y + cell_width),
+            FieldOrientation::Normal => unreachable!(),
+        }
+    };
+    let width = (cell_width.max(1.0).ceil() as u32).saturating_add(2);
+    let height = (height.max(1.0).ceil() as u32).saturating_add(2);
+    let (bx, by) = match orientation {
+        FieldOrientation::Rotated90 => (tx - height as f64, ty),
+        FieldOrientation::Rotated180 => (tx - width as f64, ty - height as f64),
+        FieldOrientation::Rotated270 => (tx, ty - width as f64),
+        FieldOrientation::Normal => unreachable!(),
+    };
+    Some(TextBuffer {
+        width,
+        height,
+        orientation,
+        x: bx as i32,
+        y: by as i32,
+    })
+}
+
+pub(super) fn align_directed(text: &TextField, layout: &mut TextLayout) {
     if text.alignment == crate::elements::field_alignment::FieldAlignment::Right
         && !text.position.calculate_from_bottom
     {
@@ -785,25 +1022,27 @@ fn layout_directed(
         } else {
             -text.font.height
         } as i32;
-        if let Some(buffer) = &mut result.buffer {
+        if let Some(buffer) = &mut layout.buffer {
             buffer.x += offset;
         } else {
-            for placed in &mut result.glyphs {
+            for placed in &mut layout.glyphs {
                 placed.x += offset;
             }
         }
     }
+}
 
-    // Automatic positions follow the directed pen rather than its bounding
-    // rectangle, whose leading edge changes in reverse and vertical flow.
+pub(super) fn update_directed_position(
+    text: &TextField,
+    state: &mut DrawerState,
+    width: f64,
+    cells: usize,
+) {
     if text.position.calculate_from_bottom {
         let (x, y) = state.get_text_position(text);
         let advance = match text.flow.direction {
-            TextDirection::Reverse => (cursor - text.flow.origin_width as f32, 0.0),
-            TextDirection::Vertical => (
-                0.0,
-                drawn_text.chars().count() as f32 * text.font.height as f32,
-            ),
+            TextDirection::Reverse => (-width, 0.0),
+            TextDirection::Vertical => (0.0, cells as f64 * text.font.height),
             TextDirection::Horizontal => unreachable!(),
         };
         let (dx, dy) = match text.font.orientation {
@@ -812,16 +1051,15 @@ fn layout_directed(
             FieldOrientation::Rotated180 => (-advance.0, -advance.1),
             FieldOrientation::Rotated270 => (advance.1, -advance.0),
         };
-        state.auto_pos_x = x + dx as f64;
-        state.auto_pos_y = y + dy as f64;
+        state.auto_pos_x = x + dx;
+        state.auto_pos_y = y + dy;
     }
-    Ok(result)
 }
 
 /// Grow a rotated text buffer in every direction without moving any glyph on
 /// the page. Reverse pens can reach left of the origin; vertical pens can
 /// extend far below it. Ink bounds include overhanging accents and descenders.
-fn expand_directed_buffer(layout: &mut TextLayout, font: &FontRef) -> Result<(), String> {
+pub(super) fn expand_buffer_to_ink(layout: &mut TextLayout, font: &FontRef) -> Result<(), String> {
     let Some(buffer) = &mut layout.buffer else {
         return Ok(());
     };
@@ -890,21 +1128,9 @@ fn draw_text_snapped(
 ) {
     use ab_glyph::{Font, GlyphId, ScaleFont};
 
-    let yoff = if m.f0 {
-        crate::tuning::TEXT_Y_OFFSET as f32
-            + (crate::tuning::TEXT_Y_OFFSET_EM * scale.y as f64) as f32
-    } else {
-        0.0
-    };
+    let yoff = m.y_offset(scale);
     let scaled = font.as_scaled(scale);
-    // Same width-ratio scaling as measure_text_width: the additive font-0
-    // deltas are calibrated at width == height and must track the hmtx
-    // component's ∝(w/h) scaling on cells where the two parameters differ.
-    let width_ratio = if m.f0 {
-        (scale.x / scale.y) * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
-    } else {
-        1.0
-    };
+    let width_ratio = m.width_ratio(scale);
 
     let mut w = 0.0f32;
     let mut prev: Option<GlyphId> = None;
@@ -934,6 +1160,7 @@ fn draw_text_snapped(
         }
         glyphs.push(PlacedGlyph {
             character: c,
+            extracted: None,
             glyph: glyph.clone(),
             x,
             y,

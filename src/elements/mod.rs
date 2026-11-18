@@ -8,6 +8,7 @@ pub mod barcode_ean8;
 pub mod barcode_info;
 pub mod barcode_pdf417;
 pub mod barcode_qr;
+pub mod barcode_symbol;
 pub mod barcode_upca;
 pub mod barcode_upce;
 pub mod drawer_options;

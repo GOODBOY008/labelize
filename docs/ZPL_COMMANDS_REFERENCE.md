@@ -46,34 +46,34 @@ Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands
 |---------|-------------|-----|
 | ^BY | Barcode default parameters | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-by.html |
 | ^B0 | Barcode Aztec | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b0.html |
-| ^B1 | Barcode Code 11 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b1.html |
+| ^B1 | Code 11 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b1.html |
 | ^B2 | Barcode Interleaved 2 of 5 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b2.html |
 | ^B3 | Barcode Code 39 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b3.html |
-| ^B4 | Barcode Code 49 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b4.html |
-| ^B5 | Barcode Planet Code | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b5.html |
+| ^B4 | Code 49 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b4.html |
+| ^B5 | PLANET | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b5.html |
 | ^B7 | Barcode PDF417 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b7.html |
 | ^B8 | Barcode EAN-8 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b8.html |
 | ^B9 | Barcode UPC-E | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-b9.html |
-| ^BA | Barcode Aztec | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-ba.html |
-| ^BB | Barcode UPC Bar Truncated | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bb.html |
+| ^BA | Code 93 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-ba.html |
+| ^BB | Codablock | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bb.html |
 | ^BC | Barcode Code 128 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bc.html |
 | ^BD | Barcode MaxiCode | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bd.html |
 | ^BE | Barcode EAN-13 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-be.html |
-| ^BF | Barcode UPS MaxiCode | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bf.html |
-| ^BI | Barcode Industrial 2 of 5 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bi.html |
-| ^BJ | Barcode Standard 2 of 5 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bj.html |
-| ^BK | Barcode UPC-A | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bk.html |
-| ^BL | Barcode UPC-E | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bl.html |
-| ^BM | Barcode MSI | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bm.html |
+| ^BF | MicroPDF417 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bf.html |
+| ^BI | Industrial 2 of 5 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bi.html |
+| ^BJ | Standard 2 of 5 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bj.html |
+| ^BK | Codabar | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bk.html |
+| ^BL | LOGMARS | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bl.html |
+| ^BM | MSI | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bm.html |
 | ^BO | Barcode Aztec | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bo.html |
-| ^BP | Barcode Plessey | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bp.html |
+| ^BP | Plessey | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bp.html |
 | ^BQ | Barcode QR Code | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bq.html |
-| ^BR | Barcode Korean Post | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-br.html |
-| ^BS | Barcode RSS/GS1 DataBar | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bs.html |
-| ^BT | Barcode TLC39 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bt.html |
+| ^BR | GS1 DataBar and GS1 Composite | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-br.html |
+| ^BS | EAN/UPC two- and five-digit supplements | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bs.html |
+| ^BT | TCIF Linked Code 39 | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bt.html |
 | ^BU | Barcode UPC-A | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bu.html |
 | ^BX | Barcode Data Matrix | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bx.html |
-| ^BZ | Barcode UPC-E | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bz.html |
+| ^BZ | USPS POSTNET, PLANET and Intelligent Mail | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-bz.html |
 
 ## Graphics Commands
 
@@ -121,14 +121,14 @@ Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands
 
 | Command | Description | URL |
 |---------|-------------|-----|
-| ^MC | Map clear | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mc.html |
+| ^MC | Retain or clear the print bitmap | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mc.html |
 | ^MF | Media feed | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mf.html |
 | ^MM | Print mode | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mm.html |
 | ^MN | Media tracking | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mn.html |
 | ^MP | Mode protection | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mp.html |
 | ^MT | Media type | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mt.html |
 | ^MU | Set units of measure | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-mu.html |
-| ^PA | Print positioning adjustment | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-pa.html |
+| ^PA | Advanced text properties | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-pa.html |
 | ^PF | Present at gap | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-pf.html |
 | ^PH ~PH | Present at home | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-ph-ph.html |
 | ^PM | Printing mirror | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-pm-printing-mirror.html |
@@ -149,7 +149,7 @@ Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands
 | ^SQ | Stop sequence | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sq.html |
 | ^SR | Set RFID | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sr.html |
 | ^SS | Set sensor select | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-ss.html |
-| ^ST | Set tear-off | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-st.html |
+| ^ST | Set clock date and time | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-st.html |
 
 ## Device Control Commands
 
@@ -204,13 +204,13 @@ Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands
 
 | Command | Description | URL |
 |---------|-------------|-----|
-| ~DB | Directory begin | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-db.html |
+| ~DB | Download bitmap font | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-db.html |
 | ~DE | Directory end | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-de.html |
 | ~DN | Directory name | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-dn.html |
-| ~DS | Directory status | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-ds.html |
-| ~DT | Directory type | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-dt.html |
-| ~DU | Directory upload | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-du.html |
-| ~DY | Directory download | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-dy.html |
+| ~DS | Download Intellifont | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-ds.html |
+| ~DT | Download bounded TrueType font | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-dt.html |
+| ~DU | Download unbounded TrueType font | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-du.html |
+| ~DY | Download objects | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-dy.html |
 | ~EG | Erase graphic | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-eg.html |
 | ^LF | Label file | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-lf.html |
 
@@ -258,8 +258,8 @@ Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands
 
 | Command | Description | URL |
 |---------|-------------|-----|
-| ^FE | Form end | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-fe.html |
-| ^FL | Field level | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-fl.html |
+| ^FE | Field concatenation | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-fe.html |
+| ^FL | Link fonts | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-fl.html |
 | ^FM | Field mask | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-fm.html |
 | ^KD | Key delete | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-kd.html |
 | ^KL | Key list | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-kl.html |
@@ -275,8 +275,8 @@ Source: https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands
 | ~SD | Set darkness | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sd.html |
 | ^SE | Set encoding | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-se.html |
 | ^SI | Set image | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-si.html |
-| ^SL | Set label | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sl.html |
-| ^SO | Set offset | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-so.html |
+| ^SL | Set clock mode and language | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sl.html |
+| ^SO | Set secondary and tertiary clock offsets | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-so.html |
 | ^SP | Set parameters | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sp.html |
 | ^SX | Set X position | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sx.html |
 | ^SZ | Set ZPL mode | https://docs.zebra.com/us/en/printers/software/zpl-pg/c-zpl-zpl-commands/r-zpl-sz.html |
@@ -304,13 +304,15 @@ The following commands are currently implemented in this project:
 - `^PO` - Print orientation
 - `^PW` - Print width
 - `^MU` - Units of measurement
-- `^PQ` - Print quantity / copies (emits quantity × copies labels)
+- `^PQq,p,r` emits `q` labels in total. Each serial value is used on up to `r` consecutive labels. A missing or zero replicate count advances the serial on every label.
+- `^CC` / `~CC`, `^CT` / `~CT` and `^CD` / `~CD` change the format prefix, control prefix and parameter delimiter. Counted binary payloads retain their original bytes.
+- `^MCN` retains the printed background for subsequent formats. Fields marked with `^FV` remain variable. `^MCY` clears the retained background.
 - `^FX` - Comment (ignored)
-- `^SN`, `^SF` - Serial number state (inert: `#` serial markers in `^FD` render literally, matching Labelary)
+- `^SN` supplies and increments a field value. `^SF` applies a right-aligned numeric, alphabetic or mixed-radix mask to field data.
 
 ### Text/Font
 - `^A` - Scalable/bitmapped font
-- `^A@` - Named font (built-in names resolve; downloaded names fall back to default)
+- `^A@` selects a resident or downloaded font by name. `^FL` links fallback fonts and `^PA` controls bidirectional layout, shaping, OpenType features and the missing-glyph policy.
 - `^CW` - Font identifier mapping
 - `^FO` - Field origin
 - `^FT` - Field typeset
@@ -319,12 +321,15 @@ The following commands are currently implemented in this project:
 - `^FD` - Field data
 - `^FS` - Field separator
 - `^FB` - Field block
+- `^TB` wraps text in a rectangle and clips overflowing ink at the specified height.
+- `^FE` expands numbered field references and forward or backward substrings.
+- `^FC` expands printer-clock indicators. The virtual clock uses UTC until `^ST` sets its date and time. `^SO` offsets the second and third clocks, and `^SL` selects the clock mode and language.
 - `^FV` - Field variable
 - `^FN` - Field number
 - `^FR` - Field reverse print
 - `^FH` - Field hex indicator
 - `^CF` - Change default font
-- `^CI` - Change international font/encoding
+- `^CI` selects the encoding and accepts character remapping pairs for character sets 0–13.
 
 ### Barcodes
 - `^BC` - Code 128
@@ -339,6 +344,9 @@ The following commands are currently implemented in this project:
 - `^BX` - Data Matrix
 - `^BQ` - QR Code
 - `^BD` - MaxiCode
+- `^B1` Code 11, `^BA` Code 93, `^BI` Industrial 2 of 5, `^BJ` Standard 2 of 5, `^BK` Codabar, `^BL` LOGMARS, `^BM` MSI, and `^BP` Plessey
+- `^B4` Code 49, `^BB` Codablock, `^BF` MicroPDF417, and `^BT` TCIF Linked Code 39
+- `^BR` GS1 DataBar and Composite, `^BS` EAN/UPC supplements, `^B5` PLANET, and `^BZ` USPS postal symbols
 - `^BY` - Barcode default parameters
 
 ### Graphics
@@ -351,6 +359,8 @@ The following commands are currently implemented in this project:
 
 ### Storage
 - `~DG` - Download graphic
+- `~DY` downloads raster graphics or fonts by object name. Uncompressed binary, hexadecimal, B64 and Z64 transfers are supported for renderable objects.
+- `~DB` downloads bitmap glyph records. `~DT` and `~DU` accept TrueType data in hexadecimal, B64 or Z64. Each B64/Z64 transfer validates its CRC. Downloaded OpenType and TrueType glyphs are embedded in vector PDFs.
 - `^IL` - Image load
 - `^XG` - Recall graphic
 - `^ID` - Delete stored object (graphic or format)
@@ -368,9 +378,7 @@ The following commands are currently implemented in this project:
 - **`^LL` dimensions**: exposed when `ZplParseOptions::use_declared_dimensions` is enabled; default parsing uses the caller's canvas
 - **`^B9` with >7-digit data**: follows the UPC-E standard; Labelary's own
   zero-suppression of 11/12-digit input diverges from the standard
-- **`^A@`/`^CW` downloaded fonts**: unavailable fonts fall back to `^CF`.
-  `^A@o,h,w,d:f.x` reads orientation first and filename fourth; an omitted
-  filename retains the previous selection. Font file downloads are not implemented.
+- Missing named fonts use the `^CF` fallback. Downloaded objects have a 16 MiB limit. Legacy ZTools font containers (including Intellifont outlines from `~DS`) and the BAR-ONE AR compression used by `~DY` format C require separate decoders.
 - **`^GFC`**: compressed binary graphics are unsupported and return an error.
   `^GFB` preserves raw bytes, including embedded command prefixes and CR/LF/TAB;
   its byte counts must be in 1–99999 and the payload must be complete.
@@ -380,5 +388,4 @@ The following commands are currently implemented in this project:
   pixels, 32000 dots per dimension and 16 nested images. A render can cache up
   to 64 MiB of packed saved images. Repeated placements at the same source
   dimensions reuse the bitmap. `^IL` restores the saved page including its
-  margins. `^IM` and `^XG` position that bitmap at the field origin. An `^IS`
-  inside a downloaded `^DF` format returns an explicit unsupported error.
+  margins. `^IM` and `^XG` position that bitmap at the field origin. An `^IS` inside a downloaded `^DF` takes its snapshot when the format is recalled.

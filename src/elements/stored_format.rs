@@ -41,6 +41,10 @@ pub struct StoredField {
 
 #[derive(Clone, Debug)]
 pub struct RecalledFieldData {
+    pub variable: bool,
+    pub sequence: Option<super::field_info::FieldSequence>,
+    pub reference_delimiter: Option<char>,
+    pub clock_indicators: [Option<char>; 3],
     pub number: i32,
     pub data: String,
     pub data_bytes: Option<Vec<u8>>,
@@ -75,10 +79,30 @@ impl RecalledFormat {
                 self.field_refs.entry(sf.number).or_default().push(idx);
                 true
             }
+            LabelElement::RecalledField(field) => {
+                if field.stored.number >= 0 {
+                    self.field_refs
+                        .entry(field.stored.number)
+                        .or_default()
+                        .push(self.elements.len());
+                }
+                self.elements.push(LabelElement::RecalledField(field));
+                true
+            }
             LabelElement::RecalledFieldData(rfd) => {
                 if let Some(indices) = self.field_refs.remove(&rfd.number) {
                     for idx in indices {
                         if let LabelElement::RecalledField(ref mut rf) = self.elements[idx] {
+                            if rfd.sequence.is_some() {
+                                rf.stored.field.sequence = rfd.sequence.clone();
+                            }
+                            if rfd.reference_delimiter.is_some() {
+                                rf.stored.field.reference_delimiter = rfd.reference_delimiter;
+                            }
+                            if rfd.clock_indicators[0].is_some() {
+                                rf.stored.field.clock_indicators = rfd.clock_indicators;
+                            }
+                            rf.stored.field.variable |= rfd.variable;
                             rf.data = rfd.data.clone();
                             rf.data_bytes = rfd.data_bytes.clone();
                         }
@@ -98,6 +122,11 @@ impl RecalledFormat {
                                     width_ratio: 0.0,
                                     height: 0,
                                     current_charset: 0,
+                                    character_map: None,
+                                    sequence: rfd.sequence.clone(),
+                                    reference_delimiter: rfd.reference_delimiter,
+                                    variable: rfd.variable,
+                                    clock_indicators: rfd.clock_indicators,
                                     text_flow: Default::default(),
                                 },
                             },

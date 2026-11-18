@@ -17,3 +17,16 @@ pub mod upca;
 pub mod upce;
 
 pub use bit_matrix::BitMatrix;
+
+mod codablock;
+pub(crate) mod symbols;
+
+mod code49;
+
+mod gs1_composite;
+
+mod tlc39;
+
+mod composite_field;
+
+pub(crate) mod check_text;

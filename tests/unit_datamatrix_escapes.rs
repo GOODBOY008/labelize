@@ -95,6 +95,74 @@ fn render_zpl(source: &str) -> image::RgbaImage {
     crop_symbol(&image)
 }
 
+fn assert_serialized_symbols(job: &[u8], expected: &[&[u8]]) {
+    let pages = ZplParser::new().parse(job).unwrap();
+    assert_eq!(pages.len(), expected.len());
+    for (page, &payload) in pages.iter().zip(expected) {
+        let barcode = page
+            .elements
+            .iter()
+            .find_map(|element| match element {
+                labelize::elements::LabelElement::BarcodeDatamatrix(b) => Some(b),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(barcode.data_bytes.as_deref(), Some(payload));
+        let mut output = Cursor::new(Vec::new());
+        Renderer::new()
+            .draw_label_as_png(
+                page,
+                &mut output,
+                DrawerOptions {
+                    label_width_mm: 40.0,
+                    label_height_mm: 20.0,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let image = image::load_from_memory(output.get_ref())
+            .unwrap()
+            .to_rgba8();
+        let decoded = decode_image(&crop_symbol(&image), 4);
+        assert_eq!(decoded.getRawBytes(), encode(payload, b'_').getRawBytes());
+    }
+}
+
+#[test]
+fn serialized_datamatrix_preserves_escaped_and_literal_binary_payloads() {
+    for job in [
+        b"^XA^BXN,4,200^FH^FD_FF001^SF%ddd,1^FS^PQ2^XZ".as_slice(),
+        b"^XA^BXN,4,200^FD\xff001^SF%ddd,1^FS^PQ2^XZ",
+    ] {
+        assert_serialized_symbols(job, &[b"\xff001", b"\xff002"]);
+    }
+    assert_serialized_symbols(
+        b"^XA^BXN,4,200^SN\xff009\x80,1,N^FS^PQ2^XZ",
+        &[b"\xff9\x80", b"\xff10\x80"],
+    );
+}
+
+#[test]
+fn serialized_datamatrix_retains_graphemes_and_binary_bytes_in_recalled_fields() {
+    let job = b"^XA^DFR:M.ZPL^FS^BXN,4,200^FN1^FS^XZ^XA^XFR:M.ZPL^FN1^FH^FDA_CC_81_FF9^SFA%d,B%1^FS^PQ3,0,2^XZ";
+    assert_serialized_symbols(
+        job,
+        &[b"A\xcc\x81\xff9", b"A\xcc\x81\xff9", b"C\xcc\x81\xff0"],
+    );
+}
+
+#[test]
+fn serialized_datamatrix_preserves_binary_reference_slices_and_clock_literals() {
+    let job = b"^XA^ST11,18,2026,10,05,09,M^FN2^FH^FD_FFA_CC_81_8005^SFdd,1^FS^BXN,4,200^FC%^FH^FE#^FD_FE#2,f,1,2#:#2,b,1,3#:%Y:01_FF^SFdd%,1%^FS^PQ2^XZ";
+    assert_serialized_symbols(
+        job,
+        &[
+            b"\xfe\xffA\xcc\x81:\x8005:2026:01\xff",
+            b"\xfe\xffA\xcc\x81:\x8006:2026:02\xff",
+        ],
+    );
+}
+
 fn crop_symbol(image: &image::RgbaImage) -> image::RgbaImage {
     let dark: Vec<_> = image
         .enumerate_pixels()

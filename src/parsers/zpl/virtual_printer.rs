@@ -15,6 +15,7 @@ use crate::elements::stored_graphics::StoredGraphics;
 use crate::elements::text_flow::TextFlow;
 
 pub struct VirtualPrinter {
+    pub(super) fonts: super::objects::Fonts,
     pub stored_graphics: HashMap<String, StoredGraphics>,
     pub saved_images: HashMap<String, RasterLabel>,
     pub stored_formats: HashMap<String, StoredFormat>,
@@ -36,7 +37,18 @@ pub struct VirtualPrinter {
     pub next_text_flow: TextFlow,
     pub label_reverse: bool,
     pub default_barcode_dimensions: BarcodeDimensions,
+    pub barcode_height_explicit: bool,
     pub current_charset: i32,
+    pub(crate) character_map: Option<std::sync::Arc<[u8; 256]>>,
+    pub(crate) sequence: Option<crate::elements::field_info::FieldSequence>,
+    pub(crate) reference_delimiter: Option<char>,
+    pub(super) pending_reference: Option<char>,
+    pub(crate) variable: bool,
+    pub(crate) clock_indicators: [Option<char>; 3],
+    pub(super) clock: super::field_clock::FieldClock,
+    pub(crate) keep_bitmap: bool,
+    pub(crate) retained_image: Option<RasterLabel>,
+    pub(crate) format_saves: HashMap<String, Vec<(String, bool)>>,
     pub print_width: i32,
     pub label_inverted: bool,
     /// `^PM` is printer state: it survives ^XA/^XZ until explicitly changed.
@@ -65,14 +77,13 @@ pub struct VirtualPrinter {
     /// Images saved from the completed format; the last print flag wins.
     pub image_saves: Vec<(String, bool)>,
     /// Labels to print from `^PQ` (parameter a). Emitted as that many copies of the
-    /// label, since serials render literally (no auto-increment), matching Labelary.
+    /// label, including all serial replicates.
     pub print_quantity: i32,
-    /// Number of copies of the same label from `^PQ` (parameter c).
+    /// Number of consecutive copies that share each serial value.
     pub print_copies: i32,
-    /// Current serial number value from `^SN` (inert: serial markers in `^FD` render
-    /// literally, matching Labelary, so this only records stream state).
+    /// Last explicit numeric serial command, retained for diagnostics.
     pub serial_number: String,
-    /// Serial number format from `^SF` (inert, see ^SN).
+    /// Last explicit field-serialization command.
     pub serial_format: String,
     /// Label length from `^LL` (dots). Recorded only: the rendered canvas size
     /// comes from the draw options, so ^LL has no visible effect (verified against
@@ -83,6 +94,7 @@ pub struct VirtualPrinter {
 impl Default for VirtualPrinter {
     fn default() -> Self {
         VirtualPrinter {
+            fonts: Default::default(),
             stored_graphics: HashMap::new(),
             saved_images: HashMap::new(),
             stored_formats: HashMap::new(),
@@ -107,7 +119,18 @@ impl Default for VirtualPrinter {
             next_text_flow: TextFlow::default(),
             label_reverse: false,
             default_barcode_dimensions: BarcodeDimensions::default(),
+            barcode_height_explicit: false,
             current_charset: 0,
+            character_map: None,
+            sequence: None,
+            reference_delimiter: None,
+            pending_reference: None,
+            clock_indicators: [None; 3],
+            clock: Default::default(),
+            variable: false,
+            keep_bitmap: false,
+            retained_image: None,
+            format_saves: HashMap::new(),
             print_width: 0,
             label_inverted: false,
             label_mirrored: false,
@@ -179,13 +202,18 @@ impl VirtualPrinter {
         FieldInfo {
             reverse_print: self.get_reverse_print(),
             element: self.next_element_field_element.clone(),
-            font: self.get_next_font_or_default(),
+            font: self.fonts.bind(self.get_next_font_or_default()),
             position: self.next_element_position.clone(),
             alignment: self.get_next_element_alignment_or_default(),
             width: self.default_barcode_dimensions.module_width,
             width_ratio: self.default_barcode_dimensions.width_ratio,
             height: self.default_barcode_dimensions.height,
             current_charset: self.current_charset,
+            character_map: self.character_map.clone(),
+            sequence: self.sequence.clone(),
+            reference_delimiter: self.reference_delimiter,
+            clock_indicators: self.clock_indicators,
+            variable: self.variable,
             text_flow: self.next_text_flow,
         }
     }
@@ -196,6 +224,10 @@ impl VirtualPrinter {
         self.next_element_field_data = String::new();
         self.next_element_field_bytes = None;
         self.next_element_field_number = -1;
+        self.sequence = None;
+        self.reference_delimiter = None;
+        self.clock_indicators = [None; 3];
+        self.variable = false;
         self.next_element_alignment = None;
         // Save font used by the last field so ^GS can inherit it when no size specified
         self.last_field_font = self

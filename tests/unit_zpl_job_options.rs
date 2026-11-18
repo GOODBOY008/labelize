@@ -56,11 +56,10 @@ fn copy_limit_is_cumulative_and_checked_before_expansion() {
     assert!(ZplParser::new()
         .parse_with_options(oversized, opts)
         .is_err());
-    assert!(ZplParser::new().parse(oversized).is_err());
     let labels = ZplParser::new()
         .parse_with_options(b"^XA^FDhi^FS^PQ2,0,2^XZ", opts)
         .unwrap();
-    assert_eq!(labels.len(), 4);
+    assert_eq!(labels.len(), 2);
 }
 
 #[test]

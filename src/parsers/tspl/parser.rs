@@ -567,6 +567,7 @@ fn parse_text(line: &str, state: &mut TsplState) -> Result<(), String> {
         flow: Default::default(),
         reverse_print: ReversePrint::default(),
         font: FontInfo {
+            resources: None,
             name: font_id,
             face: font.face,
             advance_mult: 1.0,

@@ -29,8 +29,7 @@ pub struct BarcodeDatamatrixWithData {
     pub barcode: BarcodeDatamatrix,
     pub position: LabelPosition,
     pub data: String,
-    /// Raw bytes the producer decoded, pre-escape. Legacy encoders and
-    /// literal ECC 200 fields (`escape == 0`) consume these without a
-    /// Unicode round trip; `None` falls back to `data`'s bytes.
+    /// Field bytes before symbology escape processing. Encoders use these
+    /// bytes when present. Legacy non-ASCII data requires an explicit payload.
     pub data_bytes: Option<Vec<u8>>,
 }
