@@ -1,13 +1,11 @@
 use super::{
     code39, pdf417_encoding,
-    symbols::{checked_image, micro, raster},
+    symbols::{code39_modules, micro, EncodedBars},
 };
-use crate::elements::barcode_symbol::BarcodeSymbol;
 use anyd::{
     codes::pdf417::ec,
     output::{BitMatrix, Encoding},
 };
-use image::{Rgba, RgbaImage};
 
 /// ISO/IEC 24728 four-column variants, ordered as in the printer's size table.
 /// (row count, error-correction count, first symbol cluster).
@@ -55,24 +53,14 @@ fn secondary(payload: &[u8], minimum: usize) -> Result<BitMatrix, String> {
     Ok(matrix)
 }
 
-pub(super) fn encode(
-    spec: &BarcodeSymbol,
-    data: &[u8],
-    micro_width: u32,
-    micro_height: u32,
-) -> Result<RgbaImage, String> {
+pub(super) fn encode(data: &[u8]) -> Result<EncodedBars, String> {
     let eci = data
         .get(..6)
         .filter(|d| d.iter().all(u8::is_ascii_digit))
         .ok_or("TLC39 requires a six-digit ECI number")?;
-    let primary = code39::encode(
-        std::str::from_utf8(eci).unwrap(),
-        spec.height as i32,
-        spec.ratio,
-        spec.module as i32,
-    )?;
+    let linear = code39_modules(eci)?;
     if data.get(6) != Some(&b',') {
-        return Ok(primary);
+        return Ok(EncodedBars::Single(Encoding::Linear(linear)));
     }
     let parts = &data[7..];
     if parts.is_empty()
@@ -92,40 +80,9 @@ pub(super) fn encode(
     } else {
         2 + parts.len().div_ceil(2)
     };
-    let secondary = raster(
-        Encoding::Matrix(secondary(&payload, estimate)?),
-        micro_width,
-        micro_height,
-        None,
-        None,
-        true,
-    )?;
-    let extension = (f64::from(spec.height) * (0.214 - (spec.ratio - 2.0) * 0.0165)) as u32;
-    let top = extension.max(secondary.height() + spec.module);
-    let gap = 10 * spec.module;
-    let wide = (f64::from(spec.module) * spec.ratio).round() as u32;
-    let flag = code39::get_pattern('T').unwrap();
-    let flag_width = 6 * spec.module + 3 * wide;
-    let width = (primary.width() + gap + flag_width).max(spec.module + secondary.width());
-    let mut image = checked_image(width, top + spec.height + extension)?;
-    image::imageops::overlay(&mut image, &primary, 0, i64::from(top));
-    image::imageops::overlay(
-        &mut image,
-        &secondary,
-        i64::from(spec.module),
-        i64::from(top - secondary.height() - spec.module),
-    );
-    let mut x = primary.width() + gap;
-    for (i, bar) in flag.iter().enumerate() {
-        let w = if *bar == 0 { spec.module } else { wide };
-        if i % 2 == 0 {
-            for y in top - extension..image.height() {
-                for xx in x..x + w {
-                    image.put_pixel(xx, y, Rgba([0, 0, 0, 255]))
-                }
-            }
-        }
-        x += w;
-    }
-    Ok(image)
+    Ok(EncodedBars::Linked39 {
+        linear,
+        secondary: secondary(&payload, estimate)?,
+        flag: code39::get_pattern('T').unwrap(),
+    })
 }

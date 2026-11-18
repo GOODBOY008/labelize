@@ -1,5 +1,8 @@
 //! Glyph layout for supplied typefaces, fallback faces and complex scripts.
-use super::text_layout::{LayoutFont, PlacedGlyph, TextBuffer, TextLayout};
+use super::text_layout::{
+    align_directed, directed_buffer, expand_directed_buffer, update_directed_position, LayoutFont,
+    PlacedGlyph, TextBuffer, TextLayout,
+};
 use super::*;
 use crate::elements::font::FontResources;
 use unicode_script::{Script, UnicodeScript};
@@ -8,10 +11,12 @@ use unicode_segmentation::UnicodeSegmentation;
 struct Run {
     face: usize,
     start: usize,
-    glyphs: Vec<(usize, PlacedGlyph)>,
+    // Logical byte offset and visual cluster index for each glyph.
+    glyphs: Vec<(usize, usize, PlacedGlyph)>,
 }
 struct Line {
     runs: Vec<Run>,
+    cluster_starts: Vec<f32>,
     width: f32,
 }
 struct Faces<'a> {
@@ -36,6 +41,7 @@ impl Faces<'_> {
     fn line(&self, text: &str) -> Line {
         let mut line = Line {
             runs: Vec::new(),
+            cluster_starts: Vec::new(),
             width: 0.0,
         };
         if text.is_empty() {
@@ -87,12 +93,21 @@ impl Faces<'_> {
                     start: span.start,
                     glyphs: Vec::new(),
                 };
+                let mut last_cluster = None;
                 let mut emit =
                     |start: usize, gid: u16, dx: f32, dy: f32, advance: f32, actual: &str| {
+                        if last_cluster != Some(start) {
+                            if !line.cluster_starts.is_empty() {
+                                line.width += self.spacing;
+                            }
+                            line.cluster_starts.push(line.width);
+                            last_cluster = Some(start);
+                        }
                         let ch = actual.chars().next().unwrap_or(' ');
                         if gid != 0 || properties.show_missing {
                             run.glyphs.push((
                                 start,
+                                line.cluster_starts.len() - 1,
                                 PlacedGlyph {
                                     character: ch,
                                     extracted: Some(actual.to_owned()),
@@ -109,7 +124,7 @@ impl Faces<'_> {
                                 },
                             ));
                         }
-                        line.width += advance + self.spacing;
+                        line.width += advance;
                     };
                 if properties.shape || properties.open_type {
                     if let Some(hb) = self.shapers.get(face) {
@@ -160,25 +175,30 @@ impl Faces<'_> {
                         }
                     }
                 } else {
-                    let mut chars: Vec<_> = value.char_indices().collect();
+                    let mut clusters: Vec<_> = value.grapheme_indices(true).collect();
                     if rtl {
-                        chars.reverse()
+                        clusters.reverse();
                     }
-                    for (i, c) in chars {
-                        let id = font.glyph_id(c);
-                        emit(
-                            i,
-                            id.0,
-                            0.0,
-                            0.0,
-                            scaled.h_advance(id),
-                            &value[i..i + c.len_utf8()],
-                        );
+                    for (start, cluster) in clusters {
+                        for (i, ch) in cluster.char_indices() {
+                            let id = font.glyph_id(ch);
+                            emit(
+                                start,
+                                id.0,
+                                0.0,
+                                0.0,
+                                scaled.h_advance(id),
+                                &cluster[i..i + ch.len_utf8()],
+                            );
+                        }
                     }
                 }
                 run.glyphs.sort_by_key(|g| g.0);
                 line.runs.push(run);
             }
+        }
+        if !line.cluster_starts.is_empty() {
+            line.width += self.spacing;
         }
         line.runs.sort_by_key(|r| r.start);
         line
@@ -274,19 +294,32 @@ pub(super) fn layout(
         spacing: text.flow.character_spacing as f32,
     };
     let block = text.block.as_ref();
+    let direction = text.flow.direction;
+    let directed_field = block.is_none() && direction != TextDirection::Horizontal;
+    // A reverse block wraps from the end of the field. Shape the original
+    // graphemes within each selected line so marks stay with their base.
+    let reversed = (block.is_some() && direction == TextDirection::Reverse)
+        .then(|| text.text.graphemes(true).rev().collect::<String>());
+    let source = reversed.as_deref().unwrap_or(&text.text);
     let lines = if let Some(b) = block {
-        faces.wrap(&text.text, b.max_width.max(1) as f32, b.wrap_long_words)
+        faces.wrap(source, b.max_width.max(1) as f32, b.wrap_long_words)
     } else {
-        text.text.split('\n').collect()
+        source.split('\n').collect()
     };
     let mut lines: Vec<_> = lines
-        .iter()
+        .into_iter()
         .take(
             block
                 .filter(|b| !b.overwrite_last_line)
                 .map_or(usize::MAX, |b| b.max_lines.max(1) as usize),
         )
-        .map(|line| faces.line(line))
+        .map(|line| {
+            if reversed.is_some() {
+                faces.line(&line.graphemes(true).rev().collect::<String>())
+            } else {
+                faces.line(line)
+            }
+        })
         .collect();
     let width = block.map_or_else(
         || lines.iter().map(|l| l.width).fold(0.0, f32::max),
@@ -299,28 +332,42 @@ pub(super) fn layout(
         })
         .max(1);
     let height = h + (slots - 1) as f32 * pitch;
-    let (x, y) = get_text_top_left_pos(
-        text,
-        width as f64,
-        h as f64,
-        faces.fonts[0].as_scaled(faces.scales[0]).ascent() as f64,
-        state,
-        pitch as f64,
-    );
-    state.update_automatic_text_position(text, f64::from(width));
+    let ascent = f64::from(faces.fonts[0].as_scaled(faces.scales[0]).ascent());
     let rotated = text.font.orientation != FieldOrientation::Normal;
-    let bw = width.ceil().max(1.0) as u32;
-    let bh = height.ceil().max(1.0) as u32;
-    if rotated && (bw > 32000 || bh > 32000 || u64::from(bw) * u64::from(bh) > 16 * 1024 * 1024) {
-        return Err("Text field is too large".into());
+    let cells = lines
+        .iter()
+        .map(|line| line.cluster_starts.len())
+        .max()
+        .unwrap_or(0);
+    let (x, y) = if directed_field {
+        let (x, y) = state.get_text_position(text);
+        (
+            x,
+            if text.position.calculate_from_bottom {
+                y - ascent
+            } else {
+                y
+            },
+        )
+    } else {
+        get_text_top_left_pos(text, width.into(), h.into(), ascent, state, pitch.into())
+    };
+    let buffer = if directed_field {
+        directed_buffer(text, state, cells, ascent)
+    } else {
+        rotated.then(|| TextBuffer {
+            width: width.ceil().max(1.0) as u32,
+            height: height.ceil().max(1.0) as u32,
+            orientation: text.font.orientation,
+            x: x as i32,
+            y: y as i32,
+        })
+    };
+    if directed_field {
+        update_directed_position(text, state, width.into(), cells);
+    } else {
+        state.update_automatic_text_position(text, f64::from(width));
     }
-    let buffer = rotated.then_some(TextBuffer {
-        width: bw,
-        height: bh,
-        orientation: text.font.orientation,
-        x: x as i32,
-        y: y as i32,
-    });
     let mut out = Vec::new();
     for (n, line) in lines.iter_mut().enumerate() {
         let left = match block.map(|b| b.alignment) {
@@ -332,7 +379,30 @@ pub(super) fn layout(
         };
         for run in &mut line.runs {
             let mut glyphs = Vec::new();
-            for (_, mut g) in run.glyphs.drain(..) {
+            for (_, cluster, mut g) in run.glyphs.drain(..) {
+                let start = line.cluster_starts[cluster];
+                match direction {
+                    TextDirection::Horizontal => {}
+                    TextDirection::Reverse => {
+                        let end = line
+                            .cluster_starts
+                            .get(cluster + 1)
+                            .copied()
+                            .unwrap_or(line.width);
+                        let origin = if directed_field {
+                            text.flow.origin_width as f32
+                        } else {
+                            0.0
+                        };
+                        g.glyph.position.x += origin - end - start;
+                    }
+                    TextDirection::Vertical => {
+                        g.glyph.position.x -= start;
+                        if directed_field {
+                            g.glyph.position.y += cluster as f32 * h;
+                        }
+                    }
+                }
                 g.x = if rotated { 0 } else { x as i32 };
                 g.y = if rotated { 0 } else { y as i32 };
                 g.glyph.position.x += left;
@@ -342,11 +412,25 @@ pub(super) fn layout(
                 glyphs.push(g);
             }
             if !glyphs.is_empty() {
-                out.push(TextLayout {
+                let mut layout = TextLayout {
                     face: assets[run.face].clone(),
                     glyphs,
                     buffer: buffer.clone(),
-                });
+                };
+                if direction != TextDirection::Horizontal {
+                    expand_directed_buffer(&mut layout, &faces.fonts[run.face])?;
+                    if directed_field {
+                        align_directed(text, &mut layout);
+                    }
+                }
+                if layout.buffer.as_ref().is_some_and(|b| {
+                    b.width > 32000
+                        || b.height > 32000
+                        || u64::from(b.width) * u64::from(b.height) > 16 * 1024 * 1024
+                }) {
+                    return Err("Text field is too large".into());
+                }
+                out.push(layout);
             }
         }
     }

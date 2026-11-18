@@ -60,7 +60,7 @@ pub(crate) fn layout(
         LabelElement::Barcode2of5(b) => draw_barcode_2of5(&mut canvas, b)?,
         LabelElement::BarcodeSymbol(b) => {
             if !b.data.is_empty() {
-                let (img, caption) = barcodes::symbols::encode(&b.symbol, &b.data)?;
+                let (img, caption) = super::barcode_raster::render(&b.symbol, &b.data)?;
                 let pos = adjust_image_typeset_position(
                     &img,
                     &b.position,

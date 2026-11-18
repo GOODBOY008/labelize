@@ -1,6 +1,5 @@
-use crate::elements::barcode_symbol::BarcodeSymbol;
+use super::symbols::EncodedBars;
 use bwipp::{Encoded, Options, Symbology};
-use image::{Rgba, RgbaImage};
 
 // GS1 General Specifications, predefined-length element strings (Table 7-6).
 // Other element strings need a group separator before the next AI even when
@@ -88,13 +87,11 @@ fn element_string(mut data: &str) -> Result<String, String> {
 }
 
 pub(super) fn encode(
-    spec: &BarcodeSymbol,
     variant: u8,
     segments: usize,
-    separator: u32,
     linear: &str,
     secondary: &str,
-) -> Result<RgbaImage, String> {
+) -> Result<EncodedBars, String> {
     use Symbology::*;
     let sym = match variant {
         1 => CompositeDatabarOmniCcb,
@@ -146,27 +143,8 @@ pub(super) fn encode(
         .rev()
         .take_while(|&y| (0..w).all(|x| bits.get(x, y) == bits.get(x, h - 1)))
         .count();
-    let magnify = spec.module;
-    let target_linear = if variant >= 11 {
-        spec.height
-    } else {
-        linear_rows as u32 * magnify
-    };
-    let boundary = h - linear_rows;
-    let top = (boundary as u32) * magnify;
-    let sep = (separator - 1) * magnify;
-    let mut image = super::symbols::checked_image(w as u32 * magnify, top + sep + target_linear)?;
-    for (x, y, pixel) in image.enumerate_pixels_mut() {
-        let row = if y < top {
-            (y / magnify) as usize
-        } else if y < top + sep {
-            boundary.saturating_sub(1)
-        } else {
-            h - 1
-        };
-        if bits.get((x / magnify) as usize, row) {
-            *pixel = Rgba([0, 0, 0, 255])
-        }
-    }
-    Ok(image)
+    Ok(EncodedBars::Composite {
+        modules: bits,
+        linear_start: h - linear_rows,
+    })
 }

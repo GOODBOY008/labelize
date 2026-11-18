@@ -16,7 +16,8 @@ from verify_corpus import measure
 from verify_pdf import OUTPUT, check_searchable
 
 
-CASES = {"h": "FIELDGAP", "r": "REVERSE", "v": "VERTICAL"}
+CASES = {"h": "FIELDGAP", "r": "REVERSE", "v": "VERTICAL",
+         "shaped-r": "REVERSE", "shaped-v": "VERTICAL"}
 
 
 class FieldParameterPdf(unittest.TestCase):
@@ -68,6 +69,9 @@ class FieldParameterPdf(unittest.TestCase):
             with Image.open(OUTPUT / f"{stem}-3x.png") as scene:
                 self.assertEqual(scene.size, (1920, 1920))
                 expected = np.asarray(scene.convert("L"))
+                if name == "shaped-v":
+                    ys, xs = np.nonzero(expected < 128)
+                    self.assertGreater(np.ptp(ys), 3 * np.ptp(xs), "expected upright vertical text")
             with pdfium.PdfDocument(str(path)) as document:
                 pdf_page = document[0]
                 bitmap = pdf_page.render(scale=3 * 8 * 25.4 / 72)
@@ -109,6 +113,11 @@ class FieldParameterPdf(unittest.TestCase):
 
     def test_vertical_flow_retains_logical_search_text(self):
         self.verify_flow("v")
+
+    def test_shaped_fields_preserve_direction_and_searchable_text(self):
+        for direction in ("shaped-r", "shaped-v"):
+            with self.subTest(direction=direction):
+                self.verify_flow(direction)
 
 
 if __name__ == "__main__":

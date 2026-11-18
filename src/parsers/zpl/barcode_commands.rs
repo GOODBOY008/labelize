@@ -1,16 +1,24 @@
-use super::command_utils::to_field_orientation;
-use crate::elements::barcode_info::BarcodeDimensions;
+use super::command_utils::{parse_int_scaled, to_field_orientation};
+use super::virtual_printer::VirtualPrinter;
 use crate::elements::barcode_symbol::{BarcodeKind, BarcodeSymbol, PostalCode};
 use crate::elements::field_orientation::FieldOrientation;
 
 pub(super) fn configuration(
     prefix: &[u8],
     parts: &[&str],
-    defaults: &BarcodeDimensions,
-    height_explicit: bool,
-    orientation: FieldOrientation,
-    dpmm: i32,
+    printer: &VirtualPrinter,
 ) -> Option<BarcodeSymbol> {
+    let defaults = &printer.default_barcode_dimensions;
+    let dpmm = printer.dpmm;
+    let scale = printer.unit_scale();
+    let dimension = |i: usize, default: u32, low: u32, high: u32| {
+        parts
+            .get(i)
+            .and_then(|p| parse_int_scaled(p, scale))
+            .and_then(|dots| u32::try_from(dots).ok())
+            .filter(|n| (low..=high).contains(n))
+            .unwrap_or(default)
+    };
     let letter = |i: usize| {
         parts
             .get(i)
@@ -31,15 +39,17 @@ pub(super) fn configuration(
     };
     let inherited_height = defaults.height.clamp(1, 32000) as u32;
     let mut module = defaults.module_width.clamp(1, 10) as u32;
-    let mut height = num(1, inherited_height, 1, 32000);
+    let mut height = dimension(1, inherited_height, 1, 32000);
     let mut caption = yes(2, true);
     let mut above = yes(3, false);
     let mut checks = false;
     let mut ratio = defaults.width_ratio;
-    let mut orientation = letter(0).map(to_field_orientation).unwrap_or(orientation);
+    let mut orientation = letter(0)
+        .map(to_field_orientation)
+        .unwrap_or(printer.default_orientation);
     let kind = match prefix {
         b"^B1" | b"^BK" | b"^BM" | b"^BP" => {
-            height = num(2, inherited_height, 1, 32000);
+            height = dimension(2, inherited_height, 1, 32000);
             caption = yes(3, true);
             above = yes(4, false);
             match prefix {
@@ -69,7 +79,7 @@ pub(super) fn configuration(
         b"^B4" => {
             caption = matches!(letter(2), Some(b'A' | b'B'));
             above = letter(2) == Some(b'A');
-            height = height.saturating_mul(module);
+            height = num(1, inherited_height, 1, 32000).saturating_mul(module);
             BarcodeKind::Code49 {
                 mode: letter(3).filter(|b| b.is_ascii_digit()).map(|b| b - b'0'),
             }
@@ -80,7 +90,8 @@ pub(super) fn configuration(
         }
         b"^BB" => {
             caption = false;
-            let height_is_total = height_explicit && parts.get(1).is_none_or(|p| p.is_empty());
+            let height_is_total =
+                printer.barcode_height_explicit && parts.get(1).is_none_or(|p| p.is_empty());
             height = if height_is_total {
                 inherited_height
             } else {
@@ -122,7 +133,7 @@ pub(super) fn configuration(
                 1,
                 10,
             );
-            height = num(4, 25, 1, 32000);
+            height = dimension(4, 25, 1, 32000);
             orientation = letter(0)
                 .map(to_field_orientation)
                 .unwrap_or(FieldOrientation::Rotated90);
@@ -142,13 +153,13 @@ pub(super) fn configuration(
         b"^BT" => {
             caption = false;
             let hd = dpmm >= 24;
-            module = num(1, if hd { 4 } else { 2 }, 1, 10);
+            module = dimension(1, if hd { 4 } else { 2 }, 1, 10);
             ratio = parts
                 .get(2)
                 .and_then(|s| s.parse().ok())
                 .filter(|r| (2.0..=3.0).contains(r))
                 .unwrap_or(2.0);
-            height = num(
+            height = dimension(
                 3,
                 if hd {
                     120
@@ -161,8 +172,8 @@ pub(super) fn configuration(
                 9999,
             );
             BarcodeKind::Tlc39 {
-                micro_width: num(4, if hd { 4 } else { 2 }, 1, 10),
-                micro_height: num(5, if hd { 8 } else { 4 }, 1, 255),
+                micro_width: dimension(4, if hd { 4 } else { 2 }, 1, 10),
+                micro_height: dimension(5, if hd { 8 } else { 4 }, 1, 255),
             }
         }
         b"^B5" | b"^BZ" => {

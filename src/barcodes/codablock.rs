@@ -11,24 +11,17 @@ use anyd::{
 const ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%";
 
 pub(super) fn encode(
-    spec: &crate::elements::barcode_symbol::BarcodeSymbol,
+    mode: u8,
+    columns: usize,
+    rows: usize,
+    checksum: bool,
     data: &[u8],
 ) -> Result<Encoding, String> {
-    let crate::elements::barcode_symbol::BarcodeKind::Codablock {
-        mode,
-        columns,
-        rows,
-        checksum,
-        ..
-    } = spec.kind
-    else {
-        unreachable!()
-    };
     if data.is_empty() || data.len() > 2728 {
         return Err("Invalid Codablock data length".into());
     }
     if mode == b'A' {
-        return encode_a(data, columns, rows, checksum, spec.module, spec.ratio);
+        return encode_a(data, columns, rows, checksum);
     }
     if mode != b'F' && mode != b'E' {
         return Err("Unknown Codablock mode".into());
@@ -161,14 +154,7 @@ pub(super) fn encode(
     )
 }
 
-fn encode_a(
-    data: &[u8],
-    columns: usize,
-    rows: usize,
-    checks: bool,
-    module: u32,
-    ratio: f64,
-) -> Result<Encoding, String> {
+fn encode_a(data: &[u8], columns: usize, rows: usize, checks: bool) -> Result<Encoding, String> {
     let cells: Result<Vec<_>, _> = data
         .iter()
         .map(|b| {
@@ -209,11 +195,10 @@ fn encode_a(
         if count > 1 {
             row.push(index)
         }
-        let bars =
-            super::code39::encode(std::str::from_utf8(&row).unwrap(), 1, ratio, module as i32)?;
-        let grid = matrix.get_or_insert_with(|| BitMatrix::new(bars.width() as usize, count, 0));
-        for (x, pixel) in bars.pixels().enumerate() {
-            grid.set(x, r, pixel[3] != 0);
+        let bars = super::symbols::code39_modules(&row)?;
+        let grid = matrix.get_or_insert_with(|| BitMatrix::new(bars.modules.len(), count, 0));
+        for (x, dark) in bars.modules.into_iter().enumerate() {
+            grid.set(x, r, dark);
         }
     }
     matrix

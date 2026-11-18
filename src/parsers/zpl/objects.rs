@@ -197,7 +197,7 @@ pub(super) fn ascii_bytes(data: &[u8], expected: usize) -> Result<Vec<u8>, Strin
     if body.len() > MAX_BYTES * 2 {
         return Err("Encoded object exceeds 16 MiB".into());
     }
-    let checksum = &tail[end + 1..];
+    let checksum = tail[end + 1..].trim_ascii_end();
     let checksum = std::str::from_utf8(checksum)
         .ok()
         .filter(|s| s.len() == 4 && s.bytes().all(|b| b.is_ascii_hexdigit()))

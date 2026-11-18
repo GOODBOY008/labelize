@@ -145,3 +145,19 @@ fn comment_stripping_preserves_code_and_drops_prose() {
     assert!(!stripped.contains("TSPL"));
     assert!(!stripped.contains("tspl"));
 }
+
+#[test]
+fn extended_barcode_encoders_only_produce_modules() {
+    for name in [
+        "symbols",
+        "tlc39",
+        "gs1_composite",
+        "composite_field",
+        "code49",
+        "codablock",
+    ] {
+        let file = src_dir().join("barcodes").join(format!("{name}.rs"));
+        let code = strip_comments(&fs::read_to_string(file).unwrap());
+        assert!(!code.contains("image::"), "{name} paints an output image");
+    }
+}

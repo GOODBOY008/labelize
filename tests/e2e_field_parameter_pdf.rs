@@ -13,6 +13,8 @@ fn export_field_parameter_native_pdf_probes() {
         ("h", "^FPH,15", "FIELDGAP", 80, 80),
         ("r", "^FPR,10", "REVERSE", 400, 160),
         ("v", "^FPV,30", "VERTICAL", 80, 240),
+        ("shaped-r", "^PA1,1,1,1^FPR,10", "REVERSE", 400, 160),
+        ("shaped-v", "^PA1,1,1,1^FPV,30", "VERTICAL", 80, 240),
     ] {
         let source = format!("^XA^PW640^LL640^FO{x},{y}^A0N,40,32{command}^FD{text}^FS^XZ\n");
         let options = RenderOptions {

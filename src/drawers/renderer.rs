@@ -21,6 +21,7 @@ use crate::images;
 use super::drawer_state::DrawerState;
 
 pub(crate) mod barcode_layout;
+mod barcode_raster;
 mod saved_images;
 use saved_images::SavedImageCache;
 mod advanced_text;

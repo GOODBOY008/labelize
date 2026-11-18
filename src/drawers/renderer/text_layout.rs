@@ -821,58 +821,81 @@ fn layout_directed(
             metrics,
         );
     }
-    if orientation != FieldOrientation::Normal {
-        let (x, y) = state.get_text_position(text);
-        let cell_width = text.flow.origin_width;
-        let cell_height = text.font.height;
-        let height = if text.flow.direction == TextDirection::Vertical {
-            drawn_text.chars().count() as f64 * cell_height
-        } else {
-            cell_height
-        };
-        let ascent = cell_height * 0.76;
-        // Baseline anchors rotate around the baseline point; top anchors
-        // reserve the nominal cells rather than the outline's ink rectangle.
-        let (tx, ty) = if text.position.calculate_from_bottom {
-            match orientation {
-                FieldOrientation::Rotated90 => (x + ascent, y),
-                FieldOrientation::Rotated180 => (x, y + ascent),
-                FieldOrientation::Rotated270 => (x - ascent, y),
-                FieldOrientation::Normal => unreachable!(),
-            }
-        } else {
-            match orientation {
-                FieldOrientation::Rotated90 => (
-                    x + height
-                        - if text.flow.direction == TextDirection::Vertical {
-                            cell_height * 0.25
-                        } else {
-                            0.0
-                        },
-                    y,
-                ),
-                FieldOrientation::Rotated180 => (x + cell_width, y + height),
-                FieldOrientation::Rotated270 => (x, y + cell_width),
-                FieldOrientation::Normal => unreachable!(),
-            }
-        };
-        let width = cell_width.max(1.0).ceil() as u32 + 2;
-        let height = height.max(1.0).ceil() as u32 + 2;
-        let (bx, by) = match orientation {
-            FieldOrientation::Rotated90 => (tx - height as f64, ty),
-            FieldOrientation::Rotated180 => (tx - width as f64, ty - height as f64),
-            FieldOrientation::Rotated270 => (tx, ty - width as f64),
-            FieldOrientation::Normal => unreachable!(),
-        };
-        result.buffer = Some(TextBuffer {
-            width,
-            height,
-            orientation,
-            x: bx as i32,
-            y: by as i32,
-        });
-    }
+    let cells = drawn_text.chars().count();
+    result.buffer = directed_buffer(text, state, cells, text.font.height * 0.76);
     expand_directed_buffer(&mut result, font)?;
+    align_directed(text, &mut result);
+    update_directed_position(
+        text,
+        state,
+        f64::from(text.flow.origin_width as f32 - cursor),
+        cells,
+    );
+    Ok(result)
+}
+
+/// Rotate the nominal upright cells about the field's origin or baseline.
+pub(super) fn directed_buffer(
+    text: &TextField,
+    state: &DrawerState,
+    cells: usize,
+    ascent: f64,
+) -> Option<TextBuffer> {
+    let orientation = text.font.orientation;
+    if orientation == FieldOrientation::Normal {
+        return None;
+    }
+    let (x, y) = state.get_text_position(text);
+    let cell_width = text.flow.origin_width;
+    let cell_height = text.font.height;
+    let height = if text.flow.direction == TextDirection::Vertical {
+        cells as f64 * cell_height
+    } else {
+        cell_height
+    };
+    // Baseline anchors rotate around the baseline point; top anchors
+    // reserve the nominal cells rather than the outline's ink rectangle.
+    let (tx, ty) = if text.position.calculate_from_bottom {
+        match orientation {
+            FieldOrientation::Rotated90 => (x + ascent, y),
+            FieldOrientation::Rotated180 => (x, y + ascent),
+            FieldOrientation::Rotated270 => (x - ascent, y),
+            FieldOrientation::Normal => unreachable!(),
+        }
+    } else {
+        match orientation {
+            FieldOrientation::Rotated90 => (
+                x + height
+                    - if text.flow.direction == TextDirection::Vertical {
+                        cell_height * 0.25
+                    } else {
+                        0.0
+                    },
+                y,
+            ),
+            FieldOrientation::Rotated180 => (x + cell_width, y + height),
+            FieldOrientation::Rotated270 => (x, y + cell_width),
+            FieldOrientation::Normal => unreachable!(),
+        }
+    };
+    let width = (cell_width.max(1.0).ceil() as u32).saturating_add(2);
+    let height = (height.max(1.0).ceil() as u32).saturating_add(2);
+    let (bx, by) = match orientation {
+        FieldOrientation::Rotated90 => (tx - height as f64, ty),
+        FieldOrientation::Rotated180 => (tx - width as f64, ty - height as f64),
+        FieldOrientation::Rotated270 => (tx, ty - width as f64),
+        FieldOrientation::Normal => unreachable!(),
+    };
+    Some(TextBuffer {
+        width,
+        height,
+        orientation,
+        x: bx as i32,
+        y: by as i32,
+    })
+}
+
+pub(super) fn align_directed(text: &TextField, layout: &mut TextLayout) {
     if text.alignment == crate::elements::field_alignment::FieldAlignment::Right
         && !text.position.calculate_from_bottom
     {
@@ -881,25 +904,27 @@ fn layout_directed(
         } else {
             -text.font.height
         } as i32;
-        if let Some(buffer) = &mut result.buffer {
+        if let Some(buffer) = &mut layout.buffer {
             buffer.x += offset;
         } else {
-            for placed in &mut result.glyphs {
+            for placed in &mut layout.glyphs {
                 placed.x += offset;
             }
         }
     }
+}
 
-    // Automatic positions follow the directed pen rather than its bounding
-    // rectangle, whose leading edge changes in reverse and vertical flow.
+pub(super) fn update_directed_position(
+    text: &TextField,
+    state: &mut DrawerState,
+    width: f64,
+    cells: usize,
+) {
     if text.position.calculate_from_bottom {
         let (x, y) = state.get_text_position(text);
         let advance = match text.flow.direction {
-            TextDirection::Reverse => (cursor - text.flow.origin_width as f32, 0.0),
-            TextDirection::Vertical => (
-                0.0,
-                drawn_text.chars().count() as f32 * text.font.height as f32,
-            ),
+            TextDirection::Reverse => (-width, 0.0),
+            TextDirection::Vertical => (0.0, cells as f64 * text.font.height),
             TextDirection::Horizontal => unreachable!(),
         };
         let (dx, dy) = match text.font.orientation {
@@ -908,16 +933,18 @@ fn layout_directed(
             FieldOrientation::Rotated180 => (-advance.0, -advance.1),
             FieldOrientation::Rotated270 => (advance.1, -advance.0),
         };
-        state.auto_pos_x = x + dx as f64;
-        state.auto_pos_y = y + dy as f64;
+        state.auto_pos_x = x + dx;
+        state.auto_pos_y = y + dy;
     }
-    Ok(result)
 }
 
 /// Grow a rotated text buffer in every direction without moving any glyph on
 /// the page. Reverse pens can reach left of the origin; vertical pens can
 /// extend far below it. Ink bounds include overhanging accents and descenders.
-fn expand_directed_buffer(layout: &mut TextLayout, font: &FontRef) -> Result<(), String> {
+pub(super) fn expand_directed_buffer(
+    layout: &mut TextLayout,
+    font: &FontRef,
+) -> Result<(), String> {
     let Some(buffer) = &mut layout.buffer else {
         return Ok(());
     };

@@ -100,18 +100,8 @@ impl RecalledFormat {
 pub(super) fn resolve_field(f: &RecalledField) -> Result<Option<LabelElement>, String> {
     let field = &f.stored.field;
     let original;
-    let text = if field.character_map.is_some()
-        && f.data_bytes
-            .as_deref()
-            .is_some_and(|bytes| std::str::from_utf8(bytes).is_err())
-    {
-        original = f
-            .data_bytes
-            .as_deref()
-            .unwrap_or_default()
-            .iter()
-            .map(|&b| char::from(b))
-            .collect::<String>();
+    let text = if let (Some(_), Some(bytes)) = (&field.character_map, &f.data_bytes) {
+        original = bytes.iter().map(|&b| char::from(b)).collect::<String>();
         &original
     } else {
         &f.data

@@ -607,10 +607,7 @@ impl ZplParser {
             if let Some(config) = super::barcode_commands::configuration(
                 &upper.as_bytes()[..3],
                 &self.parameters(command, &command[..3]),
-                &self.printer.default_barcode_dimensions,
-                self.printer.barcode_height_explicit,
-                self.printer.default_orientation,
-                self.printer.dpmm,
+                &self.printer,
             ) {
                 self.printer.next_element_field_element =
                     Some(Box::new(LabelElement::BarcodeSymbolConfig(config)));

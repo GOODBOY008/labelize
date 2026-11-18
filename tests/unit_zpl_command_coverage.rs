@@ -427,3 +427,133 @@ fn tlc_without_a_serial_prints_the_six_digit_code39_alone() {
         assert_eq!(pixels(format!("^XA^FO20,20^BTN^FD{data}^FS^XZ")), primary);
     }
 }
+
+#[test]
+fn ci_remaps_every_input_byte_in_direct_and_recalled_text() {
+    assert_eq!(texts(b"^XA^CI13,65,195,66,169^FH^FD_C3_A9^FS^XZ"), [["AB"]]);
+    assert_eq!(
+        texts(b"^XA^DFR:F.ZPL^FS^CI13,65,195,66,169^FN1^FS^XZ^XA^XFR:F.ZPL^FN1^FH^FD_C3_A9^FS^XZ"),
+        [["AB"]]
+    );
+}
+
+#[test]
+fn encoded_objects_survive_formatting_and_still_check_the_crc() {
+    for envelope in [":B64:8JDwkJA=:24E5", ":Z64:eJz7MOHDhAkAC3UDkQ==:191E"] {
+        let job = format!("^XA~DYR:T.GRF,A,G,5,1,{envelope}^FS^FO10,10^IMR:T.GRF^FS^XZ");
+        assert_eq!(pixels(format_zpl(job.as_bytes())), pixels(job.as_bytes()));
+        for bad in [format!("{envelope}0 "), format!("{envelope}x ")] {
+            let invalid = job.replace(envelope, &bad);
+            assert!(ZplParser::new().parse(invalid.as_bytes()).is_err());
+        }
+    }
+}
+
+#[test]
+fn barcode_dimensions_follow_units_and_selectors_remain_unscaled() {
+    use labelize::elements::barcode_symbol::{BarcodeKind, BarcodeSymbol};
+    let symbol = |job: &str| -> BarcodeSymbol {
+        let labels = ZplParser::new()
+            .parse(format!("^XA{job}^FD123456^FS^XZ").as_bytes())
+            .unwrap();
+        let LabelElement::BarcodeSymbol(b) = &labels[0].elements[0] else {
+            panic!("expected barcode")
+        };
+        b.symbol.clone()
+    };
+    assert_eq!(symbol("^MUM^BAN,10,N").height, 80);
+    assert_eq!(symbol("^MUI^BKN,N,.25,N").height, 51);
+    assert_eq!(symbol("^MUD,200,300^BIN,12,N").height, 18);
+    assert_eq!(symbol("^MUM^BY.5,2.5,7.5^BAN,,N").height, 60);
+    let micro = symbol("^MUM^BFN,.5,13");
+    assert_eq!(micro.height, 4);
+    assert!(matches!(
+        micro.kind,
+        BarcodeKind::MicroPdf417 { variant: 13 }
+    ));
+    let br = symbol("^MUM^BRN,11,3,2,2.5,8");
+    assert_eq!((br.height, br.module), (20, 3));
+    assert!(matches!(
+        br.kind,
+        BarcodeKind::DataBar {
+            variant: 11,
+            separator: 2,
+            segments: 8
+        }
+    ));
+    let tlc = symbol("^MUM^BTN,.5,2.5,10,.375,.5");
+    assert_eq!((tlc.module, tlc.height, tlc.ratio), (4, 80, 2.5));
+    assert!(matches!(
+        tlc.kind,
+        BarcodeKind::Tlc39 {
+            micro_width: 3,
+            micro_height: 4
+        }
+    ));
+    // Code 49 and Codablock specify row height in modules.
+    assert_eq!(symbol("^MUM^BY.375^B4N,4").height, 12);
+    assert_eq!(symbol("^MUM^BY.375^BBN,4,Y,6,2,F").height, 12);
+}
+
+#[test]
+fn advanced_field_direction_places_upright_glyphs() {
+    let font = "~DBR:T.FNT,N,5,4,4,4,2,TEST,#0041.5.4.0.4.4.F090F09090#0042.5.4.0.4.4.E090E090E0";
+    let field =
+        |pos: &str, flow: &str, value: &str| format!("^FO{pos}^A@N,5,4,R:T.FNT{flow}^FD{value}^FS");
+    for settings in ["", "^PA1,0,0,0", "^PA1,1,1,1"] {
+        let render = |fields: String| pixels(format!("{font}^XA^CI28{settings}{fields}^XZ"));
+        assert!(
+            render(field("40,40", "^FPV", "AB"))
+                == render(field("40,40", "", "A") + &field("40,45", "", "B")),
+            "vertical {settings}"
+        );
+        assert!(
+            render(field("40,40", "^FPR,2", "AB"))
+                == render(field("38,40", "", "A") + &field("32,40", "", "B")),
+            "reverse {settings}"
+        );
+    }
+}
+
+#[test]
+fn advanced_directed_fields_rotate_upright_ink_and_advance_the_typeset_pen() {
+    let font = "~DBR:T.FNT,N,5,4,4,4,2,TEST,#0041.5.4.0.4.4.F090F09090#0042.5.4.0.4.4.E090E090E0";
+    let crop = |img: image::GrayImage| {
+        let mut bounds = (img.width(), img.height(), 0, 0);
+        for (x, y, _) in img.enumerate_pixels().filter(|(_, _, p)| p[0] == 0) {
+            bounds = (
+                bounds.0.min(x),
+                bounds.1.min(y),
+                bounds.2.max(x),
+                bounds.3.max(y),
+            );
+        }
+        image::imageops::crop_imm(
+            &img,
+            bounds.0,
+            bounds.1,
+            bounds.2 - bounds.0 + 1,
+            bounds.3 - bounds.1 + 1,
+        )
+        .to_image()
+    };
+    for (flow, next) in [("^FPV", "40,60"), ("^FPR,2", "28,50")] {
+        let draw = |orientation, following: &str| {
+            pixels(format!("{font}^XA^CI28^PA1,1,1,1^FT40,50^A@{orientation},5,4,R:T.FNT{flow}^FDAB^FS{following}^XZ"))
+        };
+        let normal = crop(draw('N', ""));
+        assert!(crop(draw('R', "")) == image::imageops::rotate90(&normal));
+        assert!(crop(draw('I', "")) == image::imageops::rotate180(&normal));
+        assert!(crop(draw('B', "")) == image::imageops::rotate270(&normal));
+        let follow = |pos: &str| format!("^FT{pos}^A@N,5,4,R:T.FNT^FPH^FDA^FS");
+        assert!(draw('N', &follow("")) == draw('N', &follow(next)));
+    }
+}
+
+#[test]
+fn advanced_vertical_flow_moves_a_combining_cluster_as_one_cell() {
+    let draw = |body: &str| pixels(format!("^XA^CI28^PA1,1,1,1{body}^XZ"));
+    let text = draw("^FO40,40^A0N,32,20^FPV^FDA\u{301}B^FS");
+    let separate = draw("^FO40,40^A0N,32,20^FDA\u{301}^FS^FO40,72^A0N,32,20^FDB^FS");
+    assert!(text == separate);
+}
