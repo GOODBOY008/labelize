@@ -10,6 +10,9 @@ use super::{
 pub struct RasterLabel {
     label: Arc<LabelInfo>,
     depth: u8,
+    /// A preceding physical page used as the initial bitmap for this frame.
+    /// Its operations are evaluated in order at the eventual output size.
+    background: Option<Arc<RasterLabel>>,
     pub source_dpmm: i32,
     pub position: LabelPosition,
     /// Page-relative loads include the source's print margins. Field placements
@@ -39,6 +42,7 @@ impl RasterLabel {
         Ok(Self {
             label: Arc::new(label),
             depth,
+            background: None,
             source_dpmm,
             position: LabelPosition::default(),
             page_relative: false,
@@ -48,7 +52,36 @@ impl RasterLabel {
         })
     }
 
+    pub(crate) fn retained(
+        label: LabelInfo,
+        dpmm: i32,
+        previous: Option<&Self>,
+    ) -> Result<Self, String> {
+        let mut frame = Self::new(label, dpmm)?;
+        frame.page_relative = true;
+        if let Some(previous) = previous {
+            frame.depth = frame.depth.max(previous.depth);
+            frame.background = Some(Arc::new(previous.clone()));
+        }
+        Ok(frame)
+    }
+
+    pub(crate) fn background(&self) -> Option<&Self> {
+        self.background.as_deref()
+    }
+
     pub fn label(&self) -> &LabelInfo {
         &self.label
+    }
+}
+
+impl Drop for RasterLabel {
+    fn drop(&mut self) {
+        // A long print job can have many retained frames. Release the unique
+        // tail iteratively even when earlier output labels have been dropped.
+        let mut previous = self.background.take();
+        while let Some(mut frame) = previous.and_then(Arc::into_inner) {
+            previous = frame.background.take();
+        }
     }
 }

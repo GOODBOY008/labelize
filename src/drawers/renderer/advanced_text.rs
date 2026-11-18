@@ -1,6 +1,7 @@
 //! Glyph layout for supplied typefaces, fallback faces and complex scripts.
+use super::text_layout::ResidentMetrics;
 use super::text_layout::{
-    align_directed, directed_buffer, expand_directed_buffer, update_directed_position, LayoutFont,
+    align_directed, directed_buffer, expand_buffer_to_ink, update_directed_position, LayoutFont,
     PlacedGlyph, TextBuffer, TextLayout,
 };
 use super::*;
@@ -67,6 +68,7 @@ struct Faces<'a> {
     shapers: Vec<rustybuzz::Face<'a>>,
     fonts: Vec<FontRef<'a>>,
     scales: Vec<PxScale>,
+    resident: Vec<Option<ResidentMetrics>>,
     resources: &'a FontResources,
     spacing: f32,
 }
@@ -75,10 +77,18 @@ impl Faces<'_> {
     fn choose(&self, cluster: &str) -> usize {
         self.fonts
             .iter()
-            .position(|f| {
+            .enumerate()
+            .find_map(|(index, font)| {
                 cluster
                     .chars()
-                    .all(|c| c.is_control() || c == '\u{200d}' || f.glyph_id(c).0 != 0)
+                    .all(|c| {
+                        let id = self.resident[index].map_or_else(
+                            || font.glyph_id(c),
+                            |m| effective_glyph_id(font, m.letter(c), m.subst.f0),
+                        );
+                        c.is_control() || c == '\u{200d}' || id.0 != 0
+                    })
+                    .then_some(index)
             })
             .unwrap_or(0)
     }
@@ -151,21 +161,26 @@ impl Faces<'_> {
                             last_cluster = Some(start);
                         }
                         let ch = actual.chars().next().unwrap_or(' ');
-                        if gid != 0 || properties.show_missing {
+                        let mut glyph = ab_glyph::GlyphId(gid).with_scale_and_position(
+                            scale,
+                            ab_glyph::point(line.width + dx, scaled.ascent() - dy),
+                        );
+                        let resident = self.resident[face];
+                        let advance = resident
+                            .map_or(advance, |m| m.calibrate(font, &mut glyph, ch, advance));
+                        if glyph.id.0 != 0 || properties.show_missing {
                             run.glyphs.push((
                                 start,
                                 line.clusters.len() - 1,
                                 PlacedGlyph {
                                     character: ch,
                                     extracted: Some(actual.to_owned()),
-                                    glyph: ab_glyph::GlyphId(gid).with_scale_and_position(
-                                        scale,
-                                        ab_glyph::point(line.width + dx, scaled.ascent() - dy),
-                                    ),
+                                    glyph,
                                     x: 0,
                                     y: 0,
                                     color: Rgba([0, 0, 0, 255]),
-                                    dedot: false,
+                                    dedot: resident
+                                        .is_some_and(|m| m.subst.dedot_zero && ch == '0'),
                                     line_start: false,
                                     logical_line: 0,
                                 },
@@ -176,7 +191,11 @@ impl Faces<'_> {
                 if properties.shape || properties.open_type {
                     if let Some(hb) = self.shapers.get(face) {
                         let mut buffer = rustybuzz::UnicodeBuffer::new();
-                        buffer.push_str(value);
+                        if self.resident[face].is_some_and(|m| m.face.uppercases_input()) {
+                            buffer.push_str(&value.to_ascii_uppercase());
+                        } else {
+                            buffer.push_str(value);
+                        }
                         buffer.set_direction(if rtl {
                             rustybuzz::Direction::RightToLeft
                         } else {
@@ -228,7 +247,8 @@ impl Faces<'_> {
                     }
                     for (start, cluster) in clusters {
                         for (i, ch) in cluster.char_indices() {
-                            let id = font.glyph_id(ch);
+                            let id =
+                                font.glyph_id(self.resident[face].map_or(ch, |m| m.letter(ch)));
                             emit(
                                 start,
                                 id.0,
@@ -312,15 +332,29 @@ pub(super) fn layout(
     if let Some((cw, ch)) = resources.native_cell {
         w *= f32::from(ch) / f32::from(cw)
     }
+    let resident: Vec<_> = assets
+        .iter()
+        .zip(&fonts)
+        .map(|(asset, font)| match asset {
+            LayoutFont::Resident(face) => Some(ResidentMetrics::new(text, *face, font)),
+            LayoutFont::Downloaded(_) => None,
+        })
+        .collect();
     let scales = fonts
         .iter()
-        .map(|font| {
-            let factor =
-                font.height_unscaled() / font.units_per_em().unwrap_or(font.height_unscaled());
-            PxScale {
-                x: w * factor,
-                y: h * factor,
-            }
+        .zip(&resident)
+        .map(|(font, calibration)| {
+            calibration.map_or_else(
+                || {
+                    let factor = font.height_unscaled()
+                        / font.units_per_em().unwrap_or(font.height_unscaled());
+                    PxScale {
+                        x: w * factor,
+                        y: h * factor,
+                    }
+                },
+                |m| m.scale,
+            )
         })
         .collect();
     let faces = Faces {
@@ -337,6 +371,7 @@ pub(super) fn layout(
         },
         fonts,
         scales,
+        resident,
         resources,
         spacing: text.flow.character_spacing as f32,
     };
@@ -372,14 +407,18 @@ pub(super) fn layout(
         || lines.iter().map(|l| l.width).fold(0.0, f32::max),
         |b| b.max_width.max(1) as f32,
     );
-    let pitch = h + block.map_or(0, |b| b.line_spacing) as f32;
+    let pitch = faces.resident[0].map_or(h, |m| m.scale.y * m.line_height_factor)
+        + block.map_or(0, |b| b.line_spacing) as f32;
     let slots = block
         .map_or(lines.len(), |b| {
             lines.len().min(b.max_lines.max(1) as usize)
         })
         .max(1);
     let height = h + (slots - 1) as f32 * pitch;
-    let ascent = f64::from(faces.fonts[0].as_scaled(faces.scales[0]).ascent());
+    let ascent = f64::from(faces.resident[0].map_or_else(
+        || faces.fonts[0].as_scaled(faces.scales[0]).ascent(),
+        |m| m.ascent,
+    ));
     let rotated = text.font.orientation != FieldOrientation::Normal;
     let cells = lines
         .iter()
@@ -457,7 +496,8 @@ pub(super) fn layout(
                     }
                 }
                 g.x = if rotated { 0 } else { x as i32 };
-                g.y = if rotated { 0 } else { y as i32 };
+                let shift = faces.resident[run.face].map_or(0.0, |m| m.bitmap_y_shift);
+                g.y = ((if rotated { 0.0 } else { y }) + shift) as i32;
                 g.glyph.position.x += left;
                 g.glyph.position.y += n.min(slots - 1) as f32 * pitch;
                 g.line_start = glyphs.is_empty();
@@ -470,11 +510,9 @@ pub(super) fn layout(
                     glyphs,
                     buffer: buffer.clone(),
                 };
-                if direction != TextDirection::Horizontal {
-                    expand_directed_buffer(&mut layout, &faces.fonts[run.face])?;
-                    if directed_field {
-                        align_directed(text, &mut layout);
-                    }
+                expand_buffer_to_ink(&mut layout, &faces.fonts[run.face])?;
+                if directed_field {
+                    align_directed(text, &mut layout);
                 }
                 if layout.buffer.as_ref().is_some_and(|b| {
                     b.width > 32000

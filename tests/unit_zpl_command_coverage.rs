@@ -518,33 +518,15 @@ fn advanced_field_direction_places_upright_glyphs() {
 #[test]
 fn advanced_directed_fields_rotate_upright_ink_and_advance_the_typeset_pen() {
     let font = "~DBR:T.FNT,N,5,4,4,4,2,TEST,#0041.5.4.0.4.4.F090F09090#0042.5.4.0.4.4.E090E090E0";
-    let crop = |img: image::GrayImage| {
-        let mut bounds = (img.width(), img.height(), 0, 0);
-        for (x, y, _) in img.enumerate_pixels().filter(|(_, _, p)| p[0] == 0) {
-            bounds = (
-                bounds.0.min(x),
-                bounds.1.min(y),
-                bounds.2.max(x),
-                bounds.3.max(y),
-            );
-        }
-        image::imageops::crop_imm(
-            &img,
-            bounds.0,
-            bounds.1,
-            bounds.2 - bounds.0 + 1,
-            bounds.3 - bounds.1 + 1,
-        )
-        .to_image()
-    };
+
     for (flow, next) in [("^FPV", "40,60"), ("^FPR,2", "28,50")] {
         let draw = |orientation, following: &str| {
             pixels(format!("{font}^XA^CI28^PA1,1,1,1^FT40,50^A@{orientation},5,4,R:T.FNT{flow}^FDAB^FS{following}^XZ"))
         };
-        let normal = crop(draw('N', ""));
-        assert!(crop(draw('R', "")) == image::imageops::rotate90(&normal));
-        assert!(crop(draw('I', "")) == image::imageops::rotate180(&normal));
-        assert!(crop(draw('B', "")) == image::imageops::rotate270(&normal));
+        let normal = crop_ink(draw('N', ""));
+        assert!(crop_ink(draw('R', "")) == image::imageops::rotate90(&normal));
+        assert!(crop_ink(draw('I', "")) == image::imageops::rotate180(&normal));
+        assert!(crop_ink(draw('B', "")) == image::imageops::rotate270(&normal));
         let follow = |pos: &str| format!("^FT{pos}^A@N,5,4,R:T.FNT^FPH^FDA^FS");
         assert!(draw('N', &follow("")) == draw('N', &follow(next)));
     }
@@ -617,6 +599,149 @@ fn advanced_justified_blocks_distribute_slack_only_on_nonfinal_lines() {
         assert!(
             draw(field(40, 40, "^FB24,2,0,J^FDA B A B A")) == draw(expected),
             "{settings}"
+        );
+    }
+}
+
+fn crop_ink(img: image::GrayImage) -> image::GrayImage {
+    let mut bounds = (img.width(), img.height(), 0, 0);
+    for (x, y, _) in img.enumerate_pixels().filter(|(_, _, p)| p[0] == 0) {
+        bounds = (
+            bounds.0.min(x),
+            bounds.1.min(y),
+            bounds.2.max(x),
+            bounds.3.max(y),
+        );
+    }
+    image::imageops::crop_imm(
+        &img,
+        bounds.0,
+        bounds.1,
+        bounds.2 - bounds.0 + 1,
+        bounds.3 - bounds.1 + 1,
+    )
+    .to_image()
+}
+
+#[test]
+fn advanced_properties_preserve_resident_font_calibration() {
+    for font in ["0", "B", "C", "D", "P", "1"] {
+        let render = |settings: &str, fo: &str| {
+            pixels(format!(
+                "^XA^CI28{settings}^FO60,60^A{font}N,36,24{fo}^FDH000 HHH HHHH HHH^FS^XZ"
+            ))
+        };
+        for block in ["", "^FB100,3,0,L"] {
+            assert!(
+                render("", block) == render("^PA1,0,0,0", block),
+                "resident {font}, {block}"
+            );
+        }
+    }
+    let draw =
+        |settings: &str| pixels(format!("^XA^CI28{settings}^FO80,80^ACN,36,24^FDHHHH^FS^XZ"));
+    assert!(
+        draw("") == draw("^PA1,1,1,1"),
+        "resident scale and pen during shaping"
+    );
+}
+
+#[test]
+fn rotated_downloaded_horizontal_text_keeps_descenders_and_overhangs() {
+    let font = include_bytes!("../src/assets/fonts/DejaVuSansMono.ttf");
+    for origin in ["^FO140,140", "^FT140,140"] {
+        let draw = |o| {
+            let mut job = format!("~DYR:T.TTF,B,T,{},,", font.len()).into_bytes();
+            job.extend(font);
+            job.extend(format!("^XA^CI28{origin}^A@{o},40,40,R:T.TTF^FDgj_y^FS^XZ").bytes());
+            crop_ink(pixels(job))
+        };
+        let normal = draw('N');
+        assert!(
+            draw('R') == image::imageops::rotate90(&normal),
+            "{origin}, R"
+        );
+        assert!(
+            draw('I') == image::imageops::rotate180(&normal),
+            "{origin}, I"
+        );
+        assert!(
+            draw('B') == image::imageops::rotate270(&normal),
+            "{origin}, B"
+        );
+    }
+}
+
+#[test]
+fn retained_background_preserves_reversals_erasing_and_field_order() {
+    let mut source = "^XA^MCN^FO0,0^GB20,20,20^FS^XZ".to_owned();
+    for _ in 0..21 {
+        source.push_str("^XA^FO5,5^FR^GB10,10,10^FS^XZ");
+    }
+    source.push_str("^XA^XZ^XA^FO1,1^GB2,2,2,W^FS^XZ^XA^XZ");
+    let pages = ZplParser::new().parse(source.as_bytes()).unwrap();
+    let render = |n| render_small_page(&pages[n]);
+    assert_eq!(render(0).get_pixel(10, 10)[0], 0);
+    assert_eq!(render(1).get_pixel(10, 10)[0], 255);
+    for n in [2, 3, 20, 21] {
+        assert_eq!(
+            render(n).get_pixel(10, 10)[0],
+            if n % 2 == 0 { 0 } else { 255 },
+            "label {n}"
+        );
+    }
+    assert!(render(21) == render(22));
+    assert_eq!(render(22).get_pixel(1, 1)[0], 0);
+    assert_eq!(render(23).get_pixel(1, 1)[0], 255);
+    assert!(render(23) == render(24));
+}
+
+fn render_small_page(page: &labelize::elements::label_info::LabelInfo) -> image::GrayImage {
+    let mut bytes = Vec::new();
+    labelize::Renderer::new()
+        .draw_label_as_png(
+            page,
+            &mut bytes,
+            labelize::DrawerOptions {
+                label_width_mm: 6.0,
+                label_height_mm: 6.0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    image::load_from_memory(&bytes).unwrap().to_luma8()
+}
+
+#[test]
+fn retained_reverse_survives_print_width_changes_and_image_recall() {
+    let pages=ZplParser::new().parse(b"^XA^MCN^PW48^FO0,0^GB48,16,16^FS^XZ^XA^PW16^FO0,0^FR^GB16,5,5^FS^XZ^XA^PW48^ISR:STAGE.GRF,N^FS^XZ^XA^MCY^ILR:STAGE.GRF^FS^XZ").unwrap();
+    assert_eq!(pages.len(), 3);
+    let stamped = render_small_page(&pages[1]);
+    assert_eq!(stamped.get_pixel(1, 1)[0], 0);
+    assert_eq!(stamped.get_pixel(24, 1)[0], 255);
+    assert_eq!(stamped, render_small_page(&pages[2]));
+}
+
+#[test]
+fn resident_runs_keep_their_metrics_next_to_a_linked_glyph() {
+    let resident = pixels("^XA^CI28^FO30,30^ACN,36,24^FDHHHH^FS^XZ");
+    let last = resident
+        .enumerate_pixels()
+        .filter(|(_, _, p)| p[0] == 0)
+        .map(|(x, _, _)| x)
+        .max()
+        .unwrap();
+    let font = "~DBR:EXTRA.FNT,N,5,4,4,4,1,TEST,#0378.5.4.0.4.4.F090F09090";
+    for options in ["", "^PA1,1,1,1"] {
+        let mixed = pixels(format!(
+            "{font}^XA^CI28^FLR:EXTRA.FNT,Z:C.FNT,1{options}^FO30,30^ACN,36,24^FDHHHH\u{378}^FS^XZ"
+        ));
+        assert!(mixed
+            .enumerate_pixels()
+            .any(|(x, _, p)| x > last && p[0] == 0));
+        assert!(
+            image::imageops::crop_imm(&resident, 0, 0, last + 1, resident.height()).to_image()
+                == image::imageops::crop_imm(&mixed, 0, 0, last + 1, mixed.height()).to_image()
         );
     }
 }

@@ -50,6 +50,24 @@ struct SubstMetrics {
 }
 
 impl SubstMetrics {
+    fn width_ratio(self, scale: PxScale) -> f32 {
+        if self.f0 {
+            (scale.x / scale.y)
+                * (crate::tuning::FONT0_CAP_SCALE / crate::tuning::FONT0_RATIO) as f32
+        } else {
+            1.0
+        }
+    }
+
+    fn y_offset(self, scale: PxScale) -> f32 {
+        if self.f0 {
+            crate::tuning::TEXT_Y_OFFSET as f32
+                + (crate::tuning::TEXT_Y_OFFSET_EM * scale.y as f64) as f32
+        } else {
+            0.0
+        }
+    }
+
     /// Neutral metrics for the separately calibrated barcode interpretation
     /// lines: the plain substitute cell advance, no font-0 corrections, no
     /// bitmap zero de-dotting.
@@ -97,6 +115,16 @@ impl Renderer {
         options: &DrawerOptions,
         saved_images: &mut SavedImageCache,
     ) -> Result<RgbaImage, String> {
+        self.draw_label_canvas_with_background(label, options, saved_images, None)
+    }
+
+    fn draw_label_canvas_with_background(
+        &self,
+        label: &LabelInfo,
+        options: &DrawerOptions,
+        saved_images: &mut SavedImageCache,
+        background: Option<&saved_images::SavedBitmap>,
+    ) -> Result<RgbaImage, String> {
         let mut state = DrawerState::new();
         let label_width = canvas_dots(options.label_width_mm, options.dpmm) as u32;
         let image_width = if label.print_width > 0 {
@@ -108,6 +136,10 @@ impl Renderer {
 
         let mut canvas =
             RgbaImage::from_pixel(image_width, image_height, Rgba([255, 255, 255, 255]));
+
+        if let Some(background) = background {
+            background.draw_at_origin(&mut canvas, -i64::from((label_width - image_width) / 2));
+        }
 
         let mut reverse_buf: Option<RgbaImage> = None;
 
@@ -168,9 +200,14 @@ impl Renderer {
             let mut page = RgbaImage::from_pixel(label_width, image_height, Rgba([255; 4]));
             let offset = (label_width - image_width) / 2;
             image::imageops::overlay(&mut page, &canvas, i64::from(offset), 0);
-            for (x, margin) in
-                saved_images.margins(label, options, label_width, image_width, image_height)?
-            {
+            for (x, margin) in saved_images.margins(
+                label,
+                options,
+                label_width,
+                image_width,
+                image_height,
+                background,
+            )? {
                 image::imageops::overlay(&mut page, &margin, i64::from(x), 0);
             }
             // Compositing on paper before rotation also blends translucent ink.

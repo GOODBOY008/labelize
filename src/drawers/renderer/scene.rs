@@ -595,7 +595,7 @@ impl LabelScene {
             transform
         };
         let margins = saved_images
-            .margins(label, &options, width, content_width, height)
+            .margins(label, &options, width, content_width, height, None)
             .map_err(LabelizeError::Render)?;
         for (page_x, margin) in margins {
             if let Some((image, x, y)) = crop_covered(&margin) {

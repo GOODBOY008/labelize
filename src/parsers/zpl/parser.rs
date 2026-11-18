@@ -165,7 +165,7 @@ impl ZplParser {
                 if result_elements.is_empty()
                     && self.printer.next_download_format_name.is_empty()
                     && self.printer.image_saves.is_empty()
-                    && self.printer.retained_layers.is_empty()
+                    && self.printer.retained_image.is_none()
                 {
                     continue;
                 }
@@ -213,13 +213,11 @@ impl ZplParser {
                         label_height_mm,
                         elements: shifted,
                     };
-                    let previous: Vec<_> = self
+                    let previous = self
                         .printer
-                        .retained_layers
-                        .iter()
-                        .cloned()
-                        .map(LabelElement::RasterLabel)
-                        .collect();
+                        .retained_image
+                        .clone()
+                        .map(LabelElement::RasterLabel);
                     label.elements.splice(0..0, previous.iter().cloned());
                     if !self.printer.image_saves.is_empty() {
                         let saved = RasterLabel::new(label.clone(), self.printer.dpmm)?;
@@ -265,9 +263,11 @@ impl ZplParser {
                             self.printer.label_top,
                         );
                         if !label.elements.is_empty() {
-                            let mut layer = RasterLabel::new(label, self.printer.dpmm)?;
-                            layer.page_relative = true;
-                            self.printer.retained_layers.push(layer);
+                            self.printer.retained_image = Some(RasterLabel::retained(
+                                label,
+                                self.printer.dpmm,
+                                self.printer.retained_image.as_ref(),
+                            )?);
                         }
                     }
                 } else {
@@ -531,7 +531,7 @@ impl ZplParser {
                 "N" => self.printer.keep_bitmap = true,
                 "Y" => {
                     self.printer.keep_bitmap = false;
-                    self.printer.retained_layers.clear();
+                    self.printer.retained_image = None;
                 }
                 _ => {}
             }
