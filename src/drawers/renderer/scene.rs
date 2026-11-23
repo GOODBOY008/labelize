@@ -71,6 +71,10 @@ enum Op {
         face: text_layout::LayoutFont,
         glyphs: Vec<text_layout::PlacedGlyph>,
     },
+    TextBlock {
+        logical_text: String,
+        ops: Vec<Op>,
+    },
     Image {
         image: Arc<RgbaImage>,
         x: f32,
@@ -199,18 +203,27 @@ impl LabelScene {
             let element = adjusted.as_ref().unwrap_or(element);
             match element {
                 LabelElement::Text(text) => {
-                    for layout in
-                        text_layout::layouts(text, &mut state).map_err(LabelizeError::Render)?
-                    {
-                        let op = text_op(layout);
-                        collect_text_bounds(
-                            std::slice::from_ref(&op),
-                            Transform::identity(),
-                            None,
-                            &mut source_text_bounds,
-                        );
-                        ops.push(op);
+                    let field =
+                        text_layout::layouts(text, &mut state).map_err(LabelizeError::Render)?;
+                    let start = ops.len();
+                    let logical_text = field
+                        .logical_text
+                        .filter(|_| field.runs.iter().any(|run| !run.glyphs.is_empty()));
+                    let runs = field.runs.into_iter().map(text_op);
+                    if let Some(logical_text) = logical_text {
+                        ops.push(Op::TextBlock {
+                            logical_text,
+                            ops: runs.collect(),
+                        });
+                    } else {
+                        ops.extend(runs);
                     }
+                    collect_text_bounds(
+                        &ops[start..],
+                        Transform::identity(),
+                        None,
+                        &mut source_text_bounds,
+                    );
                 }
                 LabelElement::GraphicBox(g) => {
                     let w = g.width.max(g.border_thickness) as f32;
@@ -705,7 +718,7 @@ fn count_ops(ops: &[Op], stats: &mut SceneStats) {
             Op::Path { .. } => stats.paths += 1,
             Op::Text { glyphs, .. } => stats.glyphs += glyphs.len(),
             Op::Image { .. } => stats.images += 1,
-            Op::Group { ops, .. } => count_ops(ops, stats),
+            Op::Group { ops, .. } | Op::TextBlock { ops, .. } => count_ops(ops, stats),
         }
     }
 }
@@ -884,6 +897,7 @@ fn symbol_paths(image: &RgbaImage) -> Result<Vec<Op>, LabelizeError> {
 fn collect_text_bounds(ops: &[Op], transform: Transform, clip: Option<Rect>, out: &mut Vec<Rect>) {
     for op in ops {
         match op {
+            Op::TextBlock { ops, .. } => collect_text_bounds(ops, transform, clip, out),
             Op::Text { face, glyphs } => {
                 let Ok(font) = FontRef::try_from_slice(face.ttf_data()) else {
                     continue;

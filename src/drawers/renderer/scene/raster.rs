@@ -80,6 +80,7 @@ fn draw_ops(
 ) -> Result<(), LabelizeError> {
     for op in ops {
         match op {
+            Op::TextBlock { ops, .. } => draw_ops(ops, pixmap, transform, clip)?,
             Op::Path { path, color, rule } => {
                 let mut paint = Paint::default();
                 paint.set_color_rgba8(*color, *color, *color, 255);
