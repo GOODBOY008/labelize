@@ -39,7 +39,7 @@ def compare(actual, reference, name):
         raise AssertionError(f"{name}: {changed} pixels differ from the fixed golden")
 
 
-def check_searchable(path, expected_text):
+def check_searchable(path, expected_text, *, exact=False):
     """Use actual viewer search, plus two independent Unicode text extractors."""
     if not expected_text:
         return
@@ -50,6 +50,9 @@ def check_searchable(path, expected_text):
             "pdfium": textpage.get_text_range(),
             "poppler": subprocess.check_output(["pdftotext", "-layout", str(path), "-"], text=True),
         }
+        if exact:
+            for engine, text in texts.items():
+                assert " ".join(text.split()) == " ".join(expected_text), f"{engine} extracted {text!r}"
         for expected in expected_text:
             for engine, text in texts.items():
                 assert expected in " ".join(text.split()), f"{engine} lost {expected!r}"

@@ -21,6 +21,8 @@ CASES = {
     "shaped-r": "REVERSE", "shaped-v": "VERTICAL",
     "r-block": "REVERSE", "r-wrapped": "REVERSE",
     "r-words": "FIRST SECOND THIRD", "shaped-r-words": "FIRST SECOND THIRD",
+    "r-clipped": "KEEP", "shaped-r-clipped": "KEEP",
+    "r-clipped-word": "CDEFGHIJK CAFÉ", "shaped-r-clipped-word": "CDEFGHIJK CAFÉ",
 }
 
 
@@ -67,7 +69,7 @@ class FieldParameterPdf(unittest.TestCase):
             for value in (page["size_pt"][2] - page["size_pt"][0],
                           page["size_pt"][3] - page["size_pt"][1]):
                 self.assertAlmostEqual(value, 80 * 72 / 25.4, delta=0.001)
-            check_searchable(path, [text])
+            check_searchable(path, [text], exact=True)
             result["structure"] = page
             result["searchable_in_pdfium_and_poppler"] = True
             with Image.open(OUTPUT / f"{stem}-3x.png") as scene:
@@ -131,6 +133,11 @@ class FieldParameterPdf(unittest.TestCase):
 
     def test_reverse_wrapped_words_retain_logical_order(self):
         for name in ("r-words", "shaped-r-words"):
+            with self.subTest(name=name):
+                self.verify_flow(name)
+
+    def test_reverse_clipped_block_exposes_only_the_retained_text(self):
+        for name in ("r-clipped", "shaped-r-clipped", "r-clipped-word", "shaped-r-clipped-word"):
             with self.subTest(name=name):
                 self.verify_flow(name)
 

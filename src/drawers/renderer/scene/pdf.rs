@@ -79,6 +79,14 @@ fn pdf_path(path: &Path) -> Result<PdfPath, LabelizeError> {
         .ok_or_else(|| LabelizeError::Render("invalid drawing path".into()))
 }
 
+fn first_text_line(op: &Op) -> Option<usize> {
+    match op {
+        Op::Text { glyphs, .. } => glyphs.first().map(|glyph| glyph.logical_line),
+        Op::Group { ops, .. } => ops.first().and_then(first_text_line),
+        _ => None,
+    }
+}
+
 fn draw_ops(
     ops: &[Op],
     surface: &mut Surface<'_>,
@@ -154,7 +162,13 @@ fn draw_ops(
                 surface.start_tagged(ContentTag::Span(
                     SpanTag::empty().with_actual_text(Some(logical_text)),
                 ));
-                let result = draw_ops(ops, surface, fonts, outlined, true);
+                // Reverse blocks wrap from the end of the source. Emit shaped
+                // lines in reading order so viewers can locate the span even
+                // when each run has its own clipping transform.
+                let result = ops
+                    .chunk_by(|a, b| first_text_line(a) == first_text_line(b))
+                    .rev()
+                    .try_for_each(|line| draw_ops(line, surface, fonts, outlined, true));
                 surface.end_tagged();
                 result?;
             }

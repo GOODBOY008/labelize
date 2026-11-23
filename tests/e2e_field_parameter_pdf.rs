@@ -9,30 +9,52 @@ use std::path::Path;
 fn export_field_parameter_native_pdf_probes() {
     let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("output/vector-golden");
     std::fs::create_dir_all(&directory).unwrap();
-    for (name, command, text, x, y) in [
-        ("h", "^FPH,15", "FIELDGAP", 80, 80),
-        ("r", "^FPR,10", "REVERSE", 400, 160),
-        ("v", "^FPV,30", "VERTICAL", 80, 240),
-        ("shaped-r", "^PA1,1,1,1^FPR,10", "REVERSE", 400, 160),
-        ("shaped-v", "^PA1,1,1,1^FPV,30", "VERTICAL", 80, 240),
-        ("r-block", "^FPR,10^FB300,1,0,L,0", "REVERSE", 400, 160),
-        ("r-wrapped", "^FPR,10^FB100,5,0,L,0", "REVERSE", 400, 160),
+    for (name, command, text, origin) in [
+        ("h", "^FPH,15", "FIELDGAP", "80,80"),
+        ("r", "^FPR,10", "REVERSE", "400,160"),
+        ("v", "^FPV,30", "VERTICAL", "80,240"),
+        ("shaped-r", "^PA1,1,1,1^FPR,10", "REVERSE", "400,160"),
+        ("shaped-v", "^PA1,1,1,1^FPV,30", "VERTICAL", "80,240"),
+        ("r-block", "^FPR,10^FB300,1,0,L,0", "REVERSE", "400,160"),
+        ("r-wrapped", "^FPR,10^FB100,5,0,L,0", "REVERSE", "400,160"),
         (
             "r-words",
             "^FPR,10^FB150,5,0,L,0",
             "FIRST SECOND THIRD",
-            400,
-            160,
+            "400,160",
         ),
         (
             "shaped-r-words",
             "^PA1,1,1,1^FPR,10^FB150,5,0,L,0",
             "FIRST SECOND THIRD",
-            400,
-            160,
+            "400,160",
+        ),
+        (
+            "r-clipped",
+            "^FPR,0^TBN,150,40",
+            "HIDDEN OMITTED KEEP",
+            "400,160,1",
+        ),
+        (
+            "shaped-r-clipped",
+            "^PA1,1,1,1^FPR,0^TBN,150,40",
+            "HIDDEN OMITTED KEEP",
+            "400,160,1",
+        ),
+        (
+            "r-clipped-word",
+            "^CI28^FPR,0^TBN,150,95",
+            "HIDDEN ABCDEFGHIJK CAFÉ",
+            "400,160,1",
+        ),
+        (
+            "shaped-r-clipped-word",
+            "^CI28^PA1,1,1,1^FPR,0^TBN,150,95",
+            "HIDDEN ABCDEFGHIJK CAFÉ",
+            "400,160,1",
         ),
     ] {
-        let source = format!("^XA^PW640^LL640^FO{x},{y}^A0N,40,32{command}^FD{text}^FS^XZ\n");
+        let source = format!("^XA^PW640^LL640^FO{origin}^A0N,40,32{command}^FD{text}^FS^XZ\n");
         let options = RenderOptions {
             language: Some(Language::Zpl),
             width_mm: Some(80.0),

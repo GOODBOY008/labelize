@@ -163,15 +163,6 @@ pub(crate) fn layouts(text: &TextField, state: &mut DrawerState) -> Result<Field
         state.update_automatic_text_position(text, f64::from(width));
         return Ok(field);
     }
-    let reverse_block = cfg!(feature = "vector")
-        && text.block.is_some()
-        && text.flow.direction == TextDirection::Reverse;
-    let resident = |state: &mut DrawerState| {
-        Ok(FieldLayout {
-            runs: vec![layout(text, state)?],
-            logical_text: reverse_block.then(|| resident_text(text)),
-        })
-    };
     if let Some(resources) = &text.font.resources {
         let props = &resources.properties;
         if resources.primary.is_none()
@@ -192,16 +183,25 @@ pub(crate) fn layouts(text: &TextField, state: &mut DrawerState) -> Result<Field
             });
             // No fallback or missing-glyph marker is needed for this field.
             if ordinary || (!props.show_missing && resources.fallbacks.is_empty()) {
-                return resident(state);
+                return resident_field(text, state);
             }
         }
-        Ok(FieldLayout {
-            runs: super::advanced_text::layout(text, state, resources)?,
-            logical_text: reverse_block.then(|| text.text.clone()),
-        })
+        super::advanced_text::layout(text, state, resources)
     } else {
-        resident(state)
+        resident_field(text, state)
     }
+}
+
+fn resident_field(text: &TextField, state: &mut DrawerState) -> Result<FieldLayout, String> {
+    if let Some(block) = &text.block
+        && text.flow.direction != TextDirection::Horizontal
+    {
+        return layout_directed_block(text, state, block);
+    }
+    Ok(FieldLayout {
+        runs: vec![layout(text, state)?],
+        logical_text: None,
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -405,9 +405,6 @@ fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, Strin
     let font_size = text.font.get_size() as f32;
     let f0 = subst.f0;
 
-    if text.flow.direction != TextDirection::Horizontal && text.block.is_some() {
-        return layout_directed_block(text, state, &drawn_text, &font, scale, subst);
-    }
     if text.flow.direction != TextDirection::Horizontal {
         return layout_directed(text, state, &drawn_text, &font, scale, subst);
     }
@@ -820,23 +817,27 @@ fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, Strin
 fn layout_directed_block(
     text: &TextField,
     state: &mut DrawerState,
-    drawn_text: &str,
-    font: &FontRef,
-    scale: PxScale,
-    subst: SubstMetrics,
-) -> Result<TextLayout, String> {
+    block: &crate::elements::field_block::FieldBlock,
+) -> Result<FieldLayout, String> {
+    let face = text.font.face;
+    let font = &FontRef::try_from_slice(face.ttf_data()).map_err(|e| e.to_string())?;
+    let ResidentMetrics { scale, subst, .. } = ResidentMetrics::new(text, face, font);
     let mut horizontal = text.clone();
     horizontal.flow.direction = TextDirection::Horizontal;
     if text.flow.direction == TextDirection::Reverse {
-        horizontal.text = drawn_text.chars().rev().collect();
+        horizontal.text = resident_text(text).chars().rev().collect();
     }
-    let lines = word_wrap_details(
-        &horizontal.text,
-        font,
-        scale,
-        text.block.as_ref().expect("directed block"),
-        subst,
-    );
+    let lines = word_wrap_details(&horizontal.text, font, scale, block, subst);
+    let logical_text = (cfg!(feature = "vector") && text.flow.direction == TextDirection::Reverse)
+        .then(|| {
+            let limit = block.line_limit();
+            let end = if lines.len() > limit {
+                lines[limit - 1].source_end
+            } else {
+                horizontal.text.len()
+            };
+            horizontal.text[..end].chars().rev().collect()
+        });
     let mut result = layout(&horizontal, state)?;
     let reverse_offsets: Vec<f32> = if text.flow.direction == TextDirection::Reverse {
         lines
@@ -894,7 +895,10 @@ fn layout_directed_block(
         }
     }
     expand_buffer_to_ink(&mut result, font)?;
-    Ok(result)
+    Ok(FieldLayout {
+        runs: vec![result],
+        logical_text,
+    })
 }
 
 fn layout_directed(
@@ -1295,10 +1299,7 @@ fn draw_text_block(
             (v + line_y_phase).round()
         }
     };
-    for (i, line) in lines.iter().enumerate() {
-        if i >= max_lines && !block.overwrite_last_line {
-            break;
-        }
+    for (i, line) in lines.iter().take(block.line_limit()).enumerate() {
         let slot = i.min(max_lines - 1);
         let first_glyph = canvas.len();
         let first = slot == 0;

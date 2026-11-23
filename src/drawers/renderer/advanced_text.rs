@@ -1,8 +1,8 @@
 //! Glyph layout for supplied typefaces, fallback faces and complex scripts.
 use super::text_layout::ResidentMetrics;
 use super::text_layout::{
-    align_directed, directed_buffer, expand_buffer_to_ink, update_directed_position, LayoutFont,
-    PlacedGlyph, TextBuffer, TextLayout,
+    align_directed, directed_buffer, expand_buffer_to_ink, update_directed_position, FieldLayout,
+    LayoutFont, PlacedGlyph, TextBuffer, TextLayout,
 };
 use super::*;
 use crate::elements::font::FontResources;
@@ -307,7 +307,7 @@ pub(super) fn layout(
     text: &TextField,
     state: &mut DrawerState,
     resources: &FontResources,
-) -> Result<Vec<TextLayout>, String> {
+) -> Result<FieldLayout, String> {
     let mut assets = vec![resources
         .primary
         .clone()
@@ -388,13 +388,20 @@ pub(super) fn layout(
     } else {
         source.split('\n').collect()
     };
+    let limit = block.map_or(usize::MAX, |b| b.line_limit());
+    let logical_text = reversed
+        .as_deref()
+        .filter(|_| cfg!(feature = "vector"))
+        .map(|visual| {
+            if lines.len() <= limit {
+                return text.text.clone();
+            }
+            let end = source_range(visual, lines[limit - 1]).end;
+            visual[..end].graphemes(true).rev().collect()
+        });
     let mut lines: Vec<_> = lines
         .into_iter()
-        .take(
-            block
-                .filter(|b| !b.overwrite_last_line)
-                .map_or(usize::MAX, |b| b.max_lines.max(1) as usize),
-        )
+        .take(limit)
         .map(|line| {
             if reversed.is_some() {
                 faces.line(&line.graphemes(true).rev().collect::<String>())
@@ -525,5 +532,8 @@ pub(super) fn layout(
             }
         }
     }
-    Ok(out)
+    Ok(FieldLayout {
+        runs: out,
+        logical_text,
+    })
 }

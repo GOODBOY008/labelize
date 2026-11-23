@@ -15,6 +15,16 @@ pub struct FieldBlock {
     pub overwrite_last_line: bool,
 }
 
+impl FieldBlock {
+    pub(crate) fn line_limit(&self) -> usize {
+        if self.overwrite_last_line {
+            usize::MAX
+        } else {
+            self.max_lines.max(1) as usize
+        }
+    }
+}
+
 impl Default for FieldBlock {
     fn default() -> Self {
         FieldBlock {

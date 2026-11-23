@@ -1042,6 +1042,14 @@ fn word_wrap(
 struct WrappedLine {
     text: String,
     trailing_word_space: bool,
+    /// End of this line in the source, before wrapping normalized whitespace.
+    source_end: usize,
+}
+
+/// Byte range of a slice borrowed from the source by a wrapping iterator.
+fn source_range(source: &str, slice: &str) -> std::ops::Range<usize> {
+    let start = slice.as_ptr().addr() - source.as_ptr().addr();
+    start..start + slice.len()
 }
 
 fn word_wrap_details(
@@ -1058,29 +1066,34 @@ fn word_wrap_details(
     let max_width = block.max_width as f32;
     let mut lines = Vec::new();
     for line in text.split('\n') {
+        let mut source_end = source_range(text, line).start;
         let words: Vec<&str> = line.split_whitespace().collect();
         if words.is_empty() {
             lines.push(WrappedLine {
                 text: String::new(),
                 trailing_word_space: false,
+                source_end,
             });
             continue;
         }
         let mut current_line = String::new();
         for word in words {
+            let word_range = source_range(text, word);
             if !current_line.is_empty() {
                 let test = format!("{} {}", current_line, word);
                 if measure_text_width(&test, font, scale, m) <= max_width {
                     current_line = test;
+                    source_end = word_range.end;
                     continue;
                 }
                 lines.push(WrappedLine {
                     text: std::mem::take(&mut current_line),
                     trailing_word_space: true,
+                    source_end,
                 });
             }
             if block.wrap_long_words && measure_text_width(word, font, scale, m) > max_width {
-                for ch in word.chars() {
+                for (offset, ch) in word.char_indices() {
                     let previous_len = current_line.len();
                     current_line.push(ch);
                     if previous_len > 0
@@ -1090,6 +1103,7 @@ fn word_wrap_details(
                         lines.push(WrappedLine {
                             text: std::mem::take(&mut current_line),
                             trailing_word_space: false,
+                            source_end: word_range.start + offset,
                         });
                         current_line.push(ch);
                     }
@@ -1097,10 +1111,12 @@ fn word_wrap_details(
             } else {
                 current_line.push_str(word);
             }
+            source_end = word_range.end;
         }
         lines.push(WrappedLine {
             text: current_line,
             trailing_word_space: false,
+            source_end,
         });
     }
     lines
