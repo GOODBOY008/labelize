@@ -7,8 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-11-23
+
+### Added
+
+- Render 16 additional ZPL barcode commands, including Code 93, Codablock,
+  MicroPDF417, GS1 DataBar and USPS postal symbols.
+- ZPL formats can use downloaded bitmap and TrueType fonts, linked fallback
+  fonts, bounded text blocks (`^TB`), field references (`^FE`), printer clocks
+  (`^FC`) and serial fields (`^SN` and `^SF`).
+- ZPL jobs can change command prefixes and parameter delimiters with `^CC`,
+  `^CT` and `^CD`. `^MCN` retains the printed background for later formats.
+
+### Changed
+
+- **Rust SDK compatibility.** Code that constructs `FieldBlock`, `FontInfo`,
+  `FieldInfo` or `RecalledFieldData` with explicit field lists needs the new
+  fields. For example, use `max_height: None` for an unconstrained
+  `FieldBlock`. Construct `VirtualPrinter` through `new()` or `default()`.
+  Exhaustive matches on `LabelElement` must handle `RasterLabel`,
+  `BarcodeSymbol` and `BarcodeSymbolConfig`.
+- `^PQq,p,r` now produces `q` labels in total. The third parameter groups
+  consecutive copies of each serial value. For example, `^PQ3,0,2` produces
+  three labels, down from six in 1.12.0.
+- The crate builds with the Rust 2024 edition. The crates.io README and
+  Rust SDK guide now include examples for parsing and rendering labels.
+
 ### Fixed
 
+- Decode ASCII-hex ZPL graphics containing spaces, tabs and line breaks,
+  including compressed runs and repeated rows.
+- Preserve the logical reading order of reverse field-block text in searchable
+  vector PDFs and exclude truncated text from search results.
 - Recognize ZPL `^B0` as the Aztec alias of `^BO`.
 - Correct `^IM` to draw stored graphics, and `^IS` to save the completed
   label bitmap with its print flag, for recall using `^IL`, `^IM` or `^XG`.
