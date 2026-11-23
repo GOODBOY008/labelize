@@ -99,6 +99,13 @@ git push origin main
 
 ### 8. Create and Push the Tag
 
+Before the first stable release using trusted publishing, open the npm package
+settings for `@goodboy008/labelize-wasm` and add a **GitHub Actions** trusted
+publisher. Enter owner `GOODBOY008`, repository `labelize`, and workflow
+filename `release.yml`. Leave the environment blank and enable **Allow npm publish**.
+The first successful publish must occur within two days of setup.
+[npm package settings](https://www.npmjs.com/package/@goodboy008/labelize-wasm/access) · [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/)
+
 ```bash
 git tag vX.Y.Z
 git push origin vX.Y.Z
@@ -108,6 +115,7 @@ Pushing a tag matching `v*` triggers the `release.yml` workflow automatically:
 - Builds binaries for Linux x86_64, macOS aarch64, macOS x86_64
 - Creates a **GitHub Release** with auto-generated notes and binary assets
 - Publishes the crate to **crates.io**
+- Publishes `@goodboy008/labelize-wasm` to npm on stable tags
 - Dispatches a Homebrew formula update to `GOODBOY008/homebrew-labelize`
 
 ### 9. Verify the GitHub Release (Optional)
@@ -115,6 +123,7 @@ Pushing a tag matching `v*` triggers the `release.yml` workflow automatically:
 After the workflow completes (~5 min), check:
 - `https://github.com/GOODBOY008/labelize/releases/tag/vX.Y.Z` has 3 binary assets
 - `https://crates.io/crates/labelize` shows the new version
+- For a stable tag, `npm view @goodboy008/labelize-wasm@X.Y.Z version dist.attestations.url --registry=https://registry.npmjs.org` shows the version and its attestation URL.
 - Homebrew formula update PR opened in `GOODBOY008/homebrew-labelize`
 
 ## Quick Checklist
