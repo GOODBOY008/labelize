@@ -2,13 +2,14 @@
 name = "labelize"
 version = "1.12.0"
 edition = "2024"
-description = "Fast ZPL, EPL, TSPL/TSC, CPCL & DPL label parser and renderer — convert label data to PNG/PDF. Open-source Labelary alternative."
+description = "Render ZPL, EPL, TSPL/TSC, CPCL and DPL thermal printer labels and barcodes to PNG or PDF offline. Encode images as ZPL or TSPL."
 keywords = ["zpl", "epl", "tspl", "cpcl", "dpl"]
-categories = ["graphics", "parsing"]
+categories = ["parser-implementations", "graphics", "rendering", "multimedia::images", "command-line-utilities"]
 repository = "https://github.com/GOODBOY008/labelize"
-homepage = "https://github.com/GOODBOY008/labelize"
+homepage = "https://labelize.764629910.workers.dev"
+documentation = "https://docs.rs/labelize"
 license = "MIT AND BSD-3-Clause"
-readme = "README.md"
+readme = "README.crate.md"
 exclude = [
     "testdata/",
     "docs/",
@@ -23,6 +24,9 @@ exclude = [
     "AGENTS.md",
     "CHANGELOG.md",
 ]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [dependencies]
 image = "0.25"

@@ -12,7 +12,7 @@
 [![Docker](https://img.shields.io/github/actions/workflow/status/GOODBOY008/labelize/docker.yml?branch=main&label=docker)](https://github.com/GOODBOY008/labelize/actions/workflows/docker.yml)
 [![License](https://img.shields.io/github/license/GOODBOY008/labelize)](LICENSE)
 
-[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](https://labelize.764629910.workers.dev/#docs/getting-started) · [API console](https://labelize.764629910.workers.dev/#api) · [💬 Discussions](https://github.com/GOODBOY008/labelize/discussions) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
+[🌐 Playground](https://labelize.764629910.workers.dev) · [📚 Documentation](https://labelize.764629910.workers.dev/#docs/getting-started) · [Rust API](https://docs.rs/labelize) · [API console](https://labelize.764629910.workers.dev/#api) · [💬 Discussions](https://github.com/GOODBOY008/labelize/discussions) · [📜 Changelog](CHANGELOG.md) · [🚀 Releases](https://github.com/GOODBOY008/labelize/releases)
 
 <img src="docs/playground.png" alt="The Labelize web playground rendering a shipping label" width="860"/>
 

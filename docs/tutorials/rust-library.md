@@ -8,19 +8,18 @@ assert on rendered labels.
 
 ## 1. Add the dependency
 
-```toml
-[dependencies]
-labelize = "1.8"
-image = "0.25"   # only if you post-process the rendered pixels
+```sh
+cargo add labelize
 ```
 
-The default features are enough for library use; `cli` / `serve` features are
-only needed for the binaries.
+The default library renders all five printer languages to PNG or raster PDF.
+Enable `vector` for searchable PDF or scaled PNG output. The
+[Rust API reference](https://docs.rs/labelize) lists the optional features.
 
 ## 2. One call: `render_png` / `render_pdf`
 
-The high-level API ([`src/render.rs`](../../src/render.rs)) detects the
-language, parses, resolves the canvas, and encodes — bytes in, bytes out:
+`render_png` and `render_pdf` detect the language, choose the canvas size and
+encode the first label. The result also tells you how many labels the input contains.
 
 ```rust
 use labelize::{render_png, RenderOptions};
@@ -56,10 +55,8 @@ service maps to 400 vs 500.
 
 ## 3. The composable path: detect → parse → render
 
-When you need element-level access, want to iterate every label, or stream
-into your own writer, drop to the front door in
-[`src/lang.rs`](../../src/lang.rs) — one enum, one dispatch, all three
-languages:
+Use `parse_labels` to inspect elements, iterate through a batch or render into
+your own writer. It accepts ZPL, EPL, TSPL/TSC, CPCL and DPL.
 
 ```rust
 use std::io::Cursor;
@@ -67,8 +64,6 @@ use labelize::{detect_language, parse_labels, DrawerOptions, Renderer};
 
 let input = b"^XA^FO50,50^A0N,40,40^FDHello^FS^XZ";
 
-// Detect the language from the shape of the data (caret stream → ZPL,
-// letter+commas lines → EPL, `SIZE`/`TEXT` words → TSPL).
 let language = detect_language(input);
 
 // Parse — one input can contain several labels (^XA…^XZ repeated, ^PQ
@@ -91,9 +86,8 @@ use labelize::{parse_labels, Language};
 let labels = parse_labels(Language::Tspl, tspl_bytes, 8)?;
 ```
 
-The per-language parsers (`ZplParser`, `EplParser`, `TsplParser`) remain
-public for direct use, but `parse_labels` is the recommended entry point —
-it is the only place that picks a parser, and new languages land there.
+For language-specific settings, use the corresponding parser directly. For
+example, `ZplParser::parse_with_options` accepts `ZplParseOptions`.
 
 ## 4. Validate without rendering
 
@@ -161,10 +155,12 @@ service prefer an explicit user size, then the label's declared one, then
 the fallback — copy the pattern when dimensions are optional for you:
 
 ```rust
+use labelize::{DEFAULT_LABEL_HEIGHT_MM, DEFAULT_LABEL_WIDTH_MM};
+
 let label = &labels[0];
 let options = DrawerOptions {
-    label_width_mm: user_width.or(label.label_width_mm).unwrap_or(101.6),
-    label_height_mm: user_height.or(label.label_height_mm).unwrap_or(203.2),
+    label_width_mm: user_width.or(label.label_width_mm).unwrap_or(DEFAULT_LABEL_WIDTH_MM),
+    label_height_mm: user_height.or(label.label_height_mm).unwrap_or(DEFAULT_LABEL_HEIGHT_MM),
     dpmm: 8,
     ..DrawerOptions::default()
 };
@@ -172,19 +168,32 @@ let options = DrawerOptions {
 
 ## 7. PDF output
 
-The default raster PDF wraps the rendered pixels in a single-page document.
-For native searchable text and multipage output, see [Vector output](../VECTOR_OUTPUT.md).
+Use `render_pdf(input, RenderOptions::default())?` for a single raster page.
+To preserve searchable text and combine labels into one PDF, enable `vector`.
+
+```sh
+cargo add labelize --features vector
+```
 
 ```rust
-use labelize::encode_pdf;
+use labelize::{render_pdf_with_output, OutputMode, OutputOptions, RenderOptions};
 
-let mut png = Cursor::new(Vec::new());
-renderer.draw_label_as_png(&labels[0], &mut png, options.clone())?;
-let img = image::load_from_memory(&png.into_inner())?.to_rgba8();
-let mut pdf = Cursor::new(Vec::new());
-encode_pdf(&img, &options, &mut pdf)?;
-std::fs::write("output.pdf", pdf.into_inner())?;
+let job = concat!(
+    "^XA^FO20,20^A0N,32,32^FDParcel A^FS^XZ",
+    "^XA^FO20,20^A0N,32,32^FDParcel B^FS^XZ",
+);
+let output = OutputOptions {
+    mode: OutputMode::Vector,
+    all_pages: true,
+    ..OutputOptions::default()
+};
+let pdf = render_pdf_with_output(job.as_bytes(), RenderOptions::default(), output)?;
+std::fs::write("parcels.pdf", pdf.bytes)?;
 ```
+
+Each label gets its own page. Ordinary text stays searchable, while embedded
+images retain their source resolution. See [Vector output](../VECTOR_OUTPUT.md)
+for scaling and raster fallback details.
 
 ## 8. Multiple labels per input
 
@@ -218,8 +227,8 @@ instead of an `Err` you unpack after.
 
 ## 10. A complete, runnable example
 
-The repo ships a ~90-line example that turns these pieces into a mini
-`convert` command with PNG/PDF output:
+From a checkout of the project, run the ZPL/EPL converter example to write a
+PNG or PDF.
 
 ```bash
 cargo run --example render_label -- testdata/labels/amazon.zpl out.png

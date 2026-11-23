@@ -106,8 +106,25 @@ impl ReverseOptions {
 /// Decode a raster and encode it for the selected printer language.
 ///
 /// Inputs are limited to 16 Mi pixels, 32000 dots per dimension and 128 MiB
-/// of decoded data. Dimensions are checked before decoding pixels; invalid input
-/// return [`LabelizeError::Encode`].
+/// of decoded data. Dimensions are checked before decoding pixels. Invalid input
+/// returns [`LabelizeError::Encode`].
+///
+/// ZPL output contains ASCII graphic commands. TSPL output embeds binary bitmap
+/// data, so pass the returned bytes directly to a file or printer.
+///
+/// ```
+/// use labelize::{encode_image_bytes, render_png, RenderOptions, ReverseLanguage, ReverseOptions};
+///
+/// let source = b"SIZE 8 mm,4 mm\nCLS\nBAR 0,0,8,8\nPRINT 1\n";
+/// let png = render_png(source, RenderOptions::default())?;
+/// let options = ReverseOptions::default();
+///
+/// let zpl = encode_image_bytes(&png.bytes, &options, ReverseLanguage::Zpl)?;
+/// let tspl = encode_image_bytes(&png.bytes, &options, ReverseLanguage::Tspl)?;
+/// assert!(zpl.starts_with(b"^XA"));
+/// assert!(tspl.starts_with(b"SIZE "));
+/// # Ok::<(), labelize::LabelizeError>(())
+/// ```
 pub fn encode_image_bytes(
     bytes: &[u8],
     options: &ReverseOptions,

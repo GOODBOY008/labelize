@@ -10,10 +10,9 @@
 //! session to a physical unit — every value is resolved to millimetres
 //! here and handed to the IR in renderer dots at the engine's dpmm.
 //!
-//! Unsupported constructs error out instead of misrendering (see the
-//! explicit arms in [`parse_line`]); device-only commands (CONTRAST, TONE,
-//! PACE, …) are accepted as no-ops, mirroring the TSPL frontend, and
-//! `COUNT` is accepted without advancing the value on subsequent copies.
+//! Unsupported constructs return a parse error. Device-only commands such as
+//! `CONTRAST`, `TONE` and `PACE` have no effect on rendering. With `COUNT`,
+//! subsequent copies use the same value.
 
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
