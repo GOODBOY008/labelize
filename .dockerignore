@@ -7,5 +7,7 @@ examples/*
 !examples/vector_audit.rs
 testdata/
 *.md
+# Compiled into the crate by src/lib.rs.
+!README.crate.md
 .idea/
 .kiro/
