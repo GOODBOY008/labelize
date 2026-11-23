@@ -49,7 +49,7 @@ krilla = { version = "0.8.2", default-features = false, features = ["raster-imag
 tiny-skia = { version = "0.12", optional = true }
 png = { version = "0.18", optional = true }
 datamatrix = "0.3"
-qrcode = "0.14"
+qrcode = "0.15"
 rxing = { version = "0.9", default-features = false, features = [
     "encoding_rs",
     "encoders",
