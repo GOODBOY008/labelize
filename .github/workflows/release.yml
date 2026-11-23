@@ -206,27 +206,22 @@ jobs:
     name: Publish npm package
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     # Only publish stable releases (vX.Y.Z), not prereleases like v1.0.0-rc.1.
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v7
         with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+          node-version: '^24.6.0' # Includes npm 11.5.1 or newer for trusted publishing.
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
         with:
-          workspaces: wasm
-      - name: Install wasm-bindgen-cli
-        run: |
-          WBG_VERSION="$(cargo pkgid -p wasm-bindgen --manifest-path wasm/Cargo.toml | sed 's/.*@//')"
-          cargo install wasm-bindgen-cli --version "$WBG_VERSION" --locked
-      - name: Build engine and stage npm package
-        run: ./build.sh
-        working-directory: wasm
+          name: labelize-wasm-wasm32.zip
+      - name: Stage the release bundle for npm
+        run: unzip -o labelize-wasm-wasm32.zip -d wasm/npm
       - name: Publish to npm registry
         working-directory: wasm
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          ./npm-publish.sh
+        run: ./npm-publish.sh
