@@ -8,6 +8,10 @@ assert on rendered labels.
 
 ## 1. Add the dependency
 
+Use a current stable Rust toolchain. Cargo selects the edition for each crate
+independently, so a Rust 2021 application can depend on this Rust 2024 library.
+[Rust Edition Guide](https://doc.rust-lang.org/edition-guide/editions/index.html)
+
 ```sh
 cargo add labelize
 ```

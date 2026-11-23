@@ -6,7 +6,8 @@ raster image into a ZPL or TSPL graphic for printing.
 
 ## Render your first label
 
-In a Cargo binary project, add the library.
+Add Labelize to a Cargo binary project using a current stable Rust toolchain.
+Labelize uses Rust 2024 and also works in Rust 2021 applications.
 
 ```sh
 cargo add labelize
