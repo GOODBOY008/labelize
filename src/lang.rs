@@ -178,10 +178,10 @@ const TSPL_COMMAND_WORDS: &[&str] = &[
 pub fn detect_language(bytes: &[u8]) -> Language {
     // DPL streams begin with the <STX> control byte (0x02) — real DPL
     // files carry system-level commands before the first <STX>L.
-    if let Some(first) = bytes.iter().find(|b| !b.is_ascii_whitespace()) {
-        if *first == 0x02 {
-            return Language::Dpl;
-        }
+    if let Some(first) = bytes.iter().find(|b| !b.is_ascii_whitespace())
+        && *first == 0x02
+    {
+        return Language::Dpl;
     }
 
     let text = String::from_utf8_lossy(bytes);

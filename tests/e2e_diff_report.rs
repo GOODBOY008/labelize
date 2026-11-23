@@ -221,7 +221,7 @@ fn scan_dirs(dirs: &[std::path::PathBuf]) -> Vec<ReportEntry> {
             image_compare::save_diff_image(&name, diff_img);
         }
 
-        if let (Some(ref expected_img), Some(ref actual_img)) =
+        if let (Some(expected_img), Some(actual_img)) =
             (&result.expected_image, &result.actual_image)
         {
             image_compare::save_comparison_image(&name, expected_img, actual_img);

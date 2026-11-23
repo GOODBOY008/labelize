@@ -141,7 +141,7 @@ fn rs_build_generator(nsym: usize) -> Vec<u8> {
 
 /// Reed-Solomon encode: given data codewords, compute `nsym` EC codewords.
 /// Result is written to `res[0..nsym]` (reversed at end, per libzint).
-fn rs_encode(data: &[u8], nsym: usize, gen: &[u8], res: &mut [u8]) {
+fn rs_encode(data: &[u8], nsym: usize, generator: &[u8], res: &mut [u8]) {
     let n = nsym;
     for v in res[..n].iter_mut() {
         *v = 0;
@@ -151,9 +151,9 @@ fn rs_encode(data: &[u8], nsym: usize, gen: &[u8], res: &mut [u8]) {
         if m != 0 {
             let log_m = LOGT[m as usize] as usize;
             for k in (1..n).rev() {
-                res[k] = res[k - 1] ^ ALOG[log_m + LOGT[gen[k] as usize] as usize];
+                res[k] = res[k - 1] ^ ALOG[log_m + LOGT[generator[k] as usize] as usize];
             }
-            res[0] = ALOG[log_m + LOGT[gen[0] as usize] as usize];
+            res[0] = ALOG[log_m + LOGT[generator[0] as usize] as usize];
         } else {
             res.copy_within(0..n - 1, 1);
             res[0] = 0;
@@ -218,9 +218,9 @@ fn encode_primary_mode3(
 // ---------------------------------------------------------------------------
 
 fn apply_primary_ecc(codewords: &mut [u8; 144]) {
-    let gen = rs_build_generator(10);
+    let generator = rs_build_generator(10);
     let mut ec = [0u8; 10];
-    rs_encode(&codewords[0..10], 10, &gen, &mut ec);
+    rs_encode(&codewords[0..10], 10, &generator, &mut ec);
     codewords[10..20].copy_from_slice(&ec);
 }
 
@@ -317,10 +317,10 @@ fn symbol_for_set(set: usize, ch: u8) -> u8 {
     if flags == SET_FLAGS[set] || set == SET_A {
         return MAXI_SYMBOL_CHAR[ch as usize];
     }
-    if set == SET_B {
-        if let Some(position) = b" ,./:".iter().position(|value| *value == ch) {
-            return 47 + position as u8;
-        }
+    if set == SET_B
+        && let Some(position) = b" ,./:".iter().position(|value| *value == ch)
+    {
+        return 47 + position as u8;
     }
     if set == SET_E && (28..=30).contains(&ch) {
         return ch + 4;
@@ -499,7 +499,7 @@ fn encode_message(msg: &[u8], max_slots: usize) -> Result<Vec<u8>, String> {
 // ---------------------------------------------------------------------------
 
 fn apply_secondary_ecc(codewords: &mut [u8; 144]) {
-    let gen = rs_build_generator(20);
+    let generator = rs_build_generator(20);
 
     // Even indices: 20, 22, ..., 102  (42 data codewords)
     let mut data_even = [0u8; 42];
@@ -507,7 +507,7 @@ fn apply_secondary_ecc(codewords: &mut [u8; 144]) {
         data_even[j] = codewords[20 + j * 2];
     }
     let mut ec_even = [0u8; 20];
-    rs_encode(&data_even, 20, &gen, &mut ec_even);
+    rs_encode(&data_even, 20, &generator, &mut ec_even);
     for j in 0..20usize {
         codewords[104 + j * 2] = ec_even[j];
     }
@@ -518,7 +518,7 @@ fn apply_secondary_ecc(codewords: &mut [u8; 144]) {
         data_odd[j] = codewords[21 + j * 2];
     }
     let mut ec_odd = [0u8; 20];
-    rs_encode(&data_odd, 20, &gen, &mut ec_odd);
+    rs_encode(&data_odd, 20, &generator, &mut ec_odd);
     for j in 0..20usize {
         codewords[105 + j * 2] = ec_odd[j];
     }

@@ -901,10 +901,10 @@ fn parse_epl_2d_barcode(
                                 }
                             }
                             'e' => {
-                                if let Some(c) = v.chars().next() {
-                                    if matches!(c, 'L' | 'M' | 'Q' | 'H') {
-                                        ecc = c;
-                                    }
+                                if let Some(c) = v.chars().next()
+                                    && matches!(c, 'L' | 'M' | 'Q' | 'H')
+                                {
+                                    ecc = c;
                                 }
                             }
                             // m (code model: Model 2 only), i (input mode),

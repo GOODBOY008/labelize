@@ -295,21 +295,21 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
         // PDF417/MPDF417 with an `L<len>` option: the expression is the next
         // <len> raw bytes (which may span lines), so it must be consumed here
         // like BITMAP data instead of being re-parsed as commands.
-        if matches!(token.as_str(), "PDF417" | "MPDF417") {
-            if let Some((len, header_end, content_start)) = pdf417_raw_layout(data, line_start) {
-                let header = String::from_utf8_lossy(&data[line_start..header_end]).to_string();
-                let content_end = raw_content_end(
-                    data,
-                    content_start,
-                    len.min(data.len().saturating_sub(content_start)),
-                );
-                commands.push(TsplCommand::Pdf417 {
-                    header,
-                    data: data[content_start..content_end].to_vec(),
-                });
-                idx = content_end;
-                continue;
-            }
+        if matches!(token.as_str(), "PDF417" | "MPDF417")
+            && let Some((len, header_end, content_start)) = pdf417_raw_layout(data, line_start)
+        {
+            let header = String::from_utf8_lossy(&data[line_start..header_end]).to_string();
+            let content_end = raw_content_end(
+                data,
+                content_start,
+                len.min(data.len().saturating_sub(content_start)),
+            );
+            commands.push(TsplCommand::Pdf417 {
+                header,
+                data: data[content_start..content_end].to_vec(),
+            });
+            idx = content_end;
+            continue;
         }
 
         idx = command_line_end(data, line_start);
@@ -477,10 +477,10 @@ fn parse_size(line: &str, state: &mut TsplState, dpmm: i32) -> Result<(), String
     if let Some(width) = parse_dimension_mm(&args[0], dpmm) {
         state.label_width_mm = Some(width);
     }
-    if let Some(height_arg) = args.get(1) {
-        if let Some(height) = parse_dimension_mm(height_arg, dpmm) {
-            state.label_height_mm = Some(height);
-        }
+    if let Some(height_arg) = args.get(1)
+        && let Some(height) = parse_dimension_mm(height_arg, dpmm)
+    {
+        state.label_height_mm = Some(height);
     }
     Ok(())
 }

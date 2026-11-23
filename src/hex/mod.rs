@@ -17,12 +17,14 @@ pub fn decode_escaped_bytes(value: &[u8], escape_char: u8) -> Vec<u8> {
     let mut result = Vec::with_capacity(value.len());
     let mut index = 0;
     while index < value.len() {
-        if escape_char != 0 && value[index] == escape_char && index + 2 < value.len() {
-            if let (Some(high), Some(low)) = (digit(value[index + 1]), digit(value[index + 2])) {
-                result.push(high * 16 + low);
-                index += 3;
-                continue;
-            }
+        if escape_char != 0
+            && value[index] == escape_char
+            && index + 2 < value.len()
+            && let (Some(high), Some(low)) = (digit(value[index + 1]), digit(value[index + 2]))
+        {
+            result.push(high * 16 + low);
+            index += 3;
+            continue;
         }
         result.push(value[index]);
         index += 1;

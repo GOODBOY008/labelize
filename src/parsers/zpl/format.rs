@@ -49,10 +49,10 @@ pub fn format_zpl(data: &[u8]) -> Vec<u8> {
             if !literal {
                 // Indentation on a new line belongs to the following command.
                 // Strip it when formatting an already-formatted stream.
-                if let Some(end) = raw.iter().rposition(|b| !matches!(b, b' ' | b'\t')) {
-                    if matches!(raw[end], b'\n' | b'\r') {
-                        raw = &raw[..=end];
-                    }
+                if let Some(end) = raw.iter().rposition(|b| !matches!(b, b' ' | b'\t'))
+                    && matches!(raw[end], b'\n' | b'\r')
+                {
+                    raw = &raw[..=end];
                 }
             }
             while raw.last().is_some_and(|b| matches!(b, b'\n' | b'\r')) {

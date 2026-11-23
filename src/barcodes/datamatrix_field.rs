@@ -90,14 +90,13 @@ pub(super) fn ascii_codewords(tokens: &[Token]) -> Vec<u8> {
         match &tokens[i] {
             Token::Codewords(special) => words.extend_from_slice(special),
             Token::Byte(byte) => {
-                if byte.is_ascii_digit() {
-                    if let Some(Token::Byte(next)) = tokens.get(i + 1) {
-                        if next.is_ascii_digit() {
-                            words.push(130 + 10 * (byte - b'0') + (next - b'0'));
-                            i += 2;
-                            continue;
-                        }
-                    }
+                if byte.is_ascii_digit()
+                    && let Some(Token::Byte(next)) = tokens.get(i + 1)
+                    && next.is_ascii_digit()
+                {
+                    words.push(130 + 10 * (byte - b'0') + (next - b'0'));
+                    i += 2;
+                    continue;
                 }
                 if *byte <= 127 {
                     words.push(byte + 1);

@@ -45,12 +45,11 @@ impl FieldClock {
                     return;
                 };
                 let mut hour = number(3).unwrap_or(now.hour() as i32);
-                if let Some(fmt) = parts.get(6) {
-                    if (1..=12).contains(&hour)
-                        && (fmt.eq_ignore_ascii_case("A") || fmt.eq_ignore_ascii_case("P"))
-                    {
-                        hour = hour % 12 + if fmt.eq_ignore_ascii_case("P") { 12 } else { 0 };
-                    }
+                if let Some(fmt) = parts.get(6)
+                    && (1..=12).contains(&hour)
+                    && (fmt.eq_ignore_ascii_case("A") || fmt.eq_ignore_ascii_case("P"))
+                {
+                    hour = hour % 12 + if fmt.eq_ignore_ascii_case("P") { 12 } else { 0 };
                 }
                 if let Some(dt) = date.and_hms_opt(
                     hour as u32,
@@ -66,7 +65,7 @@ impl FieldClock {
         }
     }
 
-    pub fn expander(&self, markers: [Option<char>; 3]) -> impl Fn(&[u8]) -> Vec<u8> {
+    pub fn expander(&self, markers: [Option<char>; 3]) -> impl Fn(&[u8]) -> Vec<u8> + use<> {
         let now = if self.time_now { None } else { self.start }
             .unwrap_or_else(|| Utc::now() + self.adjustment);
         let mut dates = [now; 3];
