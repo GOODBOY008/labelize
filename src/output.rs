@@ -71,7 +71,32 @@ pub fn render_png_with_output(
     render(bytes, options, output, false)
 }
 
-/// Render to PDF; `all_pages` combines every parsed label with its own size.
+/// Render to PDF. The default options encode the first label as a raster page.
+/// Enable the `vector` feature and set [`OutputOptions::all_pages`] to combine
+/// all labels into one PDF with searchable text. Each page uses its label's
+/// size unless [`RenderOptions`] supplies an override.
+///
+/// ```
+/// # #[cfg(feature = "vector")]
+/// # {
+/// use labelize::{render_pdf_with_output, OutputMode, OutputOptions, RenderOptions};
+///
+/// let job = concat!(
+///     "^XA^FO20,20^A0N,32,32^FDParcel A^FS^XZ",
+///     "^XA^FO20,20^A0N,32,32^FDParcel B^FS^XZ",
+/// );
+/// let output = OutputOptions {
+///     mode: OutputMode::Vector,
+///     all_pages: true,
+///     ..OutputOptions::default()
+/// };
+/// let pdf = render_pdf_with_output(job.as_bytes(), RenderOptions::default(), output)?;
+/// assert_eq!(pdf.labels, 2);
+/// assert!(pdf.bytes.starts_with(b"%PDF-"));
+/// # assert_eq!(lopdf::Document::load_mem(&pdf.bytes).unwrap().get_pages().len(), 2);
+/// # }
+/// # Ok::<(), labelize::LabelizeError>(())
+/// ```
 pub fn render_pdf_with_output(
     bytes: &[u8],
     options: RenderOptions,

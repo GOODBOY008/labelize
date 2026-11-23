@@ -1,11 +1,9 @@
 //! TSPL source formatter: normalize commands one per line without touching
 //! binary payloads.
 //!
-//! The boundary walk reuses the parser's command splitter helpers
-//! ([`first_token_end`], [`bitmap_payload_start`], [`bitmap_hex_payload_end`], [`pdf417_raw_layout`],
-//! [`raw_content_end`], [`command_line_end`]) so formatter and parser can
-//! never disagree about where `BITMAP`/`PDF417 L<len>` raw data ends —
-//! reflowing those blocks with a line-based pass would corrupt the payload.
+//! The formatter uses the parser's payload boundaries for `BITMAP` and
+//! `PDF417 L<len>`. It copies the raw data byte-for-byte, including any
+//! embedded line breaks.
 
 use super::parser::{
     bitmap_hex_payload_end, bitmap_payload_start, command_args, command_line_end, first_token_end,

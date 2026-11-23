@@ -4,9 +4,8 @@
 //! EPL is line-oriented, so formatting is normalization: trim whitespace
 //! around text commands, drop blank lines, LF line endings, one trailing
 //! newline. `GW` blocks carry raw binary (which may itself contain newlines
-//! and whitespace bytes) and are copied through byte-for-byte — the boundary
-//! walk reuses the parser's [`gw_span`] so the two can never disagree about
-//! where a graphic's data ends.
+//! and whitespace bytes) and are copied through byte-for-byte. The formatter
+//! and parser use the same byte count to find the end of a graphic.
 
 use super::parser::gw_span;
 

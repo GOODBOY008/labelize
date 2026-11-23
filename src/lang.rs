@@ -31,8 +31,8 @@ pub enum Language {
 }
 
 impl Language {
-    /// Lowercase wire name: `"zpl"`, `"epl"`, `"tspl"`. Used by the HTTP
-    /// `?language=` parameter, the wasm `lz_check` binding, and JSON reports.
+    /// Lowercase name used by the HTTP `?language=` parameter, the wasm
+    /// `lz_check` binding and JSON reports (`"zpl"`, `"epl"`, `"tspl"`, `"cpcl"` or `"dpl"`).
     pub fn name(self) -> &'static str {
         match self {
             Language::Zpl => "zpl",
@@ -97,6 +97,20 @@ pub struct ValidationReport {
 /// Check the syntax of `bytes` without rendering: detect the language (or
 /// use `forced` when given), parse, and report pass/fail plus the label
 /// count. Empty input parses as zero labels, so it reports `ok`.
+///
+/// ```
+/// use labelize::{validate, Language};
+///
+/// let job = b"SIZE 30 mm,10 mm\nCLS\nBAR 4,4,16,16\nPRINT 1\n";
+/// let report = validate(job, 8, None);
+/// assert!(report.ok);
+/// assert_eq!(report.language, Language::Tspl);
+/// assert_eq!(report.labels, 1);
+///
+/// let invalid = validate(b"PUTPCX 0,0,\"logo.pcx\"\n", 8, Some(Language::Tspl));
+/// assert!(!invalid.ok);
+/// assert!(invalid.error.is_some());
+/// ```
 pub fn validate(bytes: &[u8], dpmm: i32, forced: Option<Language>) -> ValidationReport {
     let language = forced.unwrap_or_else(|| detect_language(bytes));
     match parse_labels(language, bytes, dpmm) {
@@ -133,6 +147,25 @@ pub fn format_source(bytes: &[u8], forced: Option<Language>) -> (Language, Vec<u
 }
 
 /// Parse `bytes` in the given [`Language`] into one [`LabelInfo`] per label.
+///
+/// Iterate over the result to render every label in a job.
+///
+/// ```
+/// use labelize::{detect_language, parse_labels, DrawerOptions, Renderer};
+/// use std::io::Cursor;
+///
+/// let job = b"^XA^FO8,8^FDBox A^FS^XZ^XA^FO8,8^FDBox B^FS^XZ";
+/// let labels = parse_labels(detect_language(job), job, 8)?;
+/// assert_eq!(labels.len(), 2);
+///
+/// let renderer = Renderer::new();
+/// for label in &labels {
+///     let mut png = Cursor::new(Vec::new());
+///     renderer.draw_label_as_png(label, &mut png, DrawerOptions::default())?;
+///     assert!(png.get_ref().starts_with(b"\x89PNG\r\n\x1a\n"));
+/// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub fn parse_labels(
     language: Language,
     bytes: &[u8],
@@ -170,11 +203,10 @@ const TSPL_COMMAND_WORDS: &[&str] = &[
 
 /// Guess the language of `bytes` from its shape.
 ///
-/// ZPL formats are caret/tilde command streams; EPL is one command letter
-/// per line with comma-separated parameters; TSPL lines start with a
-/// multi-letter command word (`SIZE 100 mm, 60 mm`, `PRINT 1`). When the
-/// input matches none (or is empty) the function falls back to ZPL,
-/// matching the historical CLI behavior.
+/// ZPL formats start with a caret or tilde. EPL uses one command letter per
+/// line, and TSPL uses words such as `SIZE` and `PRINT`. A numeric `!` session
+/// header identifies CPCL, and a leading STX byte identifies DPL. Empty or
+/// unrecognized input falls back to ZPL.
 pub fn detect_language(bytes: &[u8]) -> Language {
     // DPL streams begin with the <STX> control byte (0x02) — real DPL
     // files carry system-level commands before the first <STX>L.

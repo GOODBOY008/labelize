@@ -3,7 +3,7 @@
 //! TSPL is a line-command language like EPL, with two raw-data commands
 //! (`BITMAP` and `PDF417 …,L<len>`) whose payloads are consumed by byte
 //! cursor rather than parsed as lines. BITMAP also accepts a complete line
-//! of hex text as a compatibility extension (see [`bitmap_hex_payload_end`]).
+//! of hex text as a compatibility extension.
 //! State is minimal: label reference /
 //! shift offsets, the inverted flag from `DIRECTION`, and the physical
 //! label size from `SIZE` (carried on `LabelInfo::label_*_mm` — entry

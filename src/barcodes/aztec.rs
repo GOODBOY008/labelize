@@ -59,8 +59,7 @@ fn empty_core_image(mag: u32) -> RgbaImage {
 ///   201-232 = full-range Aztec with 1-32 layers
 ///   300     = Aztec Rune (not yet supported, falls back to default)
 ///
-/// Empty content has no rxing representation; it gets the fixed minimal
-/// symbol Labelary draws (see [`EMPTY_CORE`]) instead of an error.
+/// Empty content renders the same fixed 11×11-module core as Labelary.
 pub fn encode(content: &str, magnification: i32, ec_symbol_size: i32) -> Result<RgbaImage, String> {
     let mag = magnification.max(1) as u32;
 
