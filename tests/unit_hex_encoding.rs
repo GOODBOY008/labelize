@@ -41,6 +41,13 @@ fn decode_graphic_field_with_compression() {
 }
 
 #[test]
+fn graphic_whitespace_preserves_repeat_counts_and_row_padding() {
+    // H repeats the F twice, the comma pads the row, and the colon copies it.
+    let bytes = hex::decode_graphic_field_data("H \tF , \r\n: ", 2).unwrap();
+    assert_eq!(bytes, [0xFF, 0x00, 0xFF, 0x00]);
+}
+
+#[test]
 fn decode_graphic_field_comma_pads_with_zeros() {
     // comma fills remaining row bytes with '0'
     let data = "FF,";

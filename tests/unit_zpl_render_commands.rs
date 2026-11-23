@@ -207,6 +207,13 @@ fn named_font_omissions_inherit_the_filename_orientation_and_default_sizes() {
 }
 
 #[test]
+fn ascii_graphic_with_whitespace_renders_like_compact_hex() {
+    let compact = "^XA^FO8,8^GFA,4,4,2,8001FFF0^FS^XZ";
+    let spaced = "^XA^FO8,8^GFA,4,4,2, 80 01    F F\tF\r\n0 ^FS^XZ";
+    assert_eq!(pixels(spaced), pixels(compact));
+}
+
+#[test]
 fn binary_graphics_preserve_every_byte_and_render_like_hex() {
     let payload: Vec<u8> = (0..=255).collect();
     let mut binary = b"^XA^FO16,24^GFB,256,256,16,".to_vec();

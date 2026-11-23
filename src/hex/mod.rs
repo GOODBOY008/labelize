@@ -135,8 +135,11 @@ pub fn decode_graphic_field_data(data: &str, row_bytes: i32) -> Result<Vec<u8>, 
     let mut compress_count: usize = 0;
     let row_hex = (row_bytes * 2) as usize;
 
-    let bytes = data.as_bytes();
-    for &ch in bytes {
+    for ch in data.bytes() {
+        if matches!(ch, b' ' | b'\t' | b'\r' | b'\n') {
+            continue;
+        }
+
         if line.len() >= row_hex {
             validate_embedded_image_size(result.len() + line.len(), 0)?;
             prev_line = line.clone();
