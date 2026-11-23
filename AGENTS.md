@@ -249,7 +249,7 @@ This ensures PR reviewers can visually inspect the before/after rendering impact
 
 ## Code Style
 
-- Rust 2021 edition
+- Rust 2024 edition
 - Use `LabelizeError` for error handling (see `src/error.rs`)
 - Parser state is managed by `VirtualPrinter` struct — mutations happen during command parsing, elements are emitted on `^FS`
 - Keep barcode encoders pure: input data → BitMatrix output, no rendering logic

@@ -384,10 +384,9 @@ impl ZplParser {
                 .parse::<f64>()
                 .ok()
                 .map(|v| (v * scale).round() as i32)
+                && v > 0
             {
-                if v > 0 {
-                    self.printer.label_length = v;
-                }
+                self.printer.label_length = v;
             }
             return Ok(None);
         }
@@ -576,10 +575,10 @@ impl ZplParser {
         // Field number
         if upper.starts_with("^FN") {
             let number = command_text(command, "^FN");
-            if let Ok(v) = number.parse::<i32>() {
-                if v >= 0 {
-                    self.printer.next_element_field_number = v;
-                }
+            if let Ok(v) = number.parse::<i32>()
+                && v >= 0
+            {
+                self.printer.next_element_field_number = v;
             }
             return Ok(None);
         }
@@ -604,17 +603,18 @@ impl ZplParser {
         }
 
         // Barcode commands
-        if upper.as_bytes().starts_with(b"^B") && command.is_char_boundary(3) && command.len() >= 3
-        {
-            if let Some(config) = super::barcode_commands::configuration(
+        if upper.as_bytes().starts_with(b"^B")
+            && command.is_char_boundary(3)
+            && command.len() >= 3
+            && let Some(config) = super::barcode_commands::configuration(
                 &upper.as_bytes()[..3],
                 &self.parameters(command, &command[..3]),
                 &self.printer,
-            ) {
-                self.printer.next_element_field_element =
-                    Some(Box::new(LabelElement::BarcodeSymbolConfig(config)));
-                return Ok(None);
-            }
+            )
+        {
+            self.printer.next_element_field_element =
+                Some(Box::new(LabelElement::BarcodeSymbolConfig(config)));
+            return Ok(None);
         }
         if upper.starts_with("^BC") {
             self.parse_barcode_128(command);
@@ -783,10 +783,10 @@ impl ZplParser {
     fn parse_label_top(&mut self, command: &str) {
         let parts = self.parameters(command, "^LT");
         let scale = self.printer.unit_scale();
-        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale)) {
-            if v.abs() <= 120 {
-                self.printer.label_top = v;
-            }
+        if let Some(v) = parts.first().and_then(|s| parse_int_scaled(s, scale))
+            && v.abs() <= 120
+        {
+            self.printer.label_top = v;
         }
     }
 
@@ -814,10 +814,11 @@ impl ZplParser {
         }
         let base = parts.get(1).and_then(|s| parse_float(s));
         let target = parts.get(2).and_then(|s| parse_float(s));
-        if let (Some(base), Some(target)) = (base, target) {
-            if base > 0.0 && target > 0.0 {
-                self.printer.dpi_conversion = target / base;
-            }
+        if let (Some(base), Some(target)) = (base, target)
+            && base > 0.0
+            && target > 0.0
+        {
+            self.printer.dpi_conversion = target / base;
         }
     }
 
@@ -933,15 +934,15 @@ impl ZplParser {
             if let Some(v) = parse_int_scaled(&hs, scale) {
                 font.height = v as f64;
             }
-        } else if let Some(s) = parts.get(height_part_idx) {
-            if let Some(v) = parse_int_scaled(s, scale) {
-                font.height = v as f64;
-            }
+        } else if let Some(s) = parts.get(height_part_idx)
+            && let Some(v) = parse_int_scaled(s, scale)
+        {
+            font.height = v as f64;
         }
-        if let Some(s) = parts.get(width_part_idx) {
-            if let Some(v) = parse_int_scaled(s, scale) {
-                font.width = v as f64;
-            }
+        if let Some(s) = parts.get(width_part_idx)
+            && let Some(v) = parse_int_scaled(s, scale)
+        {
+            font.width = v as f64;
         }
 
         zebra_fonts::apply_face(&mut font);
@@ -967,15 +968,15 @@ impl ZplParser {
             .unwrap_or(self.printer.default_orientation);
 
         let scale = self.printer.unit_scale();
-        if let Some(s) = parts.get(1) {
-            if let Some(v) = parse_int_scaled(s, scale) {
-                font.height = v as f64;
-            }
+        if let Some(s) = parts.get(1)
+            && let Some(v) = parse_int_scaled(s, scale)
+        {
+            font.height = v as f64;
         }
-        if let Some(s) = parts.get(2) {
-            if let Some(v) = parse_int_scaled(s, scale) {
-                font.width = v as f64;
-            }
+        if let Some(s) = parts.get(2)
+            && let Some(v) = parse_int_scaled(s, scale)
+        {
+            font.width = v as f64;
         }
         zebra_fonts::apply_face(&mut font);
         self.printer.next_font = Some(font);
@@ -985,19 +986,18 @@ impl ZplParser {
     /// later `^A` with that identifier uses the mapped font.
     fn parse_font_identifier(&mut self, command: &str) {
         let parts = self.parameters(command, "^CW");
-        if let Some(id) = parts.first() {
-            if let Some(c) = id.trim().chars().next() {
-                if c.is_ascii_alphanumeric() {
-                    let name = parts
-                        .get(1)
-                        .map(|s| s.trim().to_string())
-                        .unwrap_or_default();
-                    if !name.is_empty() {
-                        self.printer
-                            .font_map
-                            .insert(c.to_uppercase().to_string(), name);
-                    }
-                }
+        if let Some(id) = parts.first()
+            && let Some(c) = id.trim().chars().next()
+            && c.is_ascii_alphanumeric()
+        {
+            let name = parts
+                .get(1)
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default();
+            if !name.is_empty() {
+                self.printer
+                    .font_map
+                    .insert(c.to_uppercase().to_string(), name);
             }
         }
     }
@@ -1031,16 +1031,16 @@ impl ZplParser {
 
     fn parse_field_orientation(&mut self, command: &str) {
         let parts = self.parameters(command, "^FW");
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                self.printer
-                    .set_default_orientation(to_field_orientation(s.as_bytes()[0]));
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            self.printer
+                .set_default_orientation(to_field_orientation(s.as_bytes()[0]));
         }
-        if let Some(s) = parts.get(1) {
-            if let Some(val) = to_field_alignment(s) {
-                self.printer.default_alignment = val;
-            }
+        if let Some(s) = parts.get(1)
+            && let Some(val) = to_field_alignment(s)
+        {
+            self.printer.default_alignment = val;
         }
     }
 
@@ -1063,10 +1063,10 @@ impl ZplParser {
         {
             pos.y = v;
         }
-        if let Some(s) = parts.get(2) {
-            if let Some(val) = to_field_alignment(s) {
-                self.printer.next_element_alignment = Some(val);
-            }
+        if let Some(s) = parts.get(2)
+            && let Some(val) = to_field_alignment(s)
+        {
+            self.printer.next_element_alignment = Some(val);
         }
         self.printer.next_element_position = pos.add(&self.printer.label_home_position);
     }
@@ -1094,10 +1094,10 @@ impl ZplParser {
             pos.y = v;
             pos.automatic_position = false;
         }
-        if let Some(s) = parts.get(2) {
-            if let Some(val) = to_field_alignment(s) {
-                self.printer.next_element_alignment = Some(val);
-            }
+        if let Some(s) = parts.get(2)
+            && let Some(val) = to_field_alignment(s)
+        {
+            self.printer.next_element_alignment = Some(val);
         }
         self.printer.next_element_position = pos.add(&self.printer.label_home_position);
     }
@@ -1148,10 +1148,10 @@ impl ZplParser {
         if let Some(v) = parts.get(2).and_then(|s| parse_int_scaled(s, scale)) {
             block.line_spacing = v;
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                block.alignment = to_text_alignment(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            block.alignment = to_text_alignment(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(4).and_then(|s| parse_int_scaled(s, scale)) {
             block.hanging_indent = v;
@@ -1238,33 +1238,33 @@ impl ZplParser {
             check_digit: false,
             mode: BarcodeMode::No,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(2) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(2)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(4) {
-            if !s.is_empty() {
-                bc.check_digit = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(4)
+            && !s.is_empty()
+        {
+            bc.check_digit = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(5) {
-            if !s.is_empty() {
-                bc.mode = to_barcode_mode(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(5)
+            && !s.is_empty()
+        {
+            bc.mode = to_barcode_mode(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::Barcode128Config(bc)));
@@ -1279,23 +1279,23 @@ impl ZplParser {
             line: true,
             line_above: false,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(2) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(2)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::BarcodeEan13Config(bc)));
@@ -1312,23 +1312,23 @@ impl ZplParser {
             line: true,
             line_above: false,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(2) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(2)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::BarcodeEan8Config(bc)));
@@ -1344,23 +1344,23 @@ impl ZplParser {
             line: true,
             line_above: false,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(2) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(2)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::BarcodeUcaConfig(bc)));
@@ -1376,28 +1376,28 @@ impl ZplParser {
             line_above: false,
             check_digit: false,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(2) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(2)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(4) {
-            if !s.is_empty() {
-                bc.check_digit = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(4)
+            && !s.is_empty()
+        {
+            bc.check_digit = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::Barcode2of5Config(bc)));
@@ -1413,28 +1413,28 @@ impl ZplParser {
             line_above: false,
             check_digit: false,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(1) {
-            if !s.is_empty() {
-                bc.check_digit = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(1)
+            && !s.is_empty()
+        {
+            bc.check_digit = to_bool_field(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(2).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(4) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(4)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element = Some(Box::new(LabelElement::Barcode39Config(bc)));
     }
@@ -1452,10 +1452,10 @@ impl ZplParser {
             module_width: self.printer.default_barcode_dimensions.module_width,
             by_height: self.printer.default_barcode_dimensions.height,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             bc.row_height = v;
@@ -1469,10 +1469,10 @@ impl ZplParser {
         if let Some(v) = parts.get(4).and_then(|s| parse_int(s)) {
             bc.rows = v;
         }
-        if let Some(s) = parts.get(5) {
-            if !s.is_empty() {
-                bc.truncate = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(5)
+            && !s.is_empty()
+        {
+            bc.truncate = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::BarcodePdf417Config(bc)));
@@ -1485,10 +1485,10 @@ impl ZplParser {
             magnification: 0,
             size: 0,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
             bc.magnification = v;
@@ -1513,10 +1513,10 @@ impl ZplParser {
             escape: b'_', // ECC 200 default on modern Zebra firmware.
             ratio: Some(DatamatrixRatio::Square),
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
@@ -1530,15 +1530,15 @@ impl ZplParser {
         if let Some(v) = parts.get(4).and_then(|s| parse_int(s)) {
             bc.rows = v;
         }
-        if let Some(v) = parts.get(5).and_then(|s| parse_int(s)) {
-            if v > 0 {
-                bc.format = v;
-            }
+        if let Some(v) = parts.get(5).and_then(|s| parse_int(s))
+            && v > 0
+        {
+            bc.format = v;
         }
-        if let Some(s) = parts.get(6) {
-            if !s.is_empty() {
-                bc.escape = s.as_bytes()[0];
-            }
+        if let Some(s) = parts.get(6)
+            && !s.is_empty()
+        {
+            bc.escape = s.as_bytes()[0];
         }
         if let Some(v) = parts.get(7).and_then(|s| parse_int(s)) {
             if v == 1 {
@@ -1585,28 +1585,28 @@ impl ZplParser {
             line_above: false,
             check_digit: true,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                bc.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            bc.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_ceil_scaled(s, scale)) {
             bc.height = v;
         }
-        if let Some(s) = parts.get(2) {
-            if !s.is_empty() {
-                bc.line = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(2)
+            && !s.is_empty()
+        {
+            bc.line = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(3) {
-            if !s.is_empty() {
-                bc.line_above = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(3)
+            && !s.is_empty()
+        {
+            bc.line_above = to_bool_field(s.as_bytes()[0]);
         }
-        if let Some(s) = parts.get(4) {
-            if !s.is_empty() {
-                bc.check_digit = to_bool_field(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.get(4)
+            && !s.is_empty()
+        {
+            bc.check_digit = to_bool_field(s.as_bytes()[0]);
         }
         self.printer.next_element_field_element =
             Some(Box::new(LabelElement::BarcodeUcpeConfig(bc)));
@@ -1642,28 +1642,29 @@ impl ZplParser {
             line_color: LineColor::Black,
             reverse_print: self.printer.get_reverse_print(),
         };
-        if let Some(v) = parts.get(2).and_then(|s| to_positive_int_scaled(s, scale)) {
-            if v > 0 {
-                gb.border_thickness = v;
-            }
+        if let Some(v) = parts.get(2).and_then(|s| to_positive_int_scaled(s, scale))
+            && v > 0
+        {
+            gb.border_thickness = v;
         }
-        if let Some(v) = parts.first().and_then(|s| to_positive_int_scaled(s, scale)) {
-            if v > 0 {
-                gb.width = v.max(gb.border_thickness);
-            }
+        if let Some(v) = parts.first().and_then(|s| to_positive_int_scaled(s, scale))
+            && v > 0
+        {
+            gb.width = v.max(gb.border_thickness);
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_scaled(s, scale)) {
-            if v > 0 {
-                gb.height = v.max(gb.border_thickness);
-            }
+        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_scaled(s, scale))
+            && v > 0
+        {
+            gb.height = v.max(gb.border_thickness);
         }
         if parts.get(3).is_some_and(|s| *s == "W") {
             gb.line_color = LineColor::White;
         }
-        if let Some(v) = parts.get(4).and_then(|s| parse_int(s)) {
-            if v > 0 && v < 9 {
-                gb.corner_rounding = v;
-            }
+        if let Some(v) = parts.get(4).and_then(|s| parse_int(s))
+            && v > 0
+            && v < 9
+        {
+            gb.corner_rounding = v;
         }
         Ok(Some(LabelElement::GraphicBox(gb)))
     }
@@ -1701,20 +1702,20 @@ impl ZplParser {
             line_color: LineColor::Black,
             reverse_print: self.printer.get_reverse_print(),
         };
-        if let Some(v) = parts.first().and_then(|s| to_positive_int_scaled(s, scale)) {
-            if v > 0 {
-                ge.width = v;
-            }
+        if let Some(v) = parts.first().and_then(|s| to_positive_int_scaled(s, scale))
+            && v > 0
+        {
+            ge.width = v;
         }
-        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_scaled(s, scale)) {
-            if v > 0 {
-                ge.height = v;
-            }
+        if let Some(v) = parts.get(1).and_then(|s| to_positive_int_scaled(s, scale))
+            && v > 0
+        {
+            ge.height = v;
         }
-        if let Some(v) = parts.get(2).and_then(|s| to_positive_int_scaled(s, scale)) {
-            if v > 0 {
-                ge.border_thickness = v;
-            }
+        if let Some(v) = parts.get(2).and_then(|s| to_positive_int_scaled(s, scale))
+            && v > 0
+        {
+            ge.border_thickness = v;
         }
         if parts.get(3).is_some_and(|s| *s == "W") {
             ge.line_color = LineColor::White;
@@ -1779,14 +1780,14 @@ impl ZplParser {
             mode: GraphicFieldMode::default(),
             zero_bits_black: false,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                match s.as_bytes()[0].to_ascii_uppercase() {
-                    b'A' => gf.format = GraphicFieldFormat::Hex,
-                    b'B' => gf.format = GraphicFieldFormat::Raw,
-                    b'C' => return Err("^GFC compressed binary graphics are not supported".into()),
-                    _ => {}
-                }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            match s.as_bytes()[0].to_ascii_uppercase() {
+                b'A' => gf.format = GraphicFieldFormat::Hex,
+                b'B' => gf.format = GraphicFieldFormat::Raw,
+                b'C' => return Err("^GFC compressed binary graphics are not supported".into()),
+                _ => {}
             }
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int(s)) {
@@ -1838,10 +1839,10 @@ impl ZplParser {
             height: fallback.height,
             orientation: self.printer.default_orientation,
         };
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                gs.orientation = to_field_orientation(s.as_bytes()[0]);
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            gs.orientation = to_field_orientation(s.as_bytes()[0]);
         }
         if let Some(v) = parts.get(1).and_then(|s| parse_int_scaled(s, scale)) {
             gs.height = v as f64;
@@ -1858,10 +1859,10 @@ impl ZplParser {
         let parts: Vec<&str> = data.splitn(4, char::from(self.syntax.delimiter)).collect();
 
         let mut path = STORED_GRAPHICS_DEFAULT_PATH.to_string();
-        if let Some(s) = parts.first() {
-            if !s.is_empty() {
-                path = s.to_string();
-            }
+        if let Some(s) = parts.first()
+            && !s.is_empty()
+        {
+            path = s.to_string();
         }
 
         let mut graphics = crate::elements::stored_graphics::StoredGraphics {
@@ -2052,15 +2053,15 @@ impl ZplParser {
     /// The replicate count groups identical serial values inside the total quantity.
     fn parse_print_quantity(&mut self, command: &str) {
         let parts = self.parameters(command, "^PQ");
-        if let Some(v) = parts.first().and_then(|s| parse_int(s)) {
-            if v > 0 {
-                self.printer.print_quantity = v;
-            }
+        if let Some(v) = parts.first().and_then(|s| parse_int(s))
+            && v > 0
+        {
+            self.printer.print_quantity = v;
         }
-        if let Some(v) = parts.get(2).and_then(|s| parse_int(s)) {
-            if v > 0 {
-                self.printer.print_copies = v;
-            }
+        if let Some(v) = parts.get(2).and_then(|s| parse_int(s))
+            && v > 0
+        {
+            self.printer.print_copies = v;
         }
     }
 }

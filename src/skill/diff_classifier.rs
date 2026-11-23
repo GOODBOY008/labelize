@@ -66,10 +66,10 @@ pub fn fetch_labelary_snippet_render(zpl: &str, cache_dir: &Path) -> Option<Rgba
     let cache_path = cache_dir.join(format!("{:016x}.png", hash));
 
     // Return cached image if available
-    if cache_path.exists() {
-        if let Ok(img) = image::open(&cache_path) {
-            return Some(img.to_rgba8());
-        }
+    if cache_path.exists()
+        && let Ok(img) = image::open(&cache_path)
+    {
+        return Some(img.to_rgba8());
     }
 
     // Attempt Labelary API call

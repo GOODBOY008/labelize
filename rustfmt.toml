@@ -1,0 +1,2 @@
+# Preserve the existing import ordering and layout across the language edition upgrade.
+style_edition = "2021"

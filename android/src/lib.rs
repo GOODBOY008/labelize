@@ -4,6 +4,9 @@
 //! plus a version string, with everything else (String/ByteArray conveniences)
 //! living on the Kotlin side in `lib/src/main/kotlin`. Error stage codes match
 //! the wasm contract: `1:` = parse failure, `2:` = render failure.
+//!
+//! Each unmangled JNI symbol uniquely identifies a native method on
+//! `com.goodboy008.labelize.Labelize`.
 
 use std::io::Cursor;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -101,7 +104,7 @@ fn throw_labelize(env: &mut JNIEnv, stage: jint, message: &str) {
 ///
 /// Mapping for `Labelize.render(...)` in
 /// `lib/src/main/kotlin/com/goodboy008/labelize/Labelize.kt`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_goodboy008_labelize_Labelize_render<'local>(
     mut env: JNIEnv<'local>,
     _this: JClass<'local>,
@@ -169,7 +172,7 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_render<'local>(
 /// PDF when `pdf` is true). Mapping for `Labelize.renderLang(...)` in
 /// `lib/src/main/kotlin/com/goodboy008/labelize/Labelize.kt`. Unknown values
 /// fall back to ZPL, matching the CLI's sniff fallback.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_goodboy008_labelize_Labelize_renderLang<'local>(
     mut env: JNIEnv<'local>,
     _this: JClass<'local>,
@@ -243,7 +246,7 @@ pub extern "system" fn Java_com_goodboy008_labelize_Labelize_renderLang<'local>(
 }
 
 /// Shared-layout output with explicit backend, PNG scale and page selection.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_goodboy008_labelize_Labelize_renderOutput<'local>(
     mut env: JNIEnv<'local>,
     _this: JClass<'local>,
@@ -364,7 +367,7 @@ fn render_output_payload(
 }
 
 /// Engine version, for support diagnostics. Maps to `Labelize.version()`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_goodboy008_labelize_Labelize_version<'local>(
     env: JNIEnv<'local>,
     _this: JClass<'local>,

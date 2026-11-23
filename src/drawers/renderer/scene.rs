@@ -174,25 +174,25 @@ impl LabelScene {
                         &mut saved_images,
                     )
                     .map_err(LabelizeError::Render)?;
-                if let LabelElement::GraphicField(g) = element {
-                    if g.mode == GraphicFieldMode::Xor {
-                        let mut mask = RgbaImage::new(content_width, height);
-                        let mut ordinary = g.clone();
-                        ordinary.mode = GraphicFieldMode::Or;
-                        renderer
-                            .draw_element(
-                                &mut mask,
-                                &LabelElement::GraphicField(ordinary),
-                                &options,
-                                &mut DrawerState::new(),
-                                &mut saved_images,
-                            )
-                            .map_err(LabelizeError::Render)?;
-                        if let Some(bounds) = covered_bounds(&mask, 1) {
-                            record_fallback(&mut scene.stats, index, "bitmap XOR", bounds);
-                        }
-                        continue;
+                if let LabelElement::GraphicField(g) = element
+                    && g.mode == GraphicFieldMode::Xor
+                {
+                    let mut mask = RgbaImage::new(content_width, height);
+                    let mut ordinary = g.clone();
+                    ordinary.mode = GraphicFieldMode::Or;
+                    renderer
+                        .draw_element(
+                            &mut mask,
+                            &LabelElement::GraphicField(ordinary),
+                            &options,
+                            &mut DrawerState::new(),
+                            &mut saved_images,
+                        )
+                        .map_err(LabelizeError::Render)?;
+                    if let Some(bounds) = covered_bounds(&mask, 1) {
+                        record_fallback(&mut scene.stats, index, "bitmap XOR", bounds);
                     }
+                    continue;
                 }
             }
             let adjusted = flip_from_bottom(element, height);
@@ -326,21 +326,18 @@ impl LabelScene {
                     if index > 0
                         && matches!(label.elements[index - 1], LabelElement::DiagonalLine(_))
                         && !label.elements[index - 1].is_reverse_print()
-                    {
-                        if let Some(Op::Path {
+                        && let Some(Op::Path {
                             path: previous,
                             color,
                             rule: FillRule::Winding,
                         }) = ops.last_mut()
-                        {
-                            if *color == line_color_to_rgba(g.line_color)[0] {
-                                path.push_path(previous);
-                                if let Some(combined) = path.finish() {
-                                    *previous = combined;
-                                }
-                                continue;
-                            }
+                        && *color == line_color_to_rgba(g.line_color)[0]
+                    {
+                        path.push_path(previous);
+                        if let Some(combined) = path.finish() {
+                            *previous = combined;
                         }
+                        continue;
                     }
                     push_path(&mut ops, path, g.line_color, FillRule::Winding);
                 }

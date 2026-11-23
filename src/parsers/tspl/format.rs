@@ -31,42 +31,41 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         let token = String::from_utf8_lossy(&data[line_start..token_end]).to_uppercase();
 
         // BITMAP: complete hex line or `row_bytes * height` raw bytes, verbatim.
-        if token == "BITMAP" {
-            if let Some(payload_start) = bitmap_payload_start(data, line_start) {
-                let header = String::from_utf8_lossy(&data[line_start..payload_start]).to_string();
-                let args = command_args(&header, "BITMAP");
-                if args.len() >= 4 {
-                    let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1) as usize;
-                    let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1) as usize;
-                    let payload_end =
-                        bitmap_hex_payload_end(data, payload_start, row_bytes * height)
-                            .unwrap_or_else(|| {
-                                payload_start
-                                    .saturating_add(row_bytes * height)
-                                    .min(data.len())
-                            });
-                    out.extend_from_slice(&data[line_start..payload_end]);
-                    out.push(b'\n');
-                    idx = payload_end;
-                    continue;
-                }
+        if token == "BITMAP"
+            && let Some(payload_start) = bitmap_payload_start(data, line_start)
+        {
+            let header = String::from_utf8_lossy(&data[line_start..payload_start]).to_string();
+            let args = command_args(&header, "BITMAP");
+            if args.len() >= 4 {
+                let row_bytes = parse_i32_arg(&args[2]).unwrap_or(1).max(1) as usize;
+                let height = parse_i32_arg(&args[3]).unwrap_or(1).max(1) as usize;
+                let payload_end = bitmap_hex_payload_end(data, payload_start, row_bytes * height)
+                    .unwrap_or_else(|| {
+                        payload_start
+                            .saturating_add(row_bytes * height)
+                            .min(data.len())
+                    });
+                out.extend_from_slice(&data[line_start..payload_end]);
+                out.push(b'\n');
+                idx = payload_end;
+                continue;
             }
         }
 
         // PDF417 with an `L<len>` raw expression: header plus exactly <len>
         // content bytes (with the splitter's structural-stop rule), verbatim.
-        if matches!(token.as_str(), "PDF417" | "MPDF417") {
-            if let Some((len, _header_end, content_start)) = pdf417_raw_layout(data, line_start) {
-                let content_end = raw_content_end(
-                    data,
-                    content_start,
-                    len.min(data.len().saturating_sub(content_start)),
-                );
-                out.extend_from_slice(&data[line_start..content_end]);
-                out.push(b'\n');
-                idx = content_end;
-                continue;
-            }
+        if matches!(token.as_str(), "PDF417" | "MPDF417")
+            && let Some((len, _header_end, content_start)) = pdf417_raw_layout(data, line_start)
+        {
+            let content_end = raw_content_end(
+                data,
+                content_start,
+                len.min(data.len().saturating_sub(content_start)),
+            );
+            out.extend_from_slice(&data[line_start..content_end]);
+            out.push(b'\n');
+            idx = content_end;
+            continue;
         }
 
         // Plain command line (may span physical lines inside quotes).

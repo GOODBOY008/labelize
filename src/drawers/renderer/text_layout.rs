@@ -764,12 +764,13 @@ fn layout(text: &TextField, state: &mut DrawerState) -> Result<TextLayout, Strin
         // buffer stacks lines from the pen, so re-anchor line 1 onto
         // field_x + max_lines·pitch; the buffer's own (k−1)·pitch stacking
         // (flipped by the rotation) then places every line k.
-        if f0 && orientation == FieldOrientation::Rotated90 {
-            if let Some(ref block) = text.block {
-                let pitch = scale.y * line_height_factor + block.line_spacing as f32;
-                let reserved = block.max_lines.max(1) as f32 * pitch;
-                ox += reserved as f64 - buf_h as f64 - f0_rot_pen_bias as f64;
-            }
+        if f0
+            && orientation == FieldOrientation::Rotated90
+            && let Some(ref block) = text.block
+        {
+            let pitch = scale.y * line_height_factor + block.line_spacing as f32;
+            let reserved = block.max_lines.max(1) as f32 * pitch;
+            ox += reserved as f64 - buf_h as f64 - f0_rot_pen_bias as f64;
         }
 
         return Ok(TextLayout {
@@ -1440,10 +1441,10 @@ fn blit_glyph(
     };
     let raster_w = dropped_w(&bb);
     g.draw(|gx, gy, gv| {
-        if let Some(dropped) = &dropped {
-            if dropped[(gy as usize) * raster_w + gx as usize] {
-                return;
-            }
+        if let Some(dropped) = &dropped
+            && dropped[(gy as usize) * raster_w + gx as usize]
+        {
+            return;
         }
         let px = gx as i32 + x_shift;
         let py = gy as i32 + y_shift;
