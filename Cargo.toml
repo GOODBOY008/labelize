@@ -42,7 +42,7 @@ unicode-script = "0.5"
 rustybuzz = "0.20"
 write-fonts = "0.48"
 # 0.1.1 has identical encoders but caps the unrelated PNG dependency below image 0.25.10.
-bwipp-rs = { version = "=0.1.0", default-features = false }
+bwipp-rs = { version = "=0.1.1", default-features = false }
 anyd = { version = "0.3.1", default-features = false, features = ["alloc", "encode", "code11", "code128", "code39", "code93", "code49", "codablockf", "codabar", "ean", "twoof5", "msi", "postal", "databar", "pdf417"] }
 base64 = "0.23"
 krilla = { version = "0.8.2", default-features = false, features = ["raster-images"], optional = true }
