@@ -7,6 +7,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # This release only caps image below 0.25.10; retain Cargo.toml's deliberate pin.
+    ignore:
+      - dependency-name: "bwipp-rs"
+        versions: ["0.1.1"]
     groups:
       cargo-minor-patch:
         update-types:
