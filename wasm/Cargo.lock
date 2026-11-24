@@ -275,7 +275,7 @@ checksum = "d07810323774040b619dd63b07e5496fe9b82f954feb9c280dc6342a66e6fc07"
 dependencies = [
  "datamatrix",
  "image",
- "qrcode",
+ "qrcode 0.14.1",
 ]
 
 [[package]]
@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "labelize"
-version = "1.12.0"
+version = "1.12.1"
 dependencies = [
  "ab_glyph",
  "anyd",
@@ -972,7 +972,7 @@ dependencies = [
  "krilla",
  "lopdf",
  "png",
- "qrcode",
+ "qrcode 0.15.0",
  "rustybuzz",
  "rxing",
  "thiserror",
@@ -1433,6 +1433,12 @@ name = "qrcode"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+
+[[package]]
+name = "qrcode"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ace1a365f55004297f2cf24acfd96d02966246ca423385273b58a7dc873ee14d"
 dependencies = [
  "image",
 ]
