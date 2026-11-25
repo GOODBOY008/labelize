@@ -1,7 +1,7 @@
 //! TSPL source formatter: normalize commands one per line without touching
 //! binary payloads.
 //!
-//! The formatter uses the parser's payload boundaries for `BITMAP` and
+//! The formatter uses the parser's payload boundaries for `BITMAP`, counted `AZTEC` and
 //! `PDF417 L<len>`. It copies the raw data byte-for-byte, including any
 //! embedded line breaks.
 
@@ -17,7 +17,7 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
     let mut idx = 0usize;
 
     while idx < data.len() {
-        while idx < data.len() && matches!(data[idx], b'\r' | b'\n') {
+        while idx < data.len() && data[idx].is_ascii_whitespace() {
             idx += 1;
         }
         if idx >= data.len() {
@@ -27,6 +27,15 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         let line_start = idx;
         let token_end = first_token_end(data, line_start);
         let token = String::from_utf8_lossy(&data[line_start..token_end]).to_uppercase();
+
+        if token == "AZTEC"
+            && let Ok(input) = super::aztec::split(data, token_end)
+        {
+            out.extend_from_slice(&data[line_start..input.end]);
+            out.push(b'\n');
+            idx = input.end;
+            continue;
+        }
 
         // BITMAP: complete hex line or `row_bytes * height` raw bytes, verbatim.
         if token == "BITMAP"

@@ -115,6 +115,7 @@ pub(crate) fn encode(
     let text = String::from_utf8_lossy(data);
     let mut caption = text.to_string();
     let encoding = match *kind {
+        Aztec { size, inverted } => Encoding::Matrix(super::aztec::modules(data, size, inverted)?),
         Code11 { checks } => {
             let e = Code11Encoder::new();
             modules(e, e.build(data, checks))?

@@ -291,6 +291,7 @@ pub(super) fn render(spec: &BarcodeSymbol, data: &[u8]) -> Result<(RgbaImage, St
                 None
             };
             let (height, per_row) = match kind {
+                Aztec { .. } => (spec.module, true),
                 MicroPdf417 { .. } => (spec.height, true),
                 DataBar { variant: 1..=6, .. } if matches!(bars, Encoding::Matrix(_)) => {
                     (spec.module, true)

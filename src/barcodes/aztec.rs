@@ -1,6 +1,6 @@
+use anyd::output::BitMatrix;
 use image::{Rgba, RgbaImage};
-use rxing::aztec::AztecWriter;
-use rxing::{BarcodeFormat, EncodeHintValue, EncodeHints, Writer};
+use rxing::aztec::encoder::aztec_encoder;
 
 /// Module map of the symbol Labelary draws for an empty ^BO field: the bare
 /// 11×11 Aztec bullseye core (`#` = dark). Measured from Labelary renders
@@ -50,6 +50,56 @@ fn empty_core_image(mag: u32) -> RgbaImage {
     img
 }
 
+// Layer selectors use negative numbers for compact symbols in rxing.
+// Error correction is a percentage of all words in the command, and a
+// percentage of data bits in rxing.
+fn parameters(size: i32) -> (u32, i32) {
+    let ec = match size {
+        1..=99 => (100 * size as u32).div_ceil(100 - size as u32),
+        _ => aztec_encoder::DEFAULT_EC_PERCENT,
+    };
+    let layers = match size {
+        101..=104 => 100 - size,
+        201..=232 => size - 200,
+        _ => 0,
+    };
+    (ec, layers)
+}
+
+/// Logical modules for byte-oriented Aztec symbols, including Runes.
+pub(super) fn modules(data: &[u8], size: i32, inverted: bool) -> Result<BitMatrix, String> {
+    fn copy(side: usize, dot: impl Fn(usize, usize) -> bool, inverted: bool) -> BitMatrix {
+        let mut matrix = BitMatrix::new(side, side, 0);
+        for y in 0..side {
+            for x in 0..side {
+                matrix.set(x, y, dot(x, y) != inverted);
+            }
+        }
+        matrix
+    }
+
+    if size == 300 {
+        let value = std::str::from_utf8(data).map_err(|_| "Aztec Rune requires decimal digits")?;
+        let bwipp::Encoded::Matrix(matrix) = bwipp::Symbology::AztecRune
+            .encode(value, &bwipp::Options::default())
+            .map_err(|e| format!("Aztec Rune encoding failed: {e}"))?
+        else {
+            unreachable!("Aztec Rune is a matrix barcode")
+        };
+        return Ok(copy(matrix.width(), |x, y| matrix.get(x, y), inverted));
+    }
+
+    let (ec, layers) = parameters(size);
+    let code = aztec_encoder::encode_bytes(data, ec, layers)
+        .map_err(|e| format!("Aztec encoding failed: {e}"))?;
+    let matrix = code.getMatrix();
+    Ok(copy(
+        matrix.getWidth() as usize,
+        |x, y| matrix.get(x as u32, y as u32),
+        inverted,
+    ))
+}
+
 /// Generate an Aztec barcode image using rxing's proper encoder.
 ///
 /// The `ec_symbol_size` parameter follows ZPL ^BO spec:
@@ -67,43 +117,10 @@ pub fn encode(content: &str, magnification: i32, ec_symbol_size: i32) -> Result<
         return Ok(empty_core_image(mag));
     }
 
-    // Use rxing Aztec writer to get proper bit matrix
-    let writer = AztecWriter;
-    let mut hints = EncodeHints::default();
-    hints = hints.with(EncodeHintValue::Margin("0".to_string()));
-
-    match ec_symbol_size {
-        // Compact Aztec: 101-104 -> AztecLayers(-1 to -4)
-        101..=104 => {
-            let layers = -(ec_symbol_size - 100);
-            hints = hints.with(EncodeHintValue::AztecLayers(layers));
-        }
-        // Full-range Aztec: 201-232 -> AztecLayers(1 to 32)
-        201..=232 => {
-            let layers = ec_symbol_size - 200;
-            hints = hints.with(EncodeHintValue::AztecLayers(layers));
-        }
-        // EC percentage: 1-99
-        // ZPL ^BO d parameter defines EC% as a percentage of TOTAL codewords,
-        // i.e. ecc_codewords / total_codewords = ec_percent / 100.
-        // rxing's ErrorCorrection hint instead uses EC% of DATA bits:
-        //   ecc_bits = data_bits * ec_percent / 100 + 11
-        // Conversion: adjusted = ceil(ec_percent * 100 / (100 - ec_percent))
-        // This ensures rxing picks the same minimum symbol layer as Zebra firmware.
-        1..=99 => {
-            let adjusted_ec =
-                (ec_symbol_size * 100 + (100 - ec_symbol_size) - 1) / (100 - ec_symbol_size);
-            hints = hints.with(EncodeHintValue::ErrorCorrection(adjusted_ec.to_string()));
-        }
-        // 0, 300, or other: use rxing defaults
-        _ => {}
-    }
-
-    // Encode with minimum size, we'll apply magnification ourselves
-    let bit_matrix = writer
-        .encode_with_hints(content, &BarcodeFormat::AZTEC, 0, 0, &hints)
-        .map_err(|e| format!("Aztec encoding failed: {}", e))?;
-
+    let (ec, layers) = parameters(ec_symbol_size);
+    let code = aztec_encoder::encode(content, ec, layers)
+        .map_err(|e| format!("Aztec encoding failed: {e}"))?;
+    let bit_matrix = code.getMatrix();
     let bm_width = bit_matrix.getWidth();
     let bm_height = bit_matrix.getHeight();
 
