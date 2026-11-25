@@ -45,6 +45,7 @@ use crate::elements::maxicode::{Maxicode, MaxicodeWithData};
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::text_alignment::TextAlignment;
 use crate::elements::text_field::TextField;
+use crate::parsers::text_encoding::TextEncoding;
 
 /// Measurement system of a session's numeric fields.
 #[derive(Clone, Copy, PartialEq)]
@@ -77,6 +78,7 @@ fn header_dpmm(dpi: f64) -> f64 {
 
 /// One control session (`!` header … PRINT/END/ABORT).
 struct CpclSession {
+    encoding: TextEncoding,
     elements: Vec<LabelElement>,
     units: Units,
     hdpi: f64,
@@ -244,6 +246,9 @@ impl CpclParser {
                 continue; // commands outside a session draw nothing
             };
 
+            // The trimmed whitespace is valid UTF-8. Align the raw view so
+            // TEXT can decode its original bytes after the ASCII command.
+            let raw = &raw[text.len() - line.len()..];
             match parse_line(s, &mut mag, line, raw, &mut lines) {
                 Ok(Flow::Continue) => {}
                 Ok(Flow::Flush) => {
@@ -272,6 +277,7 @@ enum Flow {
 
 fn start_session(line: &str, mag: (f64, f64), dpmm: f64) -> CpclSession {
     let mut s = CpclSession {
+        encoding: TextEncoding::default(),
         elements: Vec::new(),
         units: Units::Dots,
         hdpi: 203.0,
@@ -344,25 +350,24 @@ fn parse_line(
         _ => {}
     }
     s.resolve_header_units();
-    let args: Vec<&str> = rest.split_whitespace().collect();
+    if let Some((parse, orientation)) = text_command(&cmd) {
+        let text = s
+            .encoding
+            .decode(&raw[cmd_word.len()..])
+            .map_err(|e| format!("{cmd}: {e}"))?;
+        parse(s, text.trim_start(), orientation)?;
+        return Ok(Flow::Continue);
+    }
 
+    let args: Vec<&str> = rest.split_whitespace().collect();
     match cmd.as_str() {
-        "TEXT" | "T" => parse_text(s, rest, FieldOrientation::Normal).map(|_| Flow::Continue),
-        // 90° counter-clockwise = 270° clockwise in the IR's terms.
-        "VTEXT" | "VT" | "TEXT90" | "T90" => {
-            parse_text(s, rest, FieldOrientation::Rotated270).map(|_| Flow::Continue)
-        }
-        "TEXT180" | "T180" => {
-            parse_text(s, rest, FieldOrientation::Rotated180).map(|_| Flow::Continue)
-        }
-        "TEXT270" | "T270" => {
-            parse_text(s, rest, FieldOrientation::Rotated90).map(|_| Flow::Continue)
-        }
-        "SCALE-TEXT" | "ST" => {
-            parse_scale_text(s, rest, FieldOrientation::Normal).map(|_| Flow::Continue)
-        }
-        "VSCALE-TEXT" | "VST" => {
-            parse_scale_text(s, rest, FieldOrientation::Rotated270).map(|_| Flow::Continue)
+        "COUNTRY" | "ENCODING" => {
+            s.encoding = match rest.trim().to_ascii_uppercase().as_str() {
+                "GB18030" => TextEncoding::Gb18030,
+                "UTF-8" | "UTF8" => TextEncoding::Utf8,
+                _ => TextEncoding::Unspecified,
+            };
+            Ok(Flow::Continue)
         }
         "MULTILINE" | "ML" => parse_multiline(s, rest, lines),
         "BARCODE" | "B" | "VBARCODE" | "VB" => {
@@ -449,7 +454,7 @@ fn parse_line(
         }
         // Device behaviour / session control with no drawable effect
         // (CONTRAST, TONE, JOURNAL, PACE, FORM, PREFEED, POSTFEED, WAIT,
-        // BEEP, CUT, PARTIAL-CUT, ENCODING, COUNT, …), plus unknown
+        // BEEP, CUT, PARTIAL-CUT, COUNT, …), plus unknown
         // commands — ignored like the TSPL frontend does.
         _ => Ok(Flow::Continue),
     }
@@ -463,6 +468,22 @@ fn justify_end(s: &CpclSession, arg: Option<&str>) -> f64 {
         return s.x_mm(v);
     }
     s.page_width_mm.unwrap_or_else(|| s.x_mm(576.0))
+}
+
+type TextParser = fn(&mut CpclSession, &str, FieldOrientation) -> Result<(), String>;
+
+/// Ordinary fields and MULTILINE headers accept the same text commands.
+fn text_command(name: &str) -> Option<(TextParser, FieldOrientation)> {
+    use FieldOrientation::{Normal, Rotated180, Rotated270, Rotated90};
+    Some(match name {
+        "TEXT" | "T" => (parse_text, Normal),
+        "VTEXT" | "VT" | "TEXT90" | "T90" => (parse_text, Rotated270),
+        "TEXT180" | "T180" => (parse_text, Rotated180),
+        "TEXT270" | "T270" => (parse_text, Rotated90),
+        "SCALE-TEXT" | "ST" => (parse_scale_text, Normal),
+        "VSCALE-TEXT" | "VST" => (parse_scale_text, Rotated270),
+        _ => return None,
+    })
 }
 
 /// `TEXT {font} {size} {x} {y} {data…}` — data is the rest of the line.
@@ -601,32 +622,22 @@ fn parse_multiline(s: &mut CpclSession, rest: &str, lines: &mut CpclLines) -> Re
     };
     let (text_cmd, header_rest) = next_token(&header);
     let command = text_cmd.to_ascii_uppercase();
-    let orientation = match command.as_str() {
-        "TEXT" | "T" | "SCALE-TEXT" | "ST" => FieldOrientation::Normal,
-        "VTEXT" | "VT" | "TEXT90" | "T90" | "VSCALE-TEXT" | "VST" => FieldOrientation::Rotated270,
-        "TEXT180" | "T180" => FieldOrientation::Rotated180,
-        "TEXT270" | "T270" => FieldOrientation::Rotated90,
-        _ => return Err(format!("unsupported CPCL MULTILINE text command {command}")),
-    };
-    let scalable = matches!(
-        command.as_str(),
-        "SCALE-TEXT" | "ST" | "VSCALE-TEXT" | "VST"
-    );
+    let (parse, orientation) = text_command(&command)
+        .ok_or_else(|| format!("unsupported CPCL MULTILINE text command {command}"))?;
     let pitch_dots = (s.y_mm(pitch) * s.dpmm).round() as i32;
     let mut row = 0i32;
-    while let Some(data) = lines.next_line() {
-        if data.trim().eq_ignore_ascii_case("ENDML")
-            || data.trim().eq_ignore_ascii_case("ENDMULTILINE")
-        {
+    while let Some(raw) = lines.next_line_bytes() {
+        let tag = raw.trim_ascii();
+        if tag.eq_ignore_ascii_case(b"ENDML") || tag.eq_ignore_ascii_case(b"ENDMULTILINE") {
             return Ok(Flow::Continue);
         }
-        if !data.is_empty() {
+        if !raw.is_empty() {
+            let data = s
+                .encoding
+                .decode(raw)
+                .map_err(|e| format!("MULTILINE row {}: {e}", row + 1))?;
             let row_cmd = format!("{} {}", header_rest.trim(), data);
-            if scalable {
-                parse_scale_text(s, &row_cmd, orientation)?;
-            } else {
-                parse_text(s, &row_cmd, orientation)?;
-            }
+            parse(s, &row_cmd, orientation)?;
             if let Some(LabelElement::Text(t)) = s.elements.last_mut() {
                 t.position.y = t.position.y.saturating_add(pitch_dots.saturating_mul(row));
             }
