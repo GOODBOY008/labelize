@@ -58,8 +58,8 @@ pub(super) fn load(bytes: &[u8]) -> Result<(Vec<u8>, Vec<Slot>), String> {
     Ok((bytes.to_vec(), slots))
 }
 
-// Java's String.lines accepts CR, LF, and CRLF. Return a byte position so
-// source outside replaced fields can be copied verbatim, without rejoining lines.
+// Accept CR, LF, and CRLF. Returning byte offsets preserves the original
+// line endings and fixed bytes around each replaced field.
 fn read_line(source: &str, start: usize) -> (&str, usize) {
     let tail = &source[start..];
     let end = tail.find(['\r', '\n']).unwrap_or(tail.len());

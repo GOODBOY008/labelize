@@ -42,6 +42,11 @@ export function lz_encode(
   lang: string,
 ): Uint8Array;
 
+/** Fill a Studio template using a UTF-8 JSON request (language, template_base64,
+ * values). Returns native printer bytes. Invalid input throws a `1:` error and
+ * exceeding the request or output byte limit throws a `3:` error. */
+export function lz_template_fill(body: Uint8Array): Uint8Array;
+
 /** Shared-layout output. Zero dimensions use declared sizes; unknown languages/modes fail.
  * scale applies only to vector PNG; all_pages applies only to vector PDF. */
 export function lz_render_output(

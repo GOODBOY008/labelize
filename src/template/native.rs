@@ -247,8 +247,8 @@ impl Field {
     }
 }
 
-// Studio uses Java's strip().equalsIgnoreCase() to recognize an end record.
-// Non-breaking spaces remain data. The I in ENDDATAMATRIX also matches ı and İ.
+// Match Studio's whitespace and case rules for end records. Non-breaking
+// spaces remain data. The I in ENDDATAMATRIX also matches ı and İ.
 fn is_cpcl_terminator(value: &str, tag: &str) -> bool {
     let value = value.trim_matches(|c: char| {
         matches!(c, '\u{1c}'..='\u{1f}')

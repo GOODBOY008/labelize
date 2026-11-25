@@ -25,6 +25,65 @@ const worker = await loadWorker();
 const png = readFileSync(new URL('../testdata/labels/amazon.png', import.meta.url));
 const call = (query, body = png) => worker.fetch(new Request(`https://example.com/encode${query}`, { method: 'POST', body }), {});
 
+const fill = (body, type = 'application/json', headers = {}) => worker.fetch(
+  new Request('https://example.com/template/fill', {
+    method: 'POST', body, duplex: 'half', headers: { 'content-type': type, ...headers },
+  }), {},
+);
+
+test('Worker returns native template jobs for all five printer languages', async () => {
+  const fixture = name => readFileSync(new URL(`../testdata/templates/${name}`, import.meta.url));
+  const values = JSON.parse(fixture('second.json'));
+  for (const language of ['zpl', 'tspl', 'epl', 'cpcl', 'dpl']) {
+    const source = fixture(`printers/shipping.tpl.${language}`);
+    const bytes = Buffer.from(JSON.stringify({ language, template_base64: source.toString('base64'), values }));
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes.subarray(0, 13));
+        controller.enqueue(bytes.subarray(13));
+        controller.close();
+      },
+    });
+    const response = await fill(body, 'Application/JSON; charset=utf-8');
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'application/octet-stream');
+    assert.equal(response.headers.get('access-control-allow-origin'), '*');
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), fixture(`printers/second.${language}`));
+  }
+});
+
+test('Worker enforces the template fill media type and raw request limit', async () => {
+  assert.equal((await fill('{}', 'text/plain')).status, 415);
+  const bad = await fill('{');
+  assert.equal(bad.status, 400);
+  assert.ok(await bad.text());
+  const source = Buffer.from('^XA\n^FXLabelize field text^FS\n^FO5,5^FH^FD{{order_no}}^FS\n^XZ\n').toString('base64');
+  assert.equal((await fill(JSON.stringify(['zpl', source, { order_no: '000123' }]))).status, 400);
+  const limit = 2 * 1024 * 1024;
+  assert.equal((await fill('{}', 'application/json', { 'content-length': String(limit + 1) })).status, 413);
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(limit));
+      controller.enqueue(new Uint8Array(1));
+      controller.close();
+    },
+  });
+  assert.equal((await fill(body)).status, 413);
+  // Keep the WASM binding's error contract for callers independent of HTTP.
+  assert.throws(() => glue.lz_template_fill(new Uint8Array(limit + 1)), /3:.*2 MiB/);
+});
+
+test('Worker rejects filled jobs over the conversion size limit', async () => {
+  const field = '^FXLabelize field text^FS\n^FO1,1^A0N,20,20^FH^FD{{product}}^FS\n';
+  const source = Buffer.from('^XA\n' + field.repeat(1024) + '^XZ\n');
+  const response = await fill(JSON.stringify({
+    language: 'zpl', template_base64: source.toString('base64'),
+    values: { product: 'p'.repeat(2048) },
+  }));
+  assert.equal(response.status, 413);
+  assert.match(await response.text(), /2 MiB/);
+});
+
 test('public API supports preflight and schema without initializing WASM', async () => {
   let initializations = 0;
   const isolated = await loadWorker(createContext({
@@ -118,17 +177,25 @@ test('worker respects threshold extremes and uppercase language', async () => {
   }
 });
 
-test('Node init subpath exports encoding and rejects unknown targets', () => {
+test('Node init subpath exposes image encoding and printer template filling', () => {
   // init.mjs owns a separate engine instance; use a fresh process so its
   // wasm-bindgen memory caches cannot alias the worker's instance.
   execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import { readFileSync } from 'node:fs';
-    import { lz_encode } from ${JSON.stringify(new URL('../wasm/npm/init.mjs', import.meta.url).href)};
+    import { lz_encode, lz_template_fill } from ${JSON.stringify(new URL('../wasm/npm/init.mjs', import.meta.url).href)};
     const png = readFileSync(new URL(${JSON.stringify(new URL('../testdata/labels/amazon.png', import.meta.url).href)}));
     assert.throws(() => lz_encode(png, 8, 128, 'epl'), /1:.*expected zpl or tspl/);
     assert.throws(() => lz_encode(png, 0, 128, 'zpl'), /1:.*dpmm must be positive/);
     assert.ok(lz_encode(png, 8, 128, 'ZPL').length > 0);
+    const fixtures = ${JSON.stringify(new URL('../testdata/templates/', import.meta.url).href)};
+    const read = path => readFileSync(new URL(path, fixtures));
+    const request = {
+      language: 'dpl', values: JSON.parse(read('second.json')),
+      template_base64: read('printers/shipping.tpl.dpl').toString('base64'),
+    };
+    const job = lz_template_fill(new TextEncoder().encode(JSON.stringify(request)));
+    assert.deepEqual(Buffer.from(job), read('printers/second.dpl'));
   `]);
 });
 

@@ -62,7 +62,7 @@ impl Expression {
 
     pub(super) fn expand(&self, values: &TemplateValues) -> Result<String, String> {
         let mut text = String::new();
-        // Studio's expansion limit counts Java UTF-16 code units. Encoders
+        // Studio's expansion limit counts UTF-16 code units. Encoders
         // apply their own byte limits after escaping and character encoding.
         let mut units = 0;
         for part in &self.parts {

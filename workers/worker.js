@@ -5,7 +5,7 @@
 // so we skip it: import the core glue functions and instantiate the engine
 // manually. Workerd gives us the .wasm as bytes via esbuild's binary loader.
 import * as engine from "../wasm/npm/labelize_wasm_bg.js";
-const { lz_render_output, lz_playground_html, lz_validate, lz_format, lz_encode } = engine;
+const { lz_render_output, lz_playground_html, lz_validate, lz_format, lz_encode, lz_template_fill } = engine;
 import wasmBytes from "../wasm/npm/labelize_wasm_bg.wasm";
 import openapi from "../src/playground/openapi.json";
 
@@ -79,11 +79,12 @@ function jsonResponse(obj, status = 200) {
 }
 
 // wasm-bindgen throws the Err string of Result<_, String>; unwrap it and map
-// the "1:" / "2:" stage prefix back to HTTP 400 / 500.
+// the stage prefix back to HTTP 400, 500 or 413.
 function renderStatus(err) {
   const msg = err && err.message !== undefined ? err.message : String(err);
   const m = /^(\d):([\s\S]*)$/.exec(msg);
   if (m && m[1] === "1") return { status: 400, text: m[2] };
+  if (m && m[1] === "3") return { status: 413, text: m[2] };
   return { status: 500, text: m ? m[2] : msg };
 }
 
@@ -231,6 +232,37 @@ async function encodeImage(request, url) {
   }
 }
 
+async function fillTemplate(request) {
+  const type = (request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (type !== "application/json") {
+    return new Response("Expected Content-Type: application/json", { status: 415 });
+  }
+  // Bound the body before copying it into WASM, including chunked requests.
+  const limit = 2 * 1024 * 1024;
+  const tooLarge = () => new Response("Template fill request exceeds 2 MiB", { status: 413 });
+  if (Number(request.headers.get("content-length")) > limit) return tooLarge();
+  let buffer = new Uint8Array(0);
+  let length = 0;
+  for await (const chunk of request.body || []) {
+    const end = length + chunk.byteLength;
+    if (end > limit) return tooLarge();
+    if (end > buffer.length) {
+      const grown = new Uint8Array(Math.min(limit, Math.max(end, buffer.length * 2)));
+      grown.set(buffer);
+      buffer = grown;
+    }
+    buffer.set(chunk, length);
+    length = end;
+  }
+  try {
+    const out = lz_template_fill(buffer.subarray(0, length));
+    return new Response(out, { headers: { "content-type": "application/octet-stream" } });
+  } catch (err) {
+    const { status, text } = renderStatus(err);
+    return new Response(text, { status });
+  }
+}
+
 function badLanguage(lang) {
   if (lang && !["zpl", "epl", "tspl", "cpcl", "dpl"].includes(lang.toLowerCase())) {
     return jsonResponse(
@@ -286,6 +318,7 @@ async function route(request, env, url) {
   if (request.method === "POST" && url.pathname === "/validate") return validate(request, url);
   if (request.method === "POST" && url.pathname === "/format") return formatLabel(request, url);
   if (request.method === "POST" && url.pathname === "/encode") return encodeImage(request, url);
+  if (request.method === "POST" && url.pathname === "/template/fill") return fillTemplate(request);
   return jsonResponse({ error: "Not Found" }, 404);
 }
 
