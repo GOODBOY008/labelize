@@ -44,12 +44,17 @@ server URLs that use the hosting origin.
 | Method and path | Request body | Response |
 | --- | --- | --- |
 | `GET /health` | None | JSON `{"status":"ok"}` |
+| `POST /template/fill` | JSON with `language`, `template_base64` and string `values` | Native printer bytes (`application/octet-stream`) |
 | `POST /convert` | Raw ZPL, EPL, TSPL, CPCL or DPL bytes | PNG or PDF bytes |
 | `POST /validate` | Raw label bytes | JSON report; check **`ok`** even with HTTP 200 |
 | `POST /format` | Raw label bytes | Formatted source bytes; binary graphics are preserved |
 | `POST /encode` | Encoded image bytes | ZPL text or binary TSPL bytes |
 
-Send raw bytes, without JSON or multipart wrapping. `/convert` selects the
+For `/template/fill`, send `application/json`. A malformed request or invalid
+field returns 400, an oversized request or job returns 413, and an unsupported
+request media type returns 415. [Fill a template and preview it over HTTP](PRINT_TEMPLATES.md#http)
+
+The other POST endpoints accept raw bytes. `/convert` selects the
 parser using `Content-Type: application/zpl` (or `epl`, `tspl`, `cpcl`, `dpl`).
 `/validate` and `/format` use `?language=…` or detect the source, independently
 of Content-Type. `/encode?language=zpl|tspl` selects the output language.

@@ -1,5 +1,13 @@
 # Source attribution
 
+## Labelize Studio printer templates
+
+The expression syntax, field encodings and validation rules in `src/template/`
+follow Labelize Studio's template format, copyright © 2025 gongzhongqiang,
+distributed under the [MIT license](LICENSE). The shared fixtures include
+Studio exports and the independently captured native printer jobs.
+[Studio source](https://github.com/GOODBOY008/labelize-studio) · [Fixture provenance](testdata/templates/README.md)
+
 ## Legacy Data Matrix ECC 000-140
 
 `src/barcodes/datamatrix_legacy.rs` is adapted from David Block's QR Atelier

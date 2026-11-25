@@ -22,6 +22,7 @@ PAGES = [
     ('Integrate', 'tutorials/cli.md', 'cli'),
     ('Integrate', 'tutorials/docker.md', 'docker'),
     ('Integrate', 'tutorials/rust-library.md', 'rust'),
+    ('Integrate', 'PRINT_TEMPLATES.md', 'print-templates'),
     ('Integrate', 'tutorials/javascript-wasm.md', 'javascript'),
     ('Integrate', 'tutorials/android.md', 'android'),
     ('Reference', 'USAGE.md', 'usage'),

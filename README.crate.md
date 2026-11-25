@@ -36,6 +36,7 @@ and `labels` counts **all labels in the input**. Set `width_mm`, `height_mm` or
 
 | Task | How |
 | --- | --- |
+| Fill an exported printer template | Load a `PrintTemplate` once, then call `fill` for each order to get native printer bytes for printing or rendering. |
 | Preview every label in a batch | [`parse_labels`](https://docs.rs/labelize/latest/labelize/lang/fn.parse_labels.html) returns one `LabelInfo` per label. Pass each one to `Renderer::draw_label_as_png`. |
 | Check input before rendering | [`validate`](https://docs.rs/labelize/latest/labelize/lang/fn.validate.html) reports the detected language, label count and any parse error. |
 | Print an existing image | [`encode_image_bytes`](https://docs.rs/labelize/latest/labelize/reverse/fn.encode_image_bytes.html) converts encoded image bytes to ZPL graphic commands or a TSPL command stream with a binary bitmap. |
