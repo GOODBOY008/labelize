@@ -124,6 +124,38 @@ fn quoted_escapes_and_optional_delimiters_in_counted_form_preserve_data() {
 }
 
 #[test]
+fn counted_quotes_keep_payload_line_endings_and_the_following_print() {
+    let cases: &[(&[u8], &[u8])] = &[
+        (b"2,\"A\n\"", b"A\n"),
+        (b"2,\"A\r\"  \t", b"A\r"),
+        (b"3,\"A\r\n\"", b"A\r\n"),
+        (b"3,\"A\"", b"\"A\""),
+        (b"3,A \t", b"A \t"),
+    ];
+    for &(field, payload) in cases {
+        let command = [b"AZTEC 18,20,0,4,0,0,0,1,0,".as_slice(), field].concat();
+        let lines = [
+            command.as_slice(),
+            b"PRINT 1",
+            b"CLS",
+            b"BAR 1,1,2,2",
+            b"PRINT 1",
+            b"",
+        ];
+        let source = lines.join(b"\r\n".as_slice());
+        let (_, formatted) = format_source(&source, None);
+        assert_eq!(formatted, lines.join(b"\n".as_slice()));
+        for dpmm in [8, 12] {
+            for job in [&source, &formatted] {
+                let labels = parse_labels(Language::Tspl, job, dpmm).unwrap();
+                assert_eq!(labels.len(), 2, "following PRINT flushes the first label");
+                assert_eq!(scan_image(&render(job, dpmm)), payload);
+            }
+        }
+    }
+}
+
+#[test]
 fn malformed_headers_and_unsupported_special_modes_are_reported() {
     for (command, error) in [
         ("AZTEC 0,0,0,4,0,0,0,1,0,9,xx", "truncated"),
