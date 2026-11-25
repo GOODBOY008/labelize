@@ -6,6 +6,9 @@
 /testdata/unit/zpl_binary_graphics.zpl binary
 /testdata/invalid/usps_apo_truncated.zpl binary
 
+# This DPL fixture uses literal CR record separators and a final CRLF.
+/testdata/unit/dpl_2d_graphics.dpl -text whitespace=cr-at-eol
+
 # DPL file contains a binary BMP download.
 /testdata/dpl/downloaded_image.dpl binary
 
