@@ -97,3 +97,29 @@ fn dpl_counted_datamatrix_decodes_original_bytes_at_multiple_resolutions() {
         }
     }
 }
+
+#[test]
+fn cpcl_datamatrix_scans_at_both_resolutions_and_resumes_after_terminator() {
+    let source = b"! 0 200 200 220 1\r\nPAGE-WIDTH 400\r\nBARCODE DATAMATRIX 10 10 H 3 S 200\r\nABC123\r\nENDDATAMATRIX\r\nLINE 100 100 120 100 2\r\nPRINT\r\n";
+    let (_, formatted) = format_source(source, Some(Language::Cpcl));
+    for (dpmm, origin, pitch, line_x) in [(8, 10, 3, 100), (12, 15, 5, 150)] {
+        for input in [source.as_slice(), &formatted] {
+            let image = render(Language::Cpcl, input, dpmm);
+            assert_eq!(image.get_pixel(line_x + 1, line_x)[0], 0, "following LINE");
+            // The alternating top finder border starts with one black module.
+            for (dx, color) in [(0, 0), (pitch - 1, 0), (pitch, 255), (2 * pitch, 0)] {
+                assert_eq!(image.get_pixel(origin + dx, origin)[0], color);
+            }
+            let luma = image::DynamicImage::ImageRgba8(image).into_luma8();
+            let (width, height) = luma.dimensions();
+            let decoded = rxing::helpers::detect_in_luma(
+                luma.into_raw(),
+                width,
+                height,
+                Some(rxing::BarcodeFormat::DATA_MATRIX),
+            )
+            .expect("scan the rendered label");
+            assert_eq!(decoded.getText(), "ABC123");
+        }
+    }
+}

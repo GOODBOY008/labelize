@@ -108,17 +108,17 @@ fn encode_bytes(
         })
         .map_err(EncodeError::Capacity)?;
 
-    Ok(render_bitmap(&code.bitmap(), mag))
+    render_bitmap(&code.bitmap(), mag)
 }
 
-fn render_bitmap(bitmap: &Bitmap<bool>, mag: u32) -> RgbaImage {
+fn render_bitmap(bitmap: &Bitmap<bool>, mag: u32) -> Result<RgbaImage, EncodeError> {
     let bm_width = bitmap.width() as u32;
     let bm_height = bitmap.height() as u32;
 
     // Render to image (no quiet zone — Labelary omits it)
-    let img_width = bm_width * mag;
-    let img_height = bm_height * mag;
-    let mut img = RgbaImage::from_pixel(img_width, img_height, Rgba([0, 0, 0, 0]));
+    let img_width = bm_width.saturating_mul(mag);
+    let img_height = bm_height.saturating_mul(mag);
+    let mut img = super::checked_image(img_width, img_height).map_err(EncodeError::Invalid)?;
     let black = Rgba([0, 0, 0, 255]);
 
     // pixels() yields (x, y) for each dark module
@@ -134,7 +134,7 @@ fn render_bitmap(bitmap: &Bitmap<bool>, mag: u32) -> RgbaImage {
         }
     }
 
-    img
+    Ok(img)
 }
 
 /// Encode ZPL ECC 200 escapes after field-hex processing. The raw `encode`
@@ -241,5 +241,5 @@ fn encode_zpl_inner(
     let ecc = datamatrix::errorcode::encode_error(&words, selected.size);
     words.extend_from_slice(&ecc);
     let bitmap = MatrixMap::new_with_codewords(&words, selected.size).bitmap();
-    Ok(render_bitmap(&bitmap, magnification.max(1) as u32))
+    render_bitmap(&bitmap, magnification.max(1) as u32)
 }

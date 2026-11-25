@@ -63,7 +63,14 @@ PRINT
 ```
 
 Text, resident fonts, scalable text, multiline fields, several 1D/2D barcodes
-and counted `EG`/`CG` graphics are supported. Stored formats, PCX, font groups
+and counted `EG`/`CG` graphics are supported. For Data Matrix, use
+`B DATAMATRIX x y H scale S 200`, followed by the data and a separate
+`ENDDATAMATRIX` line. Data lines are joined without line breaks. The default
+module is six printer dots. `C` or `R` can select a fixed square size.
+Use `G` to change the escape byte (default `_`). Supported escapes encode
+literal bytes and ASCII controls. Legacy ECC, FNC1, structured append and
+other function escapes return an error.
+Stored formats, PCX, font groups
 and some barcode types are unsupported. Reference coverage is described in
 [the test corpus](TEST_CORPUS.md#cpcl-and-dpl).
 

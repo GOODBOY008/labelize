@@ -51,7 +51,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 
 - 🖨️ **38+ ZPL commands** — text & fonts, 12 barcode symbologies (Code 128, EAN-13/8, UPC-A/E, Code 39, Interleaved 2-of-5, PDF417, Aztec, DataMatrix, QR, MaxiCode), boxes/circles/diagonals/ellipses, graphic fields, stored formats (`^DF`/`^XF`), label rotation & inversion
 - 🏷️ **EPL2 support** — text, the full 1D/2D barcode command set (`B`/`b`), lines, diagonals, boxes, binary graphics (`GW`)
-- 📱 **CPCL support** — Zebra mobile-printer sessions (`! 0 203 203 …`): resident fonts 0-7, `SETMAG`, justification, Code 128/39/EAN/UPC/I2of5, QR/PDF-417/MaxiCode/Aztec, `BOX`/`LINE`/`INVERSE-LINE`, counted `EG`/`CG` graphics
+- 📱 **CPCL support** — Zebra mobile-printer sessions (`! 0 203 203 …`): resident fonts 0-7, `SETMAG`, justification, Code 128/39/EAN/UPC/I2of5, QR/Data Matrix/PDF-417/MaxiCode/Aztec, `BOX`/`LINE`/`INVERSE-LINE`, counted `EG`/`CG` graphics
 - 🏭 **DPL support** — Datamax-O'Neil formats (`<STX>L … E`): bitmap fonts 0-8 + smooth font 9, bottom-left home coordinates, Code 128/39/UCC/EAN/UPC/I2of5, QR/PDF-417/DataMatrix/MaxiCode/Aztec, `X` line/box records
 - 🖼️ **PNG & PDF output** — black/white by default, optional grayscale. Opt-in [vector PDF and scalable PNG](docs/VECTOR_OUTPUT.md) share one layout and preserve searchable text
 - 🔄 **Reverse rendering (image → code)** — turn any raster (PNG/JPEG/GIF/BMP) into ZPL `^GFA` or TSPL `BITMAP` printer code; pixel-faithful, round-trip tested

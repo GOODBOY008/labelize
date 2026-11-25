@@ -1,4 +1,5 @@
 //! Resolve logical barcode modules into printer dots for the shared barcode layout.
+use crate::barcodes::checked_image;
 use crate::barcodes::symbols::{self, EncodedBars};
 use crate::elements::barcode_symbol::{BarcodeKind, BarcodeSymbol, PostalCode};
 use anyd::output::{BitMatrix, Encoding, LinearPattern};
@@ -30,20 +31,6 @@ fn run_width(runs: &[(bool, u32)]) -> Result<u32, String> {
         sum.checked_add(*n)
             .ok_or_else(|| "Barcode width overflow".into())
     })
-}
-
-fn checked_image(width: u32, height: u32) -> Result<RgbaImage, String> {
-    if width == 0
-        || height == 0
-        || width > 32000
-        || height > 32000
-        || u64::from(width) * u64::from(height) > 16 * 1024 * 1024
-    {
-        return Err(format!(
-            "Barcode dimensions {width} x {height} exceed the supported image size"
-        ));
-    }
-    Ok(RgbaImage::new(width, height))
 }
 
 fn raster(

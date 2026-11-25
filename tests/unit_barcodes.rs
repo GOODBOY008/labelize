@@ -382,3 +382,9 @@ fn code128_taller_height_produces_taller_image() {
         "taller height should produce taller image"
     );
 }
+
+#[test]
+fn datamatrix_rejects_excessive_scaled_raster() {
+    let error = labelize::barcodes::datamatrix::encode("ABC", 65535, 0, 0).unwrap_err();
+    assert!(error.contains("exceed the supported image size"), "{error}");
+}
