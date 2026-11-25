@@ -238,11 +238,21 @@ jobs:
       - run: cargo build --release --features serve,vector --target ${{ matrix.target }}
       - name: Exercise the Windows CLI and HTTP server
         if: github.event_name == 'pull_request' && runner.os == 'Windows'
+        timeout-minutes: 5
         shell: bash
         run: |
           export PATH="$PWD/target/${{ matrix.target }}/release:$PATH"
           bash e2e/cli/test_cli.sh
           bash e2e/http/test_http.sh
+      - name: Upload Windows CLI and HTTP outputs
+        if: always() && github.event_name == 'pull_request' && runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-windows-outputs
+          retention-days: 1
+          path: |
+            e2e/cli-output/
+            e2e/http-output/
       - uses: actions/upload-artifact@v7
         with:
           name: labelize-${{ matrix.target }}
