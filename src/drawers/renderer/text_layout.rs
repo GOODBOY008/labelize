@@ -163,7 +163,21 @@ pub(crate) fn layouts(text: &TextField, state: &mut DrawerState) -> Result<Field
         state.update_automatic_text_position(text, f64::from(width));
         return Ok(field);
     }
-    if let Some(resources) = &text.font.resources {
+    // Keep the former square-cell typeface available for glyphs outside the
+    // embedded East Asian subset, including supplementary mathematical letters.
+    static SQUARE_FALLBACK: std::sync::LazyLock<crate::elements::font::FontResources> =
+        std::sync::LazyLock::new(|| crate::elements::font::FontResources {
+            primary: None,
+            fallbacks: vec![crate::assets::FONT_DEJAVU_SANS_MONO.into()],
+            properties: Default::default(),
+            native_cell: None,
+        });
+    let resources = text
+        .font
+        .resources
+        .as_deref()
+        .or_else(|| (text.font.face == FontFace::BitmapSquare).then(|| &*SQUARE_FALLBACK));
+    if let Some(resources) = resources {
         let props = &resources.properties;
         if resources.primary.is_none()
             && !props.shape

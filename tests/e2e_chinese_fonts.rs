@@ -105,7 +105,8 @@ fn named_chinese_fonts_have_searchable_unicode_pdf_text() {
     };
     for &(language, font, _) in FONTS {
         for dpmm in [8, 12] {
-            let source = job(language, font, dpmm, &[(20, 20, TEXT)]);
+            let mixed = "A保温杯BΩβЖāǎě€𝚉";
+            let source = job(language, font, dpmm, &[(20, 20, mixed)]);
             let rendered = labelize::render_pdf_with_output(
                 source.as_bytes(),
                 options(language, dpmm),
@@ -114,7 +115,33 @@ fn named_chinese_fonts_have_searchable_unicode_pdf_text() {
             .unwrap();
             let pdf = lopdf::Document::load_mem(&rendered.bytes).unwrap();
             let extracted = pdf.extract_text(&[1]).unwrap().replace('\n', "");
-            assert_eq!(extracted, TEXT, "{font} at {dpmm} dpmm");
+            assert_eq!(extracted, mixed, "{font} at {dpmm} dpmm");
         }
     }
+}
+
+#[test]
+fn cp936_symbols_have_glyphs_in_the_named_face() {
+    use ab_glyph::{Font, FontRef};
+    use labelize::elements::font_face::FontFace;
+
+    let font = FontRef::try_from_slice(FontFace::BitmapSquare.ttf_data()).unwrap();
+    let mut missing = std::collections::BTreeSet::new();
+    for lead in 0x81..=0xfe {
+        for trail in (0x40..=0x7e).chain(0x80..=0xfe) {
+            let bytes = [lead, trail];
+            if let Some(decoded) =
+                encoding_rs::GBK.decode_without_bom_handling_and_without_replacement(&bytes)
+            {
+                for c in decoded.chars() {
+                    // CP936's user-defined areas have no universal glyph.
+                    if !('\u{e000}'..='\u{f8ff}').contains(&c) && font.glyph_id(c).0 == 0 {
+                        missing.insert(c);
+                    }
+                }
+            }
+        }
+    }
+    assert!(missing.is_empty(), "missing CP936 characters: {missing:?}");
+    assert_ne!(font.glyph_id('€').0, 0); // CP936's single-byte 0x80 extension
 }

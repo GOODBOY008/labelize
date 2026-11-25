@@ -80,8 +80,9 @@ The upstream copyright and license are retained in the font and in
 The same outlines are embedded on all targets. Named Chinese bitmap fonts
 use a full cell for Han and a half cell for ASCII. The subset covers the BMP
 unified ideographs, Extension A, compatibility ideographs, Latin-1, common
-punctuation, kana, Bopomofo, and half/full-width forms. Missing characters
-advance without ink. Glyph shapes follow Unifont's 16-dot design, scaled
+punctuation, kana, Bopomofo, and half/full-width forms. It also includes
+CP936 symbols and characters from DejaVu Sans Mono that Unifont supplies.
+DejaVu Sans Mono remains the fallback for its other glyphs. Glyph shapes follow Unifont's 16-dot design, scaled
 for 24-dot cells. Individual device fonts can have different outlines,
 regional glyph forms, and character coverage. See Zebra's
 [ZQ310 Plus / ZQ320 Plus User Guide, “Printing in Chinese Fonts”](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/product/zq310plus-zq320plus-ug-en.pdf).
