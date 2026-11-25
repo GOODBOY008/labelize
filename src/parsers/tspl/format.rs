@@ -60,13 +60,22 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         }
 
         // Copy command and counted payload verbatim, including embedded EOLs.
-        if matches!(token.as_str(), "PDF417" | "MPDF417")
-            && let Ok(Some(raw)) = pdf417_raw_layout(data, line_start)
-        {
-            out.extend_from_slice(&data[line_start..raw.end]);
-            out.push(b'\n');
-            idx = raw.end;
-            continue;
+        if matches!(token.as_str(), "PDF417" | "MPDF417") {
+            match pdf417_raw_layout(data, line_start) {
+                Ok(Some(raw)) => {
+                    out.extend_from_slice(&data[line_start..raw.end]);
+                    out.push(b'\n');
+                    idx = raw.end;
+                    continue;
+                }
+                Err(_) => {
+                    // With an incomplete count, the rest of the stream can all
+                    // be payload. Preserve it, including whitespace and EOLs.
+                    out.extend_from_slice(&data[line_start..]);
+                    break;
+                }
+                Ok(None) => {}
+            }
         }
 
         // Plain command line (may span physical lines inside quotes).
