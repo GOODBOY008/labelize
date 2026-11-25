@@ -711,12 +711,14 @@ fn pdf417_invalid_utf8_is_reported_without_replacing_or_damaging_bytes() {
 }
 
 #[test]
-fn pdf417_truncated_raw_data_fails_at_end_of_input() {
-    let job = b"PDF417 0,0,300,100,0,L5,,abc";
+fn pdf417_truncated_payload_is_reported_and_formats_verbatim() {
+    let job = b"PDF417 0,0,300,100,0,L40,,abc\r\nPRINT 1\r\n\0\xff  \t\r";
     assert!(labelize::parse_labels(Language::Tspl, job, 8)
         .unwrap_err()
         .to_string()
         .contains("truncated"));
+    let (_, formatted) = labelize::format_source(job, Some(Language::Tspl));
+    assert_eq!(formatted, job);
 }
 
 #[test]
