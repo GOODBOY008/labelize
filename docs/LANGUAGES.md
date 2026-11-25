@@ -42,10 +42,21 @@ BAR 40,90,400,3
 PRINT 1,1
 ```
 
-`TEXT`, boxes, lines, Code 128/39/EAN-13, QR, DataMatrix, PDF417 and `BITMAP`
-are supported. `AZTEC`, `MPDF417`, `PUTPCX` and `PUTBMP` return explicit
-unsupported-command errors. See [TSPL baselines](TSPL_BASELINES.md) for
-calibration and reference coverage. Binary `BITMAP` data must remain bytes.
+`BARCODE` accepts Code 128/39, EAN-13, EAN-8 (`EAN8`), UPC-A (`UPCA`),
+Interleaved 2 of 5 (`25`) and ITF-14. Supply seven data digits for EAN-8 or
+eleven for UPC-A to generate the retail check digit. Type `25` takes an even
+number of digits, including leading zeros.
+
+The 2D commands are `QRCODE`, `DMATRIX`, `PDF417` and `AZTEC`. For example,
+`AZTEC 10,10,0,3,0,0,0,0,0,"ABC123"` prints a single symbol at (10, 10)
+with three-dot modules. Aztec supports quoted and byte-counted data, quarter
+turns, reversed output, fixed compact/full layers and Runes. Menu symbols,
+FLG(n) controls and multi-symbol output return explicit errors.
+
+Text, boxes, lines and raw `BITMAP` graphics are also supported. Send binary
+payloads as bytes. `MPDF417`, `PUTPCX` and `PUTBMP` return unsupported-command
+errors. See [TSPL baselines](TSPL_BASELINES.md) for calibration and
+reference coverage.
 
 ## CPCL
 
