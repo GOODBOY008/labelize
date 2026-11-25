@@ -113,6 +113,8 @@ fn reversed_output_complements_every_module_and_handles_counted_input() {
 fn quoted_escapes_and_optional_delimiters_in_counted_form_preserve_data() {
     let cases: &[(&[u8], &[u8])] = &[
         (br#"AZTEC 18,20,0," A,B\"C\["]D ""#, b" A,B\"C\"D "),
+        (br#"AZTEC 18,20,0,"A\\["]B""#, b"A\\\"B"),
+        (br#"AZTEC 18,20,0,"A\""#, br"A\"),
         (b"AZTEC 18,20,0,4,0,1,\"A\x1b\x1bB\"", b"A\x1bB"),
         (b"AZTEC 18,20,0,4,0,0,0,1,0,3,\"ABC\"", b"ABC"),
         (b"AZTEC 18,20,0,4,0,0,0,1,0,3,\"A\"", b"\"A\""),

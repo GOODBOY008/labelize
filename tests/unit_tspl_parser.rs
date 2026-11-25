@@ -732,3 +732,31 @@ fn counted_mpdf417_reports_unsupported_command() {
             .contains("unsupported TSPL command MPDF417"));
     }
 }
+
+#[test]
+fn quoted_text_keeps_legacy_escapes_and_multiline_content() {
+    for (encoded, expected) in [
+        (r#"x\"y\",z\\q"#, "x\"y\",z\\\\q"),
+        ("x\\\"\r\ntwo\r\nthree", "x\"\r\ntwo\r\nthree"),
+        ("x\\[\"]\r\nPRINT 1\r\nthree", "x\"\r\nPRINT 1\r\nthree"),
+        (r#"x\\\"#, r"x\\\"),
+    ] {
+        let fields = [
+            format!(r#"TEXT 10,10,"3",0,1,1,"{encoded}""#),
+            r#"  tExt 10,65,"3",0,1,1,"NEXT""#.into(),
+            "PRINT 1".into(),
+        ];
+        let source = fields.join("\r\n");
+        let (_, formatted) = labelize::format_source(source.as_bytes(), Some(Language::Tspl));
+        for job in [source.as_bytes(), &formatted] {
+            let label = parse_one(job);
+            let [LabelElement::Text(first), LabelElement::Text(next)] = label.elements.as_slice()
+            else {
+                panic!("missing text or following command: {source:?}");
+            };
+            assert_eq!(first.text, expected);
+            assert_eq!(next.text, "NEXT");
+            assert_eq!(next.position.y, 65);
+        }
+    }
+}

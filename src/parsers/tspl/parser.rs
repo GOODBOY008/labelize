@@ -12,7 +12,7 @@
 //! Semantics follow #13 (littlecxm's TSPL implementation) with the open
 //! questions listed in the PR description; unknown or ambiguous syntax
 /// errors out instead of silently misrendering.
-use super::aztec;
+use super::{aztec, quoted};
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
@@ -131,7 +131,6 @@ impl TsplParser {
             "PDF417" => parse_pdf417(line, state),
             "DMATRIX" => parse_dmatrix(line, state),
             "PUTPCX" | "PUTBMP" => Err(format!("unsupported TSPL command {}", name)),
-            _ if is_device_noop(&name) => Ok(()),
             _ => Ok(()),
         }
     }
@@ -403,27 +402,7 @@ pub(super) fn bitmap_hex_payload_end(
 }
 
 pub(super) fn command_line_end(data: &[u8], start: usize) -> usize {
-    let mut idx = start;
-    let mut in_quotes = false;
-
-    while idx < data.len() {
-        if data[idx] == b'"' && !is_escaped_quote_byte(data, idx) {
-            in_quotes = !in_quotes;
-        } else if matches!(data[idx], b'\r' | b'\n') && !in_quotes {
-            break;
-        }
-        idx += 1;
-    }
-
-    idx
-}
-
-pub(super) fn is_escaped_quote_byte(data: &[u8], idx: usize) -> bool {
-    idx > 0 && data[idx - 1] == b'\\'
-        || idx >= 2
-            && data[idx - 2] == b'\\'
-            && data[idx - 1] == b'['
-            && data.get(idx + 1) == Some(&b']')
+    quoted::command_line_end_with(data, start, |_| 1)
 }
 
 fn command_name(line: &str) -> String {
@@ -439,48 +418,30 @@ pub(super) fn command_args(line: &str, name: &str) -> Vec<String> {
 }
 
 fn split_tspl_args(input: &str) -> Vec<String> {
-    let chars: Vec<char> = input.chars().collect();
     let mut args = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    let mut i = 0usize;
-
-    while i < chars.len() {
-        let ch = chars[i];
-        let escaped_quote = ch == '"'
-            && (i > 0 && chars[i - 1] == '\\'
-                || i >= 2
-                    && chars[i - 2] == '\\'
-                    && chars[i - 1] == '['
-                    && chars.get(i + 1) == Some(&']'));
-
-        if ch == '"' && !escaped_quote {
-            in_quotes = !in_quotes;
-            current.push(ch);
-        } else if ch == ',' && !in_quotes {
-            args.push(clean_arg(&current));
-            current.clear();
-        } else {
-            current.push(ch);
+    if input.is_empty() {
+        return args;
+    }
+    let mut start = 0;
+    loop {
+        let end = quoted::argument_end(input.as_bytes(), start);
+        args.push(clean_arg(&input[start..end]));
+        if end == input.len() {
+            break;
         }
-        i += 1;
+        start = end + 1;
     }
-
-    if !current.is_empty() || input.ends_with(',') {
-        args.push(clean_arg(&current));
-    }
-
     args
 }
 
 fn clean_arg(arg: &str) -> String {
-    let trimmed = arg.trim();
-    let unquoted = if trimmed.len() >= 2 && trimmed.starts_with('"') && trimmed.ends_with('"') {
-        &trimmed[1..trimmed.len() - 1]
-    } else {
-        trimmed
-    };
-    unquoted.replace("\\[\"]", "\"").replace("\\\"", "\"")
+    let arg = arg.trim();
+    let data = arg
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .unwrap_or(arg);
+    // Decoding replaces ASCII escape sequences with one ASCII byte.
+    String::from_utf8(quoted::decode(data.as_bytes())).expect("quote escapes preserve UTF-8")
 }
 
 pub(super) fn parse_i32_arg(arg: &str) -> Option<i32> {
@@ -1304,32 +1265,4 @@ fn tspl_rotation(arg: &str) -> FieldOrientation {
         3 | 270 => FieldOrientation::Rotated270,
         _ => FieldOrientation::Normal,
     }
-}
-
-fn is_device_noop(name: &str) -> bool {
-    matches!(
-        name,
-        "GAP"
-            | "BLINE"
-            | "GAPDETECT"
-            | "BLINEDETECT"
-            | "AUTODETECT"
-            | "OFFSET"
-            | "SPEED"
-            | "DENSITY"
-            | "CODEPAGE"
-            | "FEED"
-            | "BACKFEED"
-            | "FORMFEED"
-            | "HOME"
-            | "SELFTEST"
-            | "INITIALPRINTER"
-            | "DOWNLOAD"
-            | "EOP"
-            | "FILES"
-            | "KILL"
-            | "RUN"
-            | "OUT"
-            | "SET"
-    )
 }

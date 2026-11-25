@@ -174,34 +174,6 @@ pub fn parse_labels(
     language.parse(bytes, dpmm)
 }
 
-/// Command words that unambiguously identify TSPL. Deliberately narrow:
-/// these are full-line command names no other supported language uses.
-const TSPL_COMMAND_WORDS: &[&str] = &[
-    "SIZE",
-    "DIRECTION",
-    "REFERENCE",
-    "SHIFT",
-    "CLS",
-    "PRINT",
-    "TEXT",
-    "BARCODE",
-    "QRCODE",
-    "AZTEC",
-    "PDF417",
-    "BOX",
-    "BAR",
-    "CIRCLE",
-    "ELLIPSE",
-    "ERASE",
-    "REVERSE",
-    "BITMAP",
-    "GAP",
-    "DENSITY",
-    "SPEED",
-    "OFFSET",
-    "CODEPAGE",
-];
-
 /// Guess the language of `bytes` from its shape.
 ///
 /// ZPL formats start with a caret or tilde. EPL uses one command letter per
@@ -249,7 +221,7 @@ pub fn detect_language(bytes: &[u8]) -> Language {
             .chars()
             .take_while(|c| c.is_ascii_alphabetic())
             .collect();
-        if TSPL_COMMAND_WORDS.contains(&word.to_ascii_uppercase().as_str()) {
+        if crate::parsers::tspl::DETECTION_WORDS.contains(&word.to_ascii_uppercase().as_str()) {
             return Language::Tspl;
         }
         if looks_like_epl_line(line) {
