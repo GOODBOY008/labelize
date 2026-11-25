@@ -28,9 +28,13 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         let token_end = first_token_end(data, line_start);
         let token = String::from_utf8_lossy(&data[line_start..token_end]).to_uppercase();
 
-        if token == "AZTEC"
-            && let Ok(input) = super::aztec::split(data, token_end)
-        {
+        if token == "AZTEC" {
+            let Ok(input) = super::aztec::split(data, token_end) else {
+                // All remaining bytes may be payload. An added newline
+                // could turn a truncated field into a complete one.
+                out.extend_from_slice(&data[line_start..]);
+                break;
+            };
             out.extend_from_slice(&data[line_start..input.end]);
             out.push(b'\n');
             idx = input.end;
