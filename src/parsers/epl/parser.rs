@@ -217,17 +217,26 @@ fn epl_rotation(rotation: i32) -> FieldOrientation {
     }
 }
 
-fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElement>, String> {
-    let data_start = line.find('"');
-    let data_end = line.rfind('"');
-    match (data_start, data_end) {
-        (Some(s), Some(e)) if e > s => {
-            let text = &line[s + 1..e];
-            if text.is_empty() {
-                return Ok(None);
-            }
+/// Fixed "DATA" in A/B/b commands. A backslash quotes the next character
+/// literally (EPL Programming Guide, Command Conventions).
+fn epl_fixed_data(line: &str) -> Option<(&str, String)> {
+    let (parameters, quoted) = line[1..].split_once('"')?;
+    let (payload, _) = quoted.rsplit_once('"')?;
+    if payload.is_empty() {
+        return None;
+    }
+    let mut data = String::with_capacity(payload.len());
+    let mut chars = payload.chars();
+    while let Some(ch) = chars.next() {
+        // A trailing unpaired backslash escapes the would-be closing quote.
+        data.push(if ch == '\\' { chars.next()? } else { ch });
+    }
+    Some((parameters.trim_end_matches(','), data))
+}
 
-            let param_str = line[1..s].trim_end_matches(',');
+fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElement>, String> {
+    match epl_fixed_data(line) {
+        Some((param_str, text)) => {
             let parts: Vec<&str> = param_str.split(',').collect();
 
             if parts.len() < 7 {
@@ -274,7 +283,7 @@ fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
                     y: y + ref_y,
                     ..Default::default()
                 },
-                text: text.to_string(),
+                text,
                 alignment: Default::default(),
                 block: None,
             })))
@@ -284,16 +293,8 @@ fn parse_epl_text(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElem
 }
 
 fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelElement>, String> {
-    let data_start = line.find('"');
-    let data_end = line.rfind('"');
-    match (data_start, data_end) {
-        (Some(s), Some(e)) if e > s => {
-            let data = &line[s + 1..e];
-            if data.is_empty() {
-                return Ok(None);
-            }
-
-            let param_str = line[1..s].trim_end_matches(',');
+    match epl_fixed_data(line) {
+        Some((param_str, data)) => {
             let parts: Vec<&str> = param_str.split(',').collect();
 
             if parts.len() < 8 {
@@ -337,7 +338,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     width_ratio,
                     position: pos,
                     line_alignment: FieldAlignment::Center,
-                    data: data.to_string(),
+                    data,
                 }),
                 "0" | "1" | "1A" | "1B" | "1C" | "1E" => {
                     LabelElement::Barcode128(Barcode128WithData {
@@ -360,7 +361,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                         width: narrow_bar,
                         position: pos,
                         line_alignment: FieldAlignment::Center,
-                        data: data.to_string(),
+                        data,
                     })
                 }
                 "2" | "2C" | "2D" => LabelElement::Barcode2of5(Barcode2of5WithData {
@@ -376,7 +377,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     width_ratio,
                     position: pos,
                     line_alignment: FieldAlignment::Center,
-                    data: data.to_string(),
+                    data,
                 }),
                 "E30" => LabelElement::BarcodeEan13(BarcodeEan13WithData {
                     reverse_print: ReversePrint::default(),
@@ -388,7 +389,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     },
                     width: narrow_bar,
                     position: pos,
-                    data: data.to_string(),
+                    data,
                 }),
                 "E80" => LabelElement::BarcodeEan8(BarcodeEan8WithData {
                     reverse_print: ReversePrint::default(),
@@ -400,7 +401,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     },
                     width: narrow_bar,
                     position: pos,
-                    data: data.to_string(),
+                    data,
                 }),
                 "UA0" => LabelElement::BarcodeUca(BarcodeUcaWithData {
                     reverse_print: ReversePrint::default(),
@@ -412,7 +413,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     },
                     width: narrow_bar,
                     position: pos,
-                    data: data.to_string(),
+                    data,
                 }),
                 "UE0" => LabelElement::BarcodeUcpe(BarcodeUcpeWithData {
                     reverse_print: ReversePrint::default(),
@@ -426,7 +427,7 @@ fn parse_epl_barcode(line: &str, ref_x: i32, ref_y: i32) -> Result<Option<LabelE
                     },
                     width: narrow_bar,
                     position: pos,
-                    data: data.to_string(),
+                    data,
                 }),
                 other => {
                     return Err(format!(
@@ -712,16 +713,8 @@ fn parse_epl_2d_barcode(
     ref_x: i32,
     ref_y: i32,
 ) -> Result<Option<LabelElement>, String> {
-    let data_start = line.find('"');
-    let data_end = line.rfind('"');
-    match (data_start, data_end) {
-        (Some(s), Some(e)) if e > s => {
-            let content = &line[s + 1..e];
-            if content.is_empty() {
-                return Ok(None);
-            }
-
-            let param_str = line[1..s].trim_end_matches(',');
+    match epl_fixed_data(line) {
+        Some((param_str, content)) => {
             let parts: Vec<&str> = param_str.split(',').collect();
             if parts.len() < 3 {
                 return Err(format!(
@@ -773,7 +766,7 @@ fn parse_epl_2d_barcode(
                             size,
                         },
                         position: pos,
-                        data: content.to_string(),
+                        data: content,
                     })
                 }
                 "D" => {
@@ -806,7 +799,7 @@ fn parse_epl_2d_barcode(
                             ratio: Some(DatamatrixRatio::Square),
                         },
                         position: pos,
-                        data: content.to_string(),
+                        data: content,
                         data_bytes: None,
                     })
                 }
@@ -822,10 +815,10 @@ fn parse_epl_2d_barcode(
                     LabelElement::Maxicode(MaxicodeWithData {
                         reverse_print: ReversePrint::default(),
                         code: Maxicode {
-                            mode: mode.unwrap_or_else(|| auto_maxicode_mode(content)),
+                            mode: mode.unwrap_or_else(|| auto_maxicode_mode(&content)),
                         },
                         position: pos,
-                        data: content.to_string(),
+                        data: content,
                     })
                 }
                 "P" => {
@@ -887,7 +880,7 @@ fn parse_epl_2d_barcode(
                             by_height: 0,
                         },
                         position: pos,
-                        data: content.to_string(),
+                        data: content,
                     })
                 }
                 "Q" => {
@@ -923,7 +916,7 @@ fn parse_epl_2d_barcode(
                         },
                         height: 0,
                         position: pos,
-                        data: content.to_string(),
+                        data: content,
                         error_correction: match ecc {
                             'L' => QrErrorCorrectionLevel::L,
                             'Q' => QrErrorCorrectionLevel::Q,

@@ -834,3 +834,39 @@ fn parse_2d_unsupported_type_errors() {
         );
     }
 }
+
+#[test]
+fn quoted_literals_decode_once_and_leave_gw_bytes_and_source_intact() {
+    let field = r#""é,\n\\\"\\ ""#;
+    let mut source =
+        format!("N\nA0,0,0,1,1,1,N,{field}\nB0,0,0,1,2,3,50,N,{field}\nb0,0,Q,{field}\nGW0,0,3,2,")
+            .into_bytes();
+    let graphic = [b'\\', b'"', b'\\', b'\\', b'\n', 0xff];
+    source.extend_from_slice(&graphic);
+    source.extend_from_slice(b"\nP1\n");
+
+    let (language, formatted) = labelize::format_source(&source, None);
+    assert_eq!(language, labelize::Language::Epl);
+    assert_eq!(formatted, source);
+
+    let labels = language.parse(&formatted, 8).unwrap();
+    let [LabelElement::Text(text), LabelElement::Barcode128(linear), LabelElement::BarcodeQr(qr), LabelElement::GraphicField(image)] =
+        labels[0].elements.as_slice()
+    else {
+        panic!("expected A, B, b and GW fields");
+    };
+    for decoded in [&text.text, &linear.data, &qr.data] {
+        assert_eq!(decoded, "é,n\\\"\\ ");
+    }
+    assert_eq!(image.data, graphic);
+}
+
+#[test]
+fn escaped_quote_at_end_of_data_requires_a_following_closing_quote() {
+    assert!(parse(r#"A0,0,0,1,1,1,N,"abc\""#).is_empty());
+    let labels = parse(r#"A0,0,0,1,1,1,N,"abc\"""#);
+    let LabelElement::Text(text) = &labels[0].elements[0] else {
+        panic!("expected text");
+    };
+    assert_eq!(text.text, "abc\"");
+}
