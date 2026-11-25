@@ -12,5 +12,8 @@
 # DPL file contains a binary BMP download.
 /testdata/dpl/downloaded_image.dpl binary
 
+# Studio directories address bytes; Java's native jobs are compared byte-for-byte.
+/testdata/templates/printers/* -text whitespace=cr-at-eol
+
 # The same notice is embedded in the OpenType name table and shipped as text.
 /licenses/Unifont-OFL.txt text eol=lf

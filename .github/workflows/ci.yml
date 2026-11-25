@@ -40,7 +40,7 @@ jobs:
         timeout-minutes: 8
       # CLI/HTTP process tests need the feature-gated binary.
       - name: CLI and HTTP output e2e
-        run: cargo test --test e2e_cli_encode --test e2e_http_encode --test e2e_vector_output --features serve,vector -- --test-threads=4
+        run: cargo test --test e2e_cli_encode --test e2e_http_encode --test e2e_vector_output --test e2e_templates --features serve,vector -- --test-threads=4
         timeout-minutes: 8
       # e2e_diff_report regenerates testdata/diffs/* and auto-bootstraps missing
       # reference PNGs; anything left dirty means the author forgot to commit
