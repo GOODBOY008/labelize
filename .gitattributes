@@ -8,3 +8,6 @@
 
 # DPL file contains a binary BMP download.
 /testdata/dpl/downloaded_image.dpl binary
+
+# The same notice is embedded in the OpenType name table and shipped as text.
+/licenses/Unifont-OFL.txt text eol=lf
