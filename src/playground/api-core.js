@@ -48,6 +48,7 @@
     return request;
   }
   function apiOutputName(request) {
+    if (request.path === "/template/fill") return "job.bin";
     if (request.path === "/convert") return "label." + (request.parameters.output || "png");
     if (request.path === "/encode") return "image." + (request.parameters.language || "zpl");
     if (request.path === "/format") {

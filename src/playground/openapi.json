@@ -3,7 +3,7 @@
   "info": {
     "title": "Labelize HTTP API",
     "version": "1.0.0",
-    "description": "Convert raw printer-language bytes to PNG/PDF, validate and format source, or encode images as ZPL/TSPL. The public Cloudflare service needs no signup or API key. Requests are synchronous. Send raw bytes, not JSON or multipart forms. Explicit language and dimensions give consistent conversion behavior across deployments."
+    "description": "Fill Studio printer templates, convert native printer bytes to PNG/PDF, validate and format source, or encode images as ZPL/TSPL. Requests are synchronous. Use JSON for template filling and send raw printer or image bytes for the other POST endpoints."
   },
   "servers": [{ "url": "/", "description": "The origin serving this specification" }],
   "paths": {
@@ -27,6 +27,37 @@
           "200": { "description": "Rendered label bytes.", "content": { "image/png": { "schema": { "type": "string", "format": "binary" } }, "application/pdf": { "schema": { "type": "string", "format": "binary" } } } },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/template/fill": {
+      "post": {
+        "operationId": "fillPrintTemplate",
+        "summary": "Fill a Studio printer template",
+        "description": "Provide the exported template as standard Base64 and one order as string values. Save the response as printer bytes. For a preview, send those same bytes to /convert with the printer language, stock dimensions and resolution.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["language", "template_base64", "values"],
+                "properties": {
+                  "language": { "type": "string", "enum": ["zpl", "tspl", "epl", "cpcl", "dpl"] },
+                  "template_base64": { "type": "string", "format": "byte", "description": "Standard Base64 of the original template file, including any binary artwork." },
+                  "values": { "type": "object", "additionalProperties": { "type": "string" }, "description": "One order keyed by template variable name." }
+                }
+              },
+              "example": { "language": "zpl", "template_base64": "XlhBCl5GWExhYmVsaXplIGZpZWxkIHRleHReRlMKXkZPMjAsMjBeQTBOLDMwLDMwXkZIXkZEe3tvcmRlcl9ub319XkZTCl5YWgo=", "values": { "order_no": "000123" } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Filled native printer job, including any binary data.", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "413": { "description": "The JSON request or the filled printer job exceeds 2 MiB." },
+          "415": { "description": "Use Content-Type application/json." }
         }
       }
     },

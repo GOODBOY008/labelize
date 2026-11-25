@@ -25,7 +25,7 @@ const state = overrides => ({ path: '/convert', parameters: { width: '100', heig
 
 test('OpenAPI describes the existing API with resolvable refs and safe embedded JSON', () => {
   assert.equal(spec.openapi, '3.0.3');
-  assert.deepEqual(Object.keys(spec.paths).sort(), ['/convert', '/encode', '/format', '/health', '/validate']);
+  assert.deepEqual(Object.keys(spec.paths).sort(), ['/convert', '/encode', '/format', '/health', '/template/fill', '/validate']);
   assert.equal(spec.servers[0].url, '/');
   assert.ok(!readFileSync(new URL('src/playground/openapi.json', root), 'utf8').includes('<'));
   function visit(value) {
@@ -34,6 +34,17 @@ test('OpenAPI describes the existing API with resolvable refs and safe embedded 
     Object.values(value).forEach(visit);
   }
   visit(spec);
+});
+
+test('template fill example sends JSON and saves the response as printer bytes', () => {
+  const media = spec.paths['/template/fill'].post.requestBody.content['application/json'];
+  const text = JSON.stringify(media.example);
+  const request = api.apiBuildRequest(spec, state({ path: '/template/fill', text, contentType: 'application/json', parameters: {} }), 'https://example.com');
+  assert.equal(request.url, 'https://example.com/template/fill');
+  assert.equal(request.contentType, 'application/json');
+  assert.equal(request.body, text);
+  assert.equal(api.apiOutputName(request), 'job.bin');
+  assert.match(api.apiExamples(request).javascript, /arrayBuffer\(\)/);
 });
 
 test('request construction preserves bodies, checks values and separates PNG/PDF options', () => {
@@ -175,6 +186,47 @@ test('directory jobs process sequentially, report failures and preserve binary r
       assert.equal(maximum, 1);
     });
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('endpoint drafts keep their original uploaded file across the health page', () => {
+  const element = () => ({ appendChild() {}, replaceChildren() {} });
+  const file = {
+    files: [],
+    // Chromium clears the current FileList in place when the picker is reset.
+    set value(value) { assert.equal(value, ''); this.files.length = 0; },
+  };
+  class DataTransfer {
+    files = [];
+    items = { add: item => this.files.push(item) };
+  }
+  const context = {
+    spec, file, DataTransfer, document: { createElement: element, getElementById: element },
+    endpoint: {}, currentPath: null, drafts: {}, requestEdited: true, labelText: null,
+    controls: {}, parameters: element(), parameterValues: () => ({}), contentType: element(),
+    bodyMode: {}, body: {}, input: { value: '^XA^XZ' }, fmtSel: { value: 'zpl' },
+    ctFor: () => 'application/zpl', vectorEnabled: true, t: key => key, update() {},
+  };
+  const select = ui.slice(ui.indexOf('    function selectEndpoint()'), ui.indexOf('    function clearResponse()'));
+  runInNewContext(core + select, context);
+  function visit(path) {
+    context.endpoint.value = path;
+    context.selectEndpoint();
+  }
+  const nativeJob = new File(['^XA^XZ'], 'label.zpl');
+  const templateRequest = new File(['{}'], 'order.json');
+  for (const [path, upload] of [['/convert', nativeJob], ['/template/fill', templateRequest]]) {
+    visit(path);
+    assert.equal(file.files.length, 0);
+    file.files = [upload];
+    context.bodyMode.value = 'file';
+    visit('/health');
+  }
+  for (const [path, upload] of [['/convert', nativeJob], ['/template/fill', templateRequest]]) {
+    visit(path);
+    assert.equal(context.bodyMode.value, 'file');
+    assert.equal(file.files[0], upload);
+    visit('/health');
+  }
 });
 
 function responseHarness(fetch, request = api.apiBuildRequest(spec, state(), 'https://example.com')) {
