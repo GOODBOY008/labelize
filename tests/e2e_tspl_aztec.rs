@@ -156,6 +156,20 @@ fn counted_quotes_keep_payload_line_endings_and_the_following_print() {
 }
 
 #[test]
+fn formatting_a_truncated_counted_payload_preserves_bytes_and_error() {
+    let prefix = b"AZTEC 18,20,0,4,0,0,0,1,0,";
+    for short in [b"2,A".as_slice(), b"40,\xff\0\r\nPRINT 1\n\r \t"] {
+        let source = [prefix.as_slice(), short].concat();
+        let error = parse_labels(Language::Tspl, &source, 8).unwrap_err();
+        assert!(error.to_string().contains("truncated counted payload"));
+        let (_, formatted) = format_source(&source, None);
+        assert_eq!(formatted, source);
+        let formatted_error = parse_labels(Language::Tspl, &formatted, 8).unwrap_err();
+        assert_eq!(formatted_error.to_string(), error.to_string());
+    }
+}
+
+#[test]
 fn malformed_headers_and_unsupported_special_modes_are_reported() {
     for (command, error) in [
         ("AZTEC 0,0,0,4,0,0,0,1,0,9,xx", "truncated"),
