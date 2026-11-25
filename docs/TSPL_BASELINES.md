@@ -41,6 +41,15 @@ in [Test corpus](TEST_CORPUS.md#tspl).
 4. No hardware samples exist in the corpus yet; a TSC print scan always
    outranks both baselines.
 
+## PDF417 counted payloads
+
+`PDF417 …,L5,,ABCD` encodes the five bytes `,ABCD`. Labelize counts every
+payload byte, including embedded CR/LF and lines beginning with `PRINT`.
+When editing the manual’s multiline examples, recalculate `L` after changing
+line endings. An excessive count can include the next command or exceed the
+end of the job. The parser reports truncation at end of input and rejects
+non-UTF-8 PDF417 data. The source formatter preserves the original bytes.
+
 ## Known engine disagreements (open questions, 2026-10-12)
 
 ### `BITMAP` — exact hex compatibility and polarity (2026-10-30, #108)

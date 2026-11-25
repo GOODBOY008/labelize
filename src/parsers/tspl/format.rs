@@ -7,7 +7,7 @@
 
 use super::parser::{
     bitmap_hex_payload_end, bitmap_payload_start, command_args, command_line_end, first_token_end,
-    parse_i32_arg, pdf417_raw_layout, raw_content_end,
+    parse_i32_arg, pdf417_raw_layout,
 };
 
 /// Format TSPL source as raw bytes (BITMAP payloads are not UTF-8). Never
@@ -59,19 +59,13 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
             }
         }
 
-        // PDF417 with an `L<len>` raw expression: header plus exactly <len>
-        // content bytes (with the splitter's structural-stop rule), verbatim.
+        // Copy command and counted payload verbatim, including embedded EOLs.
         if matches!(token.as_str(), "PDF417" | "MPDF417")
-            && let Some((len, _header_end, content_start)) = pdf417_raw_layout(data, line_start)
+            && let Ok(Some(raw)) = pdf417_raw_layout(data, line_start)
         {
-            let content_end = raw_content_end(
-                data,
-                content_start,
-                len.min(data.len().saturating_sub(content_start)),
-            );
-            out.extend_from_slice(&data[line_start..content_end]);
+            out.extend_from_slice(&data[line_start..raw.end]);
             out.push(b'\n');
-            idx = content_end;
+            idx = raw.end;
             continue;
         }
 
