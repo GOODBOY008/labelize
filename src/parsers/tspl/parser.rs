@@ -1,7 +1,7 @@
 //! TSPL/TSC frontend: compiles TSPL commands into the shared IR.
 //!
-//! TSPL is a line-command language like EPL, with two raw-data commands
-//! (`BITMAP` and `PDF417 …,L<len>`) whose payloads are consumed by byte
+//! TSPL is a line-command language like EPL, with raw-data commands
+//! (`BITMAP`, counted `AZTEC` and `PDF417 …,L<len>`) whose payloads are consumed by byte
 //! cursor rather than parsed as lines. BITMAP also accepts a complete line
 //! of hex text as a compatibility extension.
 //! State is minimal: label reference /
@@ -12,6 +12,7 @@
 //! Semantics follow #13 (littlecxm's TSPL implementation) with the open
 //! questions listed in the PR description; unknown or ambiguous syntax
 /// errors out instead of silently misrendering.
+use super::aztec;
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
@@ -70,6 +71,10 @@ impl TsplParser {
         for command in commands {
             match command {
                 TsplCommand::Line(line) => self.parse_line(&line, &mut state, &mut labels)?,
+                TsplCommand::Aztec { args, data } => {
+                    let position = state.position(args[0], args[1]);
+                    state.elements.push(aztec::element(&args, data, position)?);
+                }
                 TsplCommand::Bitmap { header, data } => {
                     self.parse_bitmap(&header, data, &mut state)?
                 }
@@ -125,9 +130,7 @@ impl TsplParser {
             "QRCODE" => parse_qrcode(line, state),
             "PDF417" => parse_pdf417(line, state),
             "DMATRIX" => parse_dmatrix(line, state),
-            "MPDF417" | "PUTPCX" | "PUTBMP" | "AZTEC" => {
-                Err(format!("unsupported TSPL command {}", name))
-            }
+            "MPDF417" | "PUTPCX" | "PUTBMP" => Err(format!("unsupported TSPL command {}", name)),
             _ if is_device_noop(&name) => Ok(()),
             _ => Ok(()),
         }
@@ -228,6 +231,7 @@ impl TsplState {
 
 enum TsplCommand {
     Line(String),
+    Aztec { args: Vec<i32>, data: Vec<u8> },
     Bitmap { header: String, data: Vec<u8> },
     Pdf417 { header: String, data: Vec<u8> },
 }
@@ -237,7 +241,7 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
     let mut idx = 0usize;
 
     while idx < data.len() {
-        while idx < data.len() && matches!(data[idx], b'\r' | b'\n') {
+        while idx < data.len() && data[idx].is_ascii_whitespace() {
             idx += 1;
         }
         if idx >= data.len() {
@@ -247,6 +251,16 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
         let line_start = idx;
         let token_end = first_token_end(data, line_start);
         let token = String::from_utf8_lossy(&data[line_start..token_end]).to_uppercase();
+
+        if token == "AZTEC" {
+            let input = aztec::split(data, token_end)?;
+            idx = input.end;
+            commands.push(TsplCommand::Aztec {
+                data: input.payload(),
+                args: input.args,
+            });
+            continue;
+        }
 
         if token == "BITMAP" {
             let payload_start = bitmap_payload_start(data, line_start)
@@ -398,7 +412,7 @@ pub(super) fn command_line_end(data: &[u8], start: usize) -> usize {
     idx
 }
 
-fn is_escaped_quote_byte(data: &[u8], idx: usize) -> bool {
+pub(super) fn is_escaped_quote_byte(data: &[u8], idx: usize) -> bool {
     idx > 0 && data[idx - 1] == b'\\'
         || idx >= 2
             && data[idx - 2] == b'\\'

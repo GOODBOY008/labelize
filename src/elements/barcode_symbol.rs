@@ -11,6 +11,10 @@ pub enum PostalCode {
 
 #[derive(Clone, Debug)]
 pub enum BarcodeKind {
+    Aztec {
+        size: i32,
+        inverted: bool,
+    },
     Code11 {
         checks: u8,
     },

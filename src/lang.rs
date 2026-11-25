@@ -186,6 +186,7 @@ const TSPL_COMMAND_WORDS: &[&str] = &[
     "TEXT",
     "BARCODE",
     "QRCODE",
+    "AZTEC",
     "PDF417",
     "BOX",
     "BAR",
