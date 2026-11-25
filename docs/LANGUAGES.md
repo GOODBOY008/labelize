@@ -44,6 +44,13 @@ BAR 40,90,400,3
 PRINT 1,1
 ```
 
+For Simplified Chinese text, select `CODEPAGE 936` for GBK input or
+`CODEPAGE UTF-8` for UTF-8. For example, `TEXT 20,20,"TSS24.BF2",0,1,1,"保温杯"`
+uses 24-dot cells. The setting applies to subsequent text fields across
+`CLS` and `PRINT` in the same job. A malformed sequence in the selected
+encoding produces a parse error. Send the original file bytes when a job
+also contains binary graphics. [TSC programming manual](https://fs.tscprinters.com/system/files/31-0000001-00_tspl_tspl2_programming_3_0.pdf)
+
 `BARCODE` accepts Code 128/39, EAN-13, EAN-8 (`EAN8`), UPC-A (`UPCA`),
 Interleaved 2 of 5 (`25`) and ITF-14. Supply seven data digits for EAN-8 or
 eleven for UPC-A to generate the retail check digit. Type `25` takes an even
@@ -88,6 +95,17 @@ LINE 40 110 440 110 3
 FORM
 PRINT
 ```
+
+Use `COUNTRY GB18030` or `ENCODING GB18030` for GB18030 text, including
+four-byte characters. Use `UTF-8` with either command for UTF-8 input. For
+example, `TEXT GBUNSG24.CPF 0 20 20 保温杯` selects 24-dot cells.
+`GBUNSG16.CPF` selects 16-dot cells. Each new `!` session starts with the
+default encoding. [Zebra mobile printer guide](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/product/zq310plus-zq320plus-ug-en.pdf)
+
+Labelize previews these CPCL fonts and the TSPL `TSS`, `TST` and `TTT`
+16/24-dot fonts with an embedded GNU Unifont subset. Han characters use a
+full cell and ASCII uses half a cell. The 24-dot preview scales the 16-dot
+outlines. Glyph shapes can differ from the fonts installed on the printer.
 
 Text, resident fonts, scalable text, multiline fields, several 1D/2D barcodes
 and counted `EG`/`CG` graphics are supported. `VBARCODE QR` rotates the

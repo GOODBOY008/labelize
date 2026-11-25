@@ -351,7 +351,7 @@ attribution. No independent overall validation is claimed.
 
 | Category | Commands |
 |----------|----------|
-| **Setup** | `SIZE` (mm/dot/inch — sets the label canvas) · `DIRECTION` · `REFERENCE` · `SHIFT` · `CLS` · `GAP`/`DENSITY`/`SPEED`/`OFFSET`/`CODEPAGE` (accepted, no render effect) |
+| **Setup** | `SIZE` (mm/dot/inch — sets the label canvas) · `DIRECTION` · `REFERENCE` · `SHIFT` · `CLS` · `CODEPAGE 936` (GBK) / `CODEPAGE UTF-8` for text · `GAP`/`DENSITY`/`SPEED`/`OFFSET` (accepted, no render effect) |
 | **Text** | `TEXT` (resident fonts 1–5, xmul/ymul magnification) |
 | **Barcodes** | `BARCODE` (Code 128/128M/EAN128/EAN128M, Code 39/39C, EAN-13/8, UPC-A, Interleaved 2 of 5 (`25`), ITF14) · `QRCODE` (ECC defaults to M) · `PDF417` (raw `L<len>`, incl. compound option tokens) · `DMATRIX` · `AZTEC` (quoted or byte-counted data) |
 | **Graphics** | `BAR` · `BOX` · `CIRCLE` · `ELLIPSE` · `ERASE` · `REVERSE` (print-time region inversion) · `BITMAP` (binary cursor; modes 0/1/2 = overwrite/OR/XOR) |
@@ -362,7 +362,7 @@ Unsupported TSPL commands (`MPDF417`, `PUTPCX`, `PUTBMP`, …) fail loudly with 
 ### CPCL (Zebra mobile)
 
 `! {offset} {hdpi} {vdpi} {height} {qty}` sessions with `PRINT`/`END`/`ABORT`
-terminators. Resident fonts 0-7 (manual Appendix-D cell metrics) with `SETMAG`
+terminators. Resident fonts 0-7 (manual Appendix-D cell metrics) and 16/24-dot Chinese font previews with `SETMAG`
 magnification, `SCALE-TEXT` point sizing with `ROTATE`, `ML` multiline blocks,
 `LEFT`/`CENTER`/`RIGHT` justification, Code 128 / UCCEAN128 / 39 (+C, full
 ASCII) / UPC-A / UPC-E / EAN-13 / EAN-8 / I2of5 (+C) with `BARCODE-TEXT` HRI,
