@@ -22,6 +22,9 @@ pub fn format_dpl(data: &[u8]) -> Vec<u8> {
             Err(_) => return data.to_vec(),
         };
         out.extend_from_slice(record.data);
+        if record.image.is_some() {
+            continue; // header and payload retain their exact framing
+        }
         match record.terminator {
             Some(b'\r' | b'\n') | None => out.push(b'\n'),
             Some(terminator) => {

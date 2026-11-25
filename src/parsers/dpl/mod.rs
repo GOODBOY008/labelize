@@ -5,6 +5,7 @@
 
 pub mod fonts;
 pub mod format;
+mod images;
 pub mod parser;
 pub mod qr_payload;
 

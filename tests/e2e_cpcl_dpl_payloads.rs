@@ -123,3 +123,39 @@ fn cpcl_datamatrix_scans_at_both_resolutions_and_resumes_after_terminator() {
         }
     }
 }
+
+#[test]
+fn dpl_download_and_recall_renders_binary_artwork_at_the_bottom_left_anchor() {
+    // White/black 1-bit BMP. Its bottom row contains CR LF STX L.
+    let source = include_bytes!("../testdata/dpl/downloaded_image.dpl");
+    let (language, formatted) = format_source(source, None);
+    assert_eq!(language, Language::Dpl);
+    let rows = [[0x80u8, 0, 0, 1], [0x0d, 0x0a, 0x02, 0x4c]];
+    for (dpmm, x0, row) in [(8, 41, 20), (12, 61, 30)] {
+        for bytes in [source.as_slice(), &formatted] {
+            let image = render(language, bytes, dpmm);
+            let y0 = image.height() - row - 6;
+            for (x, y, pixel) in image.enumerate_pixels() {
+                let ink = (x0..x0 + 64).contains(&x) && (y0..y0 + 6).contains(&y) && {
+                    let bit = (x - x0) / 2;
+                    rows[((y - y0) / 3) as usize][(bit / 8) as usize] & (0x80 >> (bit % 8)) != 0
+                };
+                assert_eq!(pixel[0] == 0, ink, "at {dpmm} dpmm ({x},{y})");
+            }
+        }
+    }
+}
+
+#[test]
+fn bottom_anchored_artwork_clips_at_the_top_of_the_media() {
+    // At 8 dpmm the 39.9 mm row rounds to dot 319 on 40 mm media.
+    // The bottom row has its first bit black, the top row its second bit.
+    let source = b"\x02IDFLOGO\r80017F\r8001BF\rFFFF\r\x02L\rm\r1Y1100003990000LOGO\rE\r";
+    let image = render(Language::Dpl, source, 8);
+    let ink: Vec<_> = image
+        .enumerate_pixels()
+        .filter(|(_, _, p)| p[0] == 0)
+        .map(|(x, y, _)| (x, y))
+        .collect();
+    assert_eq!(ink, [(0, 0)]);
+}

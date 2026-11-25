@@ -211,9 +211,13 @@ const TSPL_COMMAND_WORDS: &[&str] = &[
 pub fn detect_language(bytes: &[u8]) -> Language {
     // DPL streams begin with the <STX> control byte (0x02) — real DPL
     // files carry system-level commands before the first <STX>L.
-    if let Some(first) = bytes.iter().find(|b| !b.is_ascii_whitespace())
-        && *first == 0x02
-    {
+    // A binary image job can begin with <SOH>D (disable immediate commands).
+    let start = bytes.trim_ascii_start();
+    let start = start
+        .strip_prefix(b"\x01D")
+        .unwrap_or(start)
+        .trim_ascii_start();
+    if start.first() == Some(&0x02) {
         return Language::Dpl;
     }
 
