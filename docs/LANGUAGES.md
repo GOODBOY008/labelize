@@ -56,6 +56,14 @@ with three-dot modules. Aztec supports quoted and byte-counted data, quarter
 turns, reversed output, fixed compact/full layers and Runes. Menu symbols,
 FLG(n) controls and multi-symbol output return explicit errors.
 
+Use TSC's `\["]` for a double quote in a quoted field. A backslash
+immediately before that escape remains literal, so `"A\\["]B"`
+encodes the four bytes `41 5c 22 42`. At the end of a command, `"A\"`
+encodes `A` and one backslash. Labelize also accepts the older `\"`
+quote escape within data. At a physical line ending, a following command
+recognized by Labelize or end of input closes the field. Use `\["]` for a data quote
+at the end of a line in a multiline field. [TSC Programming Manual](https://fs.tscprinters.com/system/files/31-0000001-00_tspl_tspl2_programming_3_0.pdf)
+
 For `PDF417`, commas inside quoted data are literal. In the counted form,
 the comma after `L<n>` separates the length from the payload. For example,
 `L5,,ABCD` encodes the five bytes `,ABCD`. The rotation parameter of

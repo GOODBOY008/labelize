@@ -1,7 +1,7 @@
 //! TSPL/TSPL2 Programming Manual, AZTEC (pp. 88–89). In the counted form
 //! the byte following the tenth comma is already content, even if it is a
 //! quote, a space or a command separator.
-use super::parser::{counted_payload, is_escaped_quote_byte};
+use super::{parser::counted_payload, quoted};
 use crate::elements::{
     barcode_symbol::{BarcodeKind, BarcodeSymbol, BarcodeSymbolWithData},
     field_orientation::FieldOrientation,
@@ -21,22 +21,7 @@ impl Input<'_> {
         if !self.quoted {
             return self.data.to_vec();
         }
-        let mut result = Vec::with_capacity(self.data.len());
-        let mut data = self.data;
-        while let Some((&first, rest)) = data.split_first() {
-            // Same quoted-literal escapes as TEXT, without decoding arbitrary bytes.
-            if let Some(tail) = data
-                .strip_prefix(br#"\["]"#)
-                .or_else(|| data.strip_prefix(br#"\""#))
-            {
-                result.push(b'"');
-                data = tail;
-            } else {
-                result.push(first);
-                data = rest;
-            }
-        }
-        result
+        quoted::decode(self.data)
     }
 }
 
@@ -68,8 +53,7 @@ pub(super) fn split(data: &[u8], mut cursor: usize) -> Result<Input<'_>, String>
             cursor += 1;
         }
         if data.get(cursor) == Some(&b'"') {
-            let close = (cursor + 1..data.len())
-                .find(|&i| data[i] == b'"' && !is_escaped_quote_byte(data, i))
+            let close = quoted::closing_quote(data, cursor + 1)
                 .ok_or("TSPL AZTEC requires a closing quote")?;
             let content = &data[cursor + 1..close];
             let mut end = close + 1;
