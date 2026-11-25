@@ -20,6 +20,7 @@ pub mod parsers;
 pub mod playground;
 pub mod render;
 pub mod reverse;
+pub mod template;
 pub(crate) mod tuning;
 
 /// Font-0 characters Labelary blanks even though the substitute subset has
@@ -55,3 +56,4 @@ pub use reverse::{
     encode_image_bytes, image_to_tspl, image_to_zpl, tspl_from_image_bytes, zpl_from_image_bytes,
     ReverseLanguage, ReverseOptions,
 };
+pub use template::{PrintTemplate, TemplateField, TemplateProblem, TemplateUse, TemplateValues};
