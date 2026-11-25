@@ -19,8 +19,10 @@ use crate::elements::barcode_datamatrix::{
     BarcodeDatamatrix, BarcodeDatamatrixWithData, DatamatrixRatio,
 };
 use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
+use crate::elements::barcode_ean8::{BarcodeEan8, BarcodeEan8WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
+use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::field_alignment::FieldAlignment;
 use crate::elements::field_orientation::FieldOrientation;
 use crate::elements::font::FontInfo;
@@ -864,17 +866,47 @@ fn parse_barcode(line: &str, state: &mut TsplState) -> Result<(), String> {
             position,
             data,
         }),
-        // ITF14 is Interleaved 2of5 carrying 14 digits including the check
-        // digit; drawn as plain I2of5 with a mandatory check digit (the
-        // TSC guard bars are not modeled).
-        "ITF14" => LabelElement::Barcode2of5(Barcode2of5WithData {
+        "EAN8" => LabelElement::BarcodeEan8(BarcodeEan8WithData {
+            reverse_print: ReversePrint::default(),
+            barcode: BarcodeEan8 {
+                orientation,
+                height,
+                line,
+                line_above: false,
+            },
+            width: narrow,
+            position,
+            data,
+        }),
+        "UPCA" => LabelElement::BarcodeUca(BarcodeUcaWithData {
+            reverse_print: ReversePrint::default(),
+            barcode: BarcodeUca {
+                orientation,
+                height,
+                line,
+                line_above: false,
+            },
+            width: narrow,
+            position,
+            data,
+        }),
+        // The shared encoder adds a check digit to odd-length input. Plain
+        // TSPL "25" accepts digit pairs and must encode them verbatim.
+        "25" if data.is_empty()
+            || !data.len().is_multiple_of(2)
+            || !data.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            return Err("TSPL BARCODE 25 requires an even number of decimal digits".into());
+        }
+        // ITF14 includes a check digit; its bearer bars are not modeled.
+        "25" | "ITF14" => LabelElement::Barcode2of5(Barcode2of5WithData {
             reverse_print: ReversePrint::default(),
             barcode: Barcode2of5 {
                 orientation,
                 height,
                 line,
                 line_above: false,
-                check_digit: true,
+                check_digit: code_type == "ITF14",
             },
             width: narrow,
             width_ratio,

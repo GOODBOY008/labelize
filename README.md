@@ -353,7 +353,7 @@ attribution. No independent overall validation is claimed.
 |----------|----------|
 | **Setup** | `SIZE` (mm/dot/inch — sets the label canvas) · `DIRECTION` · `REFERENCE` · `SHIFT` · `CLS` · `GAP`/`DENSITY`/`SPEED`/`OFFSET`/`CODEPAGE` (accepted, no render effect) |
 | **Text** | `TEXT` (resident fonts 1–5, xmul/ymul magnification) |
-| **Barcodes** | `BARCODE` (Code 128/128M/EAN128/EAN128M, Code 39/39C, EAN-13, ITF14) · `QRCODE` (ECC defaults to M) · `PDF417` (raw `L<len>`, incl. compound option tokens) · `DMATRIX` |
+| **Barcodes** | `BARCODE` (Code 128/128M/EAN128/EAN128M, Code 39/39C, EAN-13/8, UPC-A, Interleaved 2 of 5 (`25`), ITF14) · `QRCODE` (ECC defaults to M) · `PDF417` (raw `L<len>`, incl. compound option tokens) · `DMATRIX` |
 | **Graphics** | `BAR` · `BOX` · `CIRCLE` · `ELLIPSE` · `ERASE` · `REVERSE` (print-time region inversion) · `BITMAP` (binary cursor; modes 0/1/2 = overwrite/OR/XOR) |
 | **Output** | `PRINT` |
 
