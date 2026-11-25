@@ -689,3 +689,50 @@ fn datamatrix_reports_invalid_blocks_and_unsupported_options() {
         assert!(error.contains(expected), "{block}: {error}");
     }
 }
+
+#[test]
+fn datamatrix_escape_byte_and_decimal_precedence_survive_formatting() {
+    for (escape, data, expected) in [
+        (
+            0xff,
+            b"\xff\xff\xffd065\xffJ".as_slice(),
+            b"\xffA\n".as_slice(),
+        ),
+        (b'd', b"dd065dd", b"Ad"),
+        (b'd', b"dd12", b"d12"),
+        (b'@', b"@@@A@d255", b"@\x01\xff"),
+        (0x0c, b"\x0c\x0c", b"\x0c"),
+    ] {
+        let mut source = b"! 0 200 200 200 1\r\nVBARCODE DATAMATRIX 10 20 S 200 G ".to_vec();
+        source.push(escape);
+        source.extend_from_slice(b"\r\n");
+        source.extend_from_slice(data);
+        source.extend_from_slice(b"\r\nENDDATAMATRIX\r\nPRINT\r\n");
+        let (_, formatted) = labelize::format_source(&source, Some(Language::Cpcl));
+        for input in [&source, &formatted] {
+            let label = parse_one(input);
+            let LabelElement::BarcodeDatamatrix(field) = &label.elements[0] else {
+                panic!("expected Data Matrix");
+            };
+            assert_eq!(field.data_bytes.as_deref(), Some(expected));
+        }
+    }
+}
+
+#[test]
+fn datamatrix_rejects_invalid_decimal_escapes_before_and_after_formatting() {
+    for (options_and_data, expected) in [
+        (b"G d\r\ndd256".as_slice(), "exceeds 255"),
+        (b"G \xff\r\n\xffd12", "requires three digits"),
+        (b"G \xc3\xa9\r\nA", "single byte"),
+    ] {
+        let mut source = b"! 0 200 200 200 1\r\nB DATAMATRIX 10 20 S 200 ".to_vec();
+        source.extend_from_slice(options_and_data);
+        source.extend_from_slice(b"\r\nENDDATAMATRIX\r\nPRINT\r\n");
+        let (_, formatted) = labelize::format_source(&source, Some(Language::Cpcl));
+        for input in [&source, &formatted] {
+            let error = CpclParser::new().parse(input).unwrap_err();
+            assert!(error.contains(expected), "{error}");
+        }
+    }
+}

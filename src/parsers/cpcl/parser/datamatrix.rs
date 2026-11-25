@@ -11,13 +11,21 @@ use crate::elements::barcode_datamatrix::{
 
 pub(super) fn parse(
     session: &mut CpclSession,
-    header: &str,
+    header: &[u8],
     vertical: bool,
     lines: &mut CpclLines,
 ) -> Result<Flow, String> {
-    let mut fields = header.split_ascii_whitespace().skip(1);
-    let x = parse_num(fields.next().ok_or("DATAMATRIX requires X and Y")?)?;
-    let y = parse_num(fields.next().ok_or("DATAMATRIX requires X and Y")?)?;
+    // G is one printer byte. Decode only numeric and option tokens as text.
+    let mut fields = header
+        .split(|b| matches!(b, b' ' | b'\t'))
+        .filter(|field| !field.is_empty())
+        .skip(2); // BARCODE DATAMATRIX
+    let mut coordinate = || {
+        let token = fields.next().ok_or("DATAMATRIX requires X and Y")?;
+        parse_num(&String::from_utf8_lossy(token))
+    };
+    let x = coordinate()?;
+    let y = coordinate()?;
     if !(0.0..=65535.0).contains(&x) || !(0.0..=65535.0).contains(&y) {
         return Err("CPCL DATAMATRIX coordinates must be in 0..=65535".into());
     }
@@ -27,11 +35,12 @@ pub(super) fn parse(
     let mut columns = None;
     let mut escape = b'_';
     while let Some(key) = fields.next() {
+        let key = String::from_utf8_lossy(key);
         let value = fields
             .next()
             .ok_or_else(|| format!("CPCL DATAMATRIX missing value for {key}"))?;
         if key.eq_ignore_ascii_case("G") {
-            let [byte] = *value.as_bytes() else {
+            let [byte] = *value else {
                 return Err("CPCL DATAMATRIX G requires a single byte".into());
             };
             if byte == 0 {
@@ -40,6 +49,7 @@ pub(super) fn parse(
             escape = byte;
             continue;
         }
+        let value = String::from_utf8_lossy(value);
         let number: u16 = value
             .parse()
             .map_err(|_| format!("invalid CPCL DATAMATRIX {key} value {value:?}"))?;
@@ -104,27 +114,35 @@ pub(super) fn parse(
 
 fn decode_payload(payload: &[u8], escape: u8) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::with_capacity(payload.len());
-    let mut input = payload.iter().copied();
-    while let Some(byte) = input.next() {
+    let mut input = payload;
+    while let Some((&byte, rest)) = input.split_first() {
+        input = rest;
         if byte != escape {
             bytes.push(byte);
             continue;
         }
-        let next = input.next().ok_or("incomplete CPCL DATAMATRIX escape")?;
+        let (&next, rest) = input
+            .split_first()
+            .ok_or("incomplete CPCL DATAMATRIX escape")?;
+        input = rest;
+        // Zebra processes a complete decimal escape before a doubled escape.
+        // With G d, "dd065" is 'A', while "dd" alone is the literal 'd'.
+        if next == b'd'
+            && let Some(digits) = input.get(..3).filter(|s| s.iter().all(u8::is_ascii_digit))
+        {
+            let value = digits
+                .iter()
+                .fold(0u16, |n, digit| n * 10 + u16::from(digit - b'0'));
+            bytes.push(
+                u8::try_from(value).map_err(|_| "CPCL DATAMATRIX decimal escape exceeds 255")?,
+            );
+            input = &input[3..];
+            continue;
+        }
         bytes.push(match next {
             literal if literal == escape => escape,
             b'@'..=b'_' => next - b'@',
-            b'd' => {
-                let mut value = 0u16;
-                for _ in 0..3 {
-                    let digit = input
-                        .next()
-                        .filter(u8::is_ascii_digit)
-                        .ok_or("CPCL DATAMATRIX decimal escape requires three digits")?;
-                    value = value * 10 + u16::from(digit - b'0');
-                }
-                u8::try_from(value).map_err(|_| "CPCL DATAMATRIX decimal escape exceeds 255")?
-            }
+            b'd' => return Err("CPCL DATAMATRIX decimal escape requires three digits".into()),
             _ => return Err(format!("unsupported CPCL DATAMATRIX escape 0x{next:02x}")),
         });
     }
