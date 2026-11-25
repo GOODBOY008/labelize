@@ -38,6 +38,7 @@ use crate::elements::label_position::LabelPosition;
 use crate::elements::line_color::LineColor;
 use crate::elements::reverse_print::ReversePrint;
 use crate::elements::text_field::TextField;
+use crate::parsers::text_encoding::TextEncoding;
 
 pub struct TsplParser {
     dpmm: i32,
@@ -236,6 +237,7 @@ enum TsplCommand {
 }
 
 fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
+    let mut encoding = TextEncoding::default();
     let mut commands = Vec::new();
     let mut idx = 0usize;
 
@@ -326,9 +328,14 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
             continue;
         }
 
-        idx = command_line_end(data, line_start);
+        idx = scan_plain_command(data, line_start, &token, &mut encoding);
         let bytes = &data[line_start..idx];
-        let line = if token == "PDF417" {
+        let line = if token == "TEXT" {
+            encoding
+                .decode(bytes)
+                .map_err(|e| format!("TSPL TEXT: {e}"))?
+                .into_owned()
+        } else if token == "PDF417" {
             std::str::from_utf8(bytes)
                 .map_err(|_| "TSPL PDF417 non-UTF-8 binary payloads are not supported")?
                 .to_owned()
@@ -339,6 +346,33 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
     }
 
     Ok(commands)
+}
+
+/// Scan the same plain-command boundaries during parsing and formatting.
+/// A GBK character whose trail byte is 0x5C cannot start a quote escape.
+pub(super) fn scan_plain_command(
+    data: &[u8],
+    start: usize,
+    command: &str,
+    encoding: &mut TextEncoding,
+) -> usize {
+    if command == "TEXT" && *encoding == TextEncoding::Gbk {
+        return quoted::command_line_end_with(data, start, |tail| {
+            TextEncoding::Gbk.gb_char_len(tail).unwrap_or(1)
+        });
+    }
+    let end = quoted::command_line_end_with(data, start, |_| 1);
+    if command == "CODEPAGE" {
+        let page = data[start + command.len()..end].trim_ascii();
+        *encoding = if page == b"936" {
+            TextEncoding::Gbk
+        } else if page.eq_ignore_ascii_case(b"UTF-8") || page.eq_ignore_ascii_case(b"UTF8") {
+            TextEncoding::Utf8
+        } else {
+            TextEncoding::Unspecified
+        };
+    }
+    end
 }
 
 pub(super) fn first_token_end(data: &[u8], start: usize) -> usize {
@@ -399,10 +433,6 @@ pub(super) fn bitmap_hex_payload_end(
         end += 1;
     }
     (digits == expected_digits).then_some(end)
-}
-
-pub(super) fn command_line_end(data: &[u8], start: usize) -> usize {
-    quoted::command_line_end_with(data, start, |_| 1)
 }
 
 fn command_name(line: &str) -> String {

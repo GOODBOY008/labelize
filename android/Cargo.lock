@@ -1047,6 +1047,7 @@ dependencies = [
  "bwipp-rs",
  "chrono",
  "datamatrix",
+ "encoding_rs",
  "flate2",
  "image",
  "imageproc",

@@ -6,15 +6,17 @@
 //! embedded line breaks.
 
 use super::parser::{
-    bitmap_hex_payload_end, bitmap_payload_start, command_args, command_line_end, first_token_end,
-    parse_i32_arg, pdf417_raw_layout,
+    bitmap_hex_payload_end, bitmap_payload_start, command_args, first_token_end, parse_i32_arg,
+    pdf417_raw_layout, scan_plain_command,
 };
+use crate::parsers::text_encoding::TextEncoding;
 
 /// Format TSPL source as raw bytes (BITMAP payloads are not UTF-8). Never
 /// fails — malformed lines are passed through unchanged rather than rejected.
 pub fn format_tspl(data: &[u8]) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(data.len() + 8);
     let mut idx = 0usize;
+    let mut encoding = TextEncoding::default();
 
     while idx < data.len() {
         while idx < data.len() && data[idx].is_ascii_whitespace() {
@@ -83,7 +85,7 @@ pub fn format_tspl(data: &[u8]) -> Vec<u8> {
         }
 
         // Plain command line (may span physical lines inside quotes).
-        let line_end = command_line_end(data, line_start);
+        let line_end = scan_plain_command(data, line_start, &token, &mut encoding);
         let line = trim_tspl_line(&data[line_start..line_end]);
         if !line.is_empty() {
             out.extend_from_slice(line);
