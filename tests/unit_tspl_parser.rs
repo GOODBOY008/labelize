@@ -642,3 +642,91 @@ PRINT 1
     assert_eq!(labels.len(), 1);
     assert_eq!(labels[0].elements.len(), 1);
 }
+
+#[test]
+fn pdf417_raw_and_quoted_payloads_keep_delimiters_and_following_fields() {
+    let cases: &[(&[u8], &[u8])] = &[
+        (b"E2,C2,W2,H6,L5,,ABCD", b",ABCD"),
+        (b"\" ,ABCD \"", b" ,ABCD "),
+        (b"\",L12,part\"", b",L12,part"),
+        (
+            b"W2,\"one,\\\"two,L5,three\\\"\r\nfour\"",
+            b"one,\"two,L5,three\"\r\nfour",
+        ),
+        (b"E30R4C4L5\r\n,ABCD", b",ABCD"),
+        (b"E2,\r\nW2,C2L3,,,,", b",,,"),
+        (b"L8,\r\n\x00,tail", b"\r\n\x00,tail"),
+        (b"L8,\nPRINT 1", b"\nPRINT 1"),
+        (b"L11,X\r\nCLS\r\nend", b"X\r\nCLS\r\nend"),
+        (b"L5,\"\xc3\xa9ABC\"", b"\xc3\xa9ABC"),
+        (b"L4,\"A\r\nB\"", b"A\r\nB"),
+        (b"L2,\"A\n\" \t", b"A\n"),
+        (b"L5,\"ABC\"", b"\"ABC\""),
+    ];
+    for (last, payload) in cases {
+        let command = [b"PDF417 0,0,300,100,0,".as_slice(), last].concat();
+        for eol in [b"\r\n".as_slice(), b"\n", b"\r"] {
+            let lines = [
+                command.as_slice(),
+                b"BAR 7,9,2,2",
+                b"PRINT 1,1",
+                b"CLS",
+                b"",
+            ];
+            let source = lines.join(eol);
+            let (_, formatted) = labelize::format_source(&source, Some(Language::Tspl));
+            assert_eq!(
+                formatted,
+                lines.join(b"\n".as_slice()),
+                "internal byte preservation"
+            );
+            for dpmm in [8, 12] {
+                for job in [&source, &formatted] {
+                    let labels = labelize::parse_labels(Language::Tspl, job, dpmm).unwrap();
+                    assert_eq!(labels.len(), 1);
+                    let [LabelElement::BarcodePdf417(code), LabelElement::GraphicBox(bar)] =
+                        labels[0].elements.as_slice()
+                    else {
+                        panic!("unexpected fields for {command:?}")
+                    };
+                    assert_eq!(code.data.as_bytes(), *payload);
+                    assert_eq!((bar.position.x, bar.position.y), (7, 9));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn pdf417_invalid_utf8_is_reported_without_replacing_or_damaging_bytes() {
+    for last in [b"L3,,\xff\0".as_slice(), b"\",\xff\0\""] {
+        let job = [b"PDF417 0,0,300,100,0,".as_slice(), last, b"\nPRINT 1,1\n"].concat();
+        let (_, formatted) = labelize::format_source(&job, Some(Language::Tspl));
+        assert_eq!(job, formatted);
+        for dpmm in [8, 12] {
+            let error = labelize::parse_labels(Language::Tspl, &job, dpmm).unwrap_err();
+            assert!(error.to_string().contains("non-UTF-8"), "{error}");
+        }
+    }
+}
+
+#[test]
+fn pdf417_truncated_raw_data_fails_at_end_of_input() {
+    let job = b"PDF417 0,0,300,100,0,L5,,abc";
+    assert!(labelize::parse_labels(Language::Tspl, job, 8)
+        .unwrap_err()
+        .to_string()
+        .contains("truncated"));
+}
+
+#[test]
+fn counted_mpdf417_reports_unsupported_command() {
+    let job = b"MPDF417 0,0,300,100,0,L5,,ABCD\r\nPRINT 1,1\r\n";
+    let (_, formatted) = labelize::format_source(job, Some(Language::Tspl));
+    for source in [job.as_slice(), &formatted] {
+        let error = labelize::parse_labels(Language::Tspl, source, 8).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("unsupported TSPL command MPDF417"));
+    }
+}

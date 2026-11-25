@@ -130,7 +130,7 @@ impl TsplParser {
             "QRCODE" => parse_qrcode(line, state),
             "PDF417" => parse_pdf417(line, state),
             "DMATRIX" => parse_dmatrix(line, state),
-            "MPDF417" | "PUTPCX" | "PUTBMP" => Err(format!("unsupported TSPL command {}", name)),
+            "PUTPCX" | "PUTBMP" => Err(format!("unsupported TSPL command {}", name)),
             _ if is_device_noop(&name) => Ok(()),
             _ => Ok(()),
         }
@@ -308,28 +308,34 @@ fn split_tspl_commands(data: &[u8]) -> Result<Vec<TsplCommand>, String> {
             continue;
         }
 
-        // PDF417/MPDF417 with an `L<len>` option: the expression is the next
+        if token == "MPDF417" {
+            return Err("unsupported TSPL command MPDF417".into());
+        }
+
+        // PDF417 with an `L<len>` option: the expression is the next
         // <len> raw bytes (which may span lines), so it must be consumed here
         // like BITMAP data instead of being re-parsed as commands.
-        if matches!(token.as_str(), "PDF417" | "MPDF417")
-            && let Some((len, header_end, content_start)) = pdf417_raw_layout(data, line_start)
+        if token == "PDF417"
+            && let Some(raw) = pdf417_raw_layout(data, line_start)?
         {
-            let header = String::from_utf8_lossy(&data[line_start..header_end]).to_string();
-            let content_end = raw_content_end(
-                data,
-                content_start,
-                len.min(data.len().saturating_sub(content_start)),
-            );
+            let header = String::from_utf8_lossy(&data[line_start..raw.header_end]).into_owned();
             commands.push(TsplCommand::Pdf417 {
                 header,
-                data: data[content_start..content_end].to_vec(),
+                data: data[raw.payload].to_vec(),
             });
-            idx = content_end;
+            idx = raw.end;
             continue;
         }
 
         idx = command_line_end(data, line_start);
-        let line = String::from_utf8_lossy(&data[line_start..idx]).to_string();
+        let bytes = &data[line_start..idx];
+        let line = if token == "PDF417" {
+            std::str::from_utf8(bytes)
+                .map_err(|_| "TSPL PDF417 non-UTF-8 binary payloads are not supported")?
+                .to_owned()
+        } else {
+            String::from_utf8_lossy(bytes).into_owned()
+        };
         commands.push(TsplCommand::Line(line));
     }
 
@@ -1076,109 +1082,91 @@ fn parse_qrcode(line: &str, state: &mut TsplState) -> Result<(), String> {
     Ok(())
 }
 
-/// Locate the `L<len>` option of a PDF417/MPDF417 command and return
-/// `(len, header_end, content_start)`. Option tokens are comma-separated and
-/// may continue onto following lines: a newline only continues the option
-/// list when the line ended with a trailing comma. Returns `None` when no
-/// length option is present, leaving the command to the line parser.
-pub(super) fn pdf417_raw_layout(data: &[u8], start: usize) -> Option<(usize, usize, usize)> {
-    let mut idx = start;
-    while idx < data.len() && !matches!(data[idx], b'\r' | b'\n') && data[idx] != b',' {
-        idx += 1;
-    }
-    let mut line_ends = false;
+pub(super) struct Pdf417Raw {
+    pub header_end: usize,
+    pub payload: std::ops::Range<usize>,
+    pub end: usize,
+}
+
+/// Locate a byte-counted PDF417 expression. Only the numeric header and option
+/// tokens can contain L<len>. An opening quote ends the option list.
+pub(super) fn pdf417_raw_layout(data: &[u8], start: usize) -> Result<Option<Pdf417Raw>, String> {
+    let mut cursor = start;
+    let mut field = 0;
     loop {
-        if idx >= data.len() {
-            return None;
+        let token_start = cursor;
+        while data
+            .get(cursor)
+            .is_some_and(|b| !matches!(b, b',' | b'"' | b'\r' | b'\n'))
+        {
+            cursor += 1;
         }
-        // idx sits on a token start (or on a newline/comma straight after one).
-        let token_start = idx;
-        while idx < data.len() && data[idx] != b',' && !matches!(data[idx], b'\r' | b'\n') {
-            idx += 1;
+        if data.get(cursor) == Some(&b'"') {
+            return Ok(None);
         }
-        let token = String::from_utf8_lossy(&data[token_start..idx])
-            .trim()
-            .to_ascii_uppercase();
-        let token_end = idx;
-        // The L<len> raw-data marker either is its own token or trails a
-        // compound option token (TSC's documented sample: `PDF417 …,E30R4C4L26`).
-        let raw_len = if token.len() > 1 && token.starts_with('L') {
-            token[1..].parse::<usize>().ok()
-        } else if let Some(lpos) = token.rfind('L') {
-            if lpos > 0 {
-                token[lpos + 1..].parse::<usize>().ok()
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        if let Some(len) = raw_len {
-            // Skip the comma that follows the length option.
-            let mut cursor = idx;
-            while cursor < data.len() && matches!(data[cursor], b'\r' | b'\n' | b',') {
-                cursor += 1;
-            }
-            return Some((len, token_end, cursor));
+        let token = data[token_start..cursor].trim_ascii();
+        // In a packed option group such as E30R4C4L12 the count is the
+        // last option. The first five fields are coordinates, size, rotation.
+        if field >= 5
+            && let Some(marker) = token.iter().rposition(|b| b.eq_ignore_ascii_case(&b'L'))
+            && let Some(len) = std::str::from_utf8(&token[marker + 1..])
+                .ok()
+                .and_then(|digits| digits.parse::<usize>().ok())
+        {
+            let header_end = cursor;
+            // The comma or a single line ending separates header and data.
+            // The following byte starts the payload, even when it is a comma.
+            let start = match data.get(cursor) {
+                Some(b',') | Some(b'\n') => cursor + 1,
+                Some(b'\r') => cursor + 1 + usize::from(data.get(cursor + 1) == Some(&b'\n')),
+                _ => return Err("TSPL PDF417 missing counted payload".into()),
+            };
+            return counted_pdf417(data, header_end, start, len).map(Some);
         }
-        if idx >= data.len() {
-            return None;
+        if data.get(cursor) != Some(&b',') {
+            return Ok(None);
         }
-        if matches!(data[idx], b'\r' | b'\n') {
-            // Continuation is only valid straight after a trailing comma.
-            if line_ends || data[idx - 1] != b',' {
-                return None;
-            }
-            while idx < data.len() && matches!(data[idx], b'\r' | b'\n') {
-                idx += 1;
-            }
-            if idx >= data.len() {
-                return None;
-            }
-            line_ends = true;
-            continue;
-        }
-        // On a comma: next token starts after it; remember whether the
-        // preceding token boundary reached end-of-line (checked above).
-        line_ends = false;
-        idx += 1;
-        if idx >= data.len() {
-            return None;
+        cursor += 1;
+        field += 1;
+        // A line break immediately after an option separator continues the
+        // header. Once L<len> is seen, the same bytes belong to its payload.
+        while matches!(data.get(cursor), Some(b'\r' | b'\n')) {
+            cursor += 1;
         }
     }
 }
 
-/// End offset for a length-prefixed raw expression: `len` bytes, except that
-/// consumption stops at a line boundary when the swallowed tail begins with an
-/// unambiguous structural command (`PRINT`, `CLS`, `BITMAP`). TSC's own
-/// documentation sample miscounts the length (L297 over 287 bytes of content,
-/// exactly reaching the end of the following `PRINT 1,1`), and strict counting
-/// would swallow it; content lines that merely start with a command-like word
-/// ("Bar Height ...") must NOT truncate, so the structural set is deliberately
-/// narrow.
-pub(super) fn raw_content_end(data: &[u8], start: usize, len: usize) -> usize {
-    let end = start.saturating_add(len).min(data.len());
-    let mut idx = start;
-    while idx < end {
-        if data[idx] == b'\n' {
-            let mut next = idx + 1;
-            while next < data.len() && data[next] == b'\r' {
-                next += 1;
-            }
-            if next < end {
-                let token_end = (next..end)
-                    .take_while(|&i| !data[i].is_ascii_whitespace())
-                    .last()
-                    .map_or(next, |i| i + 1);
-                let token = String::from_utf8_lossy(&data[next..token_end]).to_uppercase();
-                if matches!(token.trim(), "PRINT" | "CLS" | "BITMAP") {
-                    return idx;
-                }
-            }
+fn counted_pdf417(
+    data: &[u8],
+    header_end: usize,
+    start: usize,
+    len: usize,
+) -> Result<Pdf417Raw, String> {
+    let end = start
+        .checked_add(len)
+        .filter(|&end| end <= data.len())
+        .ok_or("TSPL PDF417 truncated counted payload")?;
+
+    // Optional enclosing quotes add exactly two bytes beyond the count. A
+    // literal pair of quotes within the count remains part of the raw data.
+    if data.get(start) == Some(&b'"') && data.get(end + 1) == Some(&b'"') {
+        let mut next = end + 2;
+        while matches!(data.get(next), Some(b' ' | b'\t')) {
+            next += 1;
         }
-        idx += 1;
+        if data.get(next).is_none_or(|b| matches!(b, b'\r' | b'\n')) {
+            return Ok(Pdf417Raw {
+                header_end,
+                payload: start + 1..end + 1,
+                end: next,
+            });
+        }
     }
-    end
+    Ok(Pdf417Raw {
+        header_end,
+        payload: start..end,
+        end,
+    })
 }
 
 fn parse_pdf417_raw(header: &str, data: &[u8], state: &mut TsplState) -> Result<(), String> {
@@ -1190,7 +1178,9 @@ fn parse_pdf417_raw(header: &str, data: &[u8], state: &mut TsplState) -> Result<
             args.len()
         ));
     }
-    let content = String::from_utf8_lossy(data).to_string();
+    let content = std::str::from_utf8(data)
+        .map_err(|_| "TSPL PDF417 non-UTF-8 binary payloads are not supported")?
+        .to_owned();
     push_pdf417(&args, content, args.len(), state)
 }
 
