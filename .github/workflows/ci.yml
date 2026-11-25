@@ -82,8 +82,10 @@ jobs:
       - name: Compare independent PDF renderings and persisted barcode payloads
         run: python e2e/vector/verify_pdf.py --check visual
       - name: Export the complete five-language corpus
+        if: github.event_name == 'push'
         run: cargo run --locked --features vector,serde --example vector_audit -- output/pdf/vector-audit
       - name: Verify corpus in PDFium and Poppler at 1x and 3x
+        if: github.event_name == 'push'
         run: python e2e/vector/verify_corpus.py output/pdf/vector-audit
       - name: Verify golden references were not changed
         run: test -z "$(git status --porcelain -- testdata/vector)"
@@ -98,7 +100,7 @@ jobs:
             output/pdf/vector-audit/manifest.json
             output/pdf/vector-audit/verification.json
       - name: Upload full corpus on failure
-        if: failure()
+        if: failure() && github.event_name == 'push'
         uses: actions/upload-artifact@v7
         with:
           name: vector-output-failed-corpus
