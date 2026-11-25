@@ -9,7 +9,7 @@
 use crate::elements::font_face::FontFace;
 
 pub struct TsplFont {
-    /// Cell width in dots at 1x (the character advance).
+    /// Cell width in dots at 1x (the full-width advance for Asian fonts).
     pub base_width: f64,
     /// Cell height in dots at 1x.
     pub base_height: f64,
@@ -37,8 +37,7 @@ pub fn resident_font(name: &str) -> TsplFont {
         "6" => cell(14.0, 19.0, FontFace::BitmapMono),
         "7" => cell(21.0, 27.0, FontFace::BitmapMono),
         "8" => cell(14.0, 25.0, FontFace::BitmapMono),
-        // Asian bitmap faces (GB/BIG5/SJIS variants share the cell size).
-        // Square cells draw 1:1 with no cap correction.
+        // Named Chinese bitmap fonts share these full-width cell sizes.
         "TST16.BF2" | "TTT16.BF2" | "TSS16.BF2" => cell(16.0, 16.0, FontFace::BitmapSquare),
         "TST24.BF2" | "TTT24.BF2" | "TSS24.BF2" => cell(24.0, 24.0, FontFace::BitmapSquare),
         // Font 1 and everything unrecognized: TSC defaults to font 1.
