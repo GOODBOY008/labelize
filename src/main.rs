@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "cli")]
 use clap::{Parser, Subcommand, ValueEnum};
+#[cfg(feature = "cli")]
+mod template_cli;
 #[cfg(any(feature = "cli", feature = "serve"))]
 use labelize::{parse_labels, DrawerOptions, Language, ReverseLanguage};
 
@@ -47,6 +49,11 @@ enum OutputType {
 #[cfg(feature = "cli")]
 #[derive(Subcommand)]
 enum Commands {
+    /// Fill a Labelize Studio printer template or render its filled bytes
+    Template {
+        #[command(subcommand)]
+        command: template_cli::TemplateCommand,
+    },
     /// Convert a ZPL/EPL/TSPL/CPCL/DPL file to PNG or PDF
     Convert {
         /// Input file path (.zpl, .epl, .tspl, .cpcl, or .dpl)
@@ -135,6 +142,12 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Template { command } => {
+            if let Err(e) = command.run() {
+                eprintln!("Error: {e}");
+                std::process::exit(1);
+            }
+        }
         Commands::Convert {
             input,
             output,

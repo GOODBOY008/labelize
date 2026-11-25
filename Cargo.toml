@@ -60,6 +60,7 @@ rxing = { version = "0.9", default-features = false, features = [
 
 # Optional — CLI
 clap = { version = "4", features = ["derive"], optional = true }
+tempfile = { version = "3", optional = true }
 
 # Optional — HTTP server
 axum = { version = "0.8", optional = true }
@@ -69,7 +70,7 @@ serde_json = { version = "1", optional = true }
 
 [features]
 default = []
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:serde_json", "dep:tempfile"]
 playground = []
 # Serialize the report types (Language, ValidationReport) so HTTP layers and
 # SDK consumers share one wire shape instead of re-declaring mirror structs.
