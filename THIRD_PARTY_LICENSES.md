@@ -69,3 +69,27 @@ vendor metadata, as the removed Adobe Helvetica file demonstrated). Treated as
 distributable via zebrash's MIT license; if provenance concerns arise, the
 glyphs can be redrawn from scratch against the Labelary reference without
 affecting the renderer.
+
+## East Asian bitmap font substitute
+
+`src/assets/fonts/EastAsianBitmap.otf.zlib` contains a renamed subset of GNU
+Unifont 16.0.04. Labelize distributes it under the SIL Open Font License 1.1.
+The upstream copyright and license are retained in the font and in
+[licenses/Unifont-OFL.txt](licenses/Unifont-OFL.txt).
+
+The same outlines are embedded on all targets. Named Chinese bitmap fonts
+use a full cell for Han and a half cell for ASCII. The subset covers the BMP
+unified ideographs, Extension A, compatibility ideographs, Latin-1, common
+punctuation, kana, Bopomofo, and half/full-width forms. Missing characters
+advance without ink. Glyph shapes follow Unifont's 16-dot design, scaled
+for 24-dot cells. Individual device fonts can have different outlines,
+regional glyph forms, and character coverage. See Zebra's
+[ZQ310 Plus / ZQ320 Plus User Guide, “Printing in Chinese Fonts”](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/product/zq310plus-zq320plus-ug-en.pdf).
+
+To reproduce the subset, run the following from the repository root. The
+script verifies the upstream SHA-256 before subsetting.
+
+```sh
+curl -fLO https://unifoundry.com/pub/unifont/unifont-16.0.04/font-builds/unifont-16.0.04.otf
+uv run --with fonttools==4.68.0 python tools/fonts/subset_east_asian.py unifont-16.0.04.otf
+```

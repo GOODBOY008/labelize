@@ -10,7 +10,7 @@
 use crate::elements::font_face::FontFace;
 
 pub struct CpclFont {
-    /// Character cell width in dots at 1x.
+    /// Cell width in dots at 1x (the full-width advance for Asian fonts).
     pub width: f64,
     /// Character cell height in dots at 1x.
     pub height: f64,
@@ -18,7 +18,7 @@ pub struct CpclFont {
 }
 
 /// Resolve a `TEXT {font} {size}` pair. `size` outside the resident table
-/// (and named/downloaded fonts like `GBUNSG24.CPF`) falls back to the
+/// (and unrecognized font names) falls back to the
 /// Standard font 0 size 0 cell — the manual's default face.
 pub fn resident_font(font: &str, size: usize) -> CpclFont {
     let cell = |w: f64, h: f64, face| CpclFont {
@@ -30,6 +30,9 @@ pub fn resident_font(font: &str, size: usize) -> CpclFont {
     let prop = FontFace::ResidentBitmap;
 
     match font.trim().to_ascii_uppercase().as_str() {
+        // ZQ310 Plus / ZQ320 Plus User Guide, “Printing in Chinese Fonts”.
+        "GBUNSG16.CPF" => cell(16.0, 16.0, FontFace::BitmapSquare),
+        "GBUNSG24.CPF" => cell(24.0, 24.0, FontFace::BitmapSquare),
         // Standard: fixed 5-dot advance, 9-36 dot heights.
         "0" => match size {
             2 => cell(10.0, 18.0, mono),

@@ -11,7 +11,8 @@
 //! faces (or adds variants) instead of reusing ZPL designators.
 
 use crate::assets::{
-    FONT_DEJAVU_SANS_MONO, FONT_DEJAVU_SANS_MONO_BOLD, FONT_ZERO_SUBSTITUTE, FONT_ZPL_GS,
+    FONT_DEJAVU_SANS_MONO, FONT_DEJAVU_SANS_MONO_BOLD, FONT_EAST_ASIAN_BITMAP,
+    FONT_ZERO_SUBSTITUTE, FONT_ZPL_GS,
 };
 use crate::tuning;
 
@@ -35,9 +36,8 @@ pub enum FontFace {
     ResidentBitmap,
     /// Symbol glyphs (ZPL GS).
     Symbol,
-    /// Square-pixel bitmap cell whose substitute scales 1:1 with the
-    /// requested cell (TSPL .BF2 resident fonts): no cap correction, no
-    /// cell shift — the em is the cell.
+    /// Dual-width bitmap face. Han glyphs fill a square cell and ASCII
+    /// advances half a cell. The em is the requested cell height.
     BitmapSquare,
     /// Plain monospace, no cell-shift corrections (ZPL W–Z and unmapped
     /// designators).
@@ -45,7 +45,7 @@ pub enum FontFace {
 }
 
 impl FontFace {
-    /// The embedded TTF asset drawn for this face.
+    /// The embedded OpenType asset drawn for this face.
     pub fn ttf_data(self) -> &'static [u8] {
         match self {
             FontFace::CondensedBold => FONT_ZERO_SUBSTITUTE,
@@ -53,10 +53,8 @@ impl FontFace {
                 FONT_DEJAVU_SANS_MONO_BOLD
             }
             FontFace::Symbol => FONT_ZPL_GS,
-            FontFace::BitmapSquare
-            | FontFace::ScalableMono
-            | FontFace::BitmapMono
-            | FontFace::Mono => FONT_DEJAVU_SANS_MONO,
+            FontFace::BitmapSquare => &FONT_EAST_ASIAN_BITMAP,
+            FontFace::ScalableMono | FontFace::BitmapMono | FontFace::Mono => FONT_DEJAVU_SANS_MONO,
         }
     }
 
