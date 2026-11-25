@@ -567,3 +567,60 @@ fn formatter_round_trips_fixtures() {
     assert_eq!(before.len(), after.len());
     assert_eq!(before[0].elements.len(), after[0].elements.len());
 }
+
+#[test]
+fn native_stored_images_expand_bottom_up_repeat_rows_and_survive_between_formats() {
+    let job = concat!(
+        "\x02Q\x02qD\x02IDAFMy Logo\r\n8002FFFE\r\n80027FDF\r\n0000FF02\r\nFFFF\r\n",
+        "\x02L\r1Y1100000000000My Logo\rE\r",
+        "\x02L\r1Y2100000000000My Logo\rE\r",
+        "\x02IDFMy Logo\r8001FC\rFFFF\r",
+        "\x02L\r1Y1100000000000My Logo\rE\r",
+    )
+    .as_bytes();
+    let labels = parse(job);
+    assert_eq!(labels.len(), 3);
+    for (label, expected) in labels.iter().zip([
+        [0x80, 0x20, 0x80, 0x20, 0x80, 0x20, 0, 1].as_slice(),
+        &[0x80, 0x20, 0x80, 0x20, 0x80, 0x20, 0, 1],
+        &[3],
+    ]) {
+        let LabelElement::GraphicField(image) = &label.elements[0] else {
+            panic!("expected image");
+        };
+        assert_eq!(image.data, expected);
+    }
+}
+
+#[test]
+fn unresolved_images_report_the_name_and_downloads_are_scoped_to_the_job() {
+    let parser = DplParser::new();
+    parser.parse(b"\x02IDFLOGO\r800100\rFFFF\r").unwrap();
+    let recall = b"\x02L\r1Y1100000100010LOGO\rE\r";
+    for prefix in [
+        b"".as_slice(),
+        b"\x02IDFlogo\r800100\rFFFF\r",
+        b"\x02IDFLOGO\r800100\rFFFF\r\x02qD",
+        b"\x02IDFLOGO\r800100\rFFFF\r\x02Q",
+        b"\x02IDFLOGO\r800100\rFFFF\r\x02xDGLOGO\r",
+    ] {
+        let err = parser.parse(&[prefix, recall].concat()).unwrap_err();
+        assert!(err.contains("unresolved DPL image \"LOGO\""), "{err}");
+    }
+}
+
+#[test]
+fn malformed_downloads_report_errors_without_parsing_payload_as_a_label() {
+    for job in [
+        b"\x02IDFLOGO\r8001FF\r".as_slice(),
+        b"\x02IDFLOGO\r8002FF\rFFFF\r",
+        b"\x02IDFLOGO\r0000FF04\rFFFF\r",
+        b"\x02IDFLOGO\r8001XY\rFFFF\r",
+        b"\x02IDFLOGO\r8001FF\r8002FFFF\rFFFF\r",
+        b"\x02IDbLOGO\rBM\xff\xff\xff\x7f\x02L\r",
+        b"\x02IDpLOGO\r\x02L\r",
+    ] {
+        assert!(DplParser::new().parse(job).is_err());
+        assert_eq!(labelize::format_source(job, Some(Language::Dpl)).1, job);
+    }
+}

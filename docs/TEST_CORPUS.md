@@ -216,7 +216,7 @@ P/N 88-2302-01), Appendix B "Sample Programs".
 | Fixture | Source | Content | Adaptation |
 |---|---|---|---|
 | `dpl_real_manual_component` | Figure B-1 sample (Basic/C/ASCII programs) | Electronic component label: smooth font 9 (`008` = A18), Code 39 `a` with 6:2 modules, `H07`/`D11` | none — verbatim sample |
-| `dpl_real_manual_order` | "VB Application Generating DPL" sample | Order-picking label: font 9 headings/values, five Code 39 fields, box record | field values filled in with plausible data (`SO-44715`, `NORTHWIND SUPPLY`, …); the `1Y…SLANT1` stored-image record is dropped (stored images are unsupported and error loudly); the `~`-alternative STX is written as the standard 0x02 byte |
+| `dpl_real_manual_order` | "VB Application Generating DPL" sample | Order-picking label: font 9 headings/values, five Code 39 fields, box record | field values filled in with plausible data (`SO-44715`, `NORTHWIND SUPPLY`, …); the `1Y…SLANT1` stored-image record is dropped (the sample omits the SLANT1 image download); the `~`-alternative STX is written as the standard 0x02 byte |
 
 Current per-fixture tolerances are in [Diff thresholds](DIFF_THRESHOLDS.md);
 regenerated measurements are in `testdata/diffs/diff_report_unit.txt`. External

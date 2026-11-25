@@ -5,3 +5,6 @@
 # Counted graphic payloads include literal command prefixes and CR/LF/TAB bytes.
 /testdata/unit/zpl_binary_graphics.zpl binary
 /testdata/invalid/usps_apo_truncated.zpl binary
+
+# DPL file contains a binary BMP download.
+/testdata/dpl/downloaded_image.dpl binary

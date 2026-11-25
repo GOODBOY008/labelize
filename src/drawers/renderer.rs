@@ -230,11 +230,8 @@ impl Renderer {
         state: &mut DrawerState,
         saved_images: &mut SavedImageCache,
     ) -> Result<(), String> {
-        // Bottom-of-label-anchored elements that are not drawn from an
-        // encoded image flip here, where the canvas height is known; the
-        // image-drawn elements (barcodes, 2-D codes) flip inside
-        // `adjust_image_typeset_position`, which sees the real bitmap
-        // extents.
+        // Text and shapes flip here. Packed rows and image-drawn elements
+        // use their actual bitmap extents to resolve bottom-origin positions.
         let flipped;
         let element = match flip_from_bottom(element, canvas.height()) {
             Some(adjusted) => {
@@ -531,7 +528,7 @@ impl BitmapRows<'_> {
         let x = i64::from(position.x) + offset_x;
         let mut y = i64::from(position.y);
         if position.from_bottom {
-            y = (ch - y - height * my).max(0);
+            y = ch - y - height * my;
         }
         if position.calculate_from_bottom {
             y -= height * my;
@@ -1253,7 +1250,6 @@ fn element_from_bottom(element: &LabelElement) -> bool {
         LabelElement::GraphicEllipse(e) => e.position.from_bottom,
         LabelElement::DiagonalLine(e) => e.position.from_bottom,
         LabelElement::InvertRegion(e) => e.position.from_bottom,
-        LabelElement::GraphicField(e) => e.position.from_bottom,
         _ => false,
     }
 }
@@ -1301,16 +1297,6 @@ fn flip_from_bottom(element: &LabelElement, canvas_h: u32) -> Option<LabelElemen
             let mut g = g;
             shift(&mut g.position, g.height, canvas_h);
             Some(LabelElement::InvertRegion(g))
-        }
-        LabelElement::GraphicField(g) => {
-            let mut g = g;
-            let rows = if g.row_bytes > 0 {
-                (g.total_bytes / g.row_bytes).max(1)
-            } else {
-                1
-            };
-            shift(&mut g.position, rows * g.magnification_y.max(1), canvas_h);
-            Some(LabelElement::GraphicField(g))
         }
         _ => None,
     }

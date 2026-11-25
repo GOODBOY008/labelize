@@ -98,8 +98,12 @@ For integrations, read a `.dpl` file as bytes and send it with
 notation, not a substitute for the actual control byte.
 
 Bitmap/smooth fonts, common linear barcodes, QR, DataMatrix, PDF417, Aztec,
-MaxiCode and line/box records are supported. Stored images, polygons, circles
-and several legacy barcodes are unsupported. External DPL comparisons use a
+MaxiCode and line/box records are supported. To print in-job artwork, download
+it to RAM with `<STX>IDFname` (native hexadecimal rows, also `IDAF`) or
+`<STX>IDbname` (binary BMP). End the header with CR, supply the image data,
+then recall its case-sensitive name in a rotation-1 `Y` record. The image
+remains available across label formats within that job. Other image encodings,
+polygons, circles and several legacy barcodes are unsupported. External DPL comparisons use a
 layout preview, not a printer-grade renderer; see [corpus provenance](TEST_CORPUS.md#cpcl-and-dpl).
 
 ## Choose the parser explicitly

@@ -17,6 +17,8 @@
 //! misrendering; device-only commands are no-ops like the TSPL/CPCL
 //! frontends.
 
+use super::images::{self, ImageBank, StoredImage};
+
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
@@ -74,14 +76,17 @@ impl DplParser {
         let mut record_no = 0usize;
 
         while let Some(record) = cursor.next_record()? {
+            if let Some((name, image)) = record.image {
+                state.images.store(name, image)?;
+                continue;
+            }
             let line = record.data;
             if line.is_empty() {
                 continue;
             }
 
             // <STX> system-level bytes: 0x02 + a letter (sometimes a second
-            // letter). Only <STX>L opens a format; everything else is
-            // printer configuration.
+            // letter). Only <STX>L opens a format.
             if line.first() == Some(&0x02) {
                 if line.len() >= 2 && (line[1] == b'L' || line[1] == b'l') {
                     // A stray open without E flushes (lenient tail flush).
@@ -95,6 +100,10 @@ impl DplParser {
                     // as leaving it (matches "must be issued outside").
                     in_format = false;
                     elements.clear();
+                } else if line == b"\x02qD" || line == b"\x02Q" {
+                    state.images.clear();
+                } else if let Some(name) = line.strip_prefix(b"\x02xDG") {
+                    state.images.remove(images::image_name(name)?);
                 }
                 continue;
             }
@@ -137,6 +146,7 @@ impl DplParser {
 }
 
 struct DplState {
+    images: ImageBank,
     dpmm: f64,
     metric: bool,
     /// Column offset (`Cnnnn`) and row offset (`Rnnnn`), in units.
@@ -147,6 +157,7 @@ struct DplState {
 impl DplState {
     fn new(dpmm: i32) -> Self {
         DplState {
+            images: ImageBank::default(),
             dpmm: dpmm as f64,
             metric: false,
             column_offset: 0.0,
@@ -319,7 +330,15 @@ fn parse_record(
             Ok(())
         }
         b'X' => parse_graphic(state, elements, &ctx),
-        b'Y' => Err("DPL stored images (Y records) are not supported".to_string()),
+        b'Y' => {
+            if orientation != FieldOrientation::Normal || eee != "000" {
+                return Err("DPL images require rotation 1 and a 000 height field".into());
+            }
+            let name = images::image_name(rest)?;
+            let image = state.images.recall(name, position, ctx.c, ctx.d)?;
+            elements.push(LabelElement::GraphicField(image));
+            Ok(())
+        }
         _ => parse_barcode_record(state, elements, b, &ctx),
     }
 }
@@ -994,6 +1013,7 @@ fn parse_config(state: &mut DplState, line: &[u8]) -> Result<(), String> {
 
 /// One record, with its actual terminator retained for lossless formatting.
 pub(super) struct DplRecord<'a> {
+    pub(super) image: Option<(&'a str, StoredImage)>,
     pub(super) data: &'a [u8],
     pub(super) terminator: Option<u8>,
 }
@@ -1031,6 +1051,18 @@ impl<'a> DplCursor<'a> {
         }
         let start = self.pos;
         let remaining = &self.data[start..];
+        if remaining.starts_with(b"\x02I") {
+            if self.in_format {
+                return Err("DPL image downloads must precede the label format".into());
+            }
+            let (name, image, length) = images::download(remaining)?;
+            self.pos += length;
+            return Ok(Some(DplRecord {
+                image: Some((name, image)),
+                data: &remaining[..length],
+                terminator: None,
+            }));
+        }
         let field = self.in_format && matches!(remaining[0], b'1'..=b'4');
         let terminator = if field { self.field_terminator } else { b'\r' };
         let counted_header = if field && remaining.get(1..4) == Some(b"W1C") {
@@ -1040,7 +1072,15 @@ impl<'a> DplCursor<'a> {
         } else {
             None
         };
-        let end = if let Some(header) = counted_header {
+        // These commands have fixed lengths and can directly precede a download.
+        let fixed = match remaining {
+            [0x01, b'D', ..] | [0x02, b'Q', ..] if !self.in_format => Some(2),
+            [0x02, b'q', bank, ..] if !self.in_format && bank.is_ascii_alphabetic() => Some(3),
+            _ => None,
+        };
+        let end = if let Some(length) = fixed {
+            start + length
+        } else if let Some(header) = counted_header {
             let count = remaining
                 .get(header..header + 4)
                 .filter(|s| s.iter().all(u8::is_ascii_digit))
@@ -1091,6 +1131,7 @@ impl<'a> DplCursor<'a> {
             self.field_terminator = b'\r';
         }
         Ok(Some(DplRecord {
+            image: None,
             data: line,
             terminator: actual_terminator,
         }))
