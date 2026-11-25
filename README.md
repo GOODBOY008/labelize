@@ -32,6 +32,10 @@ OpenAPI and scripts that convert a directory of labels through the API.
 
 Labelize Studio (formerly Labelize Printer) is the standalone Rust + GPUI desktop app for Windows, macOS, and Linux. Design labels, open ZPL/EPL/TSPL/CPCL/DPL files in a multi-tab workspace, preview pages, and export PDF or PNG. It uses Labelize for printer-language parsing and rendering, and also provides the **Labelize Printer** virtual print queue; macOS/Linux system raster pages go directly to file output. [Studio project](https://github.com/GOODBOY008/labelize-studio) · [Installers and validation](https://github.com/GOODBOY008/labelize-studio/releases) · [Upgrade from Printer](https://github.com/GOODBOY008/labelize-studio/blob/main/MIGRATION.md)
 
+To print from your application, export a template from Studio and fill each
+order with the Labelize CLI, HTTP API or SDK. Send the returned bytes to the
+printer and use the same job for its preview. [Template integration guide](docs/PRINT_TEMPLATES.md)
+
 ## ✨ Why Labelize?
 
 Previewing thermal labels today usually means one of three compromises: send your label data to the [Labelary](http://labelary.com/) web API (third-party service, data-privacy concerns, ~400 ms per render), pay for a commercial SDK (often hundreds of dollars), or keep a physical printer around just to see what would print. Labelize is the self-hosted alternative:
@@ -259,6 +263,7 @@ options, architecture, testing and renderer references. Start with a tutorial:
 | [JavaScript / WebAssembly](docs/tutorials/javascript-wasm.md) | Client-side rendering |
 | [Android](docs/tutorials/android.md) | Rendering inside an app |
 | [Rust Library](docs/tutorials/rust-library.md) | Embedding the engine in Rust |
+| [Printer templates](docs/PRINT_TEMPLATES.md) | Fill Studio exports with order data and render previews from the same printer bytes |
 
 References: [Usage](docs/USAGE.md) · [Vector output](docs/VECTOR_OUTPUT.md) · [ZPL commands](docs/ZPL_COMMANDS_REFERENCE.md) · [Testing](docs/TESTING.md) · [Architecture](docs/ARCHITECTURE.md)
 

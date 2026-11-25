@@ -139,6 +139,7 @@ upload before image decoding runs.
 
 | Endpoint | Successful response | Failure handling |
 | --- | --- | --- |
+| [`/template/fill`](../PRINT_TEMPLATES.md#http) | 200, application/octet-stream | Invalid template or record 400, size limit 413, wrong media type 415 |
 | `/convert` | 200, image/png or application/pdf | Invalid options/parse errors: 400; render/encode failures: 500 |
 | `/validate` | 200, application/json | Check `ok`; invalid language/query: 400 |
 | `/format` | 200, text/plain | Invalid explicit language/query: 400 |

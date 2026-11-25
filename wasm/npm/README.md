@@ -33,6 +33,25 @@ const png = lz_render(zpl, 102.0, 152.0, 8, false, false, false);
 The `/init` subpath instantiates the engine from the packaged `.wasm` directly,
 without bundler support or Node flags.
 
+### Fill a printer template
+
+Pass a Studio export and one record of string values to `lz_template_fill`.
+The returned bytes can be sent to a printer or passed to `lz_render_lang` for
+a preview. Base64 preserves binary artwork in the template.
+
+```js
+import { readFileSync, writeFileSync } from "node:fs";
+import { lz_template_fill } from "@goodboy008/labelize-wasm/init";
+
+const request = {
+  language: "zpl",
+  template_base64: readFileSync("shipping.tpl.zpl").toString("base64"),
+  values: { order_no: "000123", product: "Thermal labels" },
+};
+const job = lz_template_fill(new TextEncoder().encode(JSON.stringify(request)));
+writeFileSync("order.zpl", job);
+```
+
 ### API
 
 `lz_render(src, width_mm, height_mm, dpmm, antialias, want_pdf, is_epl) -> Uint8Array`
