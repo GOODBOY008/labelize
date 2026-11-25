@@ -142,6 +142,7 @@ digits before the payload. For example, after the position fields,
 `00120000SO-00123` in a `W1F` record encodes `SO-00123`. The decimal
 count `0012` covers the four option digits and the eight payload bytes.
 Use the counted form when the payload contains the record terminator.
+Set ECI to `0` for ordinary data. ECI mode `1` returns an explicit error.
 
 Bitmap/smooth fonts, common linear barcodes, QR, DataMatrix, PDF417, Aztec,
 MaxiCode and line/box records are supported. To print in-job artwork, download
