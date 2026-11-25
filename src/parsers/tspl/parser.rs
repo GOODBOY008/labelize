@@ -1147,26 +1147,33 @@ fn counted_pdf417(
         .filter(|&end| end <= data.len())
         .ok_or("TSPL PDF417 truncated counted payload")?;
 
-    // Optional enclosing quotes add exactly two bytes beyond the count. A
-    // literal pair of quotes within the count remains part of the raw data.
+    let (payload, end) = counted_payload(data, start, end);
+    Ok(Pdf417Raw {
+        header_end,
+        payload,
+        end,
+    })
+}
+
+/// Optional outer quotes add exactly two bytes beyond the count. Test this
+/// framing before interpreting CR or LF at the raw boundary: either byte can
+/// be the last byte inside the quotes. Literal quotes within the count remain
+/// data when there is no closing delimiter at the expected position.
+pub(super) fn counted_payload(
+    data: &[u8],
+    start: usize,
+    end: usize,
+) -> (std::ops::Range<usize>, usize) {
     if data.get(start) == Some(&b'"') && data.get(end + 1) == Some(&b'"') {
         let mut next = end + 2;
         while matches!(data.get(next), Some(b' ' | b'\t')) {
             next += 1;
         }
         if data.get(next).is_none_or(|b| matches!(b, b'\r' | b'\n')) {
-            return Ok(Pdf417Raw {
-                header_end,
-                payload: start + 1..end + 1,
-                end: next,
-            });
+            return (start + 1..end + 1, next);
         }
     }
-    Ok(Pdf417Raw {
-        header_end,
-        payload: start..end,
-        end,
-    })
+    (start..end, end)
 }
 
 fn parse_pdf417_raw(header: &str, data: &[u8], state: &mut TsplState) -> Result<(), String> {

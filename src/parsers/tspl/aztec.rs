@@ -1,7 +1,7 @@
 //! TSPL/TSPL2 Programming Manual, AZTEC (pp. 88–89). In the counted form
 //! the byte following the tenth comma is already content, even if it is a
 //! quote, a space or a command separator.
-use super::parser::is_escaped_quote_byte;
+use super::parser::{counted_payload, is_escaped_quote_byte};
 use crate::elements::{
     barcode_symbol::{BarcodeKind, BarcodeSymbol, BarcodeSymbolWithData},
     field_orientation::FieldOrientation,
@@ -52,19 +52,9 @@ pub(super) fn split(data: &[u8], mut cursor: usize) -> Result<Input<'_>, String>
                 .checked_add(len)
                 .filter(|&end| end <= data.len())
                 .ok_or("TSPL AZTEC truncated counted payload")?;
-            let mut payload = cursor..end;
-            let mut next = end;
-            // The manual permits quotes around counted content as well. Prefer
-            // exact raw bytes when either interpretation could start with '"'.
-            if data.get(end).is_some_and(|b| !matches!(b, b'\r' | b'\n')) {
-                if data[cursor..].first() != Some(&b'"') || data.get(end + 1) != Some(&b'"') {
-                    return Err("TSPL AZTEC unexpected bytes after counted payload".into());
-                }
-                payload = cursor + 1..end + 1;
-                next = end + 2;
-                if data.get(next).is_some_and(|b| !matches!(b, b'\r' | b'\n')) {
-                    return Err("TSPL AZTEC unexpected bytes after counted payload".into());
-                }
+            let (payload, next) = counted_payload(data, cursor, end);
+            if data.get(next).is_some_and(|b| !matches!(b, b'\r' | b'\n')) {
+                return Err("TSPL AZTEC unexpected bytes after counted payload".into());
             }
             return Ok(Input {
                 args,
