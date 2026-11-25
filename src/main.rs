@@ -395,7 +395,7 @@ fn convert_file(
 async fn serve(host: String, port: u16) {
     use axum::{
         body::Bytes,
-        extract::Query,
+        extract::{rejection::BytesRejection, DefaultBodyLimit, Query},
         http::{header, HeaderMap, StatusCode},
         response::IntoResponse,
         routing::{get, post},
@@ -460,7 +460,7 @@ async fn serve(host: String, port: u16) {
                     "{{\"service\":\"labelize\",\"version\":\"{}\",\"playground\":false,\
                      \"endpoints\":{{\"health\":\"GET /health\",\"convert\":\"POST /convert\",\
                      \"validate\":\"POST /validate\",\"format\":\"POST /format\",\
-                     \"encode\":\"POST /encode\",\"openapi\":\"GET /openapi.json\"}}}}",
+                     \"encode\":\"POST /encode\",\"template_fill\":\"POST /template/fill\",\"openapi\":\"GET /openapi.json\"}}}}",
                     env!("CARGO_PKG_VERSION")
                 ),
             )
@@ -683,6 +683,45 @@ async fn serve(host: String, port: u16) {
         }
     }
 
+    async fn template_fill_handler(
+        headers: HeaderMap,
+        body: Result<Bytes, BytesRejection>,
+    ) -> impl IntoResponse {
+        use labelize::template::{fill_json_request, TemplateRequestError};
+        let media_type = headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .unwrap_or("")
+            .trim();
+        if !media_type.eq_ignore_ascii_case("application/json") {
+            return (
+                StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                "Expected Content-Type: application/json",
+            )
+                .into_response();
+        }
+        let body = match body {
+            Ok(bytes) => bytes,
+            Err(e) if e.status() == StatusCode::PAYLOAD_TOO_LARGE => {
+                return (e.status(), "Template fill request exceeds 2 MiB").into_response()
+            }
+            Err(e) => return e.into_response(),
+        };
+        match tokio::task::spawn_blocking(move || fill_json_request(&body)).await {
+            Ok(Ok(job)) => {
+                ([(header::CONTENT_TYPE, "application/octet-stream")], job).into_response()
+            }
+            Ok(Err(TemplateRequestError::TooLarge(message))) => {
+                (StatusCode::PAYLOAD_TOO_LARGE, message).into_response()
+            }
+            Ok(Err(TemplateRequestError::Invalid(message))) => {
+                (StatusCode::BAD_REQUEST, message).into_response()
+            }
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        }
+    }
+
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
@@ -700,6 +739,12 @@ async fn serve(host: String, port: u16) {
         .route("/convert", post(convert_handler))
         .route("/validate", post(validate_handler))
         .route("/format", post(format_handler))
+        .route(
+            "/template/fill",
+            post(template_fill_handler).layer(DefaultBodyLimit::max(
+                labelize::template::MAX_TEMPLATE_REQUEST_BYTES,
+            )),
+        )
         .route("/encode", post(encode_handler));
 
     let addr = format!("{}:{}", host, port);
@@ -714,7 +759,7 @@ async fn serve(host: String, port: u16) {
             }
         );
     } else {
-        println!("Playground: disabled — API-only mode (GET /health, POST /convert, POST /validate, POST /format, POST /encode)");
+        println!("Playground: disabled — API-only mode (GET /health, POST /convert, POST /validate, POST /format, POST /encode, POST /template/fill)");
     }
     let listener = tokio::net::TcpListener::bind(&addr)
         .await

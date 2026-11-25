@@ -75,7 +75,8 @@ playground = []
 # Serialize the report types (Language, ValidationReport) so HTTP layers and
 # SDK consumers share one wire shape instead of re-declaring mirror structs.
 serde = ["dep:serde"]
-serve = ["cli", "playground", "serde", "dep:axum", "dep:tokio", "dep:serde_json"]
+template-json = ["dep:serde", "dep:serde_json"]
+serve = ["cli", "playground", "serde", "template-json", "dep:axum", "dep:tokio"]
 skill = []
 # Searchable hybrid PDF and independently scaled scene PNG output.
 vector = ["dep:krilla", "dep:tiny-skia", "dep:png"]

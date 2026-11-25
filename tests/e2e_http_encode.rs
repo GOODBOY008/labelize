@@ -1,9 +1,9 @@
-//! HTTP e2e for POST /encode: image bytes in, printer code out, over a real
+//! HTTP e2e for POST /encode and POST /template/fill over a real
 //! `labelize serve` process. Requires the `serve` feature (CI runs this file
 //! in a dedicated step); without it the file compiles to nothing so the
 //! default `cargo test --test e2e_*` run is unaffected.
 //!
-//! The round-trip contract matches `e2e_reverse.rs`: the encoded code is
+//! The image round-trip contract matches `e2e_reverse.rs`: the encoded code is
 //! rendered through the forward pipeline and must reproduce the binarized
 //! source pixel-for-pixel — this time crossing the axum route, query-param
 //! parsing and content-type negotiation on the way.
@@ -73,6 +73,170 @@ fn fixture_png() -> Vec<u8> {
         .expect("amazon.png fixture")
 }
 
+fn template_request(language: &str, source: &[u8], values: &serde_json::Value) -> Vec<u8> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    serde_json::to_vec(&serde_json::json!({
+        "language": language,
+        "template_base64": STANDARD.encode(source),
+        "values": values,
+    }))
+    .unwrap()
+}
+
+#[test]
+fn http_template_fill_returns_native_jobs_for_every_language_and_renders_them() {
+    let (_guard, client, base) = start_server();
+    let fixtures = render_helpers::testdata_dir().join("templates");
+    for record in ["first", "second"] {
+        let values = serde_json::from_slice(
+            &std::fs::read(fixtures.join(format!("{record}.json"))).unwrap(),
+        )
+        .unwrap();
+        for language in [
+            Language::Zpl,
+            Language::Tspl,
+            Language::Epl,
+            Language::Cpcl,
+            Language::Dpl,
+        ] {
+            let name = language.name();
+            let printers = fixtures.join("printers");
+            let source = std::fs::read(printers.join(format!("shipping.tpl.{name}"))).unwrap();
+            let expected = std::fs::read(printers.join(format!("{record}.{name}"))).unwrap();
+            let response = client
+                .post(format!("{base}/template/fill"))
+                .header("Content-Type", "Application/JSON; charset=utf-8")
+                .body(template_request(name, &source, &values))
+                .send()
+                .unwrap();
+            assert_eq!(response.status(), 200, "{record} {name}");
+            assert_eq!(
+                response.headers()["content-type"],
+                "application/octet-stream"
+            );
+            let job = response.bytes().unwrap();
+            assert_eq!(job.as_ref(), expected, "{record} {name}");
+
+            // The DPL example contains a binary bitmap. Reuse the exact HTTP
+            // response for the ordinary conversion route without transcoding.
+            if language == Language::Dpl {
+                let preview = client
+                    .post(format!("{base}/convert?width=100&height=50&dpmm=8"))
+                    .header("Content-Type", "application/dpl")
+                    .body(job)
+                    .send()
+                    .unwrap();
+                assert_eq!(preview.status(), 200);
+                let sdk = render_png(
+                    &expected,
+                    RenderOptions {
+                        language: Some(language),
+                        width_mm: Some(100.0),
+                        height_mm: Some(50.0),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+                assert_eq!(preview.bytes().unwrap().as_ref(), sdk.bytes);
+            }
+        }
+    }
+}
+
+#[test]
+fn http_template_fill_reports_input_errors_and_enforces_size_limits() {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (_guard, client, base) = start_server();
+    let post = |body: Vec<u8>, media_type: &str| {
+        client
+            .post(format!("{base}/template/fill"))
+            .header("Content-Type", media_type)
+            .body(body)
+            .send()
+            .unwrap()
+    };
+    assert_eq!(post(b"{}".to_vec(), "text/plain").status(), 415);
+    let source = b"^XA\n^FXLabelize field text^FS\n^FO0,0^A0N,10,10^FH^FD{{order_no}}^FS\n^XZ\n";
+    for (body, message) in [
+        (b"{".to_vec(), "JSON"),
+        (
+            serde_json::to_vec(
+                &serde_json::json!(["zpl", STANDARD.encode(source), {"order_no":"000123"}]),
+            )
+            .unwrap(),
+            "JSON object",
+        ),
+        (
+            template_request("unknown", source, &serde_json::json!({})),
+            "language",
+        ),
+        (
+            br#"{"language":"dpl","template_base64":"!","values":{}}"#.to_vec(),
+            "template_base64",
+        ),
+        (
+            template_request("zpl", b"garbage", &serde_json::json!({})),
+            "template",
+        ),
+        (
+            template_request("zpl", source, &serde_json::json!({"order_no":123})),
+            "string",
+        ),
+        (
+            template_request("zpl", source, &serde_json::json!({})),
+            "order_no",
+        ),
+    ] {
+        let response = post(body, "application/json");
+        assert_eq!(response.status(), 400);
+        assert!(response.text().unwrap().contains(message), "{message}");
+    }
+    let two_fields = b"^XA\n^FXLabelize field text^FS\n^FH^FD{{first}}^FS\n^FXLabelize field text^FS\n^FH^FD{{second}}^FS\n^XZ\n";
+    let response = post(
+        template_request("zpl", two_fields, &serde_json::json!({})),
+        "application/json",
+    );
+    assert_eq!(response.status(), 400);
+    let error = response.text().unwrap();
+    assert!(error.contains("first"));
+    assert!(
+        !error.contains("second"),
+        "HTTP stops at the first invalid field"
+    );
+    let oversized = vec![b' '; labelize::template::MAX_TEMPLATE_REQUEST_BYTES + 1];
+    assert_eq!(post(oversized, "application/json").status(), 413);
+
+    // Exactly 512 occurrences of a 4,096-byte value fill the 2 MiB
+    // output allowance. A single trailing fixed byte must still count.
+    let mut directory = String::from("LABELIZE-TPL/1 tspl US-ASCII\n");
+    for i in 0..512 {
+        use std::fmt::Write as _;
+        writeln!(directory, "{} 5 1 text tspl -", i * 5).unwrap();
+    }
+    directory.push('\n');
+    directory.push_str(&"{{v}}".repeat(512));
+    let values = serde_json::json!({"v": "X".repeat(4096)});
+    let exact = post(
+        template_request("tspl", directory.as_bytes(), &values),
+        "application/json",
+    );
+    assert_eq!(exact.status(), 200);
+    assert_eq!(
+        exact.bytes().unwrap().len(),
+        labelize::template::MAX_TEMPLATE_OUTPUT_BYTES
+    );
+    directory.push('!');
+    let too_large = post(
+        template_request("tspl", directory.as_bytes(), &values),
+        "application/json",
+    );
+    assert_eq!(too_large.status(), 413);
+    assert_eq!(
+        too_large.text().unwrap(),
+        "Filled printer job exceeds 2 MiB"
+    );
+}
+
 #[test]
 fn http_openapi_is_shared_with_the_console_and_available_without_the_playground() {
     let expected: serde_json::Value =
@@ -103,6 +267,7 @@ fn http_openapi_is_shared_with_the_console_and_available_without_the_playground(
         } else {
             let listing: serde_json::Value = serde_json::from_str(&root).unwrap();
             assert_eq!(listing["playground"], false);
+            assert_eq!(listing["endpoints"]["template_fill"], "POST /template/fill");
             assert_eq!(listing["endpoints"]["openapi"], "GET /openapi.json");
         }
     }

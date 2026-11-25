@@ -12,7 +12,7 @@ default = ["vector"]
 vector = ["labelize/vector"]
 
 [dependencies]
-labelize = { path = "..", features = ["playground"] }
+labelize = { path = "..", features = ["playground", "template-json"] }
 image = "0.25"
 wasm-bindgen = "0.2"
 # Unifies the wasm_js feature onto getrandom 0.4 (rand 0.10 / lopdf's chain);

@@ -6,9 +6,15 @@ use std::{collections::BTreeMap, fmt, ops::Range};
 mod barcode;
 mod expression;
 mod native;
+#[cfg(feature = "template-json")]
+mod request;
 mod zpl;
 use barcode::*;
 use expression::Expression;
+#[cfg(feature = "template-json")]
+pub use request::{
+    fill_json_request, TemplateRequestError, MAX_TEMPLATE_OUTPUT_BYTES, MAX_TEMPLATE_REQUEST_BYTES,
+};
 
 /// One input record. Identifiers such as order numbers retain their leading zeros.
 pub type TemplateValues = BTreeMap<String, String>;
@@ -102,6 +108,36 @@ pub struct PrintTemplate {
     fields: Vec<TemplateField>,
 }
 
+enum FillError {
+    Fields(Vec<TemplateProblem>),
+    TooLarge,
+}
+
+enum FillMode {
+    CollectProblems,
+    #[cfg(feature = "template-json")]
+    FailFast {
+        max_bytes: usize,
+    },
+}
+
+impl fmt::Display for FillError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TooLarge => f.write_str("Filled printer job exceeds the output limit"),
+            Self::Fields(problems) => {
+                for (i, problem) in problems.iter().enumerate() {
+                    if i != 0 {
+                        writeln!(f)?;
+                    }
+                    write!(f, "{problem}")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
 impl PrintTemplate {
     /// Load ZPL field markers or a Studio `LABELIZE-TPL/1` directory.
     pub fn load(language: Language, bytes: &[u8]) -> Result<Self, LabelizeError> {
@@ -143,51 +179,59 @@ impl PrintTemplate {
 
     /// Report all invalid occurrences in printer order. Extra record keys are ignored.
     pub fn validate(&self, values: &TemplateValues) -> Vec<TemplateProblem> {
-        self.process(values, None)
+        self.slots
+            .iter()
+            .filter_map(|slot| slot.encode(values).err())
+            .collect()
     }
 
     /// Return a new native printer job for one record. All fields must validate.
     pub fn fill(&self, values: &TemplateValues) -> Result<Vec<u8>, LabelizeError> {
-        let mut job = Vec::with_capacity(self.body.len());
-        let problems = self.process(values, Some(&mut job));
-        if problems.is_empty() {
-            Ok(job)
-        } else {
-            Err(LabelizeError::Encode(
-                problems
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            ))
-        }
+        self.fill_job(values, FillMode::CollectProblems)
+            .map_err(|err| LabelizeError::Encode(err.to_string()))
     }
 
-    fn process(
-        &self,
-        values: &TemplateValues,
-        mut output: Option<&mut Vec<u8>>,
-    ) -> Vec<TemplateProblem> {
+    fn fill_job(&self, values: &TemplateValues, mode: FillMode) -> Result<Vec<u8>, FillError> {
+        let limit = match mode {
+            FillMode::CollectProblems => usize::MAX,
+            #[cfg(feature = "template-json")]
+            FillMode::FailFast { max_bytes } => max_bytes,
+        };
+        let mut job = Vec::with_capacity(self.body.len().min(limit));
+        let mut append = |chunk: &[u8]| {
+            if chunk.len() > limit - job.len() {
+                return Err(FillError::TooLarge);
+            }
+            let end = job.len() + chunk.len();
+            if end > job.capacity() {
+                // Geometric growth for many fields, bounded even on the final allocation.
+                let next = job.capacity().saturating_mul(2).max(end).min(limit);
+                job.reserve_exact(next - job.len());
+            }
+            job.extend_from_slice(chunk);
+            Ok(())
+        };
         let mut problems = Vec::new();
         let mut cursor = 0;
         for slot in &self.slots {
             match slot.encode(values) {
-                Ok(data) => {
-                    if let Some(job) = &mut output {
-                        job.extend_from_slice(&self.body[cursor..slot.range.start]);
-                        job.extend(data);
-                    }
+                Ok(data) if problems.is_empty() => {
+                    append(&self.body[cursor..slot.range.start])?;
+                    append(&data)?;
                 }
-                Err(problem) => {
-                    problems.push(problem);
-                    output = None;
-                }
+                Ok(_) => {}
+                Err(problem) => match mode {
+                    FillMode::CollectProblems => problems.push(problem),
+                    #[cfg(feature = "template-json")]
+                    FillMode::FailFast { .. } => return Err(FillError::Fields(vec![problem])),
+                },
             }
             cursor = slot.range.end;
         }
-        if let Some(job) = output {
-            job.extend_from_slice(&self.body[cursor..]);
+        if !problems.is_empty() {
+            return Err(FillError::Fields(problems));
         }
-        problems
+        append(&self.body[cursor..])?;
+        Ok(job)
     }
 }

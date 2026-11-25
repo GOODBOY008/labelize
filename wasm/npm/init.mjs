@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import * as engine from "./labelize_wasm_bg.js";
-const { __wbg_set_wasm, lz_render, lz_render_lang, lz_render_output, lz_playground_html, lz_encode } = engine;
+const { __wbg_set_wasm, lz_render, lz_render_lang, lz_render_output, lz_playground_html, lz_encode, lz_template_fill } = engine;
 
 const bytes = readFileSync(
   fileURLToPath(new URL("./labelize_wasm_bg.wasm", import.meta.url)),
@@ -25,4 +25,4 @@ const { instance } = await WebAssembly.instantiate(bytes, {
 __wbg_set_wasm(instance.exports);
 instance.exports.__wbindgen_start();
 
-export { lz_render, lz_render_lang, lz_render_output, lz_playground_html, lz_encode };
+export { lz_render, lz_render_lang, lz_render_output, lz_playground_html, lz_encode, lz_template_fill };

@@ -209,6 +209,17 @@ fn encode_error(err: labelize::LabelizeError) -> String {
     format!("1:{err}")
 }
 
+/// Fill a Studio export from the UTF-8 JSON body used by POST /template/fill.
+/// Returns native printer bytes. Stage 1 reports invalid input, stage 3 a size limit.
+#[wasm_bindgen]
+pub fn lz_template_fill(body: &[u8]) -> Result<Vec<u8>, String> {
+    use labelize::template::{fill_json_request, TemplateRequestError};
+    fill_json_request(body).map_err(|error| match error {
+        TemplateRequestError::Invalid(_) => format!("1:{error}"),
+        TemplateRequestError::TooLarge(_) => format!("3:{error}"),
+    })
+}
+
 fn json_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
