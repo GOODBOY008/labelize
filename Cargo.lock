@@ -2809,8 +2809,19 @@ dependencies = [
  "num",
  "once_cell",
  "regex",
+ "rxing-one-d-proc-derive",
  "thiserror",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "rxing-one-d-proc-derive"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c9c3cce3bde2b9ee418c970a453b0cb6d939e97c99268b1254a3627cdbf596b"
+dependencies = [
+ "quote",
+ "syn 3.0.10",
 ]
 
 [[package]]
