@@ -502,6 +502,12 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
       <dt data-i18n="about.q4">Does my label data leave my browser?</dt>
       <dd data-i18n-html="about.a4">The playground renders labels server-side and stores nothing. The optional <em>Compare with Labelary</em> feature sends your code to the external labelary.com service and can be disabled.</dd>
     </dl>
+    <details lang="en">
+      <summary>GNU Unifont · SIL Open Font License 1.1</summary>
+      <pre id="unifont-license">"##,
+    include_str!("../licenses/Unifont-OFL.txt"),
+    r##"</pre>
+    </details>
     <p class="about-links">
       <a href="https://github.com/GOODBOY008/labelize" data-i18n="about.gh">GitHub source</a> ·
       <a href="https://www.npmjs.com/package/@goodboy008/labelize-wasm" data-i18n="about.npm">npm package</a> ·

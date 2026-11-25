@@ -19,6 +19,7 @@ RUN apt-get update \
     && useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin labelize
 
 COPY --from=builder /app/target/release/labelize /usr/local/bin/labelize
+COPY licenses/Unifont-OFL.txt /usr/share/doc/labelize/Unifont-OFL.txt
 
 USER labelize
 EXPOSE 8080

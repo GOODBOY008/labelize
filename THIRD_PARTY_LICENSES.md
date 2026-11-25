@@ -74,7 +74,12 @@ affecting the renderer.
 
 `src/assets/fonts/EastAsianBitmap.otf.zlib` contains a renamed subset of GNU
 Unifont 16.0.04. Labelize distributes it under the SIL Open Font License 1.1.
-The upstream copyright and license are retained in the font and in
+The subset includes the upstream copyright and the full OFL in its OpenType
+metadata. The release archives and npm package contain `Unifont-OFL.txt`.
+In the Android AAR the notice is at `assets/labelize/licenses/Unifont-OFL.txt`,
+and in the Docker image at `/usr/share/doc/labelize/Unifont-OFL.txt`.
+The playground serves the same notice under About Labelize → GNU Unifont
+(`/#unifont-license`). All copies come from
 [licenses/Unifont-OFL.txt](licenses/Unifont-OFL.txt).
 
 The same outlines are embedded on all targets. Named Chinese bitmap fonts

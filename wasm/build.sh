@@ -10,6 +10,7 @@ cargo build --release --target $TARGET
 # Generate the JS glue directly into the npm package directory. Consumers
 # (the Cloudflare Worker, bundlers, Node.js) reference wasm/npm/.
 mkdir -p npm
+cp ../licenses/Unifont-OFL.txt npm/
 wasm-bindgen --target bundler --out-dir npm --out-name labelize_wasm \
   target/$TARGET/release/labelize_wasm.wasm
 

@@ -28,7 +28,8 @@
     "labelize_wasm_bg.wasm.d.ts",
     "init.mjs",
     "init.d.ts",
-    "README.md"
+    "README.md",
+    "Unifont-OFL.txt"
   ],
   "sideEffects": true,
   "engines": {
