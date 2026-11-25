@@ -361,7 +361,15 @@ pub(super) fn scan_plain_command(
             TextEncoding::Gbk.gb_char_len(tail).unwrap_or(1)
         });
     }
-    let end = quoted::command_line_end_with(data, start, |_| 1);
+    let end = if super::parses_arguments(command.as_bytes()) {
+        quoted::command_line_end_with(data, start, |_| 1)
+    } else {
+        // A quote in a comment or unparsed device command has no field to open.
+        data[start..]
+            .iter()
+            .position(|b| matches!(b, b'\r' | b'\n'))
+            .map_or(data.len(), |len| start + len)
+    };
     if command == "CODEPAGE" {
         let page = data[start + command.len()..end].trim_ascii();
         *encoding = if page == b"936" {
