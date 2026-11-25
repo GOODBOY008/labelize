@@ -177,13 +177,14 @@ The command semantics come from Zebra's
 [CPCL Programming Guide](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/software/cpcl-link-os-pg-en.pdf)
 (sections 3.3.2, 6.7, 6.11, 6.19 and 6.34) and Honeywell's
 [DPL Command Reference](https://applog.se/storage/B31B01F8DF5B7C3BA38F0A91D9493A5D9D2EE0047E4127279FEC9D22BBD08659/eafb4bac400147bc8931418ea6f25c88/pdf/media/b092b1e119d540c49e214c88e4649039/DPL%20Command%20Reference%20Guide.pdf)
-(`T`, `W1C`, `Z`, `U` and scalable font records). DPL byte counts include
+(`T`, `W1C`, `W1f`/`W1F`, `Z`, `U` and scalable font records). DPL byte counts include
 the barcode option fields after the count; they override record terminators.
 `Tnn` takes two hexadecimal digits and changes only the next format record.
 
 The existing `dpl_2d_graphics` fixture now specifies `200` explicitly for its
 ECC 200 symbol, correcting the previous `000` command without replacing its
-reference PNG. Legacy DPL DataMatrix qualities and unequal horizontal/vertical
+reference PNG. Its `W1f` Aztec record includes the four default option digits
+before `AZTEC DATA`. Legacy DPL DataMatrix qualities and unequal horizontal/vertical
 modules remain unsupported and now fail explicitly. QR structured append and
 DPL QR hex-ASCII modes also fail explicitly. PDF417 accepts UTF-8 and embedded
 control characters; non-UTF-8 PDF417 payloads are rejected because its shared

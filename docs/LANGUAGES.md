@@ -136,6 +136,13 @@ For integrations, read a `.dpl` file as bytes and send it with
 `Content-Type: application/dpl`. The visible characters `<STX>` are explanatory
 notation, not a substitute for the actual control byte.
 
+Aztec records use `W1f` for delimiter-terminated data and `W1F` for
+byte-counted data. Both put one ECI digit and three error-correction or size
+digits before the payload. For example, after the position fields,
+`00120000SO-00123` in a `W1F` record encodes `SO-00123`. The decimal
+count `0012` covers the four option digits and the eight payload bytes.
+Use the counted form when the payload contains the record terminator.
+
 Bitmap/smooth fonts, common linear barcodes, QR, DataMatrix, PDF417, Aztec,
 MaxiCode and line/box records are supported. To print in-job artwork, download
 it to RAM with `<STX>IDFname` (native hexadecimal rows, also `IDAF`) or
