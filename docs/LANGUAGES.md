@@ -45,7 +45,8 @@ PRINT 1,1
 `BARCODE` accepts Code 128/39, EAN-13, EAN-8 (`EAN8`), UPC-A (`UPCA`),
 Interleaved 2 of 5 (`25`) and ITF-14. Supply seven data digits for EAN-8 or
 eleven for UPC-A to generate the retail check digit. Type `25` takes an even
-number of digits, including leading zeros.
+number of digits, including leading zeros. A narrow width of 2 dots and a wide
+width of 4 dots gives a 2:1 ratio that both ZBar and ZXing-C++ can scan.
 
 The 2D commands are `QRCODE`, `DMATRIX`, `PDF417` and `AZTEC`. For example,
 `AZTEC 10,10,0,3,0,0,0,0,0,"ABC123"` prints a single symbol at (10, 10)
