@@ -38,7 +38,7 @@ pub fn prepare_ean_mode_data(content: &str) -> (String, String) {
 
 /// GS1 Mod-10 check digit calculation.
 /// Rightmost digit gets weight 3, alternating 3/1 from right to left.
-fn gs1_mod10_check(digits: &str) -> char {
+pub(crate) fn gs1_mod10_check(digits: &str) -> char {
     let sum: u32 = digits
         .chars()
         .rev()
