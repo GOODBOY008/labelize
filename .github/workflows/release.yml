@@ -48,15 +48,11 @@ jobs:
       - name: Package (tar.gz)
         if: matrix.package == 'tar'
         run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.artifact }} ${{ matrix.binary }}
+          tar czf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release ${{ matrix.binary }} \
+            -C "$GITHUB_WORKSPACE/licenses" Unifont-OFL.txt
       - name: Package (zip)
         if: matrix.package == 'zip'
-        shell: pwsh
-        run: |
-          Push-Location target/${{ matrix.target }}/release
-          Compress-Archive -Path ${{ matrix.binary }} -DestinationPath ../../../${{ matrix.artifact }}
-          Pop-Location
+        run: python -m zipfile -c ${{ matrix.artifact }} target/${{ matrix.target }}/release/${{ matrix.binary }} licenses/Unifont-OFL.txt
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
@@ -86,7 +82,7 @@ jobs:
           mkdir -p /tmp/wasm-bundle
           cp npm/labelize_wasm.js npm/labelize_wasm_bg.js npm/labelize_wasm_bg.wasm \
              npm/labelize_wasm.d.ts npm/labelize_wasm_bg.wasm.d.ts \
-             npm/init.mjs npm/init.d.ts npm/README.md \
+             npm/init.mjs npm/init.d.ts npm/README.md npm/Unifont-OFL.txt \
              /tmp/wasm-bundle/
           cd /tmp/wasm-bundle
           zip -r labelize-wasm-wasm32.zip .
@@ -121,7 +117,7 @@ jobs:
         run: |
           mkdir -p /tmp/aar-bundle
           cp android/lib/build/outputs/aar/lib-release.aar /tmp/aar-bundle/labelize-android-release.aar
-          cp android/README.md /tmp/aar-bundle/
+          cp android/README.md licenses/Unifont-OFL.txt /tmp/aar-bundle/
           cd /tmp/aar-bundle
           zip -r labelize-android-aar.zip .
           mv labelize-android-aar.zip "$GITHUB_WORKSPACE/"

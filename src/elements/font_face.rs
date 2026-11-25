@@ -167,6 +167,17 @@ mod tests {
     }
 
     #[test]
+    fn east_asian_font_embeds_its_full_license() {
+        use rustybuzz::ttf_parser::{name_id::LICENSE, Face};
+
+        let font = Face::parse(FontFace::BitmapSquare.ttf_data(), 0).unwrap();
+        let notice = include_str!("../../licenses/Unifont-OFL.txt");
+        assert!(font.names().into_iter().any(|name| {
+            name.name_id == LICENSE && name.to_string().as_deref() == Some(notice)
+        }));
+    }
+
+    #[test]
     fn calibration_matches_the_zebra_substitute_model() {
         assert_eq!(FontFace::BitmapBold.cap_scale(), 1.59);
         assert_eq!(FontFace::ResidentBitmap.cap_scale(), 0.85);

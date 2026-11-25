@@ -39,7 +39,9 @@ subsetter.subset(font)
 
 family = "Labelize East Asian Bitmap"
 postscript = "LabelizeEastAsianBitmap"
-names = {1: family, 3: postscript + "-16.0.04", 4: family, 6: postscript}
+license_text = (root / "licenses/Unifont-OFL.txt").read_text(encoding="utf-8")
+names = {1: family, 3: postscript + "-16.0.04", 4: family, 6: postscript,
+         13: license_text, 14: "https://openfontlicense.org/open-font-license-official-text/"}
 for record in font["name"].names:
     if record.nameID in names:
         font["name"].setName(names[record.nameID], record.nameID, record.platformID,

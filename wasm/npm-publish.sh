@@ -29,7 +29,7 @@ if [[ "$PUBLISHED" == "$VERSION" ]]; then
 fi
 
 # Sanity: the packaged artifacts must exist (build.sh stages them).
-for f in labelize_wasm.js labelize_wasm_bg.js labelize_wasm_bg.wasm; do
+for f in labelize_wasm.js labelize_wasm_bg.js labelize_wasm_bg.wasm Unifont-OFL.txt; do
   if [[ ! -f "$f" ]]; then
     echo "error: missing $f — run ./build.sh first" >&2
     exit 1

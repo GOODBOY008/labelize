@@ -73,6 +73,12 @@ test('CORS survives actual WASM success, bad requests, and validation failures',
   assert.deepEqual(JSON.parse(/<script id="api-data" type="application\/json">([\s\S]*?)<\/script>/.exec(await html.text())[1]), spec);
 });
 
+test('playground includes the complete embedded font notice', async () => {
+  const notice = readFileSync(new URL('../licenses/Unifont-OFL.txt', import.meta.url), 'utf8');
+  const response = await worker.fetch(new Request('https://example.com/'), {});
+  assert.ok((await response.text()).includes(`<pre id="unifont-license">${notice}</pre>`));
+});
+
 test('worker uses real WASM and preserves both round trips', async () => {
   const { lz_render_lang } = glue;
   const outputs = [];

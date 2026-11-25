@@ -124,10 +124,11 @@
   .col-title { display: block; padding: 8px; font-size: 10px; }
   .compare-col img { display: block; width: 100%; background: #fff; }
   details.about { grid-column: 2; grid-row: 2; background: var(--tblr-bg-surface); border-top: var(--tblr-border-width) solid var(--tblr-border-color); font-size: 11px; }
-  details.about summary { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 18px; list-style: none; cursor: pointer; }
-  details.about summary::-webkit-details-marker { display: none; }
-  details.about:not([hidden]) summary::before { content: "+"; }
-  details.about[open]:not([hidden]) summary::before { content: "−"; }
+  details.about > summary { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 18px; list-style: none; cursor: pointer; }
+  details.about > summary::-webkit-details-marker { display: none; }
+  details.about:not([hidden]) > summary::before { content: "+"; }
+  details.about[open]:not([hidden]) > summary::before { content: "−"; }
+  #unifont-license { white-space: pre-wrap; }
   .about-body { max-width: 900px; margin: auto; max-height: 38vh; overflow: auto; padding: 24px; }
 
   @media (max-width: 1390px) {
