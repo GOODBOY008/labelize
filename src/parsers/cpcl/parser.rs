@@ -24,6 +24,7 @@ use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_ean8::{BarcodeEan8, BarcodeEan8WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData};
+use crate::elements::barcode_symbol::{BarcodeKind, BarcodeSymbol, BarcodeSymbolWithData};
 use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
 use crate::elements::field_alignment::FieldAlignment;
@@ -716,7 +717,8 @@ fn parse_2d_pdf417(
         }
     }
 
-    let data = collect_until(lines, &["ENDPDF"])?;
+    let raw = collect_until(lines, "ENDPDF")?;
+    let data = String::from_utf8_lossy(&raw).into_owned();
     if data.is_empty() {
         return Ok(Flow::Continue);
     }
@@ -751,7 +753,8 @@ fn parse_2d_qr(
         // either way (model 1 is legacy and physically near-identical).
     }
 
-    let data = collect_until(lines, &["ENDQR"])?;
+    let raw = collect_until(lines, "ENDQR")?;
+    let data = String::from_utf8_lossy(&raw);
     if data.is_empty() {
         return Ok(Flow::Continue);
     }
@@ -857,17 +860,42 @@ fn parse_2d_aztec(
         }
     }
 
-    let data = collect_until(lines, &["ENDAZTEC"])?;
+    let data = collect_until(lines, "ENDAZTEC")?;
     if data.is_empty() {
         return Ok(Flow::Continue);
     }
-    s.elements
-        .push(LabelElement::BarcodeAztec(BarcodeAztecWithData {
+    let position = s.position(x, y);
+    let element = if data.is_ascii() {
+        LabelElement::BarcodeAztec(BarcodeAztecWithData {
             reverse_print: ReversePrint::default(),
             barcode,
-            position: s.position(x, y),
+            position,
+            data: String::from_utf8(data).expect("ASCII barcode"),
+        })
+    } else {
+        // A printer encodes these bytes directly. Its text font's code page
+        // must not transcode an Aztec field (e.g. UTF-8 or GB18030 data).
+        let module = barcode.magnification as u32;
+        LabelElement::BarcodeSymbol(BarcodeSymbolWithData {
+            symbol: BarcodeSymbol {
+                kind: BarcodeKind::Aztec {
+                    size: barcode.size,
+                    inverted: false,
+                },
+                module,
+                height: module,
+                orientation: barcode.orientation,
+                ratio: 1.0,
+                caption: false,
+                caption_above: false,
+                caption_checks: false,
+            },
+            position,
+            reverse_print: ReversePrint::default(),
             data,
-        }));
+        })
+    };
+    s.elements.push(element);
     Ok(Flow::Continue)
 }
 
@@ -1248,17 +1276,19 @@ fn push_graphic(s: &mut CpclSession, row_bytes: i32, data: Vec<u8>, x: f64, y: f
     }));
 }
 
-/// Collect 2-D data lines until one of the END tags. Lines join with `\n`.
-fn collect_until(lines: &mut CpclLines, end_tags: &[&str]) -> Result<String, String> {
+/// Join the data records with LF. Only ASCII command whitespace delimits the
+/// end tag; UTF-8 spaces and legacy-encoded bytes belong to the payload.
+fn collect_until(lines: &mut CpclLines, end_tag: &str) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
-    while let Some(raw) = lines.next_line() {
-        let trimmed = raw.trim();
-        if end_tags.iter().any(|tag| trimmed.eq_ignore_ascii_case(tag)) {
-            return Ok(out.join("\n"));
+    while let Some(raw) = lines.next_line_bytes() {
+        if raw.trim_ascii().eq_ignore_ascii_case(end_tag.as_bytes()) {
+            out.pop(); // The last record's line ending separates it from the end tag.
+            return Ok(out);
         }
-        out.push(raw);
+        out.extend_from_slice(raw);
+        out.push(b'\n');
     }
-    Err(format!("CPCL data block missing {}", end_tags[0]))
+    Err(format!("CPCL data block missing {end_tag}"))
 }
 
 /// Split off the first whitespace-delimited token and the remainder.
