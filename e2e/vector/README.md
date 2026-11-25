@@ -1,9 +1,9 @@
 # Independent output verification
 
-The `Vector PDF structure and visual regression` CI job runs this complete
-corpus audit on every PR, after checking PDF structure, searchability, negative
-controls and fixed visual snapshots. The committed baseline fixtures and real
-CLI/HTTP e2e checks are documented in
+The `Vector PDF structure and visual regression` CI job checks PDF structure,
+searchability, negative controls and fixed visual snapshots on every PR. On
+pushes to `main` or `master`, it also runs the complete corpus audit below.
+The committed baseline fixtures and real CLI/HTTP e2e checks are documented in
 [`testdata/vector/README.md`](../../testdata/vector/README.md).
 
 Run the commands below from the repository root. Export every label in the
