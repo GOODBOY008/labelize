@@ -649,35 +649,21 @@ fn draw_barcode_qr(
 
     let quiet_zone_px = 4 * bc.barcode.magnification;
 
-    let (draw_x, draw_y) = if bc.position.calculate_from_bottom {
-        // ^FT baseline positioning: the QR image (including quiet zones) is positioned
-        // so that the modules start at y = ^FT_y - img_height + magnification.
-        // We shift y by +1 module then subtract quiet_zone_px so modules align correctly.
-        let adjusted = LabelPosition {
-            y: bc.position.y + bc.barcode.magnification,
-            ..bc.position.clone()
-        };
-        let pos = adjust_image_typeset_position(
-            &img,
-            &adjusted,
-            FieldOrientation::Normal,
-            canvas.height(),
-        );
-        (pos.x - quiet_zone_px, pos.y - quiet_zone_px)
-    } else {
-        // ^FO origin positioning: modules start at (FO_x, FO_y + by_height).
-        // The image (with quiet zone on all sides) is drawn offset so that the
-        // quiet zone falls outside the field origin.
-        let pos = adjust_image_typeset_position(
-            &img,
-            &bc.position,
-            FieldOrientation::Normal,
-            canvas.height(),
-        );
-        (pos.x - quiet_zone_px, pos.y + bc.height - quiet_zone_px)
-    };
-
-    overlay_at(canvas, &img, draw_x, draw_y);
+    let mut position = bc.position.clone();
+    if position.calculate_from_bottom {
+        // The baseline is one module below the reference point used for QR.
+        position.y += bc.barcode.magnification;
+    }
+    let orientation = bc.barcode.orientation;
+    let mut origin = adjust_image_typeset_position(&img, &position, orientation, canvas.height());
+    if !position.calculate_from_bottom {
+        origin.y += bc.height;
+    }
+    // The field origin locates the symbol modules. The transparent border
+    // extends four modules beyond them on every side in every orientation.
+    origin.x -= quiet_zone_px;
+    origin.y -= quiet_zone_px;
+    overlay_with_rotation(canvas, &img, &origin, orientation);
     Ok(())
 }
 
