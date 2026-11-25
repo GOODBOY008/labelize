@@ -80,12 +80,15 @@ are written under ignored `output/vector-golden/`, with separate structure and
 visual JSON reports. Missing references fail; normal tests never bootstrap or
 replace them.
 
-Linux and Windows CI run the Rust visual goldens and real CLI/HTTP tests. A
-separate Linux job runs the negative controls, PDF structure/search checks and
-PDF visual snapshots as distinct steps, then exports and checks all 175 corpus
-pages in **both PDFium and Poppler**, retaining the strict barcode and spatial
-gates in `e2e/vector/verify_corpus.py`. It uploads actual outputs and
-reports; a failed corpus also uploads all viewer images.
+On every PR, Linux runs the Rust visual goldens and CLI/HTTP tests. Windows
+exercises the release executable with the CLI and HTTP scripts. A separate
+Linux job checks PDF structure, searchability, negative controls and fixed
+visual snapshots.
+
+Pushes to `main` or `master` also run the full Windows test suite and check the
+complete PDF corpus in **both PDFium and Poppler**. The corpus audit checks
+barcode payloads and spatial agreement at 1x and 3x. CI uploads the verification
+reports and includes viewer images when the corpus audit fails.
 
 ## Explicitly update a reviewed baseline
 
