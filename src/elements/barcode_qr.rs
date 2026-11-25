@@ -22,8 +22,7 @@ pub enum QrCharacterMode {
 #[derive(Clone, Debug)]
 pub struct BarcodeQr {
     pub magnification: i32,
-    /// Field rotation (TSPL `QRCODE` parameter; ZPL rotates QR via ^FW,
-    /// which is not modeled yet and stays Normal).
+    /// Clockwise rotation of the symbol within its square field.
     pub orientation: FieldOrientation,
 }
 
