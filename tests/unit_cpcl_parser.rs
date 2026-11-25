@@ -629,3 +629,63 @@ fn graphics_height_honors_units_and_formatter_keeps_payload_spaces() {
         assert_eq!(text_at(&label, 1).text, "after");
     }
 }
+
+#[test]
+fn datamatrix_preserves_multiline_bytes_and_resolves_options() {
+    use labelize::format_source;
+    let source = b"! 0 300 300 240 1\r\nIN-MILLIMETERS\r\nVB DATAMATRIX 3 4 G ~ S 200 C 24 H 0 H 9\r\n A\xff ~\r\nd000~~\r\n ENDDATAMATRIX\r\n PRINT  ~J\r\nENDDATAMATRIX\r\nPRINT\r\n";
+    let (_, formatted) = format_source(source, Some(Language::Cpcl));
+    for input in [source.as_slice(), &formatted] {
+        let label = parse_one(input);
+        let LabelElement::BarcodeDatamatrix(field) = &label.elements[0] else {
+            panic!("expected a Data Matrix");
+        };
+        assert_eq!(
+            field.data_bytes.as_deref(),
+            Some(b" A\xff \0~ ENDDATAMATRIX PRINT  \n".as_slice())
+        );
+        assert_eq!((field.position.x, field.position.y), (24, 32));
+        assert_eq!(field.barcode.height, 6); // 9 printer dots at 12 dpmm rendered at 8 dpmm.
+        assert_eq!((field.barcode.rows, field.barcode.columns), (24, 24));
+        assert_eq!(field.barcode.orientation, FieldOrientation::Rotated270);
+    }
+}
+
+#[test]
+fn datamatrix_defaults_and_zero_scale() {
+    for (fields, expected_pitch) in [("S 200", 6), ("H 0 S 200", 1)] {
+        let source =
+            format!("! 0 200 200 100 1\nB DATAMATRIX 0 0 {fields}\nABC\nENDDATAMATRIX\nPRINT\n");
+        let label = parse_one(source.as_bytes());
+        let LabelElement::BarcodeDatamatrix(field) = &label.elements[0] else {
+            panic!()
+        };
+        assert_eq!(field.barcode.height, expected_pitch);
+    }
+}
+
+#[test]
+fn datamatrix_reports_invalid_blocks_and_unsupported_options() {
+    for (block, expected) in [
+        ("10 20 S 200\nABC\nPRINT", "missing ENDDATAMATRIX"),
+        ("10 20\nABC\nENDDATAMATRIX", "ECC 200 only (S 0)"),
+        ("10 20 S 140\nABC\nENDDATAMATRIX", "ECC 200 only (S 140)"),
+        ("10 20 S 200 H", "missing value for H"),
+        ("10 20 S 200 H -2", "invalid CPCL DATAMATRIX H"),
+        ("10 20 S 200 R 12 C 36", "requires a square symbol"),
+        ("10 20 S 200 G XY", "single byte"),
+        ("10 20 S 200 Z 1", "unsupported CPCL DATAMATRIX option"),
+        (
+            "10 20 S 200\n_d256\nENDDATAMATRIX",
+            "decimal escape exceeds 255",
+        ),
+        (
+            "10 20 S 200\n_1234\nENDDATAMATRIX",
+            "unsupported CPCL DATAMATRIX escape",
+        ),
+    ] {
+        let source = format!("! 0 200 200 100 1\nB DATAMATRIX {block}\n");
+        let error = CpclParser::new().parse(source.as_bytes()).unwrap_err();
+        assert!(error.contains(expected), "{block}: {error}");
+    }
+}

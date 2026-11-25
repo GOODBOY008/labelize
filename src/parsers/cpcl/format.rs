@@ -51,6 +51,7 @@ pub fn format_cpcl(data: &[u8]) -> Vec<u8> {
                     "ML" | "MULTILINE" => &["ENDML", "ENDMULTILINE"],
                     "B" | "BARCODE" | "VB" | "VBARCODE" => {
                         match words.next().unwrap_or("").to_ascii_uppercase().as_str() {
+                            "DATAMATRIX" => &["ENDDATAMATRIX"],
                             "QR" => &["ENDQR"],
                             "PDF-417" | "PDF417" => &["ENDPDF"],
                             "AZTEC" => &["ENDAZTEC"],
@@ -64,10 +65,14 @@ pub fn format_cpcl(data: &[u8]) -> Vec<u8> {
                     while let Some(raw) = lines.next_line_bytes() {
                         out.extend_from_slice(raw);
                         out.push(b'\n');
-                        if end_tags
-                            .iter()
-                            .any(|tag| raw.trim_ascii().eq_ignore_ascii_case(tag.as_bytes()))
-                        {
+                        if end_tags.iter().any(|tag| {
+                            let candidate = if *tag == "ENDDATAMATRIX" {
+                                raw
+                            } else {
+                                raw.trim_ascii()
+                            };
+                            candidate.eq_ignore_ascii_case(tag.as_bytes())
+                        }) {
                             break;
                         }
                     }

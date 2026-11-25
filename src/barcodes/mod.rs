@@ -30,3 +30,19 @@ mod tlc39;
 mod composite_field;
 
 pub(crate) mod check_text;
+
+use image::RgbaImage;
+
+pub(crate) fn checked_image(width: u32, height: u32) -> Result<RgbaImage, String> {
+    if width == 0
+        || height == 0
+        || width > 32000
+        || height > 32000
+        || u64::from(width) * u64::from(height) > 16 * 1024 * 1024
+    {
+        return Err(format!(
+            "Barcode dimensions {width} x {height} exceed the supported image size"
+        ));
+    }
+    Ok(RgbaImage::new(width, height))
+}

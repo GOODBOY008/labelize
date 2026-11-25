@@ -14,6 +14,8 @@
 //! `CONTRAST`, `TONE` and `PACE` have no effect on rendering. With `COUNT`,
 //! subsequent copies use the same value.
 
+mod datamatrix;
+
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
@@ -633,7 +635,7 @@ fn parse_multiline(s: &mut CpclSession, rest: &str, lines: &mut CpclLines) -> Re
 }
 
 /// BARCODE dispatch: the two-dimensional types (`PDF-417`, `QR`,
-/// `MAXICODE`, `AZTEC`) take following data lines until an END tag; the
+/// `MAXICODE`, `DATAMATRIX`, `AZTEC`) take following data lines until an END tag; the
 /// rest are single-line linear symbologies.
 fn parse_barcode(
     s: &mut CpclSession,
@@ -644,6 +646,7 @@ fn parse_barcode(
     let (code, _) = next_token(rest);
     match code.to_ascii_uppercase().as_str() {
         "PDF-417" | "PDF417" => parse_2d_pdf417(s, rest, vertical, lines),
+        "DATAMATRIX" => datamatrix::parse(s, rest, vertical, lines),
         "QR" => parse_2d_qr(s, rest, vertical, lines),
         "MAXICODE" => parse_2d_maxicode(s, rest, lines),
         "AZTEC" => parse_2d_aztec(s, rest, vertical, lines),
