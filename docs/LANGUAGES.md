@@ -26,7 +26,9 @@ P1
 ```
 
 Resident font numbers have fixed metrics; they are not ZPL font names.
-Binary `GW` graphics must be uploaded as bytes through the API.
+In quoted `A`, `B` and `b` data, write `\"` for a literal double quote and
+`\\` for a literal backslash. Binary `GW` graphics must be uploaded as bytes
+through the API.
 
 ## TSPL / TSC
 
