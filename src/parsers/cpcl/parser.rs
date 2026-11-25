@@ -222,9 +222,10 @@ impl CpclParser {
                     }
                     continue;
                 }
-                CpclCommand::Line(raw) => String::from_utf8_lossy(raw),
+                CpclCommand::Line(raw) => raw,
             };
-            let line = raw.trim_start();
+            let text = String::from_utf8_lossy(raw);
+            let line = text.trim_start();
             if line.is_empty() || line.starts_with(';') {
                 continue;
             }
@@ -243,7 +244,7 @@ impl CpclParser {
                 continue; // commands outside a session draw nothing
             };
 
-            match parse_line(s, &mut mag, line, &mut lines) {
+            match parse_line(s, &mut mag, line, raw, &mut lines) {
                 Ok(Flow::Continue) => {}
                 Ok(Flow::Flush) => {
                     let s = session.take().unwrap();
@@ -326,6 +327,7 @@ fn parse_line(
     s: &mut CpclSession,
     mag: &mut (f64, f64),
     line: &str,
+    raw: &[u8],
     lines: &mut CpclLines,
 ) -> Result<Flow, String> {
     let (cmd_word, rest) = next_token(line);
@@ -364,7 +366,7 @@ fn parse_line(
         }
         "MULTILINE" | "ML" => parse_multiline(s, rest, lines),
         "BARCODE" | "B" | "VBARCODE" | "VB" => {
-            parse_barcode(s, rest, cmd == "VBARCODE" || cmd == "VB", lines)
+            parse_barcode(s, rest, raw, cmd == "VBARCODE" || cmd == "VB", lines)
         }
         "BARCODE-TEXT" | "BT" => {
             s.hri_text = !rest.trim().eq_ignore_ascii_case("off");
@@ -640,13 +642,14 @@ fn parse_multiline(s: &mut CpclSession, rest: &str, lines: &mut CpclLines) -> Re
 fn parse_barcode(
     s: &mut CpclSession,
     rest: &str,
+    raw: &[u8],
     vertical: bool,
     lines: &mut CpclLines,
 ) -> Result<Flow, String> {
     let (code, _) = next_token(rest);
     match code.to_ascii_uppercase().as_str() {
         "PDF-417" | "PDF417" => parse_2d_pdf417(s, rest, vertical, lines),
-        "DATAMATRIX" => datamatrix::parse(s, rest, vertical, lines),
+        "DATAMATRIX" => datamatrix::parse(s, raw, vertical, lines),
         "QR" => parse_2d_qr(s, rest, vertical, lines),
         "MAXICODE" => parse_2d_maxicode(s, rest, lines),
         "AZTEC" => parse_2d_aztec(s, rest, vertical, lines),
