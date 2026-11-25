@@ -1,0 +1,17 @@
+LABELIZE-TPL/1 tspl UTF-8
+107 33 1 text tspl -
+174 11 2 text tspl -
+222 12 3 code128 tspl -
+267 12 4 qr tspl M
+
+DIRECTION 1
+REFERENCE 0,0
+SHIFT 0
+SIZE 100 mm,50 mm
+CLS
+CODEPAGE UTF-8
+TEXT 32,32,"TSS24.BF2",0,1,1,"_4F_72_64_65_72_3A_20{{order_no}}"
+TEXT 32,112,"TSS24.BF2",0,1,1,"{{product}}"
+BARCODE 52,216,"128",128,0,0,2,6,"{{order_no}}"
+QRCODE 584,112,M,4,A,0,M2,S7,"{{order_no}}"
+PRINT 1,1
