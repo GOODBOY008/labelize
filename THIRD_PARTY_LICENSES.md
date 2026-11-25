@@ -86,16 +86,18 @@ The same outlines are embedded on all targets. Named Chinese bitmap fonts
 use a full cell for Han and a half cell for ASCII. The subset covers the BMP
 unified ideographs, Extension A, compatibility ideographs, Latin-1, common
 punctuation, kana, Bopomofo, and half/full-width forms. It also includes
-CP936 symbols and characters from DejaVu Sans Mono that Unifont supplies.
-DejaVu Sans Mono remains the fallback for its other glyphs. Glyph shapes follow Unifont's 16-dot design, scaled
+CP936 symbols and the previous DejaVu Sans Mono repertoire. The supplementary
+mathematical letters and digits come from Unifont Upper. The private-use
+Cyrillic Be variant at U+F6C5 uses the standard Be outline. Glyph shapes follow Unifont's 16-dot design, scaled
 for 24-dot cells. Individual device fonts can have different outlines,
 regional glyph forms, and character coverage. See Zebra's
 [ZQ310 Plus / ZQ320 Plus User Guide, “Printing in Chinese Fonts”](https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/product/zq310plus-zq320plus-ug-en.pdf).
 
 To reproduce the subset, run the following from the repository root. The
-script verifies the upstream SHA-256 before subsetting.
+script verifies each upstream SHA-256 before subsetting.
 
 ```sh
 curl -fLO https://unifoundry.com/pub/unifont/unifont-16.0.04/font-builds/unifont-16.0.04.otf
-uv run --with fonttools==4.68.0 python tools/fonts/subset_east_asian.py unifont-16.0.04.otf
+curl -fLO https://unifoundry.com/pub/unifont/unifont-16.0.04/font-builds/unifont_upper-16.0.04.otf
+uv run --with fonttools==4.68.0 python tools/fonts/subset_east_asian.py unifont-16.0.04.otf unifont_upper-16.0.04.otf
 ```

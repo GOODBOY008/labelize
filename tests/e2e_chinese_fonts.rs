@@ -1,7 +1,7 @@
 use image::imageops::crop_imm;
 use labelize::{render_png_with_output, Language, OutputMode, OutputOptions, RenderOptions};
 
-const TEXT: &str = "A保温杯B";
+const TEXT: &str = "A保温杯B𝚉C";
 const FONTS: &[(Language, &str, u32)] = &[
     (Language::Cpcl, "GBUNSG16.CPF", 16),
     (Language::Cpcl, "GBUNSG24.CPF", 24),
@@ -58,6 +58,8 @@ fn check_cells(mode: OutputMode) {
                 (first_han + cell, 80, "温"),
                 (first_han + 2 * cell, 80, "杯"),
                 (first_han + 3 * cell, 80, "B"),
+                (20 + 4 * cell, 80, "𝚉"),
+                (20 + 5 * cell, 80, "C"),
             ];
             let source = job(language, font, dpmm, &fields);
             let output = OutputOptions {
@@ -70,6 +72,8 @@ fn check_cells(mode: OutputMode) {
             let row = |y| crop_imm(&pixels, 0, y, pixels.width(), cell).to_image();
             assert_eq!(row(20), row(80), "{font} at {dpmm} dpmm ({mode:?})");
 
+            let math = crop_imm(&pixels, 20 + 4 * cell, 20, cell, cell).to_image();
+            assert!(math.as_raw().iter().any(|&p| p < 128), "{font} lost 𝚉");
             let glyphs: Vec<_> = (0..3)
                 .map(|i| crop_imm(&pixels, first_han + i * cell, 20, cell, cell).to_image())
                 .collect();
@@ -103,9 +107,11 @@ fn named_chinese_fonts_have_searchable_unicode_pdf_text() {
         mode: OutputMode::Vector,
         ..Default::default()
     };
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("output/vector-golden");
+    std::fs::create_dir_all(&directory).unwrap();
     for &(language, font, _) in FONTS {
         for dpmm in [8, 12] {
-            let mixed = "A保温杯BΩβЖāǎě€𝚉";
+            let mixed = "A保温杯B𝚉CΩβЖāǎě€";
             let source = job(language, font, dpmm, &[(20, 20, mixed)]);
             let rendered = labelize::render_pdf_with_output(
                 source.as_bytes(),
@@ -113,6 +119,13 @@ fn named_chinese_fonts_have_searchable_unicode_pdf_text() {
                 output,
             )
             .unwrap();
+            std::fs::write(
+                directory.join(format!("{font}-{dpmm}.pdf")),
+                &rendered.bytes,
+            )
+            .unwrap();
+            // lopdf inserts a newline at every ET. The independent Poppler
+            // regression checks the complete line with all inner whitespace intact.
             let pdf = lopdf::Document::load_mem(&rendered.bytes).unwrap();
             let extracted = pdf.extract_text(&[1]).unwrap().replace('\n', "");
             assert_eq!(extracted, mixed, "{font} at {dpmm} dpmm");
