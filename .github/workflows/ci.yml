@@ -26,14 +26,15 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # A cold build and the full font-character sweeps can exceed eight minutes.
       - name: Unit & integration tests
         run: cargo test --lib --test 'unit_*' --features skill,vector,playground -- --test-threads=4
-        timeout-minutes: 8
+        timeout-minutes: 12
       - name: Golden diff regression
         run: cargo test --test 'e2e_*' --features vector -- --test-threads=4
         timeout-minutes: 8
