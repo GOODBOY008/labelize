@@ -26,9 +26,9 @@ P1
 ```
 
 Resident font numbers have fixed metrics; they are not ZPL font names.
-In quoted `A`, `B` and `b` data, write `\"` for a literal double quote and
-`\\` for a literal backslash. Binary `GW` graphics must be uploaded as bytes
-through the API.
+Inside quoted text (`A`) and barcode data (`B` or `b`), use `\"` for a
+literal double quote and `\\` for a literal backslash. For example,
+`"A\"B\\C"` prints `A"B\C`. Upload binary `GW` graphics as bytes.
 
 ## TSPL / TSC
 
@@ -56,6 +56,11 @@ with three-dot modules. Aztec supports quoted and byte-counted data, quarter
 turns, reversed output, fixed compact/full layers and Runes. Menu symbols,
 FLG(n) controls and multi-symbol output return explicit errors.
 
+For `PDF417`, commas inside quoted data are literal. In the counted form,
+the comma after `L<n>` separates the length from the payload. For example,
+`L5,,ABCD` encodes the five bytes `,ABCD`. The rotation parameter of
+`QRCODE` accepts 0, 90, 180 or 270 degrees clockwise.
+
 Text, boxes, lines and raw `BITMAP` graphics are also supported. Send binary
 payloads as bytes. `MPDF417`, `PUTPCX` and `PUTBMP` return unsupported-command
 errors. See [TSPL baselines](TSPL_BASELINES.md) for calibration and
@@ -77,7 +82,8 @@ PRINT
 ```
 
 Text, resident fonts, scalable text, multiline fields, several 1D/2D barcodes
-and counted `EG`/`CG` graphics are supported. For Data Matrix, use
+and counted `EG`/`CG` graphics are supported. `VBARCODE QR` rotates the
+symbol 90 degrees counterclockwise from `BARCODE QR`. For Data Matrix, use
 `B DATAMATRIX x y H scale S 200`, followed by the data and a separate
 `ENDDATAMATRIX` line. Data lines are joined without line breaks. The default
 module is six printer dots. `C` or `R` can select a fixed square size.
