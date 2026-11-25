@@ -22,7 +22,6 @@ use super::images::{self, ImageBank, StoredImage};
 use crate::elements::barcode_128::{Barcode128, Barcode128WithData, BarcodeMode};
 use crate::elements::barcode_2of5::{Barcode2of5, Barcode2of5WithData};
 use crate::elements::barcode_39::{Barcode39, Barcode39WithData};
-use crate::elements::barcode_aztec::{BarcodeAztec, BarcodeAztecWithData};
 use crate::elements::barcode_datamatrix::{
     BarcodeDatamatrix, BarcodeDatamatrixWithData, DatamatrixRatio,
 };
@@ -30,6 +29,7 @@ use crate::elements::barcode_ean13::{BarcodeEan13, BarcodeEan13WithData};
 use crate::elements::barcode_ean8::{BarcodeEan8, BarcodeEan8WithData};
 use crate::elements::barcode_pdf417::{BarcodePdf417, BarcodePdf417WithData};
 use crate::elements::barcode_qr::{BarcodeQr, BarcodeQrWithData, QrErrorCorrectionLevel};
+use crate::elements::barcode_symbol::{BarcodeKind, BarcodeSymbol, BarcodeSymbolWithData};
 use crate::elements::barcode_upca::{BarcodeUca, BarcodeUcaWithData};
 use crate::elements::barcode_upce::{BarcodeUcpe, BarcodeUcpeWithData};
 use crate::elements::field_orientation::FieldOrientation;
@@ -235,7 +235,7 @@ fn parse_record(
         automatic_position: false,
         from_bottom: true,
     };
-    let counted = matches!(b, b'Z' | b'U') || line.get(1..4) == Some(b"W1C");
+    let data_start = counted_header_len(line).map_or(header_len, |length| length + 4);
     let ctx = RecordCtx {
         orientation,
         c: line[2 + shift],
@@ -243,7 +243,7 @@ fn parse_record(
         eee: eee.clone(),
         position: position.clone(),
         rest: line
-            .get(header_len + if counted { 4 } else { 0 }..)
+            .get(data_start..)
             .ok_or("DPL record missing byte count")?,
     };
     let rest = ctx.rest;
@@ -952,24 +952,43 @@ fn parse_aztec(
     elements: &mut Vec<LabelElement>,
     ctx: &RecordCtx,
 ) -> Result<(), String> {
-    let orientation = ctx.orientation;
-    let position = ctx.position.clone();
-    let after = ctx.rest;
-    let module_mm = state.mm(super::fonts::multiplier(ctx.c));
-    let magnification = (module_mm * state.dpmm).round().max(1.0) as i32;
-    let data = record_data(after);
+    // Honeywell DPL Command Reference, W1f/W1F: one ECI digit and three
+    // EC/size digits precede the 8-bit payload. The W1F count was stripped
+    // with the record header.
+    let (options, data) = ctx
+        .rest
+        .split_at_checked(4)
+        .ok_or("DPL Aztec requires an ECI digit and three EC/size digits")?;
+    match options[0] {
+        b'0' => {}
+        b'1' => return Err("DPL Aztec ECI mode 1 is unsupported".into()),
+        _ => return Err("DPL Aztec ECI mode must be 0 or 1".into()),
+    }
+    let size = decimal_field(&options[1..]).ok_or("DPL Aztec EC/size must be three digits")?;
+    if !matches!(size, 0..=99 | 101..=104 | 201..=232 | 300) {
+        return Err(format!("invalid DPL Aztec EC/size {size:03}"));
+    }
     if data.is_empty() {
         return Ok(());
     }
-    elements.push(LabelElement::BarcodeAztec(BarcodeAztecWithData {
-        reverse_print: ReversePrint::default(),
-        barcode: BarcodeAztec {
-            orientation,
-            magnification,
-            size: 0,
+    let module = state.dots(super::fonts::multiplier(ctx.c)).max(1) as u32;
+    elements.push(LabelElement::BarcodeSymbol(BarcodeSymbolWithData {
+        symbol: BarcodeSymbol {
+            kind: BarcodeKind::Aztec {
+                size: size as i32,
+                inverted: false,
+            },
+            orientation: ctx.orientation,
+            module,
+            height: module,
+            ratio: 1.0,
+            caption: false,
+            caption_above: false,
+            caption_checks: false,
         },
-        position,
-        data,
+        position: ctx.position.clone(),
+        reverse_print: ReversePrint::default(),
+        data: data.to_vec(),
     }));
     Ok(())
 }
@@ -1010,6 +1029,24 @@ fn parse_config(state: &mut DplState, line: &[u8]) -> Result<(), String> {
 }
 
 // ── byte cursor ─────────────────────────────────────────────────────
+
+/// In these formats, four decimal digits after the record header count every
+/// following option and payload byte. The count field itself is excluded.
+fn counted_header_len(record: &[u8]) -> Option<usize> {
+    match record {
+        [_, b'W', b'1', b'C' | b'F', ..] => Some(17),
+        [_, b'Z' | b'U', ..] => Some(15),
+        _ => None,
+    }
+}
+
+/// Parse a short, fixed-width ASCII decimal field without touching the payload.
+fn decimal_field(field: &[u8]) -> Option<usize> {
+    field
+        .iter()
+        .all(u8::is_ascii_digit)
+        .then(|| field.iter().fold(0, |n, b| n * 10 + usize::from(b - b'0')))
+}
 
 /// One record, with its actual terminator retained for lossless formatting.
 pub(super) struct DplRecord<'a> {
@@ -1065,13 +1102,6 @@ impl<'a> DplCursor<'a> {
         }
         let field = self.in_format && matches!(remaining[0], b'1'..=b'4');
         let terminator = if field { self.field_terminator } else { b'\r' };
-        let counted_header = if field && remaining.get(1..4) == Some(b"W1C") {
-            Some(17)
-        } else if field && matches!(remaining.get(1), Some(b'Z' | b'U')) {
-            Some(15)
-        } else {
-            None
-        };
         // These commands have fixed lengths and can directly precede a download.
         let fixed = match remaining {
             [0x01, b'D', ..] | [0x02, b'Q', ..] if !self.in_format => Some(2),
@@ -1080,14 +1110,11 @@ impl<'a> DplCursor<'a> {
         };
         let end = if let Some(length) = fixed {
             start + length
-        } else if let Some(header) = counted_header {
+        } else if let Some(header) = counted_header_len(remaining).filter(|_| field) {
             let count = remaining
                 .get(header..header + 4)
-                .filter(|s| s.iter().all(u8::is_ascii_digit))
+                .and_then(decimal_field)
                 .ok_or("DPL counted record requires a four-digit byte count")?;
-            let count = count
-                .iter()
-                .fold(0usize, |n, b| n * 10 + (b - b'0') as usize);
             let length = header + 4 + count;
             if length > remaining.len() {
                 return Err("DPL counted record data shorter than declared".to_string());

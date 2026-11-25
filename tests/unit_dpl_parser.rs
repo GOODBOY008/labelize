@@ -1,5 +1,6 @@
 use labelize::elements::barcode_128::BarcodeMode;
 use labelize::elements::barcode_qr::QrErrorCorrectionLevel;
+use labelize::elements::barcode_symbol::BarcodeKind;
 use labelize::elements::field_orientation::FieldOrientation;
 use labelize::elements::font_face::FontFace;
 use labelize::elements::label_element::LabelElement;
@@ -440,6 +441,93 @@ fn counted_datamatrix_preserves_binary_options_and_following_fields() {
             other => panic!("expected DataMatrix, got {other:?}"),
         }
         assert_eq!(text_at(&label, 1).text, "NEXT");
+    }
+}
+
+#[test]
+fn aztec_options_preserve_the_business_prefix_and_select_the_symbol_size() {
+    for size in [0, 1, 99, 101, 104, 201, 232, 300] {
+        let payload = if size == 300 { "042" } else { "0000SO-00123" };
+        let options_and_data = format!("0{size:03}{payload}");
+        let src = dpl(&[
+            "L",
+            "m",
+            &rec(b'2', "W1f", b'5', b'5', 0, 100, 20, &options_and_data),
+            "E",
+        ]);
+        let label = parse_one(&src);
+        let LabelElement::BarcodeSymbol(bc) = &label.elements[0] else {
+            panic!("expected byte-oriented Aztec");
+        };
+        assert!(
+            matches!(bc.symbol.kind, BarcodeKind::Aztec { size: actual, inverted: false } if actual == size)
+        );
+        assert_eq!(bc.data, payload.as_bytes());
+        assert_eq!(bc.symbol.module, 4);
+        assert_eq!(bc.symbol.orientation, FieldOrientation::Rotated90);
+        assert_eq!((bc.position.x, bc.position.y), (16, 80));
+        assert!(bc.position.from_bottom);
+    }
+}
+
+#[test]
+fn counted_aztec_preserves_all_bytes_and_resets_the_field_terminator() {
+    let payload: Vec<u8> = (0..=255).collect();
+    let mut src = dpl(&["L", "T7E"]);
+    src.extend_from_slice(b"1W1F550000100010002600000");
+    src.extend_from_slice(&payload);
+    src.extend_from_slice(b"~\r\n191100200100000NEXT\rE\r");
+    let (_, formatted) = labelize::format_source(&src, Some(Language::Dpl));
+    for input in [&src, &formatted] {
+        let label = parse_one(input);
+        assert_eq!(label.elements.len(), 2);
+        let LabelElement::BarcodeSymbol(bc) = &label.elements[0] else {
+            panic!("expected byte-oriented Aztec");
+        };
+        assert!(matches!(
+            bc.symbol.kind,
+            BarcodeKind::Aztec {
+                size: 0,
+                inverted: false
+            }
+        ));
+        assert_eq!(bc.data, payload);
+        assert_eq!(text_at(&label, 1).text, "NEXT");
+    }
+}
+
+#[test]
+fn malformed_aztec_options_and_counts_are_diagnosed() {
+    for (kind, tail, error) in [
+        (
+            "W1f",
+            "000",
+            "requires an ECI digit and three EC/size digits",
+        ),
+        (
+            "W1F",
+            "0003000",
+            "requires an ECI digit and three EC/size digits",
+        ),
+        ("W1f", "1000DATA", "ECI mode 1 is unsupported"),
+        ("W1f", "2000DATA", "ECI mode must be 0 or 1"),
+        ("W1f", "0+01DATA", "EC/size must be three digits"),
+        ("W1f", "0100DATA", "invalid DPL Aztec EC/size 100"),
+        ("W1f", "0233DATA", "invalid DPL Aztec EC/size 233"),
+    ] {
+        let src = dpl(&["L", &rec(b'1', kind, b'5', b'5', 0, 0, 0, tail), "E"]);
+        let err = DplParser::new().parse(&src).unwrap_err();
+        assert!(err.contains(error), "{kind} {tail}: {err}");
+    }
+    for (tail, error) in [
+        ("00x40000", "four-digit byte count"),
+        ("01", "four-digit byte count"),
+        ("00120000ABC", "shorter than declared"),
+    ] {
+        let src = dpl(&["L", &rec(b'1', "W1F", b'5', b'5', 0, 0, 0, tail)]);
+        let err = DplParser::new().parse(&src).unwrap_err();
+        assert!(err.contains(error), "{tail}: {err}");
+        assert_eq!(labelize::format_source(&src, Some(Language::Dpl)).1, src);
     }
 }
 

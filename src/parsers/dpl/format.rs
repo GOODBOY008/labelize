@@ -2,9 +2,8 @@
 //! byte-counted payloads.
 //!
 //! Records split on the field-data terminator (CR by default — the `T`
-//! command reassigns it for one field), exactly like the parser's cursor, so the two can
-//! never disagree about where binary-safe data (PDF-417 `Z` byte counts,
-//! DataMatrix `W1C`) ends. `<STX>` system lines pass through verbatim.
+//! command reassigns it for one field). The parser and formatter share a
+//! cursor so counted `Z`, `U`, `W1C` and `W1F` payloads stay byte-exact.
 
 use super::parser::DplCursor;
 
