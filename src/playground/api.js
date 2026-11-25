@@ -4,7 +4,7 @@
     "api.guide": "API guide & automation", "api.spec": "OpenAPI JSON ↓", "api.request": "Request",
     "api.endpoint": "Endpoint", "api.input": "Input", "api.text": "Text", "api.file": "File (raw bytes)",
     "api.body": "Request body", "api.useSource": "Use playground source", "api.chooseFile": "Choose a file to send unchanged",
-    "api.raw": "The body is sent as raw bytes, without JSON or a multipart wrapper.",
+    "api.raw": "Text and file contents are sent with the selected Content-Type.",
     "api.send": "Send request", "api.cancel": "Cancel", "api.access": "Public API · No signup", "api.url": "Request URL",
     "api.response": "Response", "api.download": "Download response ↓", "api.ready": "Ready when you are. Send a request to see the response.",
     "api.status": "HTTP status", "api.elapsed": "Elapsed", "api.bytes": "Size", "api.headers": "Response headers", "api.image": "API PNG response",
@@ -27,7 +27,7 @@
     "api.guide": "API 文档与自动转换", "api.spec": "OpenAPI JSON ↓", "api.request": "请求",
     "api.endpoint": "接口", "api.input": "输入方式", "api.text": "文本", "api.file": "文件（原始字节）",
     "api.body": "请求正文", "api.useSource": "使用 Playground 源码", "api.chooseFile": "选择文件，按原始字节发送",
-    "api.raw": "正文按原始字节发送，不包装为 JSON 或表单。",
+    "api.raw": "文本和文件内容按所选 Content-Type 发送。",
     "api.send": "发送请求", "api.cancel": "取消", "api.access": "公开 API · 无需注册", "api.url": "请求地址",
     "api.response": "响应", "api.download": "下载响应 ↓", "api.ready": "发送请求后，即可在此查看响应。",
     "api.status": "HTTP 状态", "api.elapsed": "耗时", "api.bytes": "大小", "api.headers": "响应头", "api.image": "API 返回的 PNG 图片",
@@ -59,6 +59,7 @@
     var download = document.getElementById("api-download"), image = document.getElementById("api-response-image");
     var snippetLanguage = document.getElementById("api-example-language"), snippet = document.getElementById("api-example-code");
     var currentPath = null, drafts = {}, controls = {}, pending = null, responseUrl = null, examples = null, requestEdited = false;
+    var labelText = null;
     Object.keys(spec.paths).forEach(function (path) {
       var option = document.createElement("option"), operation = apiOperation(spec, path);
       option.value = path;
@@ -92,8 +93,10 @@
       if (endpoint.value === "/encode") bodyMode.value = "file";
       body.hidden = bodyMode.value !== "text";
       document.getElementById("api-file-section").hidden = bodyMode.value !== "file";
-      document.getElementById("api-use-source").disabled = endpoint.value === "/encode";
-      file.accept = endpoint.value === "/encode" ? "image/*" : ".zpl,.epl,.tspl,.cpcl,.dpl,.txt,.bin";
+      document.getElementById("api-use-source").disabled = endpoint.value === "/encode" || endpoint.value === "/template/fill";
+      if (endpoint.value === "/template/fill") file.accept = ".json,application/json";
+      else if (endpoint.value === "/encode") file.accept = "image/*";
+      else file.accept = ".zpl,.epl,.tspl,.cpcl,.dpl,.txt,.bin";
       try {
         var request = snapshot();
         document.getElementById("api-request-url").textContent = request.method + " " + request.url;
@@ -107,9 +110,22 @@
       document.getElementById("api-copy").disabled = !examples;
     }
     function selectEndpoint() {
-      if (currentPath) drafts[currentPath] = { values: parameterValues(), contentType: contentType.value, bodyMode: bodyMode.value };
+      var previousPath = currentPath;
+      if (currentPath) {
+        drafts[currentPath] = { values: parameterValues(), contentType: contentType.value, bodyMode: bodyMode.value, text: body.value, file: file.files[0] };
+        if (["/convert", "/validate", "/format"].includes(currentPath)) labelText = body.value;
+      }
       currentPath = endpoint.value;
       var operation = apiOperation(spec, currentPath).definition, saved = requestEdited ? drafts[currentPath] : null;
+      if (previousPath !== currentPath) {
+        if (saved && saved.file) {
+          var transfer = new DataTransfer();
+          transfer.items.add(saved.file);
+          file.files = transfer.files;
+        } else {
+          file.value = "";
+        }
+      }
       var defaults = requestEdited ? {} : apiPlaygroundParameters(getParams(), fmtSel.value);
       controls = {};
       parameters.replaceChildren();
@@ -155,16 +171,23 @@
       document.getElementById("api-description").textContent = operation.description;
       contentType.replaceChildren();
       if (operation.requestBody) {
-        Object.keys(apiResolve(spec, operation.requestBody).content).forEach(function (type) {
+        var media = apiResolve(spec, operation.requestBody).content;
+        Object.keys(media).forEach(function (type) {
           var option = document.createElement("option");
           option.value = type;
           option.textContent = type;
           contentType.appendChild(option);
         });
         if (saved) contentType.value = saved.contentType;
-        else if (!requestEdited && currentPath !== "/encode") contentType.value = ctFor(fmtSel.value);
+        else if (ctFor(fmtSel.value) in media) contentType.value = ctFor(fmtSel.value);
+        if (media["application/json"]) {
+          body.value = saved ? saved.text : JSON.stringify(media["application/json"].example, null, 2);
+        } else if (saved) {
+          body.value = saved.text;
+        } else if (currentPath !== "/encode") {
+          body.value = requestEdited && labelText != null ? labelText : input.value;
+        }
       }
-      if (!requestEdited && currentPath !== "/encode") body.value = input.value;
       bodyMode.value = saved ? saved.bodyMode : currentPath === "/encode" ? "file" : "text";
       update();
     }
@@ -257,7 +280,7 @@
       if (examples) copyText(examples[snippetLanguage.value]).then(function () { setMessage(t("api.copied")); }).catch(function () { setMessage(t("api.copyFailed"), true); });
     });
     document.getElementById("api-use-source").addEventListener("click", function () {
-      if (endpoint.value === "/encode") return;
+      if (endpoint.value === "/encode" || endpoint.value === "/template/fill") return;
       requestEdited = true;
       body.value = input.value;
       bodyMode.value = "text";
