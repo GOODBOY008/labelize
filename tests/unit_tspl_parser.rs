@@ -738,6 +738,10 @@ fn quoted_text_keeps_legacy_escapes_and_multiline_content() {
     for (encoded, expected) in [
         (r#"x\"y\",z\\q"#, "x\"y\",z\\\\q"),
         ("x\\\"\r\ntwo\r\nthree", "x\"\r\ntwo\r\nthree"),
+        ("A\\\"\r\nPRINT 1\r\nB", "A\"\r\nPRINT 1\r\nB"),
+        ("Use \\\"\r\nSIZE matters", "Use \"\r\nSIZE matters"),
+        ("Use \\\"\r\nPDF417 matters", "Use \"\r\nPDF417 matters"),
+        ("A\\\"\r\nB,", "A\"\r\nB,"),
         ("x\\[\"]\r\nPRINT 1\r\nthree", "x\"\r\nPRINT 1\r\nthree"),
         (r#"x\\\"#, r"x\\\"),
     ] {
@@ -758,5 +762,64 @@ fn quoted_text_keeps_legacy_escapes_and_multiline_content() {
             assert_eq!(next.text, "NEXT");
             assert_eq!(next.position.y, 65);
         }
+    }
+}
+
+#[test]
+fn trailing_backslash_preserves_opaque_records_and_their_bytes() {
+    let payload = b"\x80\"\r\n";
+    let bitmap = [b"BITMAP 2,2,4,1,0,".as_slice(), payload].concat();
+    for comment in [
+        None,
+        Some(b"REM product location".as_slice()),
+        Some(b"   rEm opaque comment with an unmatched \""),
+        Some(b"SET \"a device directive with an unmatched opening quote"),
+        Some(b"VENDOR \"an opaque command with an unmatched opening quote"),
+    ] {
+        let mut lines = vec![br#"TEXT 0,0,"3",0,1,1,"A\""#.as_slice()];
+        lines.extend(comment);
+        lines.extend([
+            bitmap.as_slice(),
+            br#"TEXT 0,65,"3",0,1,1,"NEXT""#,
+            b"PRINT 1",
+            b"",
+        ]);
+        let source = lines.join(b"\r\n".as_slice());
+        let (_, formatted) = labelize::format_source(&source, Some(Language::Tspl));
+        let expected: Vec<_> = lines.iter().map(|line| line.trim_ascii_start()).collect();
+        assert_eq!(formatted, expected.join(b"\n".as_slice()));
+        for job in [&source, &formatted] {
+            let label = parse_one(job);
+            let [LabelElement::Text(first), LabelElement::GraphicField(graphic), LabelElement::Text(next)] =
+                label.elements.as_slice()
+            else {
+                panic!("expected both fields and the bitmap")
+            };
+            assert_eq!(first.text, r"A\");
+            assert_eq!(graphic.data, payload);
+            assert_eq!(next.text, "NEXT");
+        }
+    }
+}
+
+#[test]
+fn trailing_backslash_before_a_qr_field_that_opens_at_end_of_line() {
+    let lines = [
+        br#"TEXT 0,0,"3",0,1,1,"A\""#.as_slice(),
+        b"QRCODE 10,10,M,4,A,0,\"\r\nDATA\"",
+        b"PRINT 1",
+        b"",
+    ];
+    let source = lines.join(b"\r\n".as_slice());
+    let (_, formatted) = labelize::format_source(&source, Some(Language::Tspl));
+    assert_eq!(formatted, lines.join(b"\n".as_slice()));
+    for job in [&source, &formatted] {
+        let label = parse_one(job);
+        let [LabelElement::Text(text), LabelElement::BarcodeQr(qr)] = label.elements.as_slice()
+        else {
+            panic!("expected text and separate QR field")
+        };
+        assert_eq!(text.text, r"A\");
+        assert_eq!(qr.data, "\r\nDATA");
     }
 }

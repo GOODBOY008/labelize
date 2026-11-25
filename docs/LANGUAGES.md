@@ -67,9 +67,13 @@ Use TSC's `\["]` for a double quote in a quoted field. A backslash
 immediately before that escape remains literal, so `"A\\["]B"`
 encodes the four bytes `41 5c 22 42`. At the end of a command, `"A\"`
 encodes `A` and one backslash. Labelize also accepts the older `\"`
-quote escape within data. At a physical line ending, a following command
-recognized by Labelize or end of input closes the field. Use `\["]` for a data quote
-at the end of a line in a multiline field. [TSC Programming Manual](https://fs.tscprinters.com/system/files/31-0000001-00_tspl_tspl2_programming_3_0.pdf)
+quote escape within data. At a physical line ending, `\"` can also mean
+a data quote followed by a newline. Labelize keeps the multiline value
+when its next unescaped quote closes the final field. Lookahead stops
+before a `REM` comment or a `BITMAP`, `AZTEC`, `PDF417` or `MPDF417`
+command header. Use `\["]` for a data quote in multiline text. To mark
+a trailing backslash explicitly before ambiguous input, put `REM` on a
+line of its own after the field. [TSC Programming Manual](https://fs.tscprinters.com/system/files/31-0000001-00_tspl_tspl2_programming_3_0.pdf)
 
 For `PDF417`, commas inside quoted data are literal. In the counted form,
 the comma after `L<n>` separates the length from the payload. For example,

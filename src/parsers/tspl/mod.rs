@@ -37,34 +37,26 @@ pub(crate) const DETECTION_WORDS: &[&str] = &[
     "CODEPAGE",
 ];
 
-/// Include commands that can also occur in other printer languages or
-/// have no rendered effect. These delimit a TSPL job once its language is known.
-fn is_command_word(word: &[u8]) -> bool {
-    const OTHER_WORDS: &[&str] = &[
+/// These plain commands parse comma-separated arguments and can carry a
+/// quoted value across physical lines. Device commands and comments are opaque.
+fn parses_arguments(word: &[u8]) -> bool {
+    [
+        "SIZE",
+        "DIRECTION",
+        "REFERENCE",
+        "SHIFT",
+        "TEXT",
+        "BAR",
+        "BOX",
+        "CIRCLE",
+        "ELLIPSE",
+        "ERASE",
+        "REVERSE",
+        "BARCODE",
+        "QRCODE",
+        "PDF417",
         "DMATRIX",
-        "MPDF417",
-        "PUTPCX",
-        "PUTBMP",
-        "BLINE",
-        "GAPDETECT",
-        "BLINEDETECT",
-        "AUTODETECT",
-        "FEED",
-        "BACKFEED",
-        "FORMFEED",
-        "HOME",
-        "SELFTEST",
-        "INITIALPRINTER",
-        "DOWNLOAD",
-        "EOP",
-        "FILES",
-        "KILL",
-        "RUN",
-        "OUT",
-        "SET",
-    ];
-    DETECTION_WORDS
-        .iter()
-        .chain(OTHER_WORDS)
-        .any(|name| word.eq_ignore_ascii_case(name.as_bytes()))
+    ]
+    .iter()
+    .any(|name| word.eq_ignore_ascii_case(name.as_bytes()))
 }

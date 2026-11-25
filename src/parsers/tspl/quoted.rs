@@ -32,24 +32,43 @@ pub(super) fn decode(mut data: &[u8]) -> Vec<u8> {
     result
 }
 
-/// After a legacy backslash-quote at physical EOL, an actual TSPL command
-/// (or EOF) wins over a multiline continuation. The documented bracketed
-/// quote always remains data, including before a command-like content line.
-fn closes_line(after_quote: &[u8]) -> bool {
-    let indent = after_quote
+fn at_line_end(data: &[u8]) -> bool {
+    data.iter()
+        .find(|b| !matches!(b, b' ' | b'\t'))
+        .is_none_or(|b| matches!(b, b'\r' | b'\n'))
+}
+
+fn trim_horizontal(data: &[u8]) -> &[u8] {
+    let indent = data
         .iter()
         .take_while(|&&b| matches!(b, b' ' | b'\t'))
         .count();
-    let after_quote = &after_quote[indent..];
-    if !matches!(after_quote.first(), Some(b'\r' | b'\n')) {
-        return after_quote.is_empty();
-    }
-    let next = after_quote.trim_ascii_start();
-    let word = next
+    &data[indent..]
+}
+
+fn line_word(line: &[u8]) -> &[u8] {
+    trim_horizontal(line)
         .split(u8::is_ascii_whitespace)
         .next()
-        .unwrap_or_default();
-    word.is_empty() || super::is_command_word(word)
+        .unwrap_or_default()
+}
+
+fn starts_opaque_record(line: &[u8]) -> bool {
+    let line = trim_horizontal(line);
+    let word = line_word(line);
+    if word.eq_ignore_ascii_case(b"REM") {
+        return true;
+    }
+    // Data commands have a comma-separated header. A plain-text line
+    // beginning "PDF417 matters" can still close a legacy multiline field.
+    let raw_command = [b"BITMAP".as_slice(), b"AZTEC", b"PDF417", b"MPDF417"]
+        .iter()
+        .any(|cmd| word.eq_ignore_ascii_case(cmd));
+    raw_command
+        && line[word.len()..]
+            .iter()
+            .find(|b| matches!(b, b',' | b'\r' | b'\n' | b'"'))
+            == Some(&b',')
 }
 
 pub(super) fn closing_quote(data: &[u8], start: usize) -> Option<usize> {
@@ -63,14 +82,38 @@ pub(super) fn closing_quote_with(
     mut i: usize,
     char_len: impl Fn(&[u8]) -> usize,
 ) -> Option<usize> {
+    // At physical EOL, \" can be either a final backslash and delimiter,
+    // or a legacy quote in a multiline value. Save that delimiter while
+    // looking for a real closing quote. Never search through binary records
+    // or REM contents for evidence that the text continues.
+    let mut fallback = None;
+    let mut line_start = i;
     while i < data.len() {
         let tail = &data[i..];
         match tail[0] {
-            b'"' => return Some(i),
+            b'"' => {
+                if fallback.is_some()
+                    && (!at_line_end(&tail[1..])
+                        || (data[line_start..i].trim_ascii_end().ends_with(b",")
+                            && super::parses_arguments(line_word(&data[line_start..i]))))
+                {
+                    // An opening quote in the next command's arguments.
+                    return fallback;
+                }
+                return Some(i);
+            }
+            b'\r' | b'\n' if fallback.is_some() => {
+                i += 1 + usize::from(tail.starts_with(b"\r\n"));
+                line_start = i;
+                if starts_opaque_record(&data[i..]) {
+                    return fallback;
+                }
+                continue;
+            }
             b'\\' => {
                 if let Some(len) = escape_len(tail) {
-                    if len == LEGACY_QUOTE.len() && closes_line(&tail[len..]) {
-                        return Some(i + 1);
+                    if len == LEGACY_QUOTE.len() && at_line_end(&tail[len..]) {
+                        fallback.get_or_insert(i + 1);
                     }
                     i += len;
                     continue;
@@ -80,7 +123,7 @@ pub(super) fn closing_quote_with(
         }
         i += char_len(tail);
     }
-    None
+    fallback
 }
 
 pub(super) fn command_line_end_with(
