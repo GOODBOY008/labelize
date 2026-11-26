@@ -1,6 +1,6 @@
 [package]
 name = "labelize"
-version = "1.12.1"
+version = "1.13.0"
 edition = "2024"
 description = "Render ZPL, EPL, TSPL/TSC, CPCL and DPL thermal printer labels and barcodes to PNG or PDF offline. Encode images as ZPL or TSPL."
 keywords = ["zpl", "epl", "tspl", "cpcl", "dpl"]

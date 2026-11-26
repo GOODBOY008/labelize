@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-26
+
+### Added
+
+- **Printer template filling**: compile templates exported by Labelize Studio
+  and fill named fields from string records in ZPL, EPL, TSPL, CPCL and DPL.
+  The Rust API, `labelize template` CLI, native HTTP service, WASM/Worker and
+  playground share the same implementation. Download native printer jobs or
+  preview the exact filled bytes, with field validation and atomic CLI output.
+- **Additional barcode support**: render TSPL EAN-8, UPC-A, interleaved 2 of 5
+  and quoted or counted Aztec symbols, plus CPCL ECC 200 Data Matrix blocks.
+- **DPL image recall**: render volatile downloaded images referenced by `Y`
+  records.
+- **Chinese text support**: render named Chinese bitmap fonts in device cells
+  and decode declared GBK, CP936 and GB18030 text fields. Distribute the
+  embedded font's copyright and OFL license with platform packages.
+
+### Fixed
+
+- Honor QR field orientation consistently in raster and vector output.
+- Decode literal escapes in quoted EPL fields and preserve literal
+  backslashes and multiline quote boundaries in TSPL text.
+- Preserve counted PDF417 and Aztec payload boundaries, embedded line endings
+  and incomplete data when formatting TSPL source.
+- Preserve CPCL Data Matrix escape bytes and option precedence, and keep
+  populated CPCL Aztec printer bytes intact during previews.
+- Separate DPL Aztec record options from payload bytes and honor the
+  declared on-wire byte count.
+- Preserve CP936 and legacy named-font glyph coverage and keep mixed Chinese
+  and mathematical glyphs on one searchable PDF line.
+
+### Changed
+
+- Update `clap`, `qrcode`, `write-fonts` and the Cargo dependency lockfile while
+  retaining the compatible `bwipp-rs` pin.
+- Expand the language reference and embedded playground guides, including
+  template workflows for the CLI, HTTP API and Rust SDK.
+- Exercise Windows release binaries in pull requests and run the complete
+  vector PDF corpus on branch pushes.
+
 ## [1.12.1] - 2026-11-23
 
 ### Added
