@@ -65,6 +65,13 @@ and an unspecified language to **ZPL**. Worker vector conversion uses declared
 dimensions and source detection before falling back. Send all three values
 explicitly to avoid relying on these differences.
 
+## Fill a printer template
+
+Send the Studio export as Base64 and one record of string values to
+`POST /template/fill`. It returns native printer bytes. Post those bytes
+unchanged to `/convert` with the printer language and stock dimensions
+to render PNG or PDF. [Runnable HTTP example](../PRINT_TEMPLATES.md#http)
+
 ## PDF and scaled PNG
 
 ```sh

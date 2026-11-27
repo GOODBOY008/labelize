@@ -22,6 +22,7 @@ function functions() {
 }
 const api = functions();
 const state = overrides => ({ path: '/convert', parameters: { width: '100', height: '60', dpmm: '8', mode: 'raster', output: 'png' }, bodyMode: 'text', text: '^XA^FDAPI^FS^XZ', contentType: 'application/zpl', ...overrides });
+const templateState = overrides => ({ path: '/template/fill', parameters: {}, contentType: 'application/json', ...overrides });
 
 test('OpenAPI describes the existing API with resolvable refs and safe embedded JSON', () => {
   assert.equal(spec.openapi, '3.0.3');
@@ -39,12 +40,17 @@ test('OpenAPI describes the existing API with resolvable refs and safe embedded 
 test('template fill example sends JSON and saves the response as printer bytes', () => {
   const media = spec.paths['/template/fill'].post.requestBody.content['application/json'];
   const text = JSON.stringify(media.example);
-  const request = api.apiBuildRequest(spec, state({ path: '/template/fill', text, contentType: 'application/json', parameters: {} }), 'https://example.com');
+  const request = api.apiBuildRequest(spec, templateState({ text }), 'https://example.com');
   assert.equal(request.url, 'https://example.com/template/fill');
   assert.equal(request.contentType, 'application/json');
   assert.equal(request.body, text);
-  assert.equal(api.apiOutputName(request), 'job.bin');
+  assert.equal(api.apiOutputName(request), 'job.zpl');
   assert.match(api.apiExamples(request).javascript, /arrayBuffer\(\)/);
+  for (const [language, extension] of [['EPL2', 'epl'], ['TSC', 'tspl'], ['cpcl', 'cpcl'], ['dpl', 'dpl'], ['unknown', 'prn']]) {
+    const body = JSON.stringify({ ...media.example, language });
+    const request = api.apiBuildRequest(spec, templateState({ text: body }), 'https://example.com');
+    assert.equal(api.apiOutputName(request), 'job.' + extension);
+  }
 });
 
 test('request construction preserves bodies, checks values and separates PNG/PDF options', () => {
@@ -231,12 +237,13 @@ test('endpoint drafts keep their original uploaded file across the health page',
 
 function responseHarness(fetch, request = api.apiBuildRequest(spec, state(), 'https://example.com')) {
   const elements = new Map(), blobs = new Map(), revoked = [], messages = [];
-  const element = () => ({ hidden: true, disabled: false, textContent: '', removeAttribute(name) { delete this[name]; } });
+  const element = () => ({ hidden: true, disabled: false, textContent: '', setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; } });
   const context = {
     URL: { createObjectURL(blob) { const url = `blob:${blobs.size}`; blobs.set(url, blob); return url; }, revokeObjectURL(url) { revoked.push(url); } },
-    TextEncoder, TextDecoder, Blob, AbortController, DOMException, performance,
+    TextEncoder, TextDecoder, Blob, File, AbortController, DOMException, performance,
     pending: null, responseUrl: null, image: element(), download: element(), send: element(),
     cancel: { ...element(), addEventListener(name, fn) { this[name] = fn; } },
+    previewJob: element(), filledJob: null, ctFor: language => 'application/' + language,
     document: { getElementById(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); } },
     snapshot: () => request, t: key => key, setMessage: (text, error) => messages.push({ text, error }), fetch,
   };
@@ -263,6 +270,38 @@ test('shipped response handler preserves bytes, handles validation failures, and
   assert.equal(validation.elements.get('api-status').textContent, '200');
   assert.equal(validation.messages.at(-1).error, true);
   assert.match(validation.elements.get('api-response-body').textContent, /<script>bad<\/script>/);
+});
+
+test('template response offers a native download and stages the identical bytes for conversion', async () => {
+  const bytes = new Uint8Array(readFileSync(new URL('testdata/templates/printers/first.dpl', root)));
+  const upload = new File(['{"language":"DPL"}'], 'request.json');
+  const request = api.apiBuildRequest(spec, templateState({ bodyMode: 'file', file: upload }), 'https://example.com');
+  const h = responseHarness(async () => new Response(bytes, { headers: { 'content-type': 'application/octet-stream' } }), request);
+  await h.submit();
+  const { context } = h;
+  assert.equal(context.download.download, 'job.dpl');
+  assert.equal(context.previewJob.hidden, false);
+  assert.deepEqual(new Uint8Array(await h.blobs.get(context.download.href).arrayBuffer()), bytes);
+  Object.assign(context, {
+    endpoint: { value: '/template/fill' }, requestEdited: false, file: {}, bodyMode: {}, contentType: {},
+    selectEndpoint() {}, update() {}, controls: { width: { focus() {} } },
+    DataTransfer: class {
+      files = [];
+      items = { add: file => this.files.push(file) };
+    },
+  });
+  const handoff = ui.slice(ui.indexOf('    function useFilledJob()'), ui.indexOf('    function clearResponse()'));
+  runInNewContext(handoff, context);
+  context.useFilledJob();
+  assert.equal(context.endpoint.value, '/convert');
+  assert.equal(context.bodyMode.value, 'file');
+  assert.equal(context.contentType.value, 'application/dpl');
+  assert.deepEqual(new Uint8Array(await context.file.files[0].arrayBuffer()), bytes);
+  context.fetch = async () => new Response('invalid template', { status: 400 });
+  await h.submit();
+  assert.equal(context.download.download, 'response.txt');
+  assert.equal(context.previewJob.hidden, true);
+  assert.equal(context.filledJob, null);
 });
 
 test('PDF responses share original bytes between preview, new tab and download, and clear stale viewers', async () => {

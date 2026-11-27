@@ -58,6 +58,7 @@ Previewing thermal labels today usually means one of three compromises: send you
 - 📱 **CPCL support** — Zebra mobile-printer sessions (`! 0 203 203 …`): resident fonts 0-7, `SETMAG`, justification, Code 128/39/EAN/UPC/I2of5, QR/Data Matrix/PDF-417/MaxiCode/Aztec, `BOX`/`LINE`/`INVERSE-LINE`, counted `EG`/`CG` graphics
 - 🏭 **DPL support** — Datamax-O'Neil formats (`<STX>L … E`): bitmap fonts 0-8 + smooth font 9, bottom-left home coordinates, Code 128/39/UCC/EAN/UPC/I2of5, QR/PDF-417/DataMatrix/MaxiCode/Aztec, `X` line/box records and `Y` image recalls
 - 🖼️ **PNG & PDF output** — black/white by default, optional grayscale. Opt-in [vector PDF and scalable PNG](docs/VECTOR_OUTPUT.md) share one layout and preserve searchable text
+- **Dynamic printer templates** — fill Studio exports for ZPL, EPL2, TSPL/TSC, CPCL and DPL with per-label data. Download a native printer job and render the same bytes to PNG or PDF. [Template guide](docs/PRINT_TEMPLATES.md)
 - 🔄 **Reverse rendering (image → code)** — turn any raster (PNG/JPEG/GIF/BMP) into ZPL `^GFA` or TSPL `BITMAP` printer code; pixel-faithful, round-trip tested
 - 🔤 **Embedded fonts** — zero runtime font dependencies (Roboto Condensed, DejaVu Sans Mono, ZPL GS — all permissively licensed)
 - ⚡ **~5 ms per render** — no network, no interpreter, no printer
@@ -211,6 +212,83 @@ A complete runnable example lives at [`examples/render_label.rs`](examples/rende
 (`cargo run --example render_label -- label.zpl`), with a walkthrough in the
 [Rust tutorial](docs/tutorials/rust-library.md).
 
+## Fill and preview a printer template
+
+Use Labelize 1.13.0 or later with a Studio printer template and one JSON
+record. Try the [ZPL shipping template](testdata/templates/printers/shipping.tpl.zpl)
+and [sample order](testdata/templates/first.json) from this repository. The
+examples use 100 × 50 mm stock at 8 dots/mm and print order number `000123`.
+
+### CLI
+
+Run from the repository root. Use `-o order.pdf` in the render command for a PDF.
+
+```sh
+labelize template fill testdata/templates/printers/shipping.tpl.zpl \
+  --data testdata/templates/first.json -o order.zpl
+labelize template render testdata/templates/printers/shipping.tpl.zpl \
+  --data testdata/templates/first.json --width 100 --height 50 --dpmm 8 -o order.png
+```
+
+### HTTP
+
+Start `labelize serve --port 8080` using a build with the `serve` feature,
+or set `base_url` to the public Worker for the sample data. Send the first
+response unchanged to `/convert`. [Public API](docs/API.md)
+
+```sh
+base_url=http://127.0.0.1:8080
+python3 - <<'PY' > request.json
+import base64
+import json
+from pathlib import Path
+
+sample = Path("testdata/templates")
+print(json.dumps({
+    "language": "zpl",
+    "template_base64": base64.b64encode((sample / "printers/shipping.tpl.zpl").read_bytes()).decode("ascii"),
+    "values": json.loads((sample / "first.json").read_text(encoding="utf-8")),
+}))
+PY
+curl -fsS "$base_url/template/fill" -H 'Content-Type: application/json' \
+  --data-binary @request.json -o order.zpl
+curl -fsS "$base_url/convert?output=png&width=100&height=50&dpmm=8" \
+  -H 'Content-Type: application/zpl' --data-binary @order.zpl -o order.png
+```
+
+### Rust SDK
+
+Load the export once and call `fill` for each order. Run this example with
+the repository root as the working directory.
+
+```rust
+use labelize::{render_png, Language, PrintTemplate, RenderOptions, TemplateValues};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("testdata/templates/printers/shipping.tpl.zpl")?;
+    let template = PrintTemplate::load(Language::Zpl, &bytes)?;
+    let values = TemplateValues::from([
+        ("order_no".into(), "000123".into()),
+        ("product".into(), "Thermal labels".into()),
+    ]);
+    let job = template.fill(&values)?;
+    std::fs::write("order.zpl", &job)?;
+    let options = RenderOptions {
+        language: Some(Language::Zpl),
+        width_mm: Some(100.0),
+        height_mm: Some(50.0),
+        dpmm: 8,
+        ..Default::default()
+    };
+    std::fs::write("order.png", render_png(&job, options)?.bytes)?;
+    Ok(())
+}
+```
+
+To try it in a browser, open the API console, select **POST /template/fill**,
+and send the preloaded request. Choose **Preview in /convert**, set the label
+size and output, then send the render request. [API console](https://labelize.764629910.workers.dev/#api) · [Template integration guide](docs/PRINT_TEMPLATES.md)
+
 ## 🎨 Web Playground
 
 Every Labelize server serves an interactive UI at `GET /` — the same page running
@@ -277,6 +355,7 @@ Usage: labelize <COMMAND>
 
 Commands:
   convert  Convert a ZPL/EPL/TSPL/CPCL/DPL file to PNG or PDF
+  template Fill a printer template or render it with JSON field values
   serve    Start HTTP server for label conversion
 
 Convert Options:
@@ -303,6 +382,7 @@ Serve Options:
 |----------|--------|-------------|
 | `/`       | GET  | Interactive web playground |
 | `/health` | GET  | Health check → `{"status":"ok"}` |
+| `/template/fill` | POST | Fill a Studio printer template with JSON field values → native printer bytes |
 | `/convert` | POST | Convert label data → PNG or PDF |
 
 **POST /convert** — the parser is selected by `Content-Type` (`application/zpl` / `application/epl` / `application/tspl` / `application/cpcl` / `application/dpl`); without one, the body is sniffed:

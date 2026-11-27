@@ -52,7 +52,10 @@
       <section class="api-card api-response card" aria-labelledby="api-response-heading">
         <div class="api-card-heading card-header">
           <h2 id="api-response-heading" class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><path d="M20 7v10H4m4-4-4 4 4 4M4 3h9"/></svg><span data-i18n="api.response">Response</span></h2>
-          <a id="api-download" class="api-button btn btn-outline-secondary btn-sm" hidden data-i18n="api.download">Download response ↓</a>
+          <div class="api-send-row">
+            <button id="api-preview-job" class="api-button btn btn-primary btn-sm" type="button" hidden data-i18n="api.previewJob">Preview in /convert</button>
+            <a id="api-download" class="api-button btn btn-outline-secondary btn-sm" hidden data-i18n="api.download">Download response ↓</a>
+          </div>
         </div>
         <div class="card-body api-response-content">
         <svg class="api-response-art text-secondary" viewBox="0 0 72 72" fill="none" aria-hidden="true"><rect x="10" y="8" width="52" height="56" rx="7" fill="var(--tblr-bg-surface-secondary)" stroke="var(--tblr-border-color)" stroke-width="1.5"/><path d="M21 23h12M21 31h20M21 47h30m-7-7 7 7-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="49" cy="23" r="3" fill="var(--tblr-bg-surface-secondary)" stroke="var(--tblr-primary)" stroke-width="1.5"/></svg>

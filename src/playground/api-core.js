@@ -44,11 +44,23 @@
       request.file = state.file || null;
       request.filename = request.file ? request.file.name : (state.path === "/encode" ? "input.png" : "input." + (values.language || request.contentType.split("/")[1]).replace("octet-stream", "bin"));
       request.body = request.bodyMode === "file" ? request.file : String(state.text || "");
+      if (state.path === "/template/fill" && request.bodyMode === "text") {
+        request.jobLanguage = apiTemplateLanguage(request.body);
+      }
     }
     return request;
   }
+  function apiTemplateLanguage(text) {
+    try {
+      var language = JSON.parse(text).language.toLowerCase();
+      if (language === "tsc") return "tspl";
+      if (language === "epl2") return "epl";
+      if (["zpl", "epl", "tspl", "cpcl", "dpl"].includes(language)) return language;
+    } catch (error) { /* Invalid or incomplete JSON is reported by the API. */ }
+    return null;
+  }
   function apiOutputName(request) {
-    if (request.path === "/template/fill") return "job.bin";
+    if (request.path === "/template/fill") return "job." + (request.jobLanguage || "prn");
     if (request.path === "/convert") return "label." + (request.parameters.output || "png");
     if (request.path === "/encode") return "image." + (request.parameters.language || "zpl");
     if (request.path === "/format") {

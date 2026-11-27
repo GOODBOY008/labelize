@@ -7,6 +7,9 @@
     "api.raw": "Text and file contents are sent with the selected Content-Type.",
     "api.send": "Send request", "api.cancel": "Cancel", "api.access": "Public API · No signup", "api.url": "Request URL",
     "api.response": "Response", "api.download": "Download response ↓", "api.ready": "Ready when you are. Send a request to see the response.",
+    "api.downloadJob": "Download printer job ↓", "api.previewJob": "Preview in /convert",
+    "api.templateFilled": "Printer job ready. Download it or open it in /convert for a PNG or PDF preview.",
+    "api.templatePreviewReady": "Printer job loaded into /convert. Set the label size and resolution, then send the request.",
     "api.status": "HTTP status", "api.elapsed": "Elapsed", "api.bytes": "Size", "api.headers": "Response headers", "api.image": "API PNG response",
     "api.examples": "Code examples", "api.examplesHelp": "Examples follow the request above. JavaScript uses Node.js 20+; Python uses the standard library.",
     "api.exampleLanguage": "Example language", "api.copy": "Copy example", "api.default": "Detect automatically",
@@ -30,6 +33,9 @@
     "api.raw": "文本和文件内容按所选 Content-Type 发送。",
     "api.send": "发送请求", "api.cancel": "取消", "api.access": "公开 API · 无需注册", "api.url": "请求地址",
     "api.response": "响应", "api.download": "下载响应 ↓", "api.ready": "发送请求后，即可在此查看响应。",
+    "api.downloadJob": "下载打印文件 ↓", "api.previewJob": "在 /convert 中预览",
+    "api.templateFilled": "打印文件已生成。可下载文件，或在 /convert 中预览 PNG 或 PDF。",
+    "api.templatePreviewReady": "已将打印文件载入 /convert。设置标签尺寸和分辨率后，发送请求即可预览。",
     "api.status": "HTTP 状态", "api.elapsed": "耗时", "api.bytes": "大小", "api.headers": "响应头", "api.image": "API 返回的 PNG 图片",
     "api.examples": "代码示例", "api.examplesHelp": "示例跟随上方请求更新。JavaScript 使用 Node.js 20+；Python 只需标准库。",
     "api.exampleLanguage": "示例语言", "api.copy": "复制示例", "api.default": "自动检测",
@@ -57,6 +63,7 @@
     var send = document.getElementById("api-send"), cancel = document.getElementById("api-cancel");
     var message = document.getElementById("api-message");
     var download = document.getElementById("api-download"), image = document.getElementById("api-response-image");
+    var previewJob = document.getElementById("api-preview-job"), filledJob = null;
     var snippetLanguage = document.getElementById("api-example-language"), snippet = document.getElementById("api-example-code");
     var currentPath = null, drafts = {}, controls = {}, pending = null, responseUrl = null, examples = null, requestEdited = false;
     var labelText = null;
@@ -191,6 +198,20 @@
       bodyMode.value = saved ? saved.bodyMode : currentPath === "/encode" ? "file" : "text";
       update();
     }
+    function useFilledJob() {
+      if (!filledJob || pending) return;
+      requestEdited = true;
+      endpoint.value = "/convert";
+      selectEndpoint();
+      var transfer = new DataTransfer();
+      transfer.items.add(filledJob);
+      file.files = transfer.files;
+      bodyMode.value = "file";
+      contentType.value = filledJob.type;
+      update();
+      setMessage(t("api.templatePreviewReady"));
+      controls.width.focus();
+    }
     function clearResponse() {
       image.removeAttribute("src");
       document.getElementById("api-response-pdf").removeAttribute("src");
@@ -198,6 +219,8 @@
       download.removeAttribute("href");
       if (responseUrl) URL.revokeObjectURL(responseUrl);
       responseUrl = null;
+      filledJob = null;
+      previewJob.hidden = true;
       ["api-response-meta", "api-headers-section", "api-response-body", "api-image-frame", "api-pdf-frame", "api-download"].forEach(function (id) { document.getElementById(id).hidden = true; });
     }
     async function submit(event) {
@@ -221,6 +244,11 @@
         if (request.bodyMode !== "none") { options.headers = { "Content-Type": request.contentType }; options.body = request.body; }
         var response = await fetch(request.url, options);
         var bytes = new Uint8Array(await response.arrayBuffer());
+        var isFilledJob = request.path === "/template/fill" && response.ok;
+        if (isFilledJob && request.bodyMode === "file") {
+          // A metadata read must not discard a successful printer response.
+          request.jobLanguage = await request.file.text().then(apiTemplateLanguage, function () { return null; });
+        }
         // Cancel can arrive after headers or while the body is being read.
         if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
         document.getElementById("api-status").textContent = response.status + (response.statusText ? " " + response.statusText : "");
@@ -233,7 +261,14 @@
         responseUrl = URL.createObjectURL(new Blob([bytes], { type: type }));
         download.href = responseUrl;
         download.download = response.ok ? apiOutputName(request) : "response.txt";
+        var downloadLabel = isFilledJob ? "api.downloadJob" : "api.download";
+        download.setAttribute("data-i18n", downloadLabel);
+        download.textContent = t(downloadLabel);
         download.hidden = false;
+        if (isFilledJob && request.jobLanguage) {
+          filledJob = new File([bytes], download.download, { type: ctFor(request.jobLanguage) });
+          previewJob.hidden = false;
+        }
         var preview = apiPreview(bytes, type);
         if (!response.ok && (preview.kind === "image" || preview.kind === "pdf")) preview = apiPreview(bytes, "application/octet-stream");
         if (preview.kind === "image" && response.ok) {
@@ -250,7 +285,7 @@
           if (preview.truncated) output.textContent += "\n\n" + t("api.truncated");
           output.hidden = false;
         }
-        var failed = !response.ok, resultMessage = failed ? "HTTP " + response.status : t("api.complete");
+        var failed = !response.ok, resultMessage = failed ? "HTTP " + response.status : t(filledJob ? "api.templateFilled" : "api.complete");
         if (request.path === "/validate" && response.ok) {
           try {
             var report = JSON.parse(new TextDecoder().decode(bytes));
@@ -267,6 +302,7 @@
       }
     }
     endpoint.addEventListener("change", selectEndpoint);
+    previewJob.addEventListener("click", useFilledJob);
     function editRequest(event) {
       if (event.target !== endpoint) requestEdited = true;
       update();

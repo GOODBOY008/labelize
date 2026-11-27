@@ -34,6 +34,14 @@ examples read the chosen filename from the script's working directory.
 JavaScript examples use Node.js 20+; Python examples use only the standard
 library. Copying an example does not send a request.
 
+## Fill and preview a printer template
+
+Select **POST /template/fill** and send its sample JSON request. **Download
+printer job** saves native printer bytes with the language extension, such as
+`job.zpl`. Choose **Preview in /convert** to load those same bytes into a
+conversion request. Set the stock dimensions, resolution and output format
+before sending it. [Template walkthrough and sample files](PRINT_TEMPLATES.md#try-in-the-api-console)
+
 ## Endpoints and OpenAPI
 
 Download the [OpenAPI 3.0.3 specification](/openapi.json), also available from

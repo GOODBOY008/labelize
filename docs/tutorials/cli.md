@@ -53,6 +53,12 @@ labelize convert data.txt --format tspl   # TSPL/TSC input
 A file containing several labels (`^XA…^XZ` repeated, or several `P` commands
 in EPL) produces one output per label: `label_1.png`, `label_2.png`, …
 
+### Fill a printer template
+
+Use `labelize template fill` to apply a JSON record to a Studio printer
+template and save the printer job. Use `labelize template render` with the
+same inputs to create a PNG or PDF. [Sample files and commands](../PRINT_TEMPLATES.md#cli)
+
 ## 3. Choose the output type and path
 
 ```bash

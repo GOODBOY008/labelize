@@ -76,6 +76,7 @@ binary uploads, defaults, validation and error responses.
 | --- | --- |
 | Learn the editor, sizing, image import or comparison | [Playground guide](PLAYGROUND.md) |
 | Start with a different printer language | [Languages and examples](LANGUAGES.md) |
+| Fill a Studio template with per-label data and preview it | [Printer templates](PRINT_TEMPLATES.md) |
 | Convert files from a terminal | [CLI tutorial](tutorials/cli.md) |
 | Deploy a service | [Docker](tutorials/docker.md) or [HTTP](tutorials/http-service.md) |
 | Embed the engine | [Rust](tutorials/rust-library.md), [JavaScript/WASM](tutorials/javascript-wasm.md), [Android](tutorials/android.md) |

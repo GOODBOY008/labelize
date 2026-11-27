@@ -24,7 +24,7 @@
   .api-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin-bottom: 16px; }
   .api-body-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 10px; }
   .api-body-heading label { margin: 0; }
-  .api-send-row { display: flex; align-items: center; gap: 8px; }
+  .api-send-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .api-url { padding: 14px 20px; }
   .api-url-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; }
   .api-url-heading label { margin: 0 !important; }

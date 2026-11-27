@@ -1,11 +1,14 @@
 # Fill an exported printer template
 
-Export the design from Studio and bundle the original template file with your
-application. Labelize fills each order and returns a native printer job. Keep
-the job as bytes through printing and previewing so binary artwork survives.
+Labelize 1.13.0 and later fill Studio printer templates for **ZPL, EPL2,
+TSPL/TSC, CPCL and DPL**. Export a printer template from Studio and supply
+one JSON record of string values per label. Labelize returns a native
+printer job that you can render to PNG or PDF. Keep the job as bytes through
+printing and previewing so binary artwork survives.
 
 | Where your application runs | Integration |
 | --- | --- |
+| Browser | Send the built-in example in the API console, then preview the filled label. |
 | Shell script or batch job | Use the CLI to write a printer file, PNG or PDF. |
 | Backend in any language | Call the HTTP service to fill the template, then post the returned bytes for a preview. |
 | Rust application | Load the template once with the Rust SDK and reuse it across orders. |
@@ -13,6 +16,23 @@ the job as bytes through printing and previewing so binary artwork survives.
 The examples below use the [shipping template](../testdata/templates/printers/shipping.tpl.zpl)
 and [sample order](../testdata/templates/first.json). Save them as
 `shipping.tpl.zpl` and `order.json`. The sample label stock is 100 × 50 mm.
+
+## Try in the API console
+
+1. Open the **API** tab and choose **POST /template/fill**. The
+   built-in request fills a small ZPL label with the order number `000123`.
+   [Public API console](https://labelize.764629910.workers.dev/#api)
+2. Choose **Send request**. **Download printer job** saves `job.zpl` for this
+   example. Other languages use their own extensions. These native
+   printer files can include binary graphics.
+3. Choose **Preview in /convert** to load the filled job and its printer
+   language into the conversion request. Set the width, height and dpmm to
+   match the stock and printer, select PNG or PDF, and send the request.
+   For the built-in example, try 60 × 30 mm at 8 dpmm.
+
+To use your own export, replace the sample JSON with the request described
+below. You can paste it as text or upload the completed `request.json` file.
+[Build the request](#http)
 
 ## CLI
 
@@ -61,7 +81,8 @@ curl --fail --show-error --silent "$base_url/convert?output=png&width=100&height
 ```
 
 The first response is `application/octet-stream`, ready to send to the
-printer. The second call previews that exact job. For PDF, set `output=pdf`
+printer. The second call previews that exact job as an 800 × 400 PNG.
+For PDF, set `output=pdf`
 and save the result as `order.pdf`. For other printers, set both the request's
 `language` and the conversion media type, for example `dpl` and
 `application/dpl`. The request JSON and the filled job each have a 2 MiB

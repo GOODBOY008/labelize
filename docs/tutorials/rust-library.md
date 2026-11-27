@@ -57,6 +57,12 @@ Errors are a single `LabelizeError`: `Parse` variants are user-input
 problems, everything else is engine-side — the same split the built-in HTTP
 service maps to 400 vs 500.
 
+### Render a filled printer template
+
+Load a Studio export with `PrintTemplate::load`, then call `fill` with
+`TemplateValues` for each label. Pass the returned printer bytes directly to
+`render_png` or `render_pdf`. [Complete Rust example](../PRINT_TEMPLATES.md#rust-sdk)
+
 ## 3. The composable path: detect → parse → render
 
 Use `parse_labels` to inspect elements, iterate through a batch or render into
