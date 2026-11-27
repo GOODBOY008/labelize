@@ -34,9 +34,9 @@ const fill = (body, type = 'application/json', headers = {}) => worker.fetch(
 test('Worker returns native template jobs for all five printer languages', async () => {
   const fixture = name => readFileSync(new URL(`../testdata/templates/${name}`, import.meta.url));
   const values = JSON.parse(fixture('second.json'));
-  for (const language of ['zpl', 'tspl', 'epl', 'cpcl', 'dpl']) {
+  for (const [language, requested] of [['zpl', 'ZPL'], ['tspl', 'tsc'], ['epl', 'epl2'], ['cpcl', 'cpcl'], ['dpl', 'dpl']]) {
     const source = fixture(`printers/shipping.tpl.${language}`);
-    const bytes = Buffer.from(JSON.stringify({ language, template_base64: source.toString('base64'), values }));
+    const bytes = Buffer.from(JSON.stringify({ language: requested, template_base64: source.toString('base64'), values }));
     const body = new ReadableStream({
       start(controller) {
         controller.enqueue(bytes.subarray(0, 13));
@@ -44,10 +44,12 @@ test('Worker returns native template jobs for all five printer languages', async
         controller.close();
       },
     });
-    const response = await fill(body, 'Application/JSON; charset=utf-8');
+    const response = await fill(body, 'Application/JSON; charset=utf-8', { origin: 'https://client.example' });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('content-type'), 'application/octet-stream');
+    assert.equal(response.headers.get('content-disposition'), `attachment; filename="job.${language}"`);
     assert.equal(response.headers.get('access-control-allow-origin'), '*');
+    assert.equal(response.headers.get('access-control-expose-headers'), 'Content-Disposition');
     assert.deepEqual(Buffer.from(await response.arrayBuffer()), fixture(`printers/second.${language}`));
   }
 });
@@ -56,6 +58,7 @@ test('Worker enforces the template fill media type and raw request limit', async
   assert.equal((await fill('{}', 'text/plain')).status, 415);
   const bad = await fill('{');
   assert.equal(bad.status, 400);
+  assert.equal(bad.headers.has('content-disposition'), false);
   assert.ok(await bad.text());
   const source = Buffer.from('^XA\n^FXLabelize field text^FS\n^FO5,5^FH^FD{{order_no}}^FS\n^XZ\n').toString('base64');
   assert.equal((await fill(JSON.stringify(['zpl', source, { order_no: '000123' }]))).status, 400);

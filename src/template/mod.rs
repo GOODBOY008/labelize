@@ -13,7 +13,8 @@ use barcode::*;
 use expression::Expression;
 #[cfg(feature = "template-json")]
 pub use request::{
-    fill_json_request, TemplateRequestError, MAX_TEMPLATE_OUTPUT_BYTES, MAX_TEMPLATE_REQUEST_BYTES,
+    fill_json_job, fill_json_request, FilledTemplateJob, TemplateRequestError,
+    MAX_TEMPLATE_OUTPUT_BYTES, MAX_TEMPLATE_REQUEST_BYTES,
 };
 
 /// One input record. Identifiers such as order numbers retain their leading zeros.

@@ -1,5 +1,8 @@
 //! labelize compiled to wasm32-unknown-unknown, exposed through wasm-bindgen.
 
+use labelize::template::{
+    fill_json_job, fill_json_request, FilledTemplateJob, TemplateRequestError,
+};
 use labelize::Language;
 use wasm_bindgen::prelude::*;
 
@@ -213,11 +216,38 @@ fn encode_error(err: labelize::LabelizeError) -> String {
 /// Returns native printer bytes. Stage 1 reports invalid input, stage 3 a size limit.
 #[wasm_bindgen]
 pub fn lz_template_fill(body: &[u8]) -> Result<Vec<u8>, String> {
-    use labelize::template::{fill_json_request, TemplateRequestError};
-    fill_json_request(body).map_err(|error| match error {
+    fill_json_request(body).map_err(template_error)
+}
+
+/// Filled printer data and its download header for the Worker HTTP adapter.
+#[wasm_bindgen]
+pub struct TemplateFillAttachment {
+    job: FilledTemplateJob,
+}
+
+#[wasm_bindgen]
+impl TemplateFillAttachment {
+    pub fn content_disposition(&self) -> String {
+        self.job.content_disposition().to_owned()
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.job.bytes
+    }
+}
+
+#[wasm_bindgen]
+pub fn lz_template_fill_attachment(body: &[u8]) -> Result<TemplateFillAttachment, String> {
+    fill_json_job(body)
+        .map(|job| TemplateFillAttachment { job })
+        .map_err(template_error)
+}
+
+fn template_error(error: TemplateRequestError) -> String {
+    match error {
         TemplateRequestError::Invalid(_) => format!("1:{error}"),
         TemplateRequestError::TooLarge(_) => format!("3:{error}"),
-    })
+    }
 }
 
 fn json_escape(s: &str) -> String {

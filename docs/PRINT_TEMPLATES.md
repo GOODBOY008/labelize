@@ -81,9 +81,12 @@ curl --fail --show-error --silent "$base_url/convert?output=png&width=100&height
 ```
 
 The first response is `application/octet-stream`, ready to send to the
-printer. The second call previews that exact job as an 800 × 400 PNG.
-For PDF, set `output=pdf`
-and save the result as `order.pdf`. For other printers, set both the request's
+printer. Its `Content-Disposition` header suggests a language-specific
+filename such as `job.zpl` or `job.dpl`. To use that filename with curl,
+replace `-o order.zpl` with `-OJ` and pass the downloaded file to `/convert`.
+The second call previews that exact job as an 800 × 400 PNG.
+For PDF, set `output=pdf` and save the result as `order.pdf`.
+For other printers, set both the request's
 `language` and the conversion media type, for example `dpl` and
 `application/dpl`. The request JSON and the filled job each have a 2 MiB
 limit. Invalid template or order data returns HTTP 400 with a

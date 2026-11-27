@@ -5,7 +5,7 @@
 // so we skip it: import the core glue functions and instantiate the engine
 // manually. Workerd gives us the .wasm as bytes via esbuild's binary loader.
 import * as engine from "../wasm/npm/labelize_wasm_bg.js";
-const { lz_render_output, lz_playground_html, lz_validate, lz_format, lz_encode, lz_template_fill } = engine;
+const { lz_render_output, lz_playground_html, lz_validate, lz_format, lz_encode, lz_template_fill_attachment } = engine;
 import wasmBytes from "../wasm/npm/labelize_wasm_bg.wasm";
 import openapi from "../src/playground/openapi.json";
 
@@ -255,8 +255,15 @@ async function fillTemplate(request) {
     length = end;
   }
   try {
-    const out = lz_template_fill(buffer.subarray(0, length));
-    return new Response(out, { headers: { "content-type": "application/octet-stream" } });
+    const job = lz_template_fill_attachment(buffer.subarray(0, length));
+    const disposition = job.content_disposition();
+    return new Response(job.into_bytes(), {
+      headers: {
+        "content-type": "application/octet-stream",
+        "content-disposition": disposition,
+        "access-control-expose-headers": "Content-Disposition",
+      },
+    });
   } catch (err) {
     const { status, text } = renderStatus(err);
     return new Response(text, { status });

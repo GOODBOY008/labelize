@@ -114,6 +114,10 @@ fn http_template_fill_returns_native_jobs_for_every_language_and_renders_them() 
                 response.headers()["content-type"],
                 "application/octet-stream"
             );
+            assert_eq!(
+                response.headers()["content-disposition"],
+                format!(r#"attachment; filename="job.{name}""#)
+            );
             let job = response.bytes().unwrap();
             assert_eq!(job.as_ref(), expected, "{record} {name}");
 

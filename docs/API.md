@@ -58,9 +58,12 @@ server URLs that use the hosting origin.
 | `POST /format` | Raw label bytes | Formatted source bytes; binary graphics are preserved |
 | `POST /encode` | Encoded image bytes | ZPL text or binary TSPL bytes |
 
-For `/template/fill`, send `application/json`. A malformed request or invalid
-field returns 400, an oversized request or job returns 413, and an unsupported
-request media type returns 415. [Fill a template and preview it over HTTP](PRINT_TEMPLATES.md#http)
+For `/template/fill`, send `application/json`. The response's
+`Content-Disposition` header supplies a filename such as `job.zpl` for
+the printer job. The public Worker exposes the header to cross-origin clients.
+A malformed request or invalid field returns 400, an oversized request or job
+returns 413, and an unsupported request media type returns 415.
+[Fill a template and preview it over HTTP](PRINT_TEMPLATES.md#http)
 
 The other POST endpoints accept raw bytes. `/convert` selects the
 parser using `Content-Type: application/zpl` (or `epl`, `tspl`, `cpcl`, `dpl`).

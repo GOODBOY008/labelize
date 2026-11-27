@@ -54,7 +54,16 @@
           }
         },
         "responses": {
-          "200": { "description": "Filled native printer job, including any binary data.", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+          "200": {
+            "description": "Filled native printer job, including any binary data.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Attachment filename with the printer language extension.",
+                "schema": { "type": "string", "example": "attachment; filename=\"job.zpl\"" }
+              }
+            },
+            "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } }
+          },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "413": { "description": "The JSON request or the filled printer job exceeds 2 MiB." },
           "415": { "description": "Use Content-Type application/json." }

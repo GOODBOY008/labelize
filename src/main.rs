@@ -687,7 +687,7 @@ async fn serve(host: String, port: u16) {
         headers: HeaderMap,
         body: Result<Bytes, BytesRejection>,
     ) -> impl IntoResponse {
-        use labelize::template::{fill_json_request, TemplateRequestError};
+        use labelize::template::{fill_json_job, TemplateRequestError};
         let media_type = headers
             .get(header::CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
@@ -708,10 +708,15 @@ async fn serve(host: String, port: u16) {
             }
             Err(e) => return e.into_response(),
         };
-        match tokio::task::spawn_blocking(move || fill_json_request(&body)).await {
-            Ok(Ok(job)) => {
-                ([(header::CONTENT_TYPE, "application/octet-stream")], job).into_response()
-            }
+        match tokio::task::spawn_blocking(move || fill_json_job(&body)).await {
+            Ok(Ok(job)) => (
+                [
+                    (header::CONTENT_TYPE, "application/octet-stream"),
+                    (header::CONTENT_DISPOSITION, job.content_disposition()),
+                ],
+                job.bytes,
+            )
+                .into_response(),
             Ok(Err(TemplateRequestError::TooLarge(message))) => {
                 (StatusCode::PAYLOAD_TOO_LARGE, message).into_response()
             }
