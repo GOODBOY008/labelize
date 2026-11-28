@@ -1,7 +1,7 @@
 // Run after wasm/build.sh: node --experimental-vm-modules --test workers/*.test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createContext, SourceTextModule, SyntheticModule } from 'node:vm';
+import { createContext, runInNewContext, SourceTextModule, SyntheticModule } from 'node:vm';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import * as glue from '../wasm/npm/labelize_wasm_bg.js';
@@ -130,15 +130,59 @@ test('CORS survives actual WASM success, bad requests, and validation failures',
     assert.equal(response.headers.get('access-control-allow-origin'), '*', path);
     if (path.startsWith('/validate?language=tspl')) assert.equal((await response.json()).ok, false);
   }
-  const html = await worker.fetch(new Request('https://example.com/'), {});
+  const html = await worker.fetch(new Request('https://example.com/playground/'), {});
   assert.equal(html.headers.has('access-control-allow-origin'), false);
   assert.deepEqual(JSON.parse(/<script id="api-data" type="application\/json">([\s\S]*?)<\/script>/.exec(await html.text())[1]), spec);
 });
 
 test('playground includes the complete embedded font notice', async () => {
   const notice = readFileSync(new URL('../licenses/Unifont-OFL.txt', import.meta.url), 'utf8');
-  const response = await worker.fetch(new Request('https://example.com/'), {});
+  const response = await worker.fetch(new Request('https://example.com/playground/'), {});
   assert.ok((await response.text()).includes(`<pre id="unifont-license">${notice}</pre>`));
+});
+
+test('project pages and sitemap use the configured origin without initializing WASM', async () => {
+  const isolated = await loadWorker(createContext({
+    Request, Response, URL, WebAssembly: { instantiate() { throw new Error('unexpected WASM'); } },
+  }));
+  const origin = 'https://labelize.764629910.workers.dev';
+  const base = 'https://labels.example';
+  const ASSETS = { fetch(request) {
+    if (new URL(request.url).pathname === '/sitemap.xml') {
+      return new Response(`<urlset><url><loc>${origin}/docs/</loc></url></urlset>`, { headers: { 'content-type': 'application/xml' } });
+    }
+    const html = `<head><link rel="canonical" href="${origin}/docs/cli/"></head><body>${origin}/convert</body>`;
+    return new Response(html, { headers: { 'content-type': 'text/html', etag: '"original"' } });
+  } };
+  const env = { ASSETS, PUBLIC_BASE_URL: base };
+  const get = (url, method = 'GET') => isolated.fetch(new Request(url, { method }), env);
+  const redirect = await get(origin + '/docs/cli/?q=test');
+  assert.equal(redirect.status, 301);
+  assert.equal(redirect.headers.get('location'), base + '/docs/cli/?q=test');
+  const canonical = await get(base + '/docs/cli/');
+  assert.equal(canonical.headers.has('etag'), false);
+  const head = await get(base + '/docs/cli/', 'HEAD');
+  assert.equal(head.headers.has('etag'), false);
+  assert.equal(await head.text(), '');
+  assert.equal(await canonical.text(), `<head><link rel="canonical" href="${base}/docs/cli/"></head><body>${origin}/convert</body>`);
+  assert.match(await (await get(base + '/sitemap.xml')).text(), /labels\.example\/docs\//);
+  assert.ok((await (await get(base + '/robots.txt')).text()).includes(base + '/sitemap.xml'));
+  assert.equal((await get(base + '/playground')).headers.get('location'), base + '/playground/');
+  assert.equal(await (await get(base + '/playground/', 'HEAD')).text(), '');
+});
+
+test('legacy homepage fragments migrate without sending shared label code to the server', () => {
+  const script = readFileSync(new URL('./site/assets/legacy.js', import.meta.url), 'utf8');
+  for (const [hash, expected] of [
+    ['', null], ['#integrate', null], ['#docs', '/docs/'],
+    ['#docs/http/post-convert', '/docs/http/#post-convert'], ['#docs/rust', '/docs/rust/'],
+    ['#api', '/playground/#api'], ['#playground', '/playground/#playground'],
+    ['#f=dpl&u=mm&d=8&c=bZXhhbXBsZQ', '/playground/#f=dpl&u=mm&d=8&c=bZXhhbXBsZQ'],
+  ]) {
+    let destination = null;
+    runInNewContext(script, { location: { hash, search: '', replace(value) { destination = value; } }, URLSearchParams });
+    assert.equal(destination, expected);
+  }
 });
 
 test('worker uses real WASM and preserves both round trips', async () => {

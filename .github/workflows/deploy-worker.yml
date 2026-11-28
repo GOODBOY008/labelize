@@ -11,6 +11,9 @@ on:
     # in #105 were both live-missing until manually noticed).
     paths:
       - 'workers/**'
+      - 'docs/**'
+      - 'tools/docs/**'
+      - 'testdata/templates/**'
       - 'wasm/**'
       - 'src/**'
       - 'licenses/Unifont-OFL.txt'
@@ -39,6 +42,13 @@ jobs:
       - name: Build engine
         run: ./build.sh
         working-directory: wasm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Build the project website
+        run: |
+          python -m pip install -r tools/docs/requirements.txt
+          python workers/site/build.py
       - name: Deploy
         run: npx --yes wrangler@4 deploy
         working-directory: workers

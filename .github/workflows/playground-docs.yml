@@ -7,6 +7,8 @@ on:
       - 'docs/**'
       - 'tools/docs/**'
       - 'src/playground/docs.html'
+      - 'workers/site/**'
+      - 'testdata/templates/**'
       - '.github/workflows/playground-docs.yml'
   pull_request:
     branches: [master, main]
@@ -14,6 +16,8 @@ on:
       - 'docs/**'
       - 'tools/docs/**'
       - 'src/playground/docs.html'
+      - 'workers/site/**'
+      - 'testdata/templates/**'
       - '.github/workflows/playground-docs.yml'
 
 permissions:
@@ -30,3 +34,5 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -r tools/docs/requirements.txt
       - run: python tools/docs/build.py --check
+      - run: python workers/site/build.py
+      - run: python -m unittest discover -s workers/site -p test_docs.py

@@ -37,7 +37,7 @@ and `labels` counts **all labels in the input**. Set `width_mm`, `height_mm` or
 
 | Task | How |
 | --- | --- |
-| Fill an exported printer template | Load a `PrintTemplate` once, then call `fill` for each order and pass the returned printer bytes to `render_png` or `render_pdf`. [Rust template example](https://labelize.764629910.workers.dev/#docs/print-templates/rust-sdk) |
+| Fill an exported printer template | Load a `PrintTemplate` once, then call `fill` for each order and pass the returned printer bytes to `render_png` or `render_pdf`. [Rust template example](https://labelize.764629910.workers.dev/docs/print-templates/#rust-sdk) |
 | Preview every label in a batch | [`parse_labels`](https://docs.rs/labelize/latest/labelize/lang/fn.parse_labels.html) returns one `LabelInfo` per label. Pass each one to `Renderer::draw_label_as_png`. |
 | Check input before rendering | [`validate`](https://docs.rs/labelize/latest/labelize/lang/fn.validate.html) reports the detected language, label count and any parse error. |
 | Print an existing image | [`encode_image_bytes`](https://docs.rs/labelize/latest/labelize/reverse/fn.encode_image_bytes.html) converts encoded image bytes to ZPL graphic commands or a TSPL command stream with a binary bitmap. |
@@ -57,4 +57,4 @@ validation and image-to-printer-code conversion. Opt in to additional features a
 | `playground` | Embed the web playground in your own application. |
 | `skill` | Analyze rendering differences and extract ZPL snippets for diagnosis. |
 
-[Rust API reference](https://docs.rs/labelize) · [Rust integration tutorial](https://labelize.764629910.workers.dev/#docs/rust) · [Try the playground](https://labelize.764629910.workers.dev)
+[Rust API reference](https://docs.rs/labelize) · [Rust integration tutorial](https://labelize.764629910.workers.dev/docs/rust/) · [Try the playground](https://labelize.764629910.workers.dev/playground/)

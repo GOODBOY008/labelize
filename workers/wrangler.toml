@@ -7,3 +7,11 @@ compatibility_date = "2026-08-01"
 # point at it and the workers.dev HTML page 301-redirects there:
 # [vars]
 # PUBLIC_BASE_URL = "https://labelize.dev"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+html_handling = "force-trailing-slash"
+not_found_handling = "none"
+# The Worker applies PUBLIC_BASE_URL to pages; static files can go straight to the edge.
+run_worker_first = ["/*", "!/assets/*"]
