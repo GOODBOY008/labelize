@@ -1,4 +1,4 @@
-// Labelize Cloudflare Worker: shared playground and public synchronous API.
+// Labelize Cloudflare Worker: project website, playground and synchronous API.
 //
 // The wasm-bindgen thin entry (labelize_wasm.js) auto-initializes with the
 // bundler's wasm import, which workerd resolves to a module (not an instance),
@@ -28,15 +28,6 @@ function ensureEngine() {
   return ready;
 }
 
-function htmlResponse() {
-  return new Response(htmlPage, {
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "no-cache",
-    },
-  });
-}
-
 // Canonical public origin of the hosted playground. Once a custom domain is
 // attached, set PUBLIC_BASE_URL (wrangler.toml [vars] or the dashboard) so
 // canonical/OG/JSON-LD URLs, robots.txt and the sitemap consolidate on it
@@ -48,21 +39,56 @@ function baseUrl(env) {
   return raw || DEFAULT_BASE_URL;
 }
 
-// Mirrors labelize::playground::robots_txt / sitemap_xml.
 function robotsTxt(base) {
   return `User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n`;
 }
 
-function sitemapXml(base) {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${base}/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>
-`;
+async function publicPage(request, env, url) {
+  const base = baseUrl(env);
+  const path = url.pathname;
+  if (path === "/robots.txt") {
+    return textResponse(request.method === "HEAD" ? null : robotsTxt(base), "text/plain; charset=utf-8");
+  }
+  if (base !== DEFAULT_BASE_URL && url.origin !== base) {
+    return Response.redirect(base + path + url.search, 301);
+  }
+  if (path === "/playground") return Response.redirect(url.origin + "/playground/" + url.search, 308);
+  if (path === "/playground/") {
+    if (request.method !== "HEAD" && !htmlPage) {
+      await ensureEngine();
+      // The native package uses the same document at /. Change only hosted
+      // viewer metadata; examples in the embedded guides keep their own URLs.
+      const source = lz_playground_html();
+      const headEnd = source.indexOf("</head>");
+      htmlPage = source.slice(0, headEnd).replaceAll(DEFAULT_BASE_URL + '/', DEFAULT_BASE_URL + '/playground/')
+        + source.slice(headEnd).replace("<!--hosted-project-link-->",
+          '<a id="project-home" href="/" class="position-absolute top-0 start-0 w-100 h-100 rounded" aria-label="Labelize"></a>');
+    }
+    const html = request.method === "HEAD" ? null : rewriteHeadOrigin(htmlPage, base);
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
+  }
+
+  if (base === DEFAULT_BASE_URL) return env.ASSETS.fetch(request);
+  // Custom-domain pages have different bytes. The assets service cannot
+  // validate a conditional or range request for the rewritten representation.
+  const assetRequest = new Request(request);
+  for (const header of ["if-none-match", "if-modified-since", "if-range", "range"]) {
+    assetRequest.headers.delete(header);
+  }
+  const asset = await env.ASSETS.fetch(assetRequest);
+  const isSitemap = path === "/sitemap.xml";
+  const type = asset.headers.get("content-type") || "";
+  if (asset.status !== 200 || (!isSitemap && !type.includes("text/html"))) return asset;
+  const headers = { "content-type": type, "cache-control": "no-cache" };
+  if (request.method === "HEAD") return new Response(null, { headers });
+  const source = await asset.text();
+  return new Response(isSitemap ? source.replaceAll(DEFAULT_BASE_URL, base) : rewriteHeadOrigin(source, base), { headers });
+}
+
+function rewriteHeadOrigin(html, base) {
+  if (base === DEFAULT_BASE_URL) return html;
+  const end = html.indexOf("</head>");
+  return html.slice(0, end).replaceAll(DEFAULT_BASE_URL, base) + html.slice(end);
 }
 
 function textResponse(body, type) {
@@ -297,30 +323,13 @@ function corsResponse(response, method) {
 async function route(request, env, url) {
   if (request.method === "GET" && url.pathname === "/openapi.json") return jsonResponse(openapi);
   if (request.method === "GET" && url.pathname === "/health") return jsonResponse({ status: "ok" });
-  // Static API metadata and OPTIONS must work without initializing WASM.
-  await ensureEngine();
-  if (request.method === "GET" && url.pathname === "/" && !htmlPage) htmlPage = lz_playground_html();
-  const base = baseUrl(env);
-  if (request.method === "GET") {
-    if (url.pathname === "/") {
-      // Once PUBLIC_BASE_URL names a custom domain, send the workers.dev
-      // HTML page there so search engines index a single origin. API
-      // endpoints keep answering on both hosts.
-      if (base !== DEFAULT_BASE_URL && url.hostname !== new URL(base).hostname) {
-        return Response.redirect(base + "/", 301);
-      }
-      if (base !== DEFAULT_BASE_URL && !htmlPage.includes(base)) {
-        htmlPage = htmlPage.split(DEFAULT_BASE_URL).join(base);
-      }
-      return htmlResponse();
-    }
-    if (url.pathname === "/robots.txt") {
-      return textResponse(robotsTxt(base), "text/plain; charset=utf-8");
-    }
-    if (url.pathname === "/sitemap.xml") {
-      return textResponse(sitemapXml(base), "application/xml; charset=utf-8");
-    }
+  if (request.method === "GET" || request.method === "HEAD") {
+    if (!API_METHODS.has(url.pathname)) return publicPage(request, env, url);
   }
+  if (request.method !== "POST" || !API_METHODS.has(url.pathname)) {
+    return jsonResponse({ error: "Not Found" }, 404);
+  }
+  await ensureEngine();
   if (request.method === "POST" && url.pathname === "/convert") return convert(request, url);
   if (request.method === "POST" && url.pathname === "/validate") return validate(request, url);
   if (request.method === "POST" && url.pathname === "/format") return formatLabel(request, url);

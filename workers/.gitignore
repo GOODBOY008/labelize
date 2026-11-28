@@ -2,3 +2,8 @@ node_modules/
 
 # Wrangler local state
 .wrangler/
+
+# Public site build and local Python environment
+dist/
+.venv/
+__pycache__/

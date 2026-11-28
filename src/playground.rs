@@ -152,7 +152,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
 </noscript>
 
 <header class="app-header">
-  <div class="logo navbar-brand">
+  <div class="logo navbar-brand position-relative">
+    <!--hosted-project-link-->
     <svg class="logo-icon bg-white rounded p-1" viewBox="374 246 520 471" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="lzA" x1="0.08" y1="0.02" x2="0.95" y2="0.98"><stop offset="0%" stop-color="#10a7f5"/><stop offset="52%" stop-color="#167ce9"/><stop offset="100%" stop-color="#4734e9"/></linearGradient>
@@ -1068,6 +1069,8 @@ window.__LABELIZE_CONFIG__ = {/*__CONFIG__*/};
   }
 
   function applyI18n() {
+    var projectHome = document.getElementById("project-home");
+    if (projectHome) projectHome.href = lang === "zh" ? "/zh/" : "/";
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
     document.title = t("app.title");
 

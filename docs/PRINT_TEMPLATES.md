@@ -21,7 +21,7 @@ and [sample order](../testdata/templates/first.json). Save them as
 
 1. Open the **API** tab and choose **POST /template/fill**. The
    built-in request fills a small ZPL label with the order number `000123`.
-   [Public API console](https://labelize.764629910.workers.dev/#api)
+   [Public API console](https://labelize.764629910.workers.dev/playground/#api)
 2. Choose **Send request**. **Download printer job** saves `job.zpl` for this
    example. Other languages use their own extensions. These native
    printer files can include binary graphics.
